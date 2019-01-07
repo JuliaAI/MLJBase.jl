@@ -1,0 +1,6 @@
+authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
+name = "MLJInterface"
+uuid = "277f73de-12c3-11e9-3be9-abad22855149"
+version = "0.1.0"
+
+[deps]
