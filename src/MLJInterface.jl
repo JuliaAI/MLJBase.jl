@@ -1,12 +1,12 @@
 module MLJInterface
 
-export Supervised, Unsupervised
-export Names
-
-export predict, predict_mean, predict_mode
+export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
+export fit
+export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
 
-export UnivariateNominal
+export @show, @constant                # from show.jl
+export UnivariateNominal               # from distributions.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -14,7 +14,7 @@ export pdf, mean, mode
 import Base.==
 using Query
 import TableTraits
-import DataFrames
+import DataFrames                # TODO: get rid of this dependency
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
@@ -50,12 +50,12 @@ abstract type Probabilistic{R} <: Supervised{R} end
 # supervsied models that `predict` point-values are of:
 abstract type Deterministic{R} <: Supervised{R} end
 
+# for displaying objects of `MLJType`:
+include("show.jl") 
+
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
-
-# for displaying objects of `MLJType`:
-include("show.jl") 
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
