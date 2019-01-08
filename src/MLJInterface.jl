@@ -10,7 +10,7 @@ export transform, inverse_transform, se, evaluate, best
 export pdf, mean, mode
 
 import Base.==
-import Query
+using Query
 import TableTraits
 import DataFrames
 import Distributions
@@ -19,6 +19,7 @@ using CategoricalArrays
 
 # from Standard Library:
 using Statistics
+
 
 ## CONSTANTS
 
@@ -113,56 +114,5 @@ function ==(m1::M, m2::M) where M<:Model
     end
     return ret
 end
-
-
-## LOAD VARIOUS INTERFACE COMPONENTS
-
-include("machines.jl")
-include("networks.jl")
-include("composites.jl")
-include("operations.jl")
-include("resampling.jl")
-include("parameters.jl")
-include("tuning.jl")
-
-
-## LOAD BUILT-IN MODELS
-
-include("builtins/Transformers.jl")
-include("builtins/Constant.jl")
-include("builtins/KNN.jl")
-
-
-## SETUP LAZY PKG INTERFACE LOADING
-
-# note: presently an MLJ interface to a package, eg `DecisionTree`,
-# is not loaded by `using MLJ` alone; one must additionally call
-# `import DecisionTree`.
-
-# files containing a pkg interface must have same name as pkg plus ".jl"
-
-macro load_interface(pkgname, uuid::String, load_instr)
-    (load_instr.head == :(=) && load_instr.args[1] == :lazy) ||
-        throw(error("Invalid load instruction"))
-    lazy = load_instr.args[2]
-    filename = joinpath("interfaces", string(pkgname, ".jl"))
-
-    if lazy
-        quote
-            @require $pkgname=$uuid include($filename)
-        end
-    else
-        quote
-            @eval include(joinpath($srcdir, $filename))
-        end
-    end
-end
-
-function __init__()
-    @load_interface DecisionTree "7806a523-6efd-50cb-b5f6-3fa6f1930dbb" lazy=true
-    @load_interface  MultivariateStats "6f286f6a-111f-5878-ab1e-185364afe411" lazy=true
-end
-
-#@load_interface XGBoost "009559a3-9522-5dbb-924b-0b6ed2b22bb9" lazy=false
 
 end # module

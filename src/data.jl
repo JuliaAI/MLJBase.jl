@@ -102,12 +102,12 @@ a `Matrix`, return `X`.
 function matrix(X)
     TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
 
-    df= Query.@from row in X begin
-        Query.@select row
-        Query.@collect DataFrames.DataFrame
+    df = @from row in X begin
+        @select row
+        @collect DataFrames.DataFrame
     end
     return convert(Matrix, df)
-
+    
 end
 
 matrix(X::Matrix) = X
