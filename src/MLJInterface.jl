@@ -6,6 +6,8 @@ export Names
 export predict, predict_mean, predict_mode
 export transform, inverse_transform, se, evaluate, best
 
+export UnivariateNominal
+
 # methods from other packages to be rexported:
 export pdf, mean, mode
 
@@ -74,11 +76,14 @@ update(model::Model, verbosity, fitresult, cache, args...) =
 # supervised models must implement this operation:
 function predict end
 
-# supervised models that predict probabilities by default may also
-# implement one of these operations to do "point" predictions:
-function predict_mode end # classifiers
-function predict_mean end # regressors
-# TODO: provide fallbacks for these
+# probabilistic supervised models may also overload one or more of
+# these operations delevering point predictions:
+predict_mode(model::Supervised, fitresult, Xnew) =
+    mode.(predict(model, fitresult, Xnew))
+predict_mean(model::Supervised, fitresult, Xnew) =
+    mean.(predict(model, fitresult, Xnew))
+predict_median(model::Supervised, fitresult, Xnew) =
+    median.(predict(model, fitresult, Xnew))
 
 # unsupervised methods must implement this operation:
 function transform end
