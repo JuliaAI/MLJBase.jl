@@ -10,7 +10,7 @@ export transform, inverse_transform, se, evaluate, best
 export pdf, mean, mode
 
 import Base.==
-using Query
+import Query
 import TableTraits
 import DataFrames
 import Distributions
@@ -41,8 +41,14 @@ abstract type Model <: MLJType end
 abstract type Supervised{R} <: Model end # parameterized by fit-result type `R`
 abstract type Unsupervised <: Model  end
 
+# supervised models that `predict` probability distributions are of:
+abstract type Probabilistic{R} <: Supervised{R} end
 
-# probability distributions not provided by Distributions.jl package:
+# supervsied models that `predict` point-values are of:
+abstract type Deterministic{R} <: Supervised{R} end
+
+# probability distributions and methods not provided by
+# Distributions.jl package:
 include("distributions.jl")
 
 # for displaying objects of `MLJType`:
