@@ -15,4 +15,4 @@ TableTraits = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "DecisionTree", "CategoricalArrays"]
+test = ["Test"]
