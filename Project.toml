@@ -1,5 +1,5 @@
 name = "MLJBase"
-uuid = "277f73de-12c3-11e9-3be9-abad22855149"
+uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
 version = "0.1.0"
 
@@ -10,9 +10,3 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Query = "1a8c2f83-1ff3-5112-b086-8aa67b057ba1"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TableTraits = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
