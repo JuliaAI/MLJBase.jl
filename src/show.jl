@@ -1,13 +1,17 @@
 ## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
 
-const handle_given_id = Dict{UInt64,Symbol}()
+const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
+
+macro colon(p)
+    Expr(:quote, p)
+end
 
 """
     @constant x = value
 
 Equivalent to `const x = value` but registers the binding thus:
 
-    MLJ.handle_given_id[objectid(value)] = :x
+    MLJInterface.HANDLE_GIVEN_ID[objectid(value)] = :x
 
 Registered objects get displayed using the variable name to which it was bound in calls to `show(x)`, etc. 
 
@@ -22,7 +26,7 @@ macro constant(ex)
     quote
         const $(esc(handle)) = $(esc(value))
         id = objectid($(esc(handle)))
-        MLJ.handle_given_id[id] = @colon $handle
+        HANDLE_GIVEN_ID[id] = @colon $handle
         $(esc(handle))
     end
 end
@@ -36,8 +40,8 @@ end
 """return abbreviated object id (as string)  or it's registered handle (as string) if this exists"""
 function handle(X)
     id = objectid(X)
-    if id in keys(handle_given_id)
-        return string(handle_given_id[id])
+    if id in keys(HANDLE_GIVEN_ID)
+        return string(HANDLE_GIVEN_ID[id])
     else
         return abbreviated(id)
     end

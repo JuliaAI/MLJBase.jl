@@ -8,11 +8,11 @@ machine learning framework.
 
 MLJ is a Julia framework for building and tuning machine learning
 models. Any machine learning algorithms written in Julia can be used
-by MLJ if it is defined in a package importing MLJInterface and
-implementing the model API it defines. For more information see
-[Implementing the MLJ interface for a learning
-algorithm](https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md).
+with MLJ if it is defined in a package that imports MLJInterface, and
+implementing the model API defined there. For more information see the MLJ document
+["Implementing the MLJ interface for a learning
+algorithm"](https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md).
 
 For MLJ documentation refer to the
-[MLJ](https://github.com/alan-turing-institute/MLJ.jl) repository.
+[MLJ repository](https://github.com/alan-turing-institute/MLJ.jl).
 

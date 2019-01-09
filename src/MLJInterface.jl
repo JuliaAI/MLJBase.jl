@@ -1,7 +1,7 @@
 module MLJInterface
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export fit
+export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
 
