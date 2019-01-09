@@ -11,7 +11,7 @@ end
 
 Equivalent to `const x = value` but registers the binding thus:
 
-    MLJInterface.HANDLE_GIVEN_ID[objectid(value)] = :x
+    MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
 
 Registered objects get displayed using the variable name to which it was bound in calls to `show(x)`, etc. 
 

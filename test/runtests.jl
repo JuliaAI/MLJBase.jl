@@ -4,7 +4,7 @@
 # eg, `module TestDatasets` for code testing `datasets.jl`.
 
 # using Revise
-using MLJInterface
+using MLJBase
 using Test
 
 @testset "distributions" begin

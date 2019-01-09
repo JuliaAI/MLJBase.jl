@@ -1,4 +1,4 @@
-module MLJInterface
+module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
 export fit, update, clean!, info, coerce

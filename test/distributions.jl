@@ -2,7 +2,7 @@ module TestDistributions
 
 # using Revise
 using Test
-using MLJInterface
+using MLJBase
 import Distributions
 
 ## UNIVARIATE NOMINAL

@@ -1,4 +1,4 @@
-name = "MLJInterface"
+name = "MLJBase"
 uuid = "277f73de-12c3-11e9-3be9-abad22855149"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
 version = "0.1.0"

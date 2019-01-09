@@ -31,7 +31,7 @@ julia> C = categorical(["a" "b"; "a" "c"])
  "a"  "b"
  "a"  "c"
 
-julia> decoder = MLJInterface.CategoricalDecoder(C, eltype=Float64);
+julia> decoder = MLJBase.CategoricalDecoder(C, eltype=Float64);
 julia> A = transform(decoder, C)
 2×2 Array{Float64,2}:
  1.0  2.0
@@ -93,7 +93,7 @@ end
 ## UTILITY FOR CONVERTING INTERABLE TABLE INTO MATRIX
 
 """"
-    MLJInterface.matrix(X)
+    MLJBase.matrix(X)
 
 Convert an iteratable table source `X` into an `Matrix`; or, if `X` is
 a `Matrix`, return `X`.
