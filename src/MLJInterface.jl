@@ -5,8 +5,8 @@ export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
 
-export @show, @constant                # from show.jl
-export UnivariateNominal               # from distributions.jl
+export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
+export UnivariateNominal                  # from distributions.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
