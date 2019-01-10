@@ -4,6 +4,7 @@ export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
+export target_kind, target_quantity, inputs_can_be, is_pure_julia, package_name, package_uuid
 
 export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
 export UnivariateNominal                  # from distributions.jl
@@ -96,11 +97,6 @@ function se end
 function evaluate end
 function best end
 
-# models buying into introspection should
-# implement the following method, dispatched on model
-# *type*:
-function info end
-
 # a model wishing invalid hyperparameters to be corrected with a
 # warning should overload this method (return value is the warning
 # message):
@@ -111,6 +107,42 @@ clean!(fitresult::Model) = ""
 # into the form required by its `fit` method and operations:
 coerce(model::Model, Xtable) = Xtable
 
+# fallback trait declarations:
+target_kind(::Type{<:Supervised}) = :unknown
+target_quantity(::Type{<:Supervised}) = :univariate
+inputs_can_be(::Type{<:Supervised}) = Symbol[]
+is_pure_julia(::Type{<:Supervised}) = :unknown
+package_name(::Type{<:Supervised}) = "unknown"
+package_uuid(::Type{<:Supervised}) = "unknown"
+
+_response(::Type{<:Deterministic}) = :deterministic
+_response(::Type{<:Probabilistic}) = :probabilistic
+
+function info(modeltype::Type{<:Supervised})
+
+    @show modeltype
+    
+    message = "$modeltype has a bad trait declaration."
+    target_kind(modeltype) in [:numeric, :binary, :multiclass, :unknown] ||
+        error(message*"target_kind must return :numeric, :binary, :multiclass (or :unknown).")
+    target_quantity(modeltype) in [:univariate, :multivariate] ||
+        error(message*"target_quantity must return :univariate or :multivariate")
+    issubset(Set(inputs_can_be(modeltype)), Set([:numeric, :nominal, :missing])) ||
+        error(message*"inputs_can_be must return a vector with entries from [:numeric, :nominal, :missing]")
+    is_pure_julia(modeltype) in [:yes, :no, :unknown] ||
+        error(message*"is_pure_julia must return :yes, :no (or :unknown).")
+        
+    d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
+    d[:target_is] = [_response(modeltype), target_kind(modeltype), target_quantity(modeltype)]
+    d[:inputs_can_be] = inputs_can_be(modeltype)
+    d[:is_pure_julia] = is_pure_julia(modeltype)
+    d[:package_name] = package_name(modeltype)
+    d[:package_uuid] = package_uuid(modeltype)
+
+    return d
+end
+info(model::Supervised) = info(typeof(model))
+
 # models are `==` if they have the same type and their field values are `==`:
 function ==(m1::M, m2::M) where M<:Model
     ret = true
@@ -119,5 +151,10 @@ function ==(m1::M, m2::M) where M<:Model
     end
     return ret
 end
+
+
+
+
+
 
 end # module
