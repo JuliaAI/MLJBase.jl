@@ -118,6 +118,10 @@ package_uuid(::Type{<:Supervised}) = "unknown"
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
 
+if VERSION < v"1.0.0"
+    import Base.info
+end
+
 function info(modeltype::Type{<:Supervised})
 
     @show modeltype
