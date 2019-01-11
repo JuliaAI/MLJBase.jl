@@ -3,6 +3,7 @@ module TestDistributions
 # using Revise
 using Test
 using MLJBase
+using CategoricalArrays
 import Distributions
 
 ## UNIVARIATE NOMINAL
@@ -22,11 +23,19 @@ sort!(pairs, by=pair->pair[2], alg=QuickSort)
 sorted_labels = first.(pairs)
 # if this fails it is bug or an exceedingly rare event or a bug:
 @test sorted_labels == ['c', 'a', 'b', 'd']
-                                                 
-d = Distributions.fit(UnivariateNominal, ['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a'])
+
+v=['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a']
+d = Distributions.fit(UnivariateNominal, v) 
 @test pdf(d, 'a') ≈ 0.5
 @test pdf(d, 'b') ≈ 0.375 
 @test pdf(d, 'c') ≈ 0.125
+
+# to check fitting to categorical returns zero prob for missing
+# levels, we add and drop new level to a categorical version of v:
+w = categorical(append!(v, 'f'))
+w = w[1:end-1]
+e = Distributions.fit(UnivariateNominal, w) 
+@test e.prob_given_label['f'] == 0
 
 end # module
 

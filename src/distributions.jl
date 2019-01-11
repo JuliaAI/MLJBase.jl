@@ -130,10 +130,25 @@ function Base.rand(d::UnivariateNominal, n::Int)
     return [labels[_rand(p_cummulative)] for i in 1:n]
 end
     
-function Distributions.fit(d::Type{UnivariateNominal}, v::AbstractVector{L}) where L
+function Distributions.fit(d::Type{<:UnivariateNominal}, v::AbstractVector{L}) where L
     N = length(v)
-    count_given_label = Distributions.countmap(v)
     prob_given_label = Dict{L,Float64}()
+    count_given_label = Distributions.countmap(v)
+    for (x, c) in count_given_label
+        prob_given_label[x] = c/N
+    end
+    return UnivariateNominal(prob_given_label)
+end
+
+# if fitting to categorical array, must include missing labels with prob zero
+function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,R,V}) where {L,R,V}
+    N = length(v)
+    @show V
+    prob_given_label = Dict{V,Float64}() # V is the type of levels
+    for x in levels(v)
+        prob_given_label[x] = 0
+    end
+    count_given_label = Distributions.countmap(skipmissing(v)|>collect)
     for (x, c) in count_given_label
         prob_given_label[x] = c/N
     end
