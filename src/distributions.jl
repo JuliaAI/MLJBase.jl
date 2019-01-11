@@ -1,4 +1,4 @@
-abstract type Distribution <: MLJType end
+abstract type Distribution end
 
 function ==(d1::D, d2::D) where D<:Distribution
     ret = true
@@ -46,10 +46,16 @@ pdf(d, "maybe") ≈ 0.5 # true
 """
 struct UnivariateNominal{L,T<:Real} <: Distribution
     prob_given_label::Dict{L,T}
+    function UnivariateNominal{L,T}(prob_given_label::Dict{L,T}) where {L,T<:Real}
+        p = values(prob_given_label) |> collect
+        Distributions.@check_args(UnivariateNominal, Distributions.isprobvec(p))
+        return new{L,T}(prob_given_label)
+    end
 end
+UnivariateNominal(prob_given_label::Dict{L,T}) where {L,T<:Real} =
+    UnivariateNominal{L,T}(prob_given_label)
 
 function UnivariateNominal(labels::Vector{L}, p::Vector{T}) where {L,T<:Real}
-        Distributions.@check_args(UnivariateNominal, Distributions.isprobvec(p))
         Distributions.@check_args(UnivariateNominal, length(labels)==length(p))
         prob_given_label = Dict{L,T}()
         for i in eachindex(p)
@@ -142,13 +148,12 @@ end
 
 # if fitting to categorical array, must include missing labels with prob zero
 function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,R,V}) where {L,R,V}
-    N = length(v)
-    @show V
+    N = length(skipmissing(v) |> collect)
     prob_given_label = Dict{V,Float64}() # V is the type of levels
     for x in levels(v)
         prob_given_label[x] = 0
     end
-    count_given_label = Distributions.countmap(skipmissing(v)|>collect)
+    count_given_label = Distributions.countmap(skipmissing(v) |> collect)
     for (x, c) in count_given_label
         prob_given_label[x] = c/N
     end

@@ -100,7 +100,7 @@ function best end
 # a model wishing invalid hyperparameters to be corrected with a
 # warning should overload this method (return value is the warning
 # message):
-clean!(fitresult::Model) = ""
+clean!(model::Model) = ""
 
 # supervised models may need to overload the following method to
 # ensure iterable tables compliant input data supplied by user is coerced
@@ -124,8 +124,6 @@ end
 
 function info(modeltype::Type{<:Supervised})
 
-    @show modeltype
-    
     message = "$modeltype has a bad trait declaration."
     target_kind(modeltype) in [:numeric, :binary, :multiclass, :unknown] ||
         error(message*"target_kind must return :numeric, :binary, :multiclass (or :unknown).")
