@@ -64,9 +64,13 @@ include("data.jl")
 
 ## THE MODEL INTERFACE
 
-# every model interface must implement this method, used to generate
-# fit-results:
-function fit end
+# every model interface must implement a `fit` method of the form
+# `fit(model, verbosity, X, y) -> fitresult, cache, report` or
+# `fit(model, verbosity, X, ys...) -> fitresult, cache, report` (multivariate case)
+# or, one the simplified versions
+# `fit(model, X, y) -> fitresult`
+# `fit(model, X, ys...) -> fitresult`
+fit(model::Model, verbosity::Int, args...) = fit(model, args...), nothing, nothing
 
 # each model interface may optionally overload the following refitting
 # method:
@@ -118,6 +122,9 @@ package_uuid(::Type{<:Supervised}) = "unknown"
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
 
+target_is(::Type{<:Supervised}) = [_response(modeltype), target_kind(modeltype), target_quantity(modeltype)]
+
+
 if VERSION < v"1.0.0"
     import Base.info
 end
@@ -135,7 +142,7 @@ function info(modeltype::Type{<:Supervised})
         error(message*"is_pure_julia must return :yes, :no (or :unknown).")
         
     d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
-    d[:target_is] = [_response(modeltype), target_kind(modeltype), target_quantity(modeltype)]
+    d[:target_is] = target_is(modeltype)
     d[:inputs_can_be] = inputs_can_be(modeltype)
     d[:is_pure_julia] = is_pure_julia(modeltype)
     d[:package_name] = package_name(modeltype)
