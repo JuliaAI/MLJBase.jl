@@ -147,8 +147,6 @@ function info(modeltype::Type{<:Supervised})
         modelnamesplit = modelnamesplit[2:end]
     end
     modelname = string(reduce((a, b)->"$a.$b", modelnamesplit))
-    @show modelname typeof(modelname)
-    
 
     d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
     d[:model_name] = modelname
