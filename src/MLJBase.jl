@@ -122,7 +122,8 @@ package_uuid(::Type{<:Supervised}) = "unknown"
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
 
-target_is(::Type{<:Supervised}) = [_response(modeltype), target_kind(modeltype), target_quantity(modeltype)]
+target_is(modeltype::Type{<:Supervised}) =
+    [_response(modeltype), target_kind(modeltype), target_quantity(modeltype)]
 
 
 if VERSION < v"1.0.0"
@@ -140,8 +141,17 @@ function info(modeltype::Type{<:Supervised})
         error(message*"inputs_can_be must return a vector with entries from [:numeric, :nominal, :missing]")
     is_pure_julia(modeltype) in [:yes, :no, :unknown] ||
         error(message*"is_pure_julia must return :yes, :no (or :unknown).")
-        
+
+    modelnamesplit = split(string(modeltype.name), '.')
+    if length(modelnamesplit) > 1
+        modelnamesplit = modelnamesplit[2:end]
+    end
+    modelname = string(reduce((a, b)->"$a.$b", modelnamesplit))
+    @show modelname typeof(modelname)
+    
+
     d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
+    d[:model_name] = modelname
     d[:target_is] = target_is(modeltype)
     d[:inputs_can_be] = inputs_can_be(modeltype)
     d[:is_pure_julia] = is_pure_julia(modeltype)
