@@ -7,13 +7,14 @@ export transform, inverse_transform, se, evaluate, best
 export target_kind, target_quantity, inputs_can_be, is_pure_julia, package_name, package_uuid
 
 export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
-export UnivariateNominal                  # from distributions.jl
+export UnivariateNominal, average         # from distributions.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
 
 import Base.==
-import Base.+ 
+# import Base.+
+# import Base.*
 using Query
 import TableTraits
 import DataFrames                # TODO: get rid of this dependency

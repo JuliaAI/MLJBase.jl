@@ -6,6 +6,7 @@ using MLJBase
 using CategoricalArrays
 import Distributions
 
+
 ## UNIVARIATE NOMINAL
 
 v = collect("asdfghjklzxc")
@@ -40,9 +41,8 @@ e = Distributions.fit(UnivariateNominal, w)
 # arithmetic
 d1 = UnivariateNominal(['a', 'b'], [0.2, 0.8])
 d2 = UnivariateNominal(['b', 'c'], [0.3, 0.7])
-d = d1 + d2
+d = average([d1, d2])
 @test d.prob_given_label['a'] ≈ 0.1 && d.prob_given_label['b'] ≈ 0.55 &&  d.prob_given_label['c'] ≈ 0.35
-
 
 
 end # module

@@ -64,13 +64,23 @@ function UnivariateNominal(labels::Vector{L}, p::Vector{T}) where {L,T<:Real}
         return  UnivariateNominal(prob_given_label)
 end
 
-function +(ds::UnivariateNominal{L,T}...) where {L,T}
+function average(dvec::Vector{UnivariateNominal{L,T}}; weights=nothing) where {L,T}
 
+    n = length(dvec)
+    
+    Distributions.@check_args(UnivariateNominal, weights == nothing || n==length(weights))
+
+    if weights == nothing
+        weights = fill(1/n, n)
+    else
+        weights = weights/sum(weights)
+    end
+            
     # get all labels:
-    labels = reduce(union, [keys(d.prob_given_label) for d in ds])
+    labels = reduce(union, [keys(d.prob_given_label) for d in dvec])
 
     z = Dict{L,T}([x => zero(T) for x in labels]...)
-    vector_of_prob_given_labels = map(ds) do d
+    prob_given_label_vec = map(dvec) do d
         merge(z, d.prob_given_label)
     end
 
@@ -81,17 +91,15 @@ function +(ds::UnivariateNominal{L,T}...) where {L,T}
     end
     
     # sum up:
-    weight = 1/length(ds)
     for x in labels
-        for dic in vector_of_prob_given_labels
-            prob_given_label[x] += weight*dic[x]
+        for k in 1:n
+            prob_given_label[x] += weights[k]*prob_given_label_vec[k][x]
         end
     end
 
     return UnivariateNominal(prob_given_label)
 
 end        
-    
 
 function Distributions.mode(d::UnivariateNominal)
     dic = d.prob_given_label
@@ -190,3 +198,11 @@ function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,
 end
     
     
+## NORMAL DISTRIBUTION ARITHMETIC
+
+# *(lambda::Number, d::Distributions.Normal) = Distributions.Normal(lambda*d.μ, lambda*d.σ)
+# function +(ds::Distributions.Normal...)
+#     μ = sum([d.μ for d in ds])
+#     σ = sum([d.σ^2 for d in ds]) |> sqrt
+#     return Distributions.Normal(μ, σ)
+# end
