@@ -37,6 +37,14 @@ w = w[1:end-1]
 e = Distributions.fit(UnivariateNominal, w) 
 @test e.prob_given_label['f'] == 0
 
+# arithmetic
+d1 = UnivariateNominal(['a', 'b'], [0.2, 0.8])
+d2 = UnivariateNominal(['b', 'c'], [0.3, 0.7])
+d = d1 + d2
+@test d.prob_given_label['a'] ≈ 0.1 && d.prob_given_label['b'] ≈ 0.55 &&  d.prob_given_label['c'] ≈ 0.35
+
+
+
 end # module
 
 true

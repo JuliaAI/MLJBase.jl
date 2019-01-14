@@ -64,6 +64,35 @@ function UnivariateNominal(labels::Vector{L}, p::Vector{T}) where {L,T<:Real}
         return  UnivariateNominal(prob_given_label)
 end
 
+function +(ds::UnivariateNominal{L,T}...) where {L,T}
+
+    # get all labels:
+    labels = reduce(union, [keys(d.prob_given_label) for d in ds])
+
+    z = Dict{L,T}([x => zero(T) for x in labels]...)
+    vector_of_prob_given_labels = map(ds) do d
+        merge(z, d.prob_given_label)
+    end
+
+    # initialize the prob dictionary for the distribution sum:
+    prob_given_label = Dict{L,T}()
+    for x in labels
+        prob_given_label[x] = zero(T)
+    end
+    
+    # sum up:
+    weight = 1/length(ds)
+    for x in labels
+        for dic in vector_of_prob_given_labels
+            prob_given_label[x] += weight*dic[x]
+        end
+    end
+
+    return UnivariateNominal(prob_given_label)
+
+end        
+    
+
 function Distributions.mode(d::UnivariateNominal)
     dic = d.prob_given_label
     p = values(dic)
