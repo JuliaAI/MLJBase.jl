@@ -11,11 +11,16 @@ end
 
 # DISTRIBUTION AS TRAIT
 
+# fallback
+isdistribution(::Type{<:Any}) = false
+
 # for distributions in Distributions.jl:
-isdistribution(::Distributions.Distribution) = true
+isdistribution(::Type{<:Distributions.Distribution}) = true
 
 # for MLJ custom distibutions defined below:
-isdistribution(::Distribution) = true  
+isdistribution(::Type{Distribution}) = true  
+
+isdistribution(d) = isdistribution(typeof(d))
 
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
@@ -206,3 +211,7 @@ end
 #     σ = sum([d.σ^2 for d in ds]) |> sqrt
 #     return Distributions.Normal(μ, σ)
 # end
+
+# hack for issue #809 in Distributions.jl:
+Distributions.fit(::Type{Distributions.Normal{T}}, args...) where T = Distributions.fit(Distributions.Normal, args...)
+
