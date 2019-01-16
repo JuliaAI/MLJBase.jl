@@ -1,6 +1,10 @@
+# Users of this module should first read the document
+# https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md 
+
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
+export Rows, Columns, Names, Eltypes, getrows, nrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
@@ -13,8 +17,6 @@ export UnivariateNominal, average         # from distributions.jl
 export pdf, mean, mode
 
 import Base.==
-# import Base.+
-# import Base.*
 using Query
 import TableTraits
 import DataFrames                # TODO: get rid of this dependency
@@ -109,9 +111,20 @@ function best end
 clean!(model::Model) = ""
 
 # supervised models may need to overload the following method to
-# ensure iterable tables compliant input data supplied by user is coerced
-# into the form required by its `fit` method and operations:
+# ensure the input data supplied by user (something implementing the
+# Queryverse iterable table API) is coerced into the form required by
+# its `fit` method and operations:
 coerce(model::Model, Xtable) = Xtable
+
+# if the return type `TABLE` of `coerce` is not a Queryverse
+# iterable table (eg, `DataFrame`) or a `Matrix` (with rows
+# corresponding to patterns and columns corresponding to features)
+# then users will not be able to use MLJ's performant `EnsembleModel`
+# on `model` unless one overloads the following method for type
+# `TABLE`:
+getrows(X, r) = X[Rows, r]  
+# here `r` is any integer, unitrange or colon `:`, and `X[Rows, r]` is
+# defined in `data.jl`.
 
 # fallback trait declarations:
 target_kind(::Type{<:Supervised}) = :unknown
