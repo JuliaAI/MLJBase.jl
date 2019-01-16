@@ -4,7 +4,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export Rows, Columns, Names, Eltypes, getrows, nrows
+export Rows, Cols, Names, Eltypes, getrows, nrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
