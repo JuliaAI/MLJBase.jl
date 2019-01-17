@@ -117,7 +117,7 @@ clean!(model::Model) = ""
 coerce(model::Model, Xtable) = Xtable
 
 # if the return type `TABLE` of `coerce` is not a Queryverse
-# iterable table (eg, `DataFrame`) or a `Matrix` (with rows
+# iterable table or a `Matrix` (with rows
 # corresponding to patterns and columns corresponding to features)
 # then users will not be able to use MLJ's performant `EnsembleModel`
 # on `model` unless one overloads the following method for type
