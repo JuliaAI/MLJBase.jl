@@ -159,8 +159,8 @@ Base.getindex(A, ::Type{Eltypes}, j) = A[Eltypes][j]
      
 #Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Rows}, r) = df[r,:]
 Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Cols}, c) = df[c]
-Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Names}) = names(df)
-Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Eltypes}) = eltypes(df)
+Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Names}) = DataFrames.names(df)
+Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Eltypes}) = DataFrames.eltypes(df)
 nrows(df::DataFrames.AbstractDataFrame) = size(df, 1)
 
 #Base.getindex(df::JuliaDB.NextTable, ::Type{Rows}, r) = df[r]
