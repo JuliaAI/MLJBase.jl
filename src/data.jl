@@ -154,7 +154,9 @@ function nrows(X)
     return length(row_iterator)
 
 end
-      
+
+Base.getindex(A, ::Type{Eltypes}, j) = A[Eltypes][j]
+     
 #Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Rows}, r) = df[r,:]
 Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Cols}, c) = df[c]
 Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Names}) = names(df)
