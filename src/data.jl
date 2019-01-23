@@ -90,7 +90,7 @@ function inverse_transform(decoder::CategoricalDecoder{I,T,N,R}, A::Array{J}) wh
 end
 
 
-## UTILITY FOR CONVERTING QUERYVERSE ITERABLE TABLE INTO MATRIX
+## UTILITY FOR CONVERTING TABULAR DATA INTO MATRIX
 
 """"
     MLJBase.matrix(X)
@@ -115,19 +115,42 @@ matrix(X::Matrix) = X
 
 ## TOOLS FOR INDEXING QUERYVERSE ITERABLE TABLES
 
-# TODO: When the Queryverse columns-view interface becomes widely
-# implemented, a better solution, removing specific container
-# dependencies, will be possible.
-
 struct Rows end
 struct Cols end
-struct Names end
-struct Eltypes end
+struct Schema
+    nrows::Int
+    ncols::Int
+    names::Vector{Symbol}
+    eltypes::Vector{DataType}
+end
 
-# fallback to select rows of any iterable table `X` with `X[Rows, r]`:
-function Base.getindex(X::T, ::Type{Rows}, r) where T
+# for accessing tabular data:
+retrieve(X, args...) = retrieve(Val(TableTraits.isiterabletable(X)), X, args...)
+retrieve(::Val{false}, X, args...) = error("Argument is not an iterable table.")
 
-    TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
+# Note: to `retrieve` from matrices and other non-iterabletable data,
+# we overload the second method above.
+
+# project named tuple onto a tuple with only specified `labels` or indices:
+project(t::NamedTuple, labels::AbstractArray{Symbol}) =
+    NamedTuple{tuple(labels...)}(tuple([getproperty(t, n) for n in labels]...))
+project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
+    NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
+
+# to select columns `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
+# CURRENTLY RETURNS A DATAFRAME AND NOT THE ORIGINAL TYPE
+function retrieve(::Val{true}, X::T, ::Type{Cols}, c::AbstractArray{I}) where {T,I<:Union{Symbol,Integer}}
+
+    row_iterator = @from row in X begin
+        @select project(row, c)
+        @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
+    end
+                    
+end
+
+# to select rows `r` of any tabular data `X` with `retrieve(X, Rows, c)`:
+# CURRENTLY RETURNS A DATAFRAME AND NOT THE ORIGINAL TYPE
+function retrieve(::Val{true}, X::T, ::Type{Rows}, r) where T
 
     row_iterator = @from row in X begin
         @select row
@@ -136,47 +159,59 @@ function Base.getindex(X::T, ::Type{Rows}, r) where T
                     
     return @from row in row_iterator[r] begin
         @select row
-        @collect T
+        @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
     end
 
 end
 
-# fallback to get the number of rows of an iterable table:
-function nrows(X)
+# to get the number of nrows, ncols, feature names and eltypes of an
+# tabular data:
+function retrieve(::Val{true}, X, ::Type{Schema})
 
     TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
 
     row_iterator = @from row in X begin
-        @select {}
+        @select row
         @collect
     end
+
+    nrows = length(row_iterator)
+    if nrows == 0
+        ncols = 0
+        _names = Symbol[]
+        _eltypes = DataType[]
+    else
+        row = first(row_iterator) # a named tuple
+        ncols = length(row)
+        _names = keys(row) |> collect
+        _eltypes = DataType[eltype(x) for x in row]
+    end
                     
-    return length(row_iterator)
+    return Schema(nrows, ncols, _names, _eltypes)
 
 end
 
-Base.getindex(A, ::Type{Eltypes}, j) = A[Eltypes][j]
-     
-#Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Rows}, r) = df[r,:]
-Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Cols}, c) = df[c]
-Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Names}) = DataFrames.names(df)
-Base.getindex(df::DataFrames.AbstractDataFrame, ::Type{Eltypes}) = DataFrames.eltypes(df)
-nrows(df::DataFrames.AbstractDataFrame) = size(df, 1)
+# retrieve(df::JuliaDB.IndexedTable, ::Type{Rows}, r) = df[r]
+# retrieve(df::JuliaDB.NextTable, ::Type{Cols}, c) = select(df, c)
+# retrieve(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
+# retrieve(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
 
-#Base.getindex(df::JuliaDB.NextTable, ::Type{Rows}, r) = df[r]
-#Base.getindex(df::JuliaDB.NextTable, ::Type{Cols}, c) = select(df, c)
-#Base.getindex(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
-# nrows(df::JuliaDB.NextTable) = length(df)
+retrieve(::Val{false}, A::Matrix, ::Type{Rows}, r) = A[r,:]
+retrieve(::Val{false}, A::Matrix, ::Type{Cols}, c) = A[:,c]
+function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
+    nrows = size(A, 1)
+    ncols = size(A, 2)
+    _names = [Symbol(:x, j) for j in 1:ncols]
+    _eltypes = fill(T, ncols)
+    return Schema(nrows, ncols, _names, _eltypes)
+end
 
-Base.getindex(A::AbstractMatrix, ::Type{Rows}, r) = A[r,:]
-Base.getindex(A::AbstractMatrix, ::Type{Cols}, c) = A[:,c]
-Base.getindex(A::AbstractMatrix, ::Type{Names}) = 1:size(A, 2)
-Base.getindex(A::AbstractMatrix{T}, ::Type{Eltypes}) where T = [T for j in 1:size(A, 2)]
-nrows(A::AbstractMatrix) = size(A, 1)
-
-Base.getindex(v::AbstractVector, ::Type{Rows}, r) = v[r]
-Base.getindex(v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r) = @inbounds v[r]
-nrows(v::AbstractVector) = length(v)
-
-
+retrieve(::Val{false}, v::Vector, ::Type{Rows}, r) = v[r]
+retrieve(::Val{false}, v::Vector, ::Type{Cols}, c) = error("Abstract vectors are not column-indexable.")
+retrieve(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema(length(v), 1, [:x], [T,])
+retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r) = @inbounds v[r]
+retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r) =
+    error("Categorical vectors are not column-indexable.")
+retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
+    retrieve(Val(false), collect(v), Schema)
 
