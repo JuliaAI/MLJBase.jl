@@ -24,6 +24,8 @@ df = DataFrame(A)
 df.z  =1:10
 @test retrieve(df, Cols, 4:6) == df[4:6]
 @test retrieve(df, Cols, [:x1, :z]) == df[[:x1, :z]]
+@test retrieve(df, Cols, :x2) == df.x2
+@test retrieve(df, Cols, 2) == df.x2
 @test retrieve(df, Rows, 4:6) == df[4:6, :]
 s = retrieve(df, Schema)
 @test (s.nrows, s.ncols) == size(df)
