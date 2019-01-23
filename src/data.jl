@@ -134,10 +134,10 @@ retrieve(::Val{false}, X, args...) = error("Argument is not an iterable table.")
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) =
     NamedTuple{tuple(labels...)}(tuple([getproperty(t, n) for n in labels]...))
-project(t::NamedTuple, label::Symbol) = getproperty(t, label)
+project(t::NamedTuple, label::Symbol) = project(t, [label,])
 project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
     NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
-project(t::NamedTuple, i::Integer) = t[i]
+project(t::NamedTuple, i::Integer) = project(t, [i,])
 
 # to select columns `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
 # CURRENTLY RETURNS A DATAFRAME AND NOT THE ORIGINAL TYPE
@@ -150,15 +150,17 @@ function retrieve(::Val{true}, X::T, ::Type{Cols}, c::AbstractArray{I}) where {T
                     
 end
 
-# to select a single column `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
-function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I) where {T,I<:Union{Symbol,Integer}}
+# to select a single column `c` of any tabular data `X` with
+# `retrieve(X, Cols, c)`; note this will try to return a
+# CategoricalArray, and does so for X a DataFrame and TypedTable.Table:
+function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I) where {T, I<:Union{Symbol,Integer}}
 
     row_iterator = @from row in X begin
         @select project(row, c)
-        @collect
+        @collect DataFrames.DataFrame
     end
 
-    return [row_iterator...]
+    return row_iterator[1] 
                     
 end
 

@@ -64,6 +64,10 @@ s = retrieve(v, Schema)
 @test s.ncols == 1
 @test first(s.eltypes) == Char
 @test s.names == [:x]
+df = DataFrame(v=v, w=v)
+@test retrieve(df, Cols, :w) == v
+tt = TypedTables.Table(df)
+@test retrieve(tt, Cols, :w) == v
 
 end # module
 
