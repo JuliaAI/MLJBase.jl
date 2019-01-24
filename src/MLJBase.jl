@@ -8,7 +8,8 @@ export Rows, Cols, Schema, retrieve, getrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
-export target_kind, target_quantity, inputs_can_be, is_pure_julia, package_name, package_uuid
+export target_kind, target_quantity, inputs_can_be, is_pure_julia
+export package_url, package_name, package_uuid
 
 export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
 export UnivariateNominal, average         # from distributions.jl
@@ -133,6 +134,7 @@ inputs_can_be(::Type{<:Model}) = Symbol[]
 is_pure_julia(::Type{<:Model}) = :unknown
 package_name(::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
+package_url(::Type{<:Model}) = "unknown"
 
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
@@ -145,13 +147,17 @@ if VERSION < v"1.0.0"
     import Base.info
 end
 
-function info(modeltype::Type{<:Supervised})
+function info(modeltype::Type{<:Model})
 
     message = "$modeltype has a bad trait declaration."
-    target_kind(modeltype) in [:numeric, :binary, :multiclass, :unknown] ||
-        error(message*"target_kind must return :numeric, :binary, :multiclass (or :unknown).")
-    target_quantity(modeltype) in [:univariate, :multivariate] ||
-        error(message*"target_quantity must return :univariate or :multivariate")
+
+    if modeltype <: Supervised
+        target_kind(modeltype) in [:numeric, :binary, :multiclass, :unknown] ||
+            error(message*"target_kind must return :numeric, :binary, :multiclass (or :unknown).")
+        target_quantity(modeltype) in [:univariate, :multivariate] ||
+            error(message*"target_quantity must return :univariate or :multivariate")
+    end
+    
     issubset(Set(inputs_can_be(modeltype)), Set([:numeric, :nominal, :missing])) ||
         error(message*"inputs_can_be must return a vector with entries from [:numeric, :nominal, :missing]")
     is_pure_julia(modeltype) in [:yes, :no, :unknown] ||
@@ -165,12 +171,15 @@ function info(modeltype::Type{<:Supervised})
 
     d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
     d[:model_name] = modelname
-    d[:target_is] = target_is(modeltype)
     d[:inputs_can_be] = inputs_can_be(modeltype)
     d[:is_pure_julia] = is_pure_julia(modeltype)
     d[:package_name] = package_name(modeltype)
     d[:package_uuid] = package_uuid(modeltype)
-
+    d[:package_url] = package_url(modeltype)
+    if modeltype <: Supervised
+        d[:target_is] = target_is(modeltype)
+    end
+    
     return d
 end
 info(model::Supervised) = info(typeof(model))
