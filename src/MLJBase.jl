@@ -136,6 +136,7 @@ package_name(::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 
+_response(::Type{<:Supervised}) = :unknown
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
 
@@ -163,14 +164,14 @@ function info(modeltype::Type{<:Model})
     is_pure_julia(modeltype) in [:yes, :no, :unknown] ||
         error(message*"is_pure_julia must return :yes, :no (or :unknown).")
 
-    modelnamesplit = split(string(modeltype.name), '.')
-    if length(modelnamesplit) > 1
-        modelnamesplit = modelnamesplit[2:end]
-    end
-    modelname = string(reduce((a, b)->"$a.$b", modelnamesplit))
+    # modelnamesplit = split(string(modeltype.name), '.')
+    # if length(modelnamesplit) > 1
+    #     modelnamesplit = modelnamesplit[2:end]
+    # end
+    # modelname = string(reduce((a, b)->"$a.$b", modelnamesplit))
 
     d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
-    d[:model_name] = modelname
+    d[:model_name] = string(modeltype)
     d[:inputs_can_be] = inputs_can_be(modeltype)
     d[:is_pure_julia] = is_pure_julia(modeltype)
     d[:package_name] = package_name(modeltype)
