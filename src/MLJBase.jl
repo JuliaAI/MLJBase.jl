@@ -129,10 +129,10 @@ getrows(model::Model, X, r) = retrieve(X, Rows, r)
 # fallback trait declarations:
 target_kind(::Type{<:Supervised}) = :unknown
 target_quantity(::Type{<:Supervised}) = :univariate
-inputs_can_be(::Type{<:Supervised}) = Symbol[]
-is_pure_julia(::Type{<:Supervised}) = :unknown
-package_name(::Type{<:Supervised}) = "unknown"
-package_uuid(::Type{<:Supervised}) = "unknown"
+inputs_can_be(::Type{<:Model}) = Symbol[]
+is_pure_julia(::Type{<:Model}) = :unknown
+package_name(::Type{<:Model}) = "unknown"
+package_uuid(::Type{<:Model}) = "unknown"
 
 _response(::Type{<:Deterministic}) = :deterministic
 _response(::Type{<:Probabilistic}) = :probabilistic
