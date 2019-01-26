@@ -18,7 +18,9 @@ decoder = MLJBase.CategoricalDecoder(X, eltype=Float16)
 decoder = MLJBase.CategoricalDecoder(X)
 @test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
 
-@test MLJBase.matrix(DataFrame(A)) == A
+dfA = DataFrame(A)
+@test MLJBase.matrix(dfA) == A
+@test MLJBase.matrix(dfA, vardim=2) == permutedims(A)
 
 df = DataFrame(A)
 df.z  =1:10

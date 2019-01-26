@@ -1,12 +1,12 @@
 # Users of this module should first read the document
-# https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md 
+# https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md
 
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
 export Rows, Cols, Schema, retrieve, getrows
 export fit, update, clean!, info, coerce
-export predict, predict_mean, predict_mode 
+export predict, predict_mean, predict_mode
 export transform, inverse_transform, se, evaluate, best
 export target_kind, target_quantity, inputs_can_be, is_pure_julia
 export package_url, package_name, package_uuid
@@ -20,6 +20,7 @@ export pdf, mean, mode
 import Base.==
 using Query
 import TableTraits
+import Tables
 import DataFrames                # TODO: get rid of this dependency
 import Distributions
 import Distributions: pdf, mode
@@ -57,7 +58,7 @@ abstract type Probabilistic{R} <: Supervised{R} end
 abstract type Deterministic{R} <: Supervised{R} end
 
 # for displaying objects of `MLJType`:
-include("show.jl") 
+include("show.jl")
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
@@ -123,7 +124,7 @@ coerce(model::Model, Xtable) = Xtable
 # then users will not be able to use MLJ's performant `EnsembleModel`
 # on `model` unless one overloads the following method for type
 # `TABLE`:
-getrows(model::Model, X, r) = retrieve(X, Rows, r)   
+getrows(model::Model, X, r) = retrieve(X, Rows, r)
 # here `r` is any integer, unitrange or colon `:`, and the right-hand
 # side defined in `data.jl`.
 
@@ -158,7 +159,7 @@ function info(modeltype::Type{<:Model})
         target_quantity(modeltype) in [:univariate, :multivariate] ||
             error(message*"target_quantity must return :univariate or :multivariate")
     end
-    
+
     issubset(Set(inputs_can_be(modeltype)), Set([:numeric, :nominal, :missing])) ||
         error(message*"inputs_can_be must return a vector with entries from [:numeric, :nominal, :missing]")
     is_pure_julia(modeltype) in [:yes, :no, :unknown] ||
@@ -180,7 +181,7 @@ function info(modeltype::Type{<:Model})
     if modeltype <: Supervised
         d[:target_is] = target_is(modeltype)
     end
-    
+
     return d
 end
 info(model::Supervised) = info(typeof(model))

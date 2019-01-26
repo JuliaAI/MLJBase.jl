@@ -95,19 +95,16 @@ end
 """"
     MLJBase.matrix(X)
 
-Convert an iteratable table source `X` into an `Matrix`; or, if `X` is
-a `Matrix`, return `X`.
-
+Convert a table source `X` into an `Matrix`; or, if `X` is a `Matrix`,
+return `X`.
 """
-function matrix(X)
-    TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
+function matrix(X; vardim=1)
+    Tables.istable(X) || error("Argument is not an iterable table.")
 
-    df = @from row in X begin
-        @select row
-        @collect DataFrames.DataFrame
-    end
-    return convert(Matrix, df)
-    
+    # see also https://github.com/JuliaData/Tables.jl/issues/58
+    M = convert(Matrix, Tables.columns(X))
+    vardim == 1 && return M
+    return copy(permutedims(M))
 end
 
 matrix(X::Matrix) = X
@@ -147,7 +144,7 @@ function retrieve(::Val{true}, X::T, ::Type{Cols}, c::AbstractArray{I}) where {T
         @select project(row, c)
         @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
     end
-                    
+
 end
 
 # to select a single column `c` of any tabular data `X` with
@@ -160,8 +157,8 @@ function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I) where {T, I<:Union{Symb
         @collect DataFrames.DataFrame
     end
 
-    return row_iterator[1] 
-                    
+    return row_iterator[1]
+
 end
 
 # to select rows `r` of any tabular data `X` with `retrieve(X, Rows, c)`:
@@ -172,7 +169,7 @@ function retrieve(::Val{true}, X::T, ::Type{Rows}, r) where T
         @select row
         @collect
     end
-                    
+
     return @from row in row_iterator[r] begin
         @select row
         @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
@@ -202,7 +199,7 @@ function retrieve(::Val{true}, X, ::Type{Schema})
         _names = keys(row) |> collect
         _eltypes = DataType[eltype(x) for x in row]
     end
-                    
+
     return Schema(nrows, ncols, _names, _eltypes)
 
 end
@@ -230,4 +227,3 @@ retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r) 
     error("Categorical vectors are not column-indexable.")
 retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
     retrieve(Val(false), collect(v), Schema)
-
