@@ -90,13 +90,13 @@ function inverse_transform(decoder::CategoricalDecoder{I,T,N,R}, A::Array{J}) wh
 end
 
 
-## UTILITY FOR CONVERTING TABULAR DATA INTO MATRIX
+## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
 """"
     MLJBase.matrix(X)
 
 Convert a generic table source `X` into an `Matrix`; or, if `X` is
-a `Matrix`, return `X`. Optimized for column-based sources.
+a `AbstractMatrix`, return `X`. Optimized for column-based sources.
 
 """
 function matrix(X)
@@ -107,9 +107,37 @@ function matrix(X)
     return reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
 
 end
+matrix(X::AbstractMatrix) = X
 
-matrix(X::Matrix) = X
 
+"""
+    MLJBase.table(cols; clone=DataFrames)
+
+Convert a named tuple of vectors `cols`, into a table. The table
+type returned is the "preferred sink type" for `clone` (see the
+Tables.jl documentation), which is generally the type of `clone`
+itself, or a named tuple of vectors (in which case `cols` itself is
+returned).
+
+    MLJBase.table(X; clone=DataFrames())
+
+Convert an abstract matrix `X` into a table with column names, `(:x1,
+:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols, clone=clone)` where `cols`
+is the named tuple of columns of `X`, with `keys(cols) = (:x1, :x2, ..., :xn)`.
+
+"""
+function table(cols::NamedTuple; clone=DataFrames.DataFrame())
+    Tables.istable(clone) || error("clone is not tabular.")
+    return Tables.materializer(clone)(cols)
+end
+function table(X::AbstractMatrix; clone=DataFrames.DataFrame())
+    names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
+    cols = NamedTuple{names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
+    return table(cols; clone=clone)
+
+end
+
+               
 
 ## TOOLS FOR INDEXING QUERYVERSE ITERABLE TABLES
 

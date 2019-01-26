@@ -73,6 +73,11 @@ df = DataFrame(v=v, w=v)
 tt = TypedTables.Table(df)
 @test retrieve(tt, Cols, :w) == v
 
+A = hcat(v, v)
+tab = MLJBase.table(A)
+tab[1] == v
+MLJBase.matrix(tab) == A
+
 end # module
 
 true
