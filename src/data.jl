@@ -104,7 +104,7 @@ function matrix(X; vardim=1)
     # see also https://github.com/JuliaData/Tables.jl/issues/58
     M = convert(Matrix, Tables.columns(X))
     vardim == 1 && return M
-    return copy(permutedims(M))
+    return permutedims(M)
 end
 
 matrix(X::Matrix) = X
