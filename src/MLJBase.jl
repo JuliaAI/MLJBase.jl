@@ -4,7 +4,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export Rows, Cols, Schema, retrieve, getrows
+export Rows, Cols, Schema, select, getrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
@@ -122,7 +122,7 @@ coerce(model::Model, Xtable) = Xtable
 # then users will not be able to use MLJ's performant `EnsembleModel`
 # on `model` unless one overloads the following method for type
 # `TABLE`:
-getrows(model::Model, X, r) = retrieve(X, Rows, r)   
+getrows(model::Model, X, r) = select(X, Rows, r)   
 # here `r` is any integer, unitrange or colon `:`, and the right-hand
 # side defined in `data.jl`.
 

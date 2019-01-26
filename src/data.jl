@@ -160,10 +160,10 @@ function Base.getproperty(s::Schema{names,eltypes}, field::Symbol) where {names,
 end
 
 # for accessing tabular data:
-retrieve(X, args...) = retrieve(Val(Tables.istable(X)), X, args...)
-retrieve(::Val{false}, X, args...) = error("Argument is not tabular.")
+select(X, args...) = select(Val(Tables.istable(X)), X, args...)
+select(::Val{false}, X, args...) = error("Argument is not tabular.")
 
-# Note: to `retrieve` from matrices and other non-tabluar data,
+# Note: to `select` from matrices and other non-tabluar data,
 # we overload the second method above.
 
 # project named tuple onto a tuple with only specified `labels` or indices:
@@ -174,8 +174,8 @@ project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
     NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
-# to select columns `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
-function retrieve(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}};
+# to select columns `c` of any tabular data `X` with `select(X, Cols, c)`:
+function select(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}};
                   prototype=nothing) where I<:Union{Symbol,Integer}
     prototype2 = (prototype == nothing ? X : prototype)
     cols = Tables.columntable(X) # named tuple of vectors
@@ -184,16 +184,16 @@ function retrieve(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}
 end
                     
 # to select a single column `c` of any tabular data `X` with
-# `retrieve(X, Cols, c)`:
-function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I;
+# `select(X, Cols, c)`:
+function select(::Val{true}, X::T, ::Type{Cols}, c::I;
                   prototype=nothing) where {T, I<:Union{Symbol,Integer}}
     prototype2 = (prototype == nothing ? X : prototype)
     cols = Tables.columntable(prototype2) # named tuple of vectors
     return cols[c]
 end
 
-# to select rows `r` of any tabular data `X` with `retrieve(X, Rows, r)`:
-function retrieve(::Val{true}, X::T, ::Type{Rows}, r;
+# to select rows `r` of any tabular data `X` with `select(X, Rows, r)`:
+function select(::Val{true}, X::T, ::Type{Rows}, r;
                   prototype=nothing) where T
     prototype2 = (prototype == nothing ? X : prototype)
     rows = Tables.rowtable(X) # vector of named tuples
@@ -202,7 +202,7 @@ end
 
 # to get the number of nrows, ncols, feature names and eltypes of
 # tabular data:
-function retrieve(::Val{true}, X, ::Type{Schema})
+function select(::Val{true}, X, ::Type{Schema})
 
     row_iterator = Tables.rows(X)
     nrows = length(row_iterator)
@@ -222,14 +222,14 @@ function retrieve(::Val{true}, X, ::Type{Schema})
 
 end
 
-# retrieve(df::JuliaDB.IndexedTable, ::Type{Rows}, r) = df[r]
-# retrieve(df::JuliaDB.NextTable, ::Type{Cols}, c) = select(df, c)
-# retrieve(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
-# retrieve(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
+# select(df::JuliaDB.IndexedTable, ::Type{Rows}, r) = df[r]
+# select(df::JuliaDB.NextTable, ::Type{Cols}, c) = select(df, c)
+# select(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
+# select(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
 
-retrieve(::Val{false}, A::Matrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
-retrieve(::Val{false}, A::Matrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
-function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
+select(::Val{false}, A::Matrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
+select(::Val{false}, A::Matrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
+function select(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     nrows = size(A, 1)
     ncols = size(A, 2)
     names = tuple([Symbol(:x, j) for j in 1:ncols]...)
@@ -237,12 +237,12 @@ function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     return Schema(names, eltypes, nrows, ncols)
 end
 
-retrieve(::Val{false}, v::Vector, ::Type{Rows}, r; prototype=nothing) = v[r]
-retrieve(::Val{false}, v::Vector, ::Type{Cols}, c; prototype=nothing) = error("Abstract vectors are not column-indexable.")
-retrieve(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
-retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r; prototype=nothing) = @inbounds v[r]
-retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r; prototype=nothing) =
+select(::Val{false}, v::Vector, ::Type{Rows}, r; prototype=nothing) = v[r]
+select(::Val{false}, v::Vector, ::Type{Cols}, c; prototype=nothing) = error("Abstract vectors are not column-indexable.")
+select(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
+select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r; prototype=nothing) = @inbounds v[r]
+select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r; prototype=nothing) =
     error("Categorical vectors are not column-indexable.")
-retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
-    retrieve(Val(false), collect(v), Schema)
+select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
+    select(Val(false), collect(v), Schema)
 
