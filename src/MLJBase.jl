@@ -18,8 +18,7 @@ export UnivariateNominal, average         # from distributions.jl
 export pdf, mean, mode
 
 import Base.==
-using Query
-import TableTraits
+using Tables
 import DataFrames                # TODO: get rid of this dependency
 import Distributions
 import Distributions: pdf, mode

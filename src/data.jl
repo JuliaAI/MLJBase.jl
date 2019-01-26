@@ -95,19 +95,17 @@ end
 """"
     MLJBase.matrix(X)
 
-Convert an iteratable table source `X` into an `Matrix`; or, if `X` is
-a `Matrix`, return `X`.
+Convert a generic table source `X` into an `Matrix`; or, if `X` is
+a `Matrix`, return `X`. Optimized for column-based sources.
 
 """
 function matrix(X)
-    TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
 
-    df = @from row in X begin
-        @select row
-        @collect DataFrames.DataFrame
-    end
-    return convert(Matrix, df)
-    
+    Tables.istable(X) || error("Argument is not tabular.")
+    cols = Tables.columns(X) # property-accessible object
+
+    return reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
+
 end
 
 matrix(X::Matrix) = X
@@ -117,93 +115,76 @@ matrix(X::Matrix) = X
 
 struct Rows end
 struct Cols end
-struct Schema
+struct Schema{names, eltypes}
     nrows::Int
     ncols::Int
-    names::Vector{Symbol}
-    eltypes::Vector{DataType}
+    Schema(names, eltypes, nrows, ncols) = new{names,Tuple{eltypes...}}(nrows, ncols)
+end
+
+function Base.getproperty(s::Schema{names,eltypes}, field::Symbol) where {names,eltypes}
+    if field === :names
+        return names
+    elseif field === :eltypes
+        return Tuple(fieldtype(eltypes, i) for i = 1:fieldcount(eltypes))
+    else
+        return getfield(s, field)
+    end
 end
 
 # for accessing tabular data:
-retrieve(X, args...) = retrieve(Val(TableTraits.isiterabletable(X)), X, args...)
-retrieve(::Val{false}, X, args...) = error("Argument is not an iterable table.")
+retrieve(X, args...) = retrieve(Val(Tables.istable(X)), X, args...)
+retrieve(::Val{false}, X, args...) = error("Argument is not tabular.")
 
-# Note: to `retrieve` from matrices and other non-iterabletable data,
+# Note: to `retrieve` from matrices and other non-tabluar data,
 # we overload the second method above.
 
 # project named tuple onto a tuple with only specified `labels` or indices:
-project(t::NamedTuple, labels::AbstractArray{Symbol}) =
-    NamedTuple{tuple(labels...)}(tuple([getproperty(t, n) for n in labels]...))
+project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
+project(t::NamedTuple, label::Colon) = t
 project(t::NamedTuple, label::Symbol) = project(t, [label,])
 project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
     NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
 # to select columns `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
-# CURRENTLY RETURNS A DATAFRAME AND NOT THE ORIGINAL TYPE
-function retrieve(::Val{true}, X::T, ::Type{Cols}, c::AbstractArray{I}) where {T,I<:Union{Symbol,Integer}}
-
-    row_iterator = @from row in X begin
-        @select project(row, c)
-        @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
-    end
-                    
+function retrieve(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}}) where I<:Union{Symbol,Integer}
+    cols = Tables.columntable(X) # named tuple of vectors
+    newcols = project(cols, c)
+    return Tables.materializer(X)(newcols)
 end
-
+                    
 # to select a single column `c` of any tabular data `X` with
-# `retrieve(X, Cols, c)`; note this will try to return a
-# CategoricalArray, and does so for X a DataFrame and TypedTable.Table:
+# `retrieve(X, Cols, c)`:
 function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I) where {T, I<:Union{Symbol,Integer}}
-
-    row_iterator = @from row in X begin
-        @select project(row, c)
-        @collect DataFrames.DataFrame
-    end
-
-    return row_iterator[1] 
-                    
+    cols = Tables.columntable(X) # named tuple of vectors
+    return cols[c]
 end
 
-# to select rows `r` of any tabular data `X` with `retrieve(X, Rows, c)`:
-# CURRENTLY RETURNS A DATAFRAME AND NOT THE ORIGINAL TYPE
+# to select rows `r` of any tabular data `X` with `retrieve(X, Rows, r)`:
 function retrieve(::Val{true}, X::T, ::Type{Rows}, r) where T
-
-    row_iterator = @from row in X begin
-        @select row
-        @collect
-    end
-                    
-    return @from row in row_iterator[r] begin
-        @select row
-        @collect DataFrames.DataFrame # `T` does not work here unless typeof(X) has no type-parameters
-    end
-
+    rows = Tables.rowtable(X) # vector of named tuples
+    return Tables.materializer(X)(rows[r])
 end
 
-# to get the number of nrows, ncols, feature names and eltypes of an
+# to get the number of nrows, ncols, feature names and eltypes of
 # tabular data:
 function retrieve(::Val{true}, X, ::Type{Schema})
 
-    TableTraits.isiterabletable(X) || error("Argument is not an iterable table.")
-
-    row_iterator = @from row in X begin
-        @select row
-        @collect
-    end
-
+    row_iterator = Tables.rows(X)
     nrows = length(row_iterator)
+
     if nrows == 0
         ncols = 0
-        _names = Symbol[]
-        _eltypes = DataType[]
+        names = ()
+        eltypes = ()
     else
         row = first(row_iterator) # a named tuple
-        ncols = length(row)
-        _names = keys(row) |> collect
-        _eltypes = DataType[eltype(x) for x in row]
+        ncols = length(propertynames(row))
+        s = Tables.schema(X)
+        names, eltypes = s.names, s.types
     end
                     
-    return Schema(nrows, ncols, _names, _eltypes)
+    return Schema(names, eltypes, nrows, ncols)
 
 end
 
@@ -217,14 +198,14 @@ retrieve(::Val{false}, A::Matrix, ::Type{Cols}, c) = A[:,c]
 function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     nrows = size(A, 1)
     ncols = size(A, 2)
-    _names = [Symbol(:x, j) for j in 1:ncols]
-    _eltypes = fill(T, ncols)
-    return Schema(nrows, ncols, _names, _eltypes)
+    names = tuple([Symbol(:x, j) for j in 1:ncols]...)
+    eltypes = tuple(fill(T, ncols)...)
+    return Schema(names, eltypes, nrows, ncols)
 end
 
 retrieve(::Val{false}, v::Vector, ::Type{Rows}, r) = v[r]
 retrieve(::Val{false}, v::Vector, ::Type{Cols}, c) = error("Abstract vectors are not column-indexable.")
-retrieve(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema(length(v), 1, [:x], [T,])
+retrieve(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
 retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r) = @inbounds v[r]
 retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r) =
     error("Categorical vectors are not column-indexable.")
