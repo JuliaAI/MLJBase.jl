@@ -7,7 +7,7 @@ Construct a decoder for transforming a `CategoricalArray{T}` object
 into an ordinary array, and for re-encoding similar arrays back into a
 `CategoricalArray{T}` object having the same `pool` (and, in
 particular, the same levels) as `C`. If `eltype` is not specified then
-the element type of the transformed array is `T`. Otherwise, the
+the element type of the transformed array is `T`. Otherwise, 
 element type is `eltype` and the elements are promotions of the
 internal (integer) `ref`s of the `CategoricalArray`. One
 must have `R <: eltype <: Real` where `R` is the reference type of the
@@ -111,29 +111,29 @@ matrix(X::AbstractMatrix) = X
 
 
 """
-    MLJBase.table(cols; clone=DataFrames)
+    MLJBase.table(cols; prototype=DataFrames)
 
 Convert a named tuple of vectors `cols`, into a table. The table
-type returned is the "preferred sink type" for `clone` (see the
-Tables.jl documentation), which is generally the type of `clone`
+type returned is the "preferred sink type" for `prototype` (see the
+Tables.jl documentation), which is generally the type of `prototype`
 itself, or a named tuple of vectors (in which case `cols` itself is
 returned).
 
-    MLJBase.table(X; clone=DataFrames())
+    MLJBase.table(X; prototype=DataFrames())
 
 Convert an abstract matrix `X` into a table with column names, `(:x1,
-:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols, clone=clone)` where `cols`
+:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols, prototype=prototype)` where `cols`
 is the named tuple of columns of `X`, with `keys(cols) = (:x1, :x2, ..., :xn)`.
 
 """
-function table(cols::NamedTuple; clone=DataFrames.DataFrame())
-    Tables.istable(clone) || error("clone is not tabular.")
-    return Tables.materializer(clone)(cols)
+function table(cols::NamedTuple; prototype=DataFrames.DataFrame())
+    Tables.istable(prototype) || error("prototype is not tabular.")
+    return Tables.materializer(prototype)(cols)
 end
-function table(X::AbstractMatrix; clone=DataFrames.DataFrame())
+function table(X::AbstractMatrix; prototype=DataFrames.DataFrame())
     names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
     cols = NamedTuple{names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
-    return table(cols; clone=clone)
+    return table(cols; prototype=prototype)
 
 end
 
@@ -175,23 +175,29 @@ project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
 # to select columns `c` of any tabular data `X` with `retrieve(X, Cols, c)`:
-function retrieve(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}}) where I<:Union{Symbol,Integer}
+function retrieve(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}};
+                  prototype=nothing) where I<:Union{Symbol,Integer}
+    prototype2 = (prototype == nothing ? X : prototype)
     cols = Tables.columntable(X) # named tuple of vectors
     newcols = project(cols, c)
-    return Tables.materializer(X)(newcols)
+    return Tables.materializer(prototype2)(newcols)
 end
                     
 # to select a single column `c` of any tabular data `X` with
 # `retrieve(X, Cols, c)`:
-function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I) where {T, I<:Union{Symbol,Integer}}
-    cols = Tables.columntable(X) # named tuple of vectors
+function retrieve(::Val{true}, X::T, ::Type{Cols}, c::I;
+                  prototype=nothing) where {T, I<:Union{Symbol,Integer}}
+    prototype2 = (prototype == nothing ? X : prototype)
+    cols = Tables.columntable(prototype2) # named tuple of vectors
     return cols[c]
 end
 
 # to select rows `r` of any tabular data `X` with `retrieve(X, Rows, r)`:
-function retrieve(::Val{true}, X::T, ::Type{Rows}, r) where T
+function retrieve(::Val{true}, X::T, ::Type{Rows}, r;
+                  prototype=nothing) where T
+    prototype2 = (prototype == nothing ? X : prototype)
     rows = Tables.rowtable(X) # vector of named tuples
-    return Tables.materializer(X)(rows[r])
+    return Tables.materializer(prototype2)(rows[r])
 end
 
 # to get the number of nrows, ncols, feature names and eltypes of
@@ -221,8 +227,8 @@ end
 # retrieve(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
 # retrieve(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
 
-retrieve(::Val{false}, A::Matrix, ::Type{Rows}, r) = A[r,:]
-retrieve(::Val{false}, A::Matrix, ::Type{Cols}, c) = A[:,c]
+retrieve(::Val{false}, A::Matrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
+retrieve(::Val{false}, A::Matrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
 function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     nrows = size(A, 1)
     ncols = size(A, 2)
@@ -231,11 +237,11 @@ function retrieve(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     return Schema(names, eltypes, nrows, ncols)
 end
 
-retrieve(::Val{false}, v::Vector, ::Type{Rows}, r) = v[r]
-retrieve(::Val{false}, v::Vector, ::Type{Cols}, c) = error("Abstract vectors are not column-indexable.")
+retrieve(::Val{false}, v::Vector, ::Type{Rows}, r; prototype=nothing) = v[r]
+retrieve(::Val{false}, v::Vector, ::Type{Cols}, c; prototype=nothing) = error("Abstract vectors are not column-indexable.")
 retrieve(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
-retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r) = @inbounds v[r]
-retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r) =
+retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r; prototype=nothing) = @inbounds v[r]
+retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r; prototype=nothing) =
     error("Categorical vectors are not column-indexable.")
 retrieve(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
     retrieve(Val(false), collect(v), Schema)
