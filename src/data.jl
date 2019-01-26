@@ -99,7 +99,7 @@ Convert a table source `X` into an `Matrix`; or, if `X` is a `Matrix`,
 return `X`.
 """
 function matrix(X; vardim=1)
-    Tables.istable(X) || error("Argument is not an iterable table.")
+    Tables.istable(X) || error("Argument is not an table.")
 
     # see also https://github.com/JuliaData/Tables.jl/issues/58
     M = convert(Matrix, Tables.columns(X))
