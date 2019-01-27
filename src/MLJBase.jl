@@ -4,7 +4,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export Rows, Cols, Schema, select, getrows
+export Rows, Cols, Schema, select, table, getrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
@@ -116,15 +116,14 @@ clean!(model::Model) = ""
 # its `fit` method and operations:
 coerce(model::Model, Xtable) = Xtable
 
-# if the return type `TABLE` of `coerce` is not a Queryverse
-# iterable table or a `Matrix` (with rows
-# corresponding to patterns and columns corresponding to features)
-# then users will not be able to use MLJ's performant `EnsembleModel`
-# on `model` unless one overloads the following method for type
-# `TABLE`:
+# if the return type `TABLE` of `coerce` is not a Tables.jl-compatible
+# table or an `AbstractMatrix` (with rows corresponding to patterns and columns
+# corresponding to features) then users will not be able to use MLJ's
+# performant `EnsembleModel` on `model` unless one overloads the
+# following method for type `TABLE`:
 getrows(model::Model, X, r) = select(X, Rows, r)   
 # here `r` is any integer, unitrange or colon `:`, and the right-hand
-# side defined in `data.jl`.
+# side is defined in `data.jl`.
 
 # fallback trait declarations:
 target_kind(::Type{<:Supervised}) = :unknown

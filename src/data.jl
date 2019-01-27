@@ -122,8 +122,9 @@ returned).
     MLJBase.table(X; prototype=DataFrames())
 
 Convert an abstract matrix `X` into a table with column names, `(:x1,
-:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols, prototype=prototype)` where `cols`
-is the named tuple of columns of `X`, with `keys(cols) = (:x1, :x2, ..., :xn)`.
+:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols,
+prototype=prototype)` where `cols` is the named tuple of columns of
+`X`, with `keys(cols) = (:x1, :x2, ..., :xn)`.
 
 """
 function table(cols::NamedTuple; prototype=DataFrames.DataFrame())
@@ -159,7 +160,27 @@ function Base.getproperty(s::Schema{names,eltypes}, field::Symbol) where {names,
     end
 end
 
-# for accessing tabular data:
+"""
+    select(X, Rows, r)
+    select(X, Cols, c)
+
+Select single or multiple rows or columns ofrom a `X` for which
+`Tables.istable(X)` is true. In the cas of columns, `c`, can be an
+abstract vector of integers or symbols; if `c` is a *single* integer
+or column, then a `Vector` or `CategoricalVector` is returned. In all
+other cases (including a single row request) the object returned is a
+table of the preferred sink type of `typeof(X)`.
+
+    select(X, Schema)
+
+Returns a struct with properties `names`, `eltypes`, `nrows, `ncols`,
+with the obvious meanings.
+
+The above methods are also overloaded to work on abstract matrices
+and vectors, where this makes sense.
+
+"""
+
 select(X, args...) = select(Val(Tables.istable(X)), X, args...)
 select(::Val{false}, X, args...) = error("Argument is not tabular.")
 
@@ -227,9 +248,9 @@ end
 # select(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
 # select(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
 
-select(::Val{false}, A::Matrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
-select(::Val{false}, A::Matrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
-function select(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
+select(::Val{false}, A::AbstractMatrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
+select(::Val{false}, A::AbstractMatrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
+function select(::Val{false}, A::AbstractMatrix{T}, ::Type{Schema}) where T
     nrows = size(A, 1)
     ncols = size(A, 2)
     names = tuple([Symbol(:x, j) for j in 1:ncols]...)
@@ -237,9 +258,9 @@ function select(::Val{false}, A::Matrix{T}, ::Type{Schema}) where T
     return Schema(names, eltypes, nrows, ncols)
 end
 
-select(::Val{false}, v::Vector, ::Type{Rows}, r; prototype=nothing) = v[r]
-select(::Val{false}, v::Vector, ::Type{Cols}, c; prototype=nothing) = error("Abstract vectors are not column-indexable.")
-select(::Val{false}, v::Vector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
+select(::Val{false}, v::AbstractVector, ::Type{Rows}, r; prototype=nothing) = v[r]
+select(::Val{false}, v::AbstractVector, ::Type{Cols}, c; prototype=nothing) = error("AbstractVectors are not column-indexable.")
+select(::Val{false}, v::AbstractVector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
 select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r; prototype=nothing) = @inbounds v[r]
 select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r; prototype=nothing) =
     error("Categorical vectors are not column-indexable.")
