@@ -121,7 +121,7 @@ coerce(model::Model, Xtable) = Xtable
 # corresponding to features) then users will not be able to use MLJ's
 # performant `EnsembleModel` on `model` unless one overloads the
 # following method for type `TABLE`:
-getrows(model::Model, X, r) = select(X, Rows, r)   
+getrows(model::Model, X, r) = selectrows(X, r)   
 # here `r` is any integer, unitrange or colon `:`, and the right-hand
 # side is defined in `data.jl`.
 
