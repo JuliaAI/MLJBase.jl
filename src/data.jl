@@ -161,31 +161,43 @@ function Base.getproperty(s::Schema{names,eltypes}, field::Symbol) where {names,
 end
 
 """
-    select(X, Rows, r)
-    select(X, Cols, c)
+    selectrows(X, r)
 
-Select single or multiple rows or columns ofrom a `X` for which
-`Tables.istable(X)` is true. In the cas of columns, `c`, can be an
-abstract vector of integers or symbols; if `c` is a *single* integer
-or column, then a `Vector` or `CategoricalVector` is returned. In all
-other cases (including a single row request) the object returned is a
-table of the preferred sink type of `typeof(X)`.
+Select single or multiple rows from any object `X` for which
+`Tables.istable(X)` is true.  The object returned is a table of the
+preferred sink type of `typeof(X)`, even a single row is selected.
 
-    select(X, Schema)
-
-Returns a struct with properties `names`, `eltypes`, `nrows, `ncols`,
-with the obvious meanings.
-
-The above methods are also overloaded to work on abstract matrices
-and vectors, where this makes sense.
+The method is overloaded to additionally work on abstract matrices
+and vectors.
 
 """
+selectrows(X, r) = selectrows(Val(Tables.istable(X)), X, r)
+selectrows(::Val{false}, X, r) = error("Argument is not tabular.")
 
-select(X, args...) = select(Val(Tables.istable(X)), X, args...)
-select(::Val{false}, X, args...) = error("Argument is not tabular.")
+"""
+    selectcols(X, c)
 
-# Note: to `select` from matrices and other non-tabluar data,
-# we overload the second method above.
+Select single or multiple columns from any object `X` for which
+`Tables.istable(X)` is true. If `c` is an abstract vector of integers
+or symbols, then the object returned is a table of the preferred sink
+type of `typeof(X)`. If `c` is a *single* integer or column, then
+a `Vector` or `CategoricalVector` is returned. 
+
+The method is overloaded to additionally work on abstract matrices.
+
+"""
+selectcols(X, c) = selectcols(Val(Tables.istable(X)), X, c)
+selectcols(::Val{false}, X, c) = error("Argument is not tabular.")
+
+"""
+    schema(X)
+
+Returns a struct with properties `names`, `eltypes`, `nrows, `ncols`,
+with the obvious meanings. Here `X` is any object for which
+`Tables.istable(X)` is true, an abstract matrix, or vector. 
+"""
+schema(X) = schema(Val(Tables.istable(X)), X)
+schema(::Val{false}, X) = error("Argument is not tabular.")
 
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
@@ -195,8 +207,8 @@ project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
     NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
-# to select columns `c` of any tabular data `X` with `select(X, Cols, c)`:
-function select(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}};
+# multiple columns:
+function selectcols(::Val{true}, X, c::Union{Colon, AbstractArray{I}};
                   prototype=nothing) where I<:Union{Symbol,Integer}
     prototype2 = (prototype == nothing ? X : prototype)
     cols = Tables.columntable(X) # named tuple of vectors
@@ -204,26 +216,23 @@ function select(::Val{true}, X, ::Type{Cols}, c::Union{Colon, AbstractArray{I}};
     return Tables.materializer(prototype2)(newcols)
 end
                     
-# to select a single column `c` of any tabular data `X` with
-# `select(X, Cols, c)`:
-function select(::Val{true}, X::T, ::Type{Cols}, c::I;
-                  prototype=nothing) where {T, I<:Union{Symbol,Integer}}
+# single column:
+function selectcols(::Val{true}, X, c::I;
+                  prototype=nothing) where I<:Union{Symbol,Integer}
     prototype2 = (prototype == nothing ? X : prototype)
     cols = Tables.columntable(prototype2) # named tuple of vectors
     return cols[c]
 end
 
-# to select rows `r` of any tabular data `X` with `select(X, Rows, r)`:
-function select(::Val{true}, X::T, ::Type{Rows}, r;
+# single or multiple rows:
+function selectrows(::Val{true}, X::T, r;
                   prototype=nothing) where T
     prototype2 = (prototype == nothing ? X : prototype)
     rows = Tables.rowtable(X) # vector of named tuples
     return Tables.materializer(prototype2)(rows[r])
 end
 
-# to get the number of nrows, ncols, feature names and eltypes of
-# tabular data:
-function select(::Val{true}, X, ::Type{Schema})
+function schema(::Val{true}, X)
 
     row_iterator = Tables.rows(X)
     nrows = length(row_iterator)
@@ -248,9 +257,9 @@ end
 # select(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
 # select(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
 
-select(::Val{false}, A::AbstractMatrix, ::Type{Rows}, r; prototype=nothing) = A[r,:]
-select(::Val{false}, A::AbstractMatrix, ::Type{Cols}, c; prototype=nothing) = A[:,c]
-function select(::Val{false}, A::AbstractMatrix{T}, ::Type{Schema}) where T
+selectrows(::Val{false}, A::AbstractMatrix, r; prototype=nothing) = A[r,:]
+selectcols(::Val{false}, A::AbstractMatrix, c; prototype=nothing) = A[:,c]
+function schema(::Val{false}, A::AbstractMatrix{T}) where T
     nrows = size(A, 1)
     ncols = size(A, 2)
     names = tuple([Symbol(:x, j) for j in 1:ncols]...)
@@ -258,12 +267,12 @@ function select(::Val{false}, A::AbstractMatrix{T}, ::Type{Schema}) where T
     return Schema(names, eltypes, nrows, ncols)
 end
 
-select(::Val{false}, v::AbstractVector, ::Type{Rows}, r; prototype=nothing) = v[r]
-select(::Val{false}, v::AbstractVector, ::Type{Cols}, c; prototype=nothing) = error("AbstractVectors are not column-indexable.")
-select(::Val{false}, v::AbstractVector{T}, ::Type{Schema}) where T = Schema((:x,), (T,), length(v), 1)
-select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Rows}, r; prototype=nothing) = @inbounds v[r]
-select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Cols}, r; prototype=nothing) =
+selectrows(::Val{false}, v::AbstractVector, r; prototype=nothing) = v[r]
+selectcols(::Val{false}, v::AbstractVector, c; prototype=nothing) = error("AbstractVectors are not column-indexable.")
+schema(::Val{false}, v::AbstractVector{T}) where T = Schema((:x,), (T,), length(v), 1)
+selectrows(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, r; prototype=nothing) = @inbounds v[r]
+selectcols(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, c; prototype=nothing) =
     error("Categorical vectors are not column-indexable.")
-select(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, ::Type{Schema}) =
-    select(Val(false), collect(v), Schema)
+schema(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}) =
+    schema(Val(false), collect(v))
 
