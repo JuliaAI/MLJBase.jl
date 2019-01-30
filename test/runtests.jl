@@ -7,10 +7,6 @@
 using MLJBase
 using Test
 
-@testset "traits" begin
-  @test include("traits.jl")
-end
-
 @testset "distributions" begin
   @test include("distributions.jl")
 end
@@ -18,4 +14,9 @@ end
 @testset "data" begin
   @test include("data.jl")
 end
+
+@testset "traits" begin
+  @test include("introspection.jl")
+end
+
 
