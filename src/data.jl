@@ -119,23 +119,27 @@ Tables.jl documentation), which is generally the type of `prototype`
 itself, or a named tuple of vectors (in which case `cols` itself is
 returned).
 
-    MLJBase.table(X; prototype=DataFrames())
+    MLJBase.table(X; names=nothing, prototype=DataFrames())
 
-Convert an abstract matrix `X` into a table with column names, `(:x1,
-:x2, ..., :xn)` where `n=size(X, 2)`.  Equivalent to `table(cols,
+Convert an abstract matrix `X` into a table with `names` (a tuple of
+symbols) as column names, or with labels `(:x1, :x2, ..., :xn)` where
+`n=size(X, 2)`, if `names` is not specified.  Equivalent to `table(cols,
 prototype=prototype)` where `cols` is the named tuple of columns of
-`X`, with `keys(cols) = (:x1, :x2, ..., :xn)`.
+`X`, with `keys(cols) = names`.
 
 """
 function table(cols::NamedTuple; prototype=DataFrames.DataFrame())
     Tables.istable(prototype) || error("prototype is not tabular.")
     return Tables.materializer(prototype)(cols)
 end
-function table(X::AbstractMatrix; prototype=DataFrames.DataFrame())
-    names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
-    cols = NamedTuple{names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
+function table(X::AbstractMatrix; names=nothing, prototype=DataFrames.DataFrame())
+    if names == nothing
+        _names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
+    else
+        _names = names
+    end
+    cols = NamedTuple{_names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
     return table(cols; prototype=prototype)
-
 end
 
                
