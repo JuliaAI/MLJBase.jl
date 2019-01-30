@@ -8,7 +8,7 @@ export Rows, Cols, Schema, selectrows, selectcols, schema, table, getrows
 export fit, update, clean!, info, coerce
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
-export target_kind, target_quantity, inputs_can_be, is_pure_julia
+export target_kind, target_quantity, inputs_can_be, inputs_quantity, is_pure_julia
 export load_path, package_url, package_name, package_uuid
 
 export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
@@ -116,9 +116,10 @@ getrows(model::Model, X, r) = selectrows(X, r)
 # side is defined in `data.jl`.
 
 # fallback trait declarations:
-target_kind(::Type{<:Supervised}) = :unknown
-target_quantity(::Type{<:Supervised}) = :univariate
+target_kind(::Type{<:Model}) = :unknown
+target_quantity(::Type{<:Model}) = :univariate
 inputs_can_be(::Type{<:Model}) = Symbol[]
+inputs_quantity(::Type{<:Model}) = :multivariate
 is_pure_julia(::Type{<:Model}) = :unknown
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
