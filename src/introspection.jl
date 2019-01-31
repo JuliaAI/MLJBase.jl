@@ -6,7 +6,16 @@ is_probabilistic(::Type{<:Probabilistic}) = :yes
 output_is(modeltype::Type{<:Supervised}) =
     [is_probabilistic(modeltype), output_kind(modeltype), output_quantity(modeltype)]
 
-name(M::Type{<:Model}) = split(string(M), '.')[end] |> String
+
+function coretype(M)
+    if isdefined(M, :name)
+        return M.name
+    else
+        return coretype(M.body)
+    end
+end
+    
+name(M::Type{<:Model}) = split(string(coretype(M)), '.')[end] |> String
 
 if VERSION < v"1.0.0"
     import Base.info
