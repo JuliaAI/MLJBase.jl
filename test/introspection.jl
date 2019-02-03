@@ -27,7 +27,8 @@ d = Dict(:name => "Dummy",
          :output_quantity  => :univariate,
          :input_kinds => Symbol[:continuous],
          :input_quantity => :univariate,
-         :package_url   => "https://mickey.mouse.org")
+         :package_url   => "https://mickey.mouse.org",
+         :learning_type => :supervised)
 
 info(Dummy)[:name]
 @test info(Dummy) == d

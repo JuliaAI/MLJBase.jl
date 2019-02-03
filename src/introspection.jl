@@ -1,11 +1,14 @@
 is_probabilistic(::Type{<:Model}) = :unknown
 is_probabilistic(::Type{<:Deterministic}) = :no
 is_probabilistic(::Type{<:Probabilistic}) = :yes
+learning_type(::Type{<:Model}) = :other
+learning_type(::Type{<:Supervised}) = :supervised
+learning_type(::Type{<:Unsupervised}) = :unsupervised
+
 
 # TODO: depreciate? currently used by ensembles.jl
 output_is(modeltype::Type{<:Supervised}) =
     [is_probabilistic(modeltype), output_kind(modeltype), output_quantity(modeltype)]
-
 
 function coretype(M)
     if isdefined(M, :name)
@@ -58,6 +61,7 @@ function info(M::Type{<:Model})
     d[:output_kind] = output_kind(M)
     d[:output_is_probabilistic] = is_probabilistic(M)
     d[:output_quantity] = output_quantity(M)
+    d[:learning_type] = learning_type(M)
     return d
 end
 info(model::Model) = info(typeof(model))
