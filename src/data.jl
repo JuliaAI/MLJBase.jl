@@ -144,10 +144,8 @@ end
 
                
 
-## TOOLS FOR INDEXING QUERYVERSE ITERABLE TABLES
+## TOOLS FOR INDEXING TABLES 
 
-struct Rows end
-struct Cols end
 struct Schema{names, eltypes}
     nrows::Int
     ncols::Int
