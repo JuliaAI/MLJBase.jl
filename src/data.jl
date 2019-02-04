@@ -57,12 +57,13 @@ struct CategoricalDecoder{I<:Real,U,T,N,R<:Integer}
 
 end
 
-CategoricalDecoder(X::CategoricalArray; eltype=nothing) =
+CategoricalDecoder(X::CategoricalArray; eltype::Union{Nothing,I}=nothing) where I<:Real =
     CategoricalDecoder(X, eltype)
 
 # using original type:
 CategoricalDecoder(X::CategoricalArray{T,N,R}, ::Nothing) where {T,N,R} = 
     CategoricalDecoder{R,true,T,N,R}(X.pool) # the first `R` will never be used
+CategoricalDecoder(X::CategoricalArray) = CategoricalDecoder(X, nothing) 
 
 # using specified type:
 CategoricalDecoder(X::CategoricalArray{T,N,R}, eltype) where {T,N,R} =
