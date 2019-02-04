@@ -1,16 +1,17 @@
 ## CATEGORICAL ARRAY DECODER UTILITY
 
 """
-    CategoricalDecoder(C::CategoricalArray; eltype=nothing)
+    CategoricalDecoder(C::CategoricalArray)
+    CategoricalDecoder(C::CategoricalArray, eltype)
 
 Construct a decoder for transforming a `CategoricalArray{T}` object
 into an ordinary array, and for re-encoding similar arrays back into a
 `CategoricalArray{T}` object having the same `pool` (and, in
 particular, the same levels) as `C`. If `eltype` is not specified then
-the element type of the transformed array is `T`. Otherwise, 
+the element type of the transformed array is `T`. Otherwise, the
 element type is `eltype` and the elements are promotions of the
-internal (integer) `ref`s of the `CategoricalArray`. One
-must have `R <: eltype <: Real` where `R` is the reference type of the
+internal (integer) `ref`s of the `CategoricalArray`. One must have `R
+<: eltype <: Real` where `R` is the reference type of the
 `CategoricalArray` (usually `UInt32`).
 
     transform(decoder::CategoricalDecoder, C::CategoricalArray)
@@ -57,13 +58,9 @@ struct CategoricalDecoder{I<:Real,U,T,N,R<:Integer}
 
 end
 
-CategoricalDecoder(X::CategoricalArray; eltype::Union{Nothing,I}=nothing) where I<:Real =
-    CategoricalDecoder(X, eltype)
-
 # using original type:
-CategoricalDecoder(X::CategoricalArray{T,N,R}, ::Nothing) where {T,N,R} = 
+CategoricalDecoder(X::CategoricalArray{T,N,R}) where {T,N,R} = 
     CategoricalDecoder{R,true,T,N,R}(X.pool) # the first `R` will never be used
-CategoricalDecoder(X::CategoricalArray) = CategoricalDecoder(X, nothing) 
 
 # using specified type:
 CategoricalDecoder(X::CategoricalArray{T,N,R}, eltype) where {T,N,R} =

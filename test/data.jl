@@ -16,7 +16,7 @@ Xsmall = X[2:5,3:4]
 ## DECODER
 
 # using specified output type:
-decoder = MLJBase.CategoricalDecoder(X, eltype=Float16)
+decoder = MLJBase.CategoricalDecoder(X, Float16)
 @test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
 
 # using original type:
