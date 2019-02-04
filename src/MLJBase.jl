@@ -4,8 +4,8 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export Rows, Cols, Schema, selectrows, selectcols, schema, table, getrows
-export fit, update, clean!, info, coerce
+export selectrows, selectcols, schema, table
+export fit, update, clean!, info
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
 export output_kind, output_quantity, input_kinds, input_quantity, is_pure_julia
@@ -19,7 +19,6 @@ export pdf, mean, mode
 
 import Base.==
 using Tables
-import DataFrames                # TODO: get rid of this dependency
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
@@ -99,21 +98,6 @@ function best end
 # warning should overload this method (return value is the warning
 # message):
 clean!(model::Model) = ""
-
-# supervised models may need to overload the following method to
-# ensure the input data supplied by user (something implementing the
-# Queryverse iterable table API) is coerced into the form required by
-# its `fit` method and operations:
-coerce(model::Model, Xtable) = Xtable
-
-# if the return type `TABLE` of `coerce` is not a Tables.jl-compatible
-# table or an `AbstractMatrix` (with rows corresponding to patterns and columns
-# corresponding to features) then users will not be able to use MLJ's
-# performant `EnsembleModel` on `model` unless one overloads the
-# following method for type `TABLE`:
-getrows(model::Model, X, r) = selectrows(X, r)   
-# here `r` is any integer, unitrange or colon `:`, and the right-hand
-# side is defined in `data.jl`.
 
 # fallback trait declarations:
 output_kind(::Type{<:Model}) = :unknown
