@@ -111,15 +111,13 @@ matrix(X::AbstractMatrix) = X
 
 
 """
-    MLJBase.table(cols; prototype=DataFrames)
+    MLJBase.table(cols; prototype=cols)
 
 Convert a named tuple of vectors `cols`, into a table. The table
 type returned is the "preferred sink type" for `prototype` (see the
-Tables.jl documentation), which is generally the type of `prototype`
-itself, or a named tuple of vectors (in which case `cols` itself is
-returned).
+Tables.jl documentation). 
 
-    MLJBase.table(X; names=nothing, prototype=DataFrames())
+    MLJBase.table(X::AbstractMatrix; names=nothing, prototype=nothing)
 
 Convert an abstract matrix `X` into a table with `names` (a tuple of
 symbols) as column names, or with labels `(:x1, :x2, ..., :xn)` where
@@ -128,20 +126,20 @@ prototype=prototype)` where `cols` is the named tuple of columns of
 `X`, with `keys(cols) = names`.
 
 """
-function table(cols::NamedTuple; prototype=DataFrames.DataFrame())
+function table(cols::NamedTuple; prototype=cols)
     Tables.istable(prototype) || error("prototype is not tabular.")
     return Tables.materializer(prototype)(cols)
 end
-function table(X::AbstractMatrix; names=nothing, prototype=DataFrames.DataFrame())
+function table(X::AbstractMatrix; names=nothing, prototype=nothing)
     if names == nothing
         _names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
     else
         _names = names
     end
     cols = NamedTuple{_names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
-    return table(cols; prototype=prototype)
+    _prototype = (prototype == nothing ? cols : prototype)
+    return table(cols; prototype=_prototype)
 end
-
                
 
 ## TOOLS FOR INDEXING TABLES 
@@ -226,12 +224,20 @@ function selectcols(::Val{true}, X, c::I;
     return cols[c]
 end
 
-# single or multiple rows:
-function selectrows(::Val{true}, X::T, r;
-                  prototype=nothing) where T
+# multiple rows:
+function selectrows(::Val{true}, X::T, r::Union{Colon,AbstractVector{I}};
+                  prototype=nothing) where {T,I<:Integer}
     prototype2 = (prototype == nothing ? X : prototype)
     rows = Tables.rowtable(X) # vector of named tuples
     return Tables.materializer(prototype2)(rows[r])
+end
+
+# single row:
+function selectrows(::Val{true}, X::T, r::Integer;
+                  prototype=nothing) where {T,I<:Integer}
+    prototype2 = (prototype == nothing ? X : prototype)
+    rows = Tables.rowtable(X) # vector of named tuples
+    return Tables.materializer(prototype2)([rows[r]])
 end
 
 function schema(::Val{true}, X)

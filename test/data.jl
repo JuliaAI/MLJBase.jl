@@ -21,13 +21,14 @@ decoder = MLJBase.CategoricalDecoder(X)
 @test MLJBase.matrix(DataFrame(A)) == A
 
 df = DataFrame(A)
-df.z  =1:10
+df.z  = 1:10
 
 @test selectcols(df, 4:6) == selectcols(df[4:6], :)
 @test selectcols(df, [:x1, :z]) == selectcols(df[[:x1, :z]], :)
 @test selectcols(df, :x2) == df.x2
 @test selectcols(df, 2) == df.x2
 @test selectrows(df, 4:6) == selectrows(df[4:6, :], :)
+@test selectrows(df, 1) == selectrows(df[1:1, :], :)
 s = schema(df)
 @test (s.nrows, s.ncols) == size(df)
 @test s.names == tuple(names(df)...)
@@ -72,6 +73,8 @@ df = DataFrame(v=v, w=v)
 @test selectcols(df, :w) == v
 tt = TypedTables.Table(df)
 @test selectcols(tt, :w) == v
+
+
 
 A = hcat(v, v)
 tab = MLJBase.table(A)

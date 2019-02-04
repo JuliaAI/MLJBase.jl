@@ -129,10 +129,6 @@ _show(stream::IO, object::MLJType) = println(stream, object)
 
 # _show for other types:
 
-# function _show(stream::IO, df::AbstractDataFrame)
-#     println(stream, "(omitted $(typeof(df)) of size $(size(df)))")
-# end
-
 istoobig(t::Tuple{Vararg{T}}) where T<:Union{Number,Symbol,Char,MLJType} =
     length(t) > 5 
 function _show(stream::IO, t::Tuple)
