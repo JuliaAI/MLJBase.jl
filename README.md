@@ -14,6 +14,8 @@ information, see the MLJ document ["Implementing the MLJ interface for
 a learning
 algorithm"](https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md).
 
+Requires at least Julia v1.0.
+
 For MLJ documentation refer to the
 [MLJ repository](https://github.com/alan-turing-institute/MLJ.jl).
 
