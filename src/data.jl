@@ -48,45 +48,50 @@ julia> levels(ans)
  "c"
 
 """
-struct CategoricalDecoder{I<:Real,T,N,R<:Integer}  # I the output eltype
+struct CategoricalDecoder{I<:Real,U,T,N,R<:Integer}
+
+    # I = output eltype if not using original type (junk otherwise)
+    # U is boolean, whether to use original type or I
+
     pool::CategoricalPool{T,R} # abstract type, not optimal
-    use_original_type::Bool
-    CategoricalDecoder{I,T,N,R}(X::CategoricalArray{T,N,R}, use_original_type) where {I,T,N,R}  =
-        new(X.pool, use_original_type)
+
 end
 
-function CategoricalDecoder(X::CategoricalArray{T,N,R}; eltype=nothing) where {T,N,R}
-    if eltype ==  nothing
-        eltype = R # any integer type will do here; not used
-        use_original_type = true
-    else
-        use_original_type = false
+CategoricalDecoder(X::CategoricalArray; eltype=nothing) =
+    CategoricalDecoder(X, eltype)
+
+# using original type:
+CategoricalDecoder(X::CategoricalArray{T,N,R}, ::Nothing) where {T,N,R} = 
+    CategoricalDecoder{R,true,T,N,R}(X.pool) # the first `R` will never be used
+
+# using specified type:
+CategoricalDecoder(X::CategoricalArray{T,N,R}, eltype) where {T,N,R} =
+    CategoricalDecoder{eltype,false,T,N,R}(X.pool)
+
+# using original type:
+transform(decoder::CategoricalDecoder{I,true,T,N,R}, C::CategoricalArray) where {I,T,N,R} =
+    collect(C)
+
+# using specified type:
+transform(decoder::CategoricalDecoder{I,false,T,N,R}, C::CategoricalArray) where {I,T,N,R} = 
+    broadcast(C.refs) do element
+        ref = convert(I, element)
     end
-    return CategoricalDecoder{eltype,T,N,R}(X, use_original_type)
-end
 
-function transform(decoder::CategoricalDecoder{I,T,N,R}, C::CategoricalArray) where {I,T,N,R}
-    if decoder.use_original_type
-        return collect(C)
-    else
-        return broadcast(C.refs) do element
-            ref = convert(I, element)
-        end
-    end
-end
-
-function inverse_transform(decoder::CategoricalDecoder{I,T,N,R}, A::Array{J}) where {I,T,N,R,J<:Union{I,T}}
-    if decoder.use_original_type
-        refs = broadcast(A) do element
-            decoder.pool.invindex[element]
-        end
-    else
-        refs = broadcast(A) do element
-            round(R, element)
-        end
+# using original type:
+function inverse_transform(decoder::CategoricalDecoder{I,true,T,N,R}, A::Array{J}) where {I,T,N,R,J<:Union{I,T}}
+    refs = broadcast(A) do element
+        decoder.pool.invindex[element]
     end
     return CategoricalArray{T,N}(refs, decoder.pool)
+end
 
+# using specified type:
+function inverse_transform(decoder::CategoricalDecoder{I,false,T,N,R}, A::Array{J}) where {I,T,N,R,J<:Union{I,T}}
+    refs = broadcast(A) do element
+        round(R, element)
+    end
+    return CategoricalArray{T,N}(refs, decoder.pool)
 end
 
 
