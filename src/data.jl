@@ -49,47 +49,47 @@ julia> levels(ans)
  "c"
 
 """
-struct CategoricalDecoder{I<:Real,U,T,N,R<:Integer}
+struct CategoricalDecoder{I<:Real,B,V,N,R<:Integer,C}
 
     # I = output eltype if not using original type (junk otherwise)
-    # U is boolean, whether to use original type or I
+    # B is boolean, whether to use original type or I
+    # N is the dimension of the array to be encoded/decoded
 
-    pool::CategoricalPool{T,R} # abstract type, not optimal
+    pool::CategoricalPool{V,R,C} 
 
 end
 
 # using original type:
-CategoricalDecoder(X::CategoricalArray{T,N,R}) where {T,N,R} = 
-    CategoricalDecoder{R,true,T,N,R}(X.pool) # the first `R` will never be used
+CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}) where {T,N,R,V,C} = 
+    CategoricalDecoder{R,true,V,N,R,C}(X.pool) # the first `R` will never be used
 
 # using specified type:
-CategoricalDecoder(X::CategoricalArray{T,N,R}, eltype) where {T,N,R} =
-    CategoricalDecoder{eltype,false,T,N,R}(X.pool)
+CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}, eltype) where {T,N,R,V,C} =
+    CategoricalDecoder{eltype,false,V,N,R,C}(X.pool)
 
 # using original type:
-transform(decoder::CategoricalDecoder{I,true,T,N,R}, C::CategoricalArray) where {I,T,N,R} =
-    collect(C)
+transform(decoder::CategoricalDecoder, C::CategoricalArray) = collect(C)
 
 # using specified type:
-transform(decoder::CategoricalDecoder{I,false,T,N,R}, C::CategoricalArray) where {I,T,N,R} = 
+transform(decoder::CategoricalDecoder{I,false}, C::CategoricalArray) where I =
     broadcast(C.refs) do element
         ref = convert(I, element)
     end
 
 # using original type:
-function inverse_transform(decoder::CategoricalDecoder{I,true,T,N,R}, A::Array{J}) where {I,T,N,R,J<:Union{I,T}}
+function inverse_transform(decoder::CategoricalDecoder{I,true,V,N}, A::Array{J}) where {I,V,N,J<:Union{I,V}}
     refs = broadcast(A) do element
-        decoder.pool.invindex[element]
+        get(decoder.pool, element)
     end
-    return CategoricalArray{T,N}(refs, decoder.pool)
+    return CategoricalArray{V,N}(refs, decoder.pool)
 end
 
 # using specified type:
-function inverse_transform(decoder::CategoricalDecoder{I,false,T,N,R}, A::Array{J}) where {I,T,N,R,J<:Union{I,T}}
+function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array{J}) where {I,V,N,R,J<:Union{I,V}}
     refs = broadcast(A) do element
         round(R, element)
     end
-    return CategoricalArray{T,N}(refs, decoder.pool)
+    return CategoricalArray{V,N}(refs, decoder.pool)
 end
 
 
@@ -211,37 +211,45 @@ project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
 # multiple columns:
-function selectcols(::Val{true}, X, c::Union{Colon, AbstractArray{I}};
-                  prototype=nothing) where I<:Union{Symbol,Integer}
-    prototype2 = (prototype == nothing ? X : prototype)
+function selectcols(::Val{true}, X, c::Union{Colon, AbstractArray{I}}) where I<:Union{Symbol,Integer}
     cols = Tables.columntable(X) # named tuple of vectors
     newcols = project(cols, c)
-    return Tables.materializer(prototype2)(newcols)
+    return Tables.materializer(X)(newcols)
 end
                     
 # single column:
-function selectcols(::Val{true}, X, c::I;
-                  prototype=nothing) where I<:Union{Symbol,Integer}
-    prototype2 = (prototype == nothing ? X : prototype)
-    cols = Tables.columntable(prototype2) # named tuple of vectors
+function selectcols(::Val{true}, X, c::I) where I<:Union{Symbol,Integer}
+    cols = Tables.columntable(X) # named tuple of vectors
     return cols[c]
 end
 
-# multiple rows:
-function selectrows(::Val{true}, X::T, r::Union{Colon,AbstractVector{I}};
-                  prototype=nothing) where {T,I<:Integer}
-    prototype2 = (prototype == nothing ? X : prototype)
-    rows = Tables.rowtable(X) # vector of named tuples
-    return Tables.materializer(prototype2)(rows[r])
+# multiple rows (using columntable):
+function selectrows(::Val{true}, X, r::Union{Colon,AbstractVector{<:Integer}})
+    cols = Tables.columntable(X)
+    new_cols = NamedTuple{keys(cols)}(tuple([c[r] for c in values(cols)]...))
+    return Tables.materializer(X)(new_cols)
 end
 
-# single row:
-function selectrows(::Val{true}, X::T, r::Integer;
-                  prototype=nothing) where {T,I<:Integer}
-    prototype2 = (prototype == nothing ? X : prototype)
-    rows = Tables.rowtable(X) # vector of named tuples
-    return Tables.materializer(prototype2)([rows[r]])
+# single row (using columntable):
+function selectrows(::Val{true}, X, r::Integer)
+    cols = Tables.columntable(X)
+    new_cols = NamedTuple{keys(cols)}(tuple([c[r:r] for c in values(cols)]...))
+    return Tables.materializer(X)(new_cols)
 end
+
+## ALTERNATIVE CODE FOR PREVIOUS TWO FUNCTIONS.
+## ROWTABLE SELECTION OF ROWS INSTEAD OF COLUMNTABLE SELECTION
+# # multiple rows:
+# function selectrows(::Val{true}, X, r::Union{Colon,AbstractVector{<:Integer}})
+#     rows = Tables.rowtable(X) # vector of named tuples
+#     return Tables.materializer(X)(rows[r])
+# end
+
+# # single row:
+# function selectrows(::Val{true}, X, r::Integer)
+#     rows = Tables.rowtable(X) # vector of named tuples
+#     return Tables.materializer(X)([rows[r]])
+# end
 
 function schema(::Val{true}, X)
 
