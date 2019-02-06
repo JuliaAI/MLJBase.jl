@@ -10,6 +10,7 @@ export predict, predict_mean, predict_mode
 export transform, inverse_transform, se, evaluate, best
 export output_kind, output_quantity, input_kinds, input_quantity, is_pure_julia
 export load_path, package_url, package_name, package_uuid
+export fitresult_type
 
 export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
 export UnivariateNominal, average         # from distributions.jl
@@ -131,4 +132,14 @@ include("data.jl")
 
 include("introspection.jl")
 
-end # module
+# returns the fit-result type declared by a supervised model
+# declaration (to test actual fit-results have the declared type):
+"""
+    MLJBase.fitresult_type(m)
+
+Returns the fitresult type of any supervised model (or model type)
+`m`, as declared in the model `mutable struct` declaration.
+
+"""
+fitresult_type(M::Type{<:Supervised}) = supertype(M).parameters[1]
+fitresult_type(m::Supervised) = fitresult_type(typeof(m)) end # module
