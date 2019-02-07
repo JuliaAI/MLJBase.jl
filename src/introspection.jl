@@ -7,8 +7,9 @@ learning_type(::Type{<:Unsupervised}) = :unsupervised
 
 
 # TODO: depreciate? currently used by ensembles.jl
-output_is(modeltype::Type{<:Supervised}) =
+output_is(modeltype::Type{<:Model}) =
     [is_probabilistic(modeltype), output_kind(modeltype), output_quantity(modeltype)]
+output_is(model::Model) = output_is(typeof(model))
 
 function coretype(M)
     if isdefined(M, :name)
