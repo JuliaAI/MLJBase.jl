@@ -33,7 +33,7 @@ function info(M::Type{<:Model})
                                     "`using MLJ; import MLJ.load_path($M)` loads `$M` into current namespace.")
 
     output_kind(M) in [:continuous, :binary, :multiclass, :ordered_factor_finite,
-                       :ordered_factor_infinite, :same_as_inputs, :unknown] ||
+                       :ordered_factor_infinite, :mixed, :unknown] ||
                            error(message*"`output_kind($M)` must return :numeric, :binary, :multiclass (or :unknown).")
 
     output_quantity(M) in [:univariate, :multivariate] ||
