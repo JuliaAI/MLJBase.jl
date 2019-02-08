@@ -8,7 +8,7 @@ using TypedTables
 
 import CategoricalArrays
 
-A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10,5))
+A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
 X = CategoricalArrays.categorical(A)
 Xsmall = X[2:5,3:4]
 
@@ -22,6 +22,11 @@ decoder = MLJBase.CategoricalDecoder(X, Float16)
 # using original type:
 decoder = MLJBase.CategoricalDecoder(X)
 @test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
+
+v = CategoricalArrays.categorical(collect("asdfasdfasdf"))
+decoder = MLJBase.CategoricalDecoder(v[1:2], Float16)
+@test levels(decoder) == ['a', 'd', 'f', 's']
+@test levels_seen(decoder) == ['a', 's']
 
 
 ## MATRIX

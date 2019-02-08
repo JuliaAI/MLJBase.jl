@@ -4,7 +4,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export selectrows, selectcols, schema, table
+export selectrows, selectcols, schema, table, levels_seen
 export fit, update, clean!, info
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
@@ -23,6 +23,7 @@ using Tables
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
+import CategoricalArrays
 
 # from Standard Library:
 using Statistics

@@ -23,6 +23,13 @@ Transform `C` into an ordinary `Array`.
 Transform an array `A` suitably compatible with `decoder` into a
 `CategoricalArray` having the same `pool` as `C`.
 
+    levels(decoder::CategoricalDecoder)
+    levels_seen(decoder::CategoricaDecoder)
+
+Return, respectively, all levels in pool of the categorical vector `C`
+used to construct `decoder` (ie, `levels(C)`), and just those levels
+explicitly appearing as entries of `C` (ie, `unique(C)`).
+
 ### Example
 
 ````
@@ -55,17 +62,22 @@ struct CategoricalDecoder{I<:Real,B,V,N,R<:Integer,C}
     # B is boolean, whether to use original type or I
     # N is the dimension of the array to be encoded/decoded
 
-    pool::CategoricalPool{V,R,C} 
+    pool::CategoricalPool{V,R,C}
+    levels_seen::Vector{V}
 
 end
 
+CategoricalArrays.levels(d::CategoricalDecoder) = levels(d.pool)
+levels_seen(d::CategoricalDecoder) = d.levels_seen
+
+# constructors:
 # using original type:
 CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}) where {T,N,R,V,C} = 
-    CategoricalDecoder{R,true,V,N,R,C}(X.pool) # the first `R` will never be used
+    CategoricalDecoder{R,true,V,N,R,C}(X.pool, unique(X)) # the first `R` will never be used
 
 # using specified type:
 CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}, eltype) where {T,N,R,V,C} =
-    CategoricalDecoder{eltype,false,V,N,R,C}(X.pool)
+    CategoricalDecoder{eltype,false,V,N,R,C}(X.pool, unique(X))
 
 # using original type:
 transform(decoder::CategoricalDecoder, C::CategoricalArray) = collect(C)
