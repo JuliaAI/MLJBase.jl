@@ -26,18 +26,22 @@ isdistribution(d) = isdistribution(typeof(d))
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
 """
-    UnivariateNominal(prob_given_label)
+    UnivariateNominal(prob_given_level)
 
 A discrete univariate distribution whose finite support is the set of keys of the
-provided dictionary, `prob_given_label`. The dictionary values specify
+provided dictionary, `prob_given_level`. The dictionary values specify
 the corresponding probabilities, which must be nonnegative and sum to
 one.
 
-    UnivariateNominal(labels, p)
+    UnivariateNominal(levels, p)
 
 A discrete univariate distribution whose finite support is the
-elements of the vector `labels`, and whose corresponding probabilities
+elements of the vector `levels`, and whose corresponding probabilities
 are elements of the vector `p`.
+
+    levels(d::UnivariateNominal)
+
+Return the levels of `d`.
 
 ````julia
 d = UnivariateNominal(["yes", "no", "maybe"], [0.1, 0.2, 0.7])
@@ -46,28 +50,31 @@ mode(d) # "maybe"
 rand(d, 5) # ["maybe", "no", "maybe", "maybe", "no"]
 d = fit(UnivariateNominal, ["maybe", "no", "maybe", "yes"])
 pdf(d, "maybe") ≈ 0.5 # true
+levels(d) # ["yes", "no", "maybe"]
 ````
 
 """
 struct UnivariateNominal{L,T<:Real} <: Distribution
-    prob_given_label::Dict{L,T}
-    function UnivariateNominal{L,T}(prob_given_label::Dict{L,T}) where {L,T<:Real}
-        p = values(prob_given_label) |> collect
+    prob_given_level::Dict{L,T}
+    function UnivariateNominal{L,T}(prob_given_level::Dict{L,T}) where {L,T<:Real}
+        p = values(prob_given_level) |> collect
         Distributions.@check_args(UnivariateNominal, Distributions.isprobvec(p))
-        return new{L,T}(prob_given_label)
+        return new{L,T}(prob_given_level)
     end
 end
-UnivariateNominal(prob_given_label::Dict{L,T}) where {L,T<:Real} =
-    UnivariateNominal{L,T}(prob_given_label)
+UnivariateNominal(prob_given_level::Dict{L,T}) where {L,T<:Real} =
+    UnivariateNominal{L,T}(prob_given_level)
 
-function UnivariateNominal(labels::Vector{L}, p::Vector{T}) where {L,T<:Real}
-        Distributions.@check_args(UnivariateNominal, length(labels)==length(p))
-        prob_given_label = Dict{L,T}()
+function UnivariateNominal(levels::Vector{L}, p::Vector{T}) where {L,T<:Real}
+        Distributions.@check_args(UnivariateNominal, length(levels)==length(p))
+        prob_given_level = Dict{L,T}()
         for i in eachindex(p)
-            prob_given_label[labels[i]] = p[i]
+            prob_given_level[levels[i]] = p[i]
         end
-        return  UnivariateNominal(prob_given_label)
+        return  UnivariateNominal(prob_given_level)
 end
+
+CategoricalArrays.levels(d::UnivariateNominal) = keys(d.prob_given_level) |> collect
 
 function average(dvec::Vector{UnivariateNominal{L,T}}; weights=nothing) where {L,T}
 
@@ -81,36 +88,36 @@ function average(dvec::Vector{UnivariateNominal{L,T}}; weights=nothing) where {L
         weights = weights/sum(weights)
     end
             
-    # get all labels:
-    labels = reduce(union, [keys(d.prob_given_label) for d in dvec])
+    # get all levels:
+    levels = reduce(union, [keys(d.prob_given_level) for d in dvec])
 
-    z = Dict{L,T}([x => zero(T) for x in labels]...)
-    prob_given_label_vec = map(dvec) do d
-        merge(z, d.prob_given_label)
+    z = Dict{L,T}([x => zero(T) for x in levels]...)
+    prob_given_level_vec = map(dvec) do d
+        merge(z, d.prob_given_level)
     end
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_label = Dict{L,T}()
-    for x in labels
-        prob_given_label[x] = zero(T)
+    prob_given_level = Dict{L,T}()
+    for x in levels
+        prob_given_level[x] = zero(T)
     end
     
     # sum up:
-    for x in labels
+    for x in levels
         for k in 1:n
-            prob_given_label[x] += weights[k]*prob_given_label_vec[k][x]
+            prob_given_level[x] += weights[k]*prob_given_level_vec[k][x]
         end
     end
 
-    return UnivariateNominal(prob_given_label)
+    return UnivariateNominal(prob_given_level)
 
 end        
 
 function Distributions.mode(d::UnivariateNominal)
-    dic = d.prob_given_label
+    dic = d.prob_given_level
     p = values(dic)
     max_prob = maximum(p)
-    m = first(first(dic)) # mode, just some label for now
+    m = first(first(dic)) # mode, just some level for now
     for (x, prob) in dic
         if prob == max_prob
             m = x
@@ -120,19 +127,19 @@ function Distributions.mode(d::UnivariateNominal)
     return m
 end
 
-Distributions.pdf(d::UnivariateNominal, x) = d.prob_given_label[x]
+Distributions.pdf(d::UnivariateNominal, x) = d.prob_given_level[x]
 
 """
     _cummulative(d::UnivariateNominal)
 
 Return the cummulative probability vector `[0, ..., 1]` for the
 distribution `d`, using whatever ordering is used in the dictionary
-`d.prob_given_label`. Used only for to implement random sampling from
+`d.prob_given_level`. Used only for to implement random sampling from
 `d`.
 
 """
 function _cummulative(d::UnivariateNominal{L,T}) where {L,T<:Real}
-    p = collect(values(d.prob_given_label))
+    p = collect(values(d.prob_given_level))
     K = length(p)
     p_cummulative = Array{T}(undef, K + 1)
     p_cummulative[1] = zero(T)
@@ -168,38 +175,38 @@ end
 
 function Base.rand(d::UnivariateNominal)
     p_cummulative = _cummulative(d)
-    labels = collect(keys(d.prob_given_label))
-    return labels[_rand(p_cummulative)]
+    levels = collect(keys(d.prob_given_level))
+    return levels[_rand(p_cummulative)]
 end
 
 function Base.rand(d::UnivariateNominal, n::Int)
     p_cummulative = _cummulative(d)
-    labels = collect(keys(d.prob_given_label))
-    return [labels[_rand(p_cummulative)] for i in 1:n]
+    levels = collect(keys(d.prob_given_level))
+    return [levels[_rand(p_cummulative)] for i in 1:n]
 end
     
 function Distributions.fit(d::Type{<:UnivariateNominal}, v::AbstractVector{L}) where L
     N = length(v)
-    prob_given_label = Dict{L,Float64}()
-    count_given_label = Distributions.countmap(v)
-    for (x, c) in count_given_label
-        prob_given_label[x] = c/N
+    prob_given_level = Dict{L,Float64}()
+    count_given_level = Distributions.countmap(v)
+    for (x, c) in count_given_level
+        prob_given_level[x] = c/N
     end
-    return UnivariateNominal(prob_given_label)
+    return UnivariateNominal(prob_given_level)
 end
 
-# if fitting to categorical array, must include missing labels with prob zero
+# if fitting to categorical array, must include missing levels with prob zero
 function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,R,V}) where {L,R,V}
     N = length(skipmissing(v) |> collect)
-    prob_given_label = Dict{V,Float64}() # V is the type of levels
+    prob_given_level = Dict{V,Float64}() # V is the type of levels
     for x in levels(v)
-        prob_given_label[x] = 0
+        prob_given_level[x] = 0
     end
-    count_given_label = Distributions.countmap(skipmissing(v) |> collect)
-    for (x, c) in count_given_label
-        prob_given_label[x] = c/N
+    count_given_level = Distributions.countmap(skipmissing(v) |> collect)
+    for (x, c) in count_given_level
+        prob_given_level[x] = c/N
     end
-    return UnivariateNominal(prob_given_label)
+    return UnivariateNominal(prob_given_level)
 end
     
     

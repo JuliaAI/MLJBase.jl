@@ -76,15 +76,6 @@ update(model::Model, verbosity, fitresult, cache, args...) =
 # supervised models must implement this operation:
 function predict end
 
-# probabilistic supervised models may also overload one or more of
-# these operations delevering point predictions:
-predict_mode(model::Supervised, fitresult, Xnew) =
-    mode.(predict(model, fitresult, Xnew))
-predict_mean(model::Supervised, fitresult, Xnew) =
-    mean.(predict(model, fitresult, Xnew))
-predict_median(model::Supervised, fitresult, Xnew) =
-    median.(predict(model, fitresult, Xnew))
-
 # unsupervised methods must implement this operation:
 function transform end
 
@@ -111,6 +102,60 @@ package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
+
+output_kind(model::Model) = output_kind(typeof(model))
+output_quantity(model::Model) = output_quantity(typeof(model))
+input_kinds(model::Model) = input_kinds(typeof(model))
+input_quantity(model::Model) = input_quantity(typeof(model))
+is_pure_julia(model::Model) = is_pure_julia(typeof(model))
+package_name(model::Model) = package_name(typeof(model))
+load_path(model::Model) = load_path(typeof(model))
+package_uuid(model::Model) = package_uuid(typeof(model))
+package_url(model::Model) = package_url(typeof(model))
+
+# probabilistic supervised models may also overload one or more of
+# `predict_mode`, `predict_median` and `predict_mean` defined below.
+const Cat = Union{Val{:binary},Val{:multiclass},Val{:ordered_factor_finite}}
+
+# mode:
+predict_mode(model::Probabilistic, fitresult, Xnew) =
+    predict_mode(model::Probabilistic, fitresult,
+                 Val(output_kind(model)),
+                 Val(output_quantity(model)), Xnew)
+function predict_mode(model::Probabilistic, fitresult,
+                      ::Cat,
+                      ::Val{:univariate}, Xnew)
+    prob_predictions = predict(model, fitresult, Xnew)
+    null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
+    modes = categorical(mode.(prob_predictions))
+    return vcat(null, modes)
+end
+predict_mode(model::Probabilistic, fitresult,
+             ::Val{:ordered_factor_infinite},
+             ::Val{:univariate},
+             Xnew) =
+    mode.(predict(model, fitresult, Xnew))
+
+# mean:
+predict_mean(model::Probabilistic, fitresult, Xnew) =
+    mean.(predict(model, fitresult, Xnew))
+
+# median:
+predict_median(model::Probabilistic, fitresult, Xnew) =
+    predict_median(model, fitresult, Val(output_kind(model)), Val(output_quantity(model)), Xnew)
+function predict_median(model::Probabilistic, fitresult,
+                        ::Val{:ordered_factor_finite},
+                        ::Val{:univariate},
+                        Xnew) 
+    prob_predictions = predict(model, fitresult, Xnew)
+    null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
+    medians = categorical(median.(prob_predictions))
+    return vcat(null, medians)
+end
+predict_median(model::Probabilistic, fitresult,
+               ::Union{Val{:continuous},Val{:ordered_factor_infinite}},
+               ::Val{:univariate},
+               Xnew) = median.(predict(model, fitresult, Xnew))
 
 # models are `==` if they have the same type and their field values are `==`:
 function ==(m1::M, m2::M) where M<:Model
