@@ -89,7 +89,7 @@ transform(decoder::CategoricalDecoder{I,false}, C::CategoricalArray) where I =
     end
 
 # using original type:
-function inverse_transform(decoder::CategoricalDecoder{I,true,V,N}, A::Array{J}) where {I,V,N,J<:Union{I,V}}
+function inverse_transform(decoder::CategoricalDecoder{I,true,V,N}, A::Array) where {I,V,N}
     refs = broadcast(A) do element
         get(decoder.pool, element)
     end
@@ -97,7 +97,7 @@ function inverse_transform(decoder::CategoricalDecoder{I,true,V,N}, A::Array{J})
 end
 
 # using specified type:
-function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array{J}) where {I,V,N,R,J<:Union{I,V}}
+function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array) where {I,V,N,R}
     refs = broadcast(A) do element
         round(R, element)
     end
