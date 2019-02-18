@@ -44,6 +44,8 @@ const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 1
 
+include("utilities.jl")
+
 
 ## ABSTRACT TYPES
 
