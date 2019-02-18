@@ -12,6 +12,7 @@ export output_kind, output_quantity, input_kinds, input_quantity, is_pure_julia
 export load_path, package_url, package_name, package_uuid
 export fitresult_type
 
+export partition                                     # utilities.jl
 export HANDLE_GIVEN_ID, @show, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export X_and_y                                       # tasks.jl
