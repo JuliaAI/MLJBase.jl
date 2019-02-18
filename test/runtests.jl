@@ -7,6 +7,10 @@
 using MLJBase
 using Test
 
+@testset "utilities" begin
+  @test include("utilities.jl")
+end
+
 @testset "distributions" begin
   @test include("distributions.jl")
 end

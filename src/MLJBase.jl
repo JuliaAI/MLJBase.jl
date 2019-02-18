@@ -23,6 +23,7 @@ export load_crabs, datanow                           # datasets.jl
 export pdf, mean, mode
 
 import Base.==
+
 using Tables
 import Distributions
 import Distributions: pdf, mode
@@ -33,6 +34,7 @@ using DataFrames
 
 # from Standard Library:
 using Statistics
+using Random
 
 
 ## CONSTANTS
