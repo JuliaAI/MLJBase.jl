@@ -33,22 +33,6 @@ function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false)
     return tuple(rowss...)
 end
 
-# the inverse of a multivalued dictionary is a mulitvalued
-# dictionary:
-function inverse(d::Dict{S,Set{T}}) where {S,T}
-    dinv = Dict{T,Set{S}}()
-    for key in keys(d)
-        for val in d[key]
-            if val in keys(dinv)
-                push!(dinv[val], key)
-            else
-                dinv[val] = Set([key,])
-            end
-        end
-    end
-    return dinv
-end
-
 function finaltypes(T::Type)
     s = InteractiveUtils.subtypes(T)
     if isempty(s)
