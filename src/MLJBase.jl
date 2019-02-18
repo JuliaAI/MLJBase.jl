@@ -31,11 +31,12 @@ import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
 import CSV
-using DataFrames
+using DataFrames # remove ultimately
 
 # from Standard Library:
 using Statistics
 using Random
+using InteractiveUtils
 
 
 ## CONSTANTS
