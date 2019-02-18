@@ -13,7 +13,7 @@ export load_path, package_url, package_name, package_uuid
 export fitresult_type
 
 export partition                                     # utilities.jl
-export HANDLE_GIVEN_ID, @show, @constant             # show.jl
+export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask              # tasks.jl
 export X_and_y                                       # tasks.jl
