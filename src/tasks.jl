@@ -81,7 +81,7 @@ features(task::Task) = filter!(schema(task.data).names |> collect) do ftr
 end
 
 features(task::SupervisedTask) = filter(schema(task.data).names |> collect) do ftr
-    ftr != task.targets && !(ftr in task.ignore)
+    !(ftr in task.targets) && !(ftr in task.ignore)
 end
 
 X_and_y(task::SupervisedTask) = (selectcols(task.data, features(task)),
