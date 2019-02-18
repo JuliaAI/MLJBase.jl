@@ -14,6 +14,7 @@ export fitresult_type
 
 export HANDLE_GIVEN_ID, @show, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
+export X_and_y                                       # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_crabs, datanow                           # datasets.jl
 
