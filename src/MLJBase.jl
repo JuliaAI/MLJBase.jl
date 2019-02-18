@@ -12,8 +12,10 @@ export output_kind, output_quantity, input_kinds, input_quantity, is_pure_julia
 export load_path, package_url, package_name, package_uuid
 export fitresult_type
 
-export HANDLE_GIVEN_ID, @show, @constant  # from show.jl
-export UnivariateNominal, average         # from distributions.jl
+export HANDLE_GIVEN_ID, @show, @constant             # show.jl
+export UnivariateNominal, average                    # distributions.jl
+export load_boston, load_ames, load_iris             # datasets.jl
+export load_crabs, datanow                           # datasets.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -24,6 +26,8 @@ import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
+import CSV
+using DataFrames
 
 # from Standard Library:
 using Statistics
@@ -157,6 +161,18 @@ predict_median(model::Probabilistic, fitresult,
                ::Val{:univariate},
                Xnew) = median.(predict(model, fitresult, Xnew))
 
+# returns the fit-result type declared by a supervised model
+# declaration (to test actual fit-results have the declared type):
+"""
+    MLJBase.fitresult_type(m)
+
+Returns the fitresult type of any supervised model (or model type)
+`m`, as declared in the model `mutable struct` declaration.
+
+"""
+fitresult_type(M::Type{<:Supervised}) = supertype(M).parameters[1]
+fitresult_type(m::Supervised) = fitresult_type(typeof(m))
+
 # models are `==` if they have the same type and their field values are `==`:
 function ==(m1::M, m2::M) where M<:Model
     ret = true
@@ -175,17 +191,9 @@ include("distributions.jl")
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
-
 include("introspection.jl")
+include("tasks.jl")
+include("datasets.jl")
 
-# returns the fit-result type declared by a supervised model
-# declaration (to test actual fit-results have the declared type):
-"""
-    MLJBase.fitresult_type(m)
+end # module
 
-Returns the fitresult type of any supervised model (or model type)
-`m`, as declared in the model `mutable struct` declaration.
-
-"""
-fitresult_type(M::Type{<:Supervised}) = supertype(M).parameters[1]
-fitresult_type(m::Supervised) = fitresult_type(typeof(m)) end # module

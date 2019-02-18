@@ -15,8 +15,12 @@ end
   @test include("data.jl")
 end
 
-@testset "traits" begin
+@testset "introspection" begin
   @test include("introspection.jl")
+end
+
+@testset "datasets" begin
+  @test include("datasets.jl")
 end
 
 

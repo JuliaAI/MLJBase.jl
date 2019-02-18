@@ -7,41 +7,67 @@ abstract type Task <: MLJType end
 struct UnsupervisedTask <: Task
     data
     ignore::Vector{Symbol}
-    operation::Function    # transform, inverse_transform, etc
-    properties::Tuple
+    input_kinds
+    input_quantity
+    output_kind
+    output_quantity
 end
 
 function UnsupervisedTask(
     ; data=nothing
     , ignore=Symbol[]
-    , operation=predict
-    , properties=())
+    , input_kinds=nothing
+    , input_quantity=:multivariate
+    , output_kind=nothing
+    , output_quantity=:univariate)
 
     data != nothing         || throw(error("You must specify data=..."))
-
-    return SupervisedTask(data, ignore, operation, properties)
+    input_kinds != nothing  || throw(error("You must specify input_kinds=..."))
+    if !(input_kinds isa Vector)
+        input_kinds = [input_kinds, ]
+    end
+    output_kind != nothing  || throw(error("You must specify output_kind=..."))
+    
+    return SupervisedTask(data, ignore, input_kinds, input_quantity,
+                          output_kind, output_quantity)
 end
+
 
 struct SupervisedTask <: Task
     data
-    target::Symbol
+    targets
     ignore::Vector{Symbol}
-    operation::Function    # predict, predict_proba, etc
-    properties::Tuple
+    is_probabilistic
+    input_kinds
+    input_quantity
+    output_kind
+    output_quantity
 end
 
 function SupervisedTask(
     ; data=nothing
-    , target=nothing
+    , targets=nothing
     , ignore=Symbol[]
-    , operation=predict
-    , properties=())
+    , is_probabilistic=nothing
+    , input_kinds=nothing
+    , input_quantity=:multivariate
+    , output_kind=nothing
+    , output_quantity=:univariate)
 
-    data != nothing         || throw(error("You must specify data=..."))
-    target != nothing       || throw(error("You must specify target=..."))
-    target in names(data)   || throw(error("Supplied data does not have $target as field."))
 
-    return SupervisedTask(data, target, ignore, operation, properties)
+    data != nothing    || throw(error("You must specify data=..."))
+    targets != nothing || throw(error("You must specify targets=... (use Symbol or Vector{Symbol})"))
+    if !(targets isa Vector)
+        targets = [targets, ]
+    end
+    issubset(Set(targets), Set(schema(data).names)) ||
+        throw(error("Supplied data does not have $target as field."))
+    is_probabilistic != nothing || throw(error("You must specify is_probabilistic=..."))
+    input_kinds != nothing      || throw(error("You must specify input_kinds=..."))
+    output_kind != nothing      || throw(error("You must specify output_kind=..."))
+
+    return SupervisedTask(data, targets, ignore, is_probabilistic, input_kinds, input_quantity,
+                          output_kind, output_quantity)
 end
 
 
@@ -55,8 +81,10 @@ features(task::Task) = filter!(schema(task.data).names |> collect) do ftr
 end
 
 features(task::SupervisedTask) = filter(schema(task.data).names |> collect) do ftr
-    ftr != task.target && !(ftr in task.ignore)
+    ftr != task.targets && !(ftr in task.ignore)
 end
 
 X_and_y(task::SupervisedTask) = (selectcols(task.data, features(task)),
-                                 selectcols(task.data, task.target))
+                                 [selectcols(task.data, fld) for fld in task.targets]...)
+
+#GET EXPORT STATEMENTS FROM MLJ

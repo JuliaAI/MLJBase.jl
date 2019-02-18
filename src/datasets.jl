@@ -4,7 +4,12 @@ datadir = joinpath(srcdir, "../data/") # TODO: make OS agnostic
 function load_boston()
     df = CSV.read(joinpath(datadir, "Boston.csv"),
                   categorical=true, allowmissing=:none)
-    return SupervisedTask(data=df, target=:MedV, ignore=[:Chas], properties=())
+    return SupervisedTask(data=df,
+                          targets=:MedV,
+                          ignore=[:Chas],
+                          is_probabilistic=:yes,
+                          input_kinds=:continuous,
+                          output_kind=:continuous)
 end
 
 """Load a reduced version of the well-known Ames Housing task,
@@ -13,30 +18,40 @@ function load_ames()
     df = CSV.read(joinpath(datadir, "reduced_ames.csv"), categorical=true,
                   allowmissing=:none)
     df[:target] = exp.(df[:target])
-    return SupervisedTask(data=df, target=:target, properties=())
+    return SupervisedTask(data=df,
+                          targets=:target,
+                          is_probabilistic=:no,
+                          input_kinds=[:continuous, :multiclass],
+                          output_kind=:continuous)
 end
 
 """Load a well-known public classification task with nominal features."""
 function load_iris()
     df = CSV.read(joinpath(datadir, "iris.csv"),
                   categorical=true, allowmissing=:none)
-    # TODO: fix things so that next line can be deleted
-#    df[:target] = [df[:target]...] # change CategoricalArray to Array, keeping categ eltype
-    return SupervisedTask(data=df, target=:target, properties=())
+    return SupervisedTask(data=df,
+                          targets=:target,
+                          is_probabilistic=:yes,
+                          input_kinds=:continuous,
+                          output_kind=:multiclass)
 end
 
 """Load a well-known crab classification dataset with nominal features."""
 function load_crabs()
     df = CSV.read(joinpath(datadir, "crabs.csv"),
                   categorical=true, allowmissing=:none)
-    return SupervisedTask(data=df, target=:sp, ignore=[:sex, :index], properties=())
+    return SupervisedTask(data=df,
+                          targets=:sp,
+                          ignore=[:sex, :index],
+                          is_probabilistic=:yes,
+                          input_kinds=:continuous,
+                          output_kind=:multiclass)
 end
 
 """Get some supervised data now!!"""
 function datanow()
     Xtable, y = X_and_y(load_boston())
-    X = DataFrame(Xtable)  # force table to be dataframe;
-                                     # should become redundant
+    X = DataFrame(Xtable)  # force table to be dataframe; should become redundant
 
     return (X[1:75,:], y[1:75])
 end
