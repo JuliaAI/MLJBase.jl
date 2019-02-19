@@ -6,7 +6,7 @@ function load_boston()
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
                           targets=:MedV,
-                          ignore=[:Chas],
+                          ignore=[:Chas,],
                           is_probabilistic=:yes,
                           input_kinds=:continuous,
                           output_kind=:continuous)
@@ -14,12 +14,25 @@ end
 
 """Load a reduced version of the well-known Ames Housing task,
 having six numerical and six categorical features."""
-function load_ames()
+function load_reduced_ames()
     df = CSV.read(joinpath(datadir, "reduced_ames.csv"), categorical=true,
                   allowmissing=:none)
     df[:target] = exp.(df[:target])
     return SupervisedTask(data=df,
                           targets=:target,
+                          is_probabilistic=:no,
+                          input_kinds=[:continuous, :multiclass],
+                          output_kind=:continuous)
+end
+
+"""Load the full version of the well-known Ames Housing task."""
+function load_ames()
+    df = CSV.read(joinpath(datadir, "ames.csv"), categorical=true,
+                  allowmissing=:none)
+    df[:target] = exp.(df[:target])
+    return SupervisedTask(data=df,
+                          targets=:target,
+                          ignore=[:Id,],
                           is_probabilistic=:no,
                           input_kinds=[:continuous, :multiclass],
                           output_kind=:continuous)

@@ -11,6 +11,7 @@ task = load_boston()
                     :Rad, :Tax, :PTRatio, :Black, :LStat]
 MLJBase.features(task)
 load_ames()
+load_reduced_ames()
 load_iris()
 datanow()
 
