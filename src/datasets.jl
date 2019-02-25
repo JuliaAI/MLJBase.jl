@@ -7,9 +7,7 @@ function load_boston()
     return SupervisedTask(data=df,
                           targets=:MedV,
                           ignore=[:Chas,],
-                          is_probabilistic=:yes,
-                          input_kinds=:continuous,
-                          output_kind=:continuous)
+                          probabilistic=true)
 end
 
 """Load a reduced version of the well-known Ames Housing task,
@@ -18,11 +16,14 @@ function load_reduced_ames()
     df = CSV.read(joinpath(datadir, "reduced_ames.csv"), categorical=true,
                   allowmissing=:none)
     df[:target] = exp.(df[:target])
+    # TODO: uncomment following after julia #29501 is resolved
+#    df.OverallQual = categorical(df.OverallQual, ordered=true)
+#    df[:GarageCars] = categorical(df[:GarageCars], ordered=true)
+#    df[:YearBuilt] = categorical(df[:YearBuilt], ordered=true)
+#    df[:YearRemodAdd] = categorical(df[:YearRemodAdd], ordered=true)
     return SupervisedTask(data=df,
                           targets=:target,
-                          is_probabilistic=:no,
-                          input_kinds=[:continuous, :multiclass],
-                          output_kind=:continuous)
+                          probabilistic=false)
 end
 
 """Load the full version of the well-known Ames Housing task."""
@@ -33,9 +34,7 @@ function load_ames()
     return SupervisedTask(data=df,
                           targets=:target,
                           ignore=[:Id,],
-                          is_probabilistic=:no,
-                          input_kinds=[:continuous, :multiclass],
-                          output_kind=:continuous)
+                          probabilistic=false)
 end
 
 """Load a well-known public classification task with nominal features."""
@@ -44,9 +43,7 @@ function load_iris()
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
                           targets=:target,
-                          is_probabilistic=:yes,
-                          input_kinds=:continuous,
-                          output_kind=:multiclass)
+                          probabilistic=true)
 end
 
 """Load a well-known crab classification dataset with nominal features."""
@@ -56,9 +53,7 @@ function load_crabs()
     return SupervisedTask(data=df,
                           targets=:sp,
                           ignore=[:sex, :index],
-                          is_probabilistic=:yes,
-                          input_kinds=:continuous,
-                          output_kind=:multiclass)
+                          probabilistic=true)
 end
 
 """Get some supervised data now!!"""

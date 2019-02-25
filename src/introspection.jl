@@ -1,15 +1,17 @@
-is_probabilistic(::Type{<:Model}) = :unknown
-is_probabilistic(::Type{<:Deterministic}) = :no
-is_probabilistic(::Type{<:Probabilistic}) = :yes
+target_quantity(m) =
+    target_scitype(m) <: Tuple ? :multivariate : :univariate
+probabilistic(::Type{<:Model}) = false
+probabilistic(::Type{<:Deterministic}) = false
+probabilistic(::Type{<:Probabilistic}) = true
 learning_type(::Type{<:Model}) = :other
 learning_type(::Type{<:Supervised}) = :supervised
 learning_type(::Type{<:Unsupervised}) = :unsupervised
 
 
 # TODO: depreciate? currently used by ensembles.jl
-output_is(modeltype::Type{<:Model}) =
-    [is_probabilistic(modeltype), output_kind(modeltype), output_quantity(modeltype)]
-output_is(model::Model) = output_is(typeof(model))
+# output_is(modeltype::Type{<:Model}) =
+#     [is_probabilistic(modeltype), output_kind(modeltype), target_quantity(modeltype)]
+# output_is(model::Model) = output_is(typeof(model))
 
 function coretype(M)
     if isdefined(M, :name)
@@ -32,17 +34,15 @@ function info(M::Type{<:Model})
     load_path != "unknown" || error(message*"`MLJBase.load_path($M) should be defined so that "* 
                                     "`using MLJ; import MLJ.load_path($M)` loads `$M` into current namespace.")
 
-    output_kind(M) in [:continuous, :binary, :multiclass, :ordered_factor_finite,
-                       :ordered_factor_infinite, :mixed, :unknown] ||
-                           error(message*"`output_kind($M)` must return :numeric, :binary, :multiclass (or :unknown).")
+    # check target_scitype:
+    T = target_scitype(M)
+    Ts = T <: Tuple ? T.types : [T, ]
+    okay = reduce(&, [t <: Found for t in Ts])
+ 
+    okay || error(message*"target_scitype($M) (defining upper bound of target scitype) is not a subtype of `Found`. ")
 
-    output_quantity(M) in [:univariate, :multivariate] ||
-        error(message*"`output_quantity($M)` must return :univariate or :multivariate")
-
-    issubset(Set(input_kinds(M)), Set([:continuous, :multiclass, :ordered_factor_finite,
-                                         :ordered_factor_infinite, :missing])) ||
-                                             error(message*"`input_kinds($M)` must return a vector with entries from [:continuous, :multiclass, "*
-                                                   ":ordered_factor_finite, :ordered_factor_infinite, :missing]")
+    input_scitypes(M) <: Union{Missing, Found} ||
+        error(message*"input_scitypes($M) (defining upper bound of input scitypes) not a subtype of `Union{Missing,Found}`. ")
 
     input_quantity(M) in [:univariate, :multivariate] ||
         error(message*"`input_quantity($M)` must return :univariate or :multivariate.")
@@ -50,19 +50,18 @@ function info(M::Type{<:Model})
     is_pure_julia(M) in [:yes, :no, :unknown] ||
         error(message*"`is_pure_julia($M)` must return :yes, :no (or :unknown).")
 
-    d = Dict{Symbol,Union{Symbol,Vector{Symbol},String}}()
+    d = Dict{Symbol,Any}()
+    d[:learning_type] = learning_type(M)
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:input_kinds] = input_kinds(M)
+    d[:target_scitype] = target_scitype(M)
+    d[:input_scitypes] = input_scitypes(M)
     d[:input_quantity] = input_quantity(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
-    d[:output_kind] = output_kind(M)
-    d[:output_is_probabilistic] = is_probabilistic(M)
-    d[:output_quantity] = output_quantity(M)
-    d[:learning_type] = learning_type(M)
+    d[:probabilistic] = probabilistic(M)
     return d
 end
 info(model::Model) = info(typeof(model))

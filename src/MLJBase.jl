@@ -8,11 +8,14 @@ export selectrows, selectcols, schema, table, levels_seen
 export fit, update, clean!, info
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
-export output_kind, output_quantity, input_kinds, input_quantity, is_pure_julia
+export target_scitype, target_quantity, input_scitypes, input_quantity, is_pure_julia
 export load_path, package_url, package_name, package_uuid
 export fitresult_type
 
 export partition                                     # utilities.jl
+export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
+export FiniteOrderedFactor                           # scitypes.jl
+export Count, Multiclass, Binary                     # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask              # tasks.jl
@@ -50,6 +53,7 @@ const COLUMN_WIDTH = 24
 const DEFAULT_SHOW_DEPTH = 1
 
 include("utilities.jl")
+include("scitypes.jl")
 
 
 ## ABSTRACT TYPES
@@ -106,19 +110,17 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-output_kind(::Type{<:Model}) = :unknown
-output_quantity(::Type{<:Model}) = :univariate
-input_kinds(::Type{<:Model}) = Symbol[]
-input_quantity(::Type{<:Model}) = :multivariate
+target_scitype(::Type{<:Model}) = Other # a Tuple type for multivariate targets
+input_scitypes(::Type{<:Model}) = Other 
+input_quantity(::Type{<:Model}) = :multivariate 
 is_pure_julia(::Type{<:Model}) = :unknown
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 
-output_kind(model::Model) = output_kind(typeof(model))
-output_quantity(model::Model) = output_quantity(typeof(model))
-input_kinds(model::Model) = input_kinds(typeof(model))
+target_scitype(model::Model) = target_scitype(typeof(model))
+input_scitypes(model::Model) = input__scitypes(typeof(model))
 input_quantity(model::Model) = input_quantity(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
@@ -132,21 +134,14 @@ const Cat = Union{Val{:binary},Val{:multiclass},Val{:ordered_factor_finite}}
 
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
-    predict_mode(model::Probabilistic, fitresult,
-                 Val(output_kind(model)),
-                 Val(output_quantity(model)), Xnew)
-function predict_mode(model::Probabilistic, fitresult,
-                      ::Cat,
-                      ::Val{:univariate}, Xnew)
+    predict_mode(model, fitresult, target_scitype(model), Xnew)
+function predict_mode(model::Probabilistic, fitresult, ::Type{<:Union{Multiclass,OrderedFactor}}, Xnew)
     prob_predictions = predict(model, fitresult, Xnew)
     null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
     modes = categorical(mode.(prob_predictions))
     return vcat(null, modes)
 end
-predict_mode(model::Probabilistic, fitresult,
-             ::Val{:ordered_factor_infinite},
-             ::Val{:univariate},
-             Xnew) =
+predict_mode(model::Probabilistic, fitresult, ::Type{<:Count}, Xnew) =
     mode.(predict(model, fitresult, Xnew))
 
 # mean:
@@ -155,20 +150,15 @@ predict_mean(model::Probabilistic, fitresult, Xnew) =
 
 # median:
 predict_median(model::Probabilistic, fitresult, Xnew) =
-    predict_median(model, fitresult, Val(output_kind(model)), Val(output_quantity(model)), Xnew)
-function predict_median(model::Probabilistic, fitresult,
-                        ::Val{:ordered_factor_finite},
-                        ::Val{:univariate},
-                        Xnew) 
+    predict_median(model, fitresult, target_scitype(model), Xnew)
+function predict_median(model::Probabilistic, fitresult, ::Type{<:OrderedFactor}, Xnew) 
     prob_predictions = predict(model, fitresult, Xnew)
     null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
     medians = categorical(median.(prob_predictions))
     return vcat(null, medians)
 end
-predict_median(model::Probabilistic, fitresult,
-               ::Union{Val{:continuous},Val{:ordered_factor_infinite}},
-               ::Val{:univariate},
-               Xnew) = median.(predict(model, fitresult, Xnew))
+predict_median(model::Probabilistic, fitresult, ::Type{<:Union{Continuous, Count}}, Xnew) =
+    median.(predict(model, fitresult, Xnew))
 
 # returns the fit-result type declared by a supervised model
 # declaration (to test actual fit-results have the declared type):
@@ -200,6 +190,7 @@ include("distributions.jl")
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
+
 include("introspection.jl")
 include("tasks.jl")
 include("datasets.jl")
