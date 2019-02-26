@@ -70,7 +70,7 @@ abstract type Unsupervised <: Model  end
 # supervised models that `predict` probability distributions are of:
 abstract type Probabilistic{R} <: Supervised{R} end
 
-# supervsied models that `predict` point-values are of:
+# supervised models that `predict` point-values are of:
 abstract type Deterministic{R} <: Supervised{R} end
 
 
@@ -99,6 +99,10 @@ function transform end
 # unsupervised methods may implement this operation:
 function inverse_transform end
 
+# optional operation providing access to fitted parameters (eg,
+# coeficients of linear model):
+function fitted_params end
+
 # operations implemented by some meta-models:
 function se end
 function evaluate end
@@ -110,7 +114,9 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-target_scitype(::Type{<:Model}) = Other # a Tuple type for multivariate targets
+target_scitype(::Type{<:Supervised}) = Other    # a Tuple type in multivariate case
+output_scitypes(::Type{<:Unsupervised}) = Other # never a Tuple type
+output_quantity(::Type{<:Unsupervised}) = :multivariate
 input_scitypes(::Type{<:Model}) = Other 
 input_quantity(::Type{<:Model}) = :multivariate 
 is_pure_julia(::Type{<:Model}) = :unknown
