@@ -5,10 +5,10 @@ module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
 export selectrows, selectcols, schema, table, levels_seen
-export fit, update, clean!, info
+export fit, update, clean!
 export predict, predict_mean, predict_mode 
 export transform, inverse_transform, se, evaluate, best
-export target_scitype, target_quantity, input_scitypes, input_quantity, is_pure_julia
+export target_scitype, target_quantity, input_scitypes, input_is_multivariate, is_pure_julia
 export load_path, package_url, package_name, package_uuid
 export fitresult_type
 
@@ -16,13 +16,15 @@ export partition                                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
 export FiniteOrderedFactor                           # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
+export scitype
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask              # tasks.jl
-export X_and_y                                       # tasks.jl
+export X_and_y, X_, y_                               # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_reduced_ames                             # datasets.jl
 export load_crabs, datanow                           # datasets.jl
+export info                                          # info.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -116,10 +118,10 @@ clean!(model::Model) = ""
 # fallback trait declarations:
 target_scitype(::Type{<:Supervised}) = Other    # a Tuple type in multivariate case
 output_scitypes(::Type{<:Unsupervised}) = Other # never a Tuple type
-output_quantity(::Type{<:Unsupervised}) = :multivariate
+output_is_multivariate(::Type{<:Unsupervised}) = true
 input_scitypes(::Type{<:Model}) = Other 
-input_quantity(::Type{<:Model}) = :multivariate 
-is_pure_julia(::Type{<:Model}) = :unknown
+input_is_multivariate(::Type{<:Model}) = true 
+is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
@@ -127,7 +129,7 @@ package_url(::Type{<:Model}) = "unknown"
 
 target_scitype(model::Model) = target_scitype(typeof(model))
 input_scitypes(model::Model) = input__scitypes(typeof(model))
-input_quantity(model::Model) = input_quantity(typeof(model))
+input_is_multivariate(model::Model) = input_is_multivariate(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
 load_path(model::Model) = load_path(typeof(model))
@@ -136,7 +138,6 @@ package_url(model::Model) = package_url(typeof(model))
 
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.
-const Cat = Union{Val{:binary},Val{:multiclass},Val{:ordered_factor_finite}}
 
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
@@ -197,7 +198,7 @@ include("distributions.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-include("introspection.jl")
+include("info.jl")
 include("tasks.jl")
 include("datasets.jl")
 

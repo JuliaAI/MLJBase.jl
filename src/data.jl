@@ -136,9 +136,11 @@ Tables.jl documentation).
 
 Convert an abstract matrix `X` into a table with `names` (a tuple of
 symbols) as column names, or with labels `(:x1, :x2, ..., :xn)` where
-`n=size(X, 2)`, if `names` is not specified.  Equivalent to `table(cols,
-prototype=prototype)` where `cols` is the named tuple of columns of
-`X`, with `keys(cols) = names`.
+`n=size(X, 2)`, if `names` is not specified.  If prototype=nothing,
+then a named tuple of vectors is returned.
+
+Equivalent to `table(cols, prototype=prototype)` where `cols` is the
+named tuple of columns of `X`, with `keys(cols) = names`.
 
 """
 function table(cols::NamedTuple; prototype=cols)

@@ -1,8 +1,8 @@
 target_quantity(m) =
-    target_scitype(m) <: Tuple ? :multivariate : :univariate
-probabilistic(::Type{<:Model}) = false
-probabilistic(::Type{<:Deterministic}) = false
-probabilistic(::Type{<:Probabilistic}) = true
+    target_scitype(m) <: Tuple ? true : false
+is_probabilistic(::Type{<:Model}) = false
+is_probabilistic(::Type{<:Deterministic}) = false
+is_probabilistic(::Type{<:Probabilistic}) = true
 
 
 # TODO: depreciate? currently used by ensembles.jl
@@ -41,24 +41,24 @@ function info(M::Type{<:Supervised})
     input_scitypes(M) <: Union{Missing, Found} ||
         error(message*"input_scitypes($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
 
-    input_quantity(M) in [:univariate, :multivariate] ||
-        error(message*"input_quantity($M) must return :univariate or :multivariate.")
+    input_is_multivariate(M) in [false, true] ||
+        error(message*"input_is_multivariate($M) must return true or false. ")
     
-    is_pure_julia(M) in [:yes, :no, :unknown] ||
-        error(message*"is_pure_julia($M) must return :yes, :no (or :unknown).")
+    is_pure_julia(M) in [true, false, :unknown] ||
+        error(message*"is_pure_julia($M) must return true or false. ")
 
     d = Dict{Symbol,Any}()
-    d[:supervised] = true
+    d[:is_supervised] = true
     d[:load_path] = load_path(M)
     d[:name] = name(M)
     d[:target_scitype] = target_scitype(M)
     d[:input_scitypes] = input_scitypes(M)
-    d[:input_quantity] = input_quantity(M)
+    d[:input_is_multivariate] = input_is_multivariate(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
-    d[:probabilistic] = probabilistic(M)
+    d[:is_probabilistic] = is_probabilistic(M)
     return d
 end
 
@@ -69,29 +69,29 @@ function info(M::Type{<:Unsupervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    output_scitypes(M) <: Found ||
-        error(message*"output_scitypes($M) (defining upper bound of output scitypes) is not a subtype of Found. ")
+    output_scitypes(M) <: Union{Missing,Found} ||
+        error(message*"output_scitypes($M) (defining upper bound of output scitypes) is not a subtype of Union{Missing,Found}. ")
 
-    output_quantity(M) in [:univariate, :multivariate] ||
-        error(message*"output_quantity($M) must return :univariate or :multivariate.")
+    output_is_multivariate(M) in [false, true] ||
+        error(message*"output_is_multivariate($M) must return true or false.")
 
     input_scitypes(M) <: Union{Missing, Found} ||
         error(message*"input_scitypes($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
 
-    input_quantity(M) in [:univariate, :multivariate] ||
-        error(message*"input_quantity($M) must return :univariate or :multivariate.")
+    input_is_multivariate(M) in [false, true] ||
+        error(message*"input_is_multivariate($M) must return true or false.")
     
-    is_pure_julia(M) in [:yes, :no, :unknown] ||
-        error(message*"is_pure_julia($M) must return :yes, :no (or :unknown).")
+    is_pure_julia(M) in [true, false, :unknown] ||
+        error(message*"is_pure_julia($M) must return true or false. ")
 
     d = Dict{Symbol,Any}()
-    d[:supervised] = false
+    d[:is_supervised] = false
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:output_scitypes] = output_scitype(M)
-    d[:output_quantity] = ouput_quantity(M)
+    d[:output_scitypes] = output_scitypes(M)
+    d[:output_is_multivariate] = output_is_multivariate(M)
     d[:input_scitypes] = input_scitypes(M)
-    d[:input_quantity] = input_quantity(M)
+    d[:input_is_multivariate] = input_is_multivariate(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)

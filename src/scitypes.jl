@@ -6,8 +6,8 @@ abstract type Found end
     abstract type Discrete <: Found end
         struct Multiclass{N} <: Discrete end
         abstract type OrderedFactor <: Discrete end
-        struct FiniteOrderedFactor{N} <: OrderedFactor end
-        struct Count <: OrderedFactor end
+            struct FiniteOrderedFactor{N} <: OrderedFactor end
+            struct Count <: OrderedFactor end
     struct Other <: Found end
 
 # aliases:
