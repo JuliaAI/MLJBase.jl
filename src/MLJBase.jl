@@ -116,10 +116,10 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-target_scitype(::Type{<:Supervised}) = Other    # a Tuple type in multivariate case
-output_scitypes(::Type{<:Unsupervised}) = Other # never a Tuple type
+target_scitype(::Type{<:Supervised}) = Any    # a Tuple type in multivariate case
+output_scitypes(::Type{<:Unsupervised}) = Any # never a Tuple type
 output_is_multivariate(::Type{<:Unsupervised}) = true
-input_scitypes(::Type{<:Model}) = Other 
+input_scitypes(::Type{<:Model}) = Any
 input_is_multivariate(::Type{<:Model}) = true 
 is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
