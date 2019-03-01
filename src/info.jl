@@ -33,10 +33,9 @@ function info(M::Type{<:Supervised})
 
     # check target_scitype:
     T = target_scitype(M)
-    Ts = T <: Tuple ? T.types : [T, ]
-    okay = reduce(&, [t <: Found for t in Ts])
- 
-    okay || error(message*"target_scitype($M) (defining upper bound of target scitype) is not a subtype of Found. ")
+    T <: Union{Found,NTuple{<:Found}} ||
+        error(message*"target_scitype($M) (defining upper bound of target scitype) "*
+              "is not a subtype of Found. ")
 
     input_scitypes(M) <: Union{Missing, Found} ||
         error(message*"input_scitypes($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
