@@ -128,7 +128,7 @@ package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 
 target_scitype(model::Model) = target_scitype(typeof(model))
-input_scitypes(model::Model) = input__scitypes(typeof(model))
+input_scitypes(model::Model) = input_scitypes(typeof(model))
 input_is_multivariate(model::Model) = input_is_multivariate(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
