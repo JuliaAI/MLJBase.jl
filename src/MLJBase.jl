@@ -19,7 +19,7 @@ export Count, Multiclass, Binary                     # scitypes.jl
 export scitype
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
-export SupervisedTask, UnsupervisedTask              # tasks.jl
+export SupervisedTask, UnsupervisedTask, MLJTask        # tasks.jl
 export X_and_y, X_, y_                               # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_reduced_ames                             # datasets.jl

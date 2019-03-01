@@ -1,6 +1,6 @@
-abstract type Task <: MLJType end
+abstract type MLJTask <: MLJType end # `Task` already has meaning in Base
 
-struct UnsupervisedTask <: Task
+struct UnsupervisedTask <: MLJTask
     data
     ignore::Vector{Symbol}
     input_scitypes
@@ -39,7 +39,7 @@ function UnsupervisedTask(
     return UnsupervisedTask(data, ignore, input_scitypes, input_is_multivariate)
 end
 
-struct SupervisedTask{U} <: Task # U is true for single target
+struct SupervisedTask{U} <: MLJTask # U is true for single target
     data
     targets
     ignore::Vector{Symbol}
@@ -111,8 +111,8 @@ end
 
 ## RUDIMENTARY TASK OPERATIONS
 
-nrows(task::Task) = schema(task.data).nrows
-Base.eachindex(task::Task) = Base.OneTo(nrows(task))
+nrows(task::MLJTask) = schema(task.data).nrows
+Base.eachindex(task::MLJTask) = Base.OneTo(nrows(task))
 
 """
     names(task::UnsupervisedTask)
@@ -135,7 +135,7 @@ Base.names(task::SupervisedTask) = filter(schema(task.data).names |> collect) do
     !(ftr in task.targets) && !(ftr in task.ignore)
 end
 
-X_(task::Task) = selectcols(task.data, names(task))
+X_(task::MLJTask) = selectcols(task.data, names(task))
 
 y_(task::SupervisedTask{true}) = selectcols(task.data, task.targets[1])
 
