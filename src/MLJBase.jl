@@ -6,7 +6,7 @@ module MLJBase
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
 export selectrows, selectcols, schema, table, levels_seen
 export fit, update, clean!
-export predict, predict_mean, predict_mode 
+export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export target_scitype, target_quantity, input_scitypes, input_is_multivariate, is_pure_julia
 export load_path, package_url, package_name, package_uuid
