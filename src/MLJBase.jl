@@ -101,9 +101,9 @@ function transform end
 # unsupervised methods may implement this operation:
 function inverse_transform end
 
-# optional operation providing access to fitted parameters (eg,
-# coeficients of linear model):
-function fitted_params end
+# this operation can be optionally overloaded to provide access to
+# fitted parameters (eg, coeficients of linear model):
+function fitted_params(::Model, fitresult) = (fitresult=fitresult,)
 
 # operations implemented by some meta-models:
 function se end
