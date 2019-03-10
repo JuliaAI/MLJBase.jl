@@ -53,6 +53,10 @@ pdf(d, "maybe") ≈ 0.5 # true
 levels(d) # ["yes", "no", "maybe"]
 ````
 
+If `v` is a `CategoricalVector` then `fit(UnivariateNominal, v)`
+includes *all* levels in pool of `v` in its support, assigning unseen
+levels probability zero.
+
 """
 struct UnivariateNominal{L,T<:Real} <: Distribution
     prob_given_level::Dict{L,T}
@@ -194,6 +198,7 @@ function Distributions.fit(d::Type{<:UnivariateNominal}, v::AbstractVector{L}) w
     end
     return UnivariateNominal(prob_given_level)
 end
+
 
 # if fitting to categorical array, must include missing levels with prob zero
 function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,R,V}) where {L,R,V}

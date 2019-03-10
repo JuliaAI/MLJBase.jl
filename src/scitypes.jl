@@ -14,7 +14,7 @@ abstract type Found end
 const Binary = Multiclass{2}
 
 # trait function:
-scitype(x) = scitype(x, Val(Tables.istable(x)))
+scitype(x) = scitype(x, Val(Tables.istable(x) && Tables.columnaccess(x)))
 
 # universal fallback:
 scitype(x::Any, ::Any) = Other

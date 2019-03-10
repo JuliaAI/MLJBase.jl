@@ -39,6 +39,9 @@ import CategoricalArrays
 import CSV
 using DataFrames # remove ultimately
 
+# to be extended:
+import StatsBase: fit, predict
+
 # from Standard Library:
 using Statistics
 using Random
@@ -91,9 +94,9 @@ fit(model::Model, verbosity::Int, args...) = fit(model, args...), nothing, nothi
 update(model::Model, verbosity, fitresult, cache, args...) =
     fit(model, verbosity, args...)
 
-# methods dispatched on a model and fit-result are called *operations*.
-# supervised models must implement this operation:
-function predict end
+# methods dispatched on a model and fit-result are called
+# *operations*.  supervised models must implement a `predict`
+# operation (extending the `predict` method of StatsBase).
 
 # unsupervised methods must implement this operation:
 function transform end
