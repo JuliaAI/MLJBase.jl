@@ -13,24 +13,18 @@ abstract type Found end
 # aliases:
 const Binary = Multiclass{2}
 
-# trait function:
-scitype(x) = scitype(x, Val(Tables.istable(x) && Tables.columnaccess(x)))
-
 # universal fallback:
-scitype(x::Any, ::Any) = Other
-
-# scalars:
-scitype(::Missing, ::Val{false}) = Missing
-scitype(::Real, ::Val{false}) = Continuous
-scitype(::Integer, ::Val{false}) = Count
-scitype(c::CategoricalValue, ::Val{false}) =
+scitype(::Any) = Other
+scitype(::Missing) = Missing
+scitype(::Real) = Continuous
+scitype(::Integer) = Count
+scitype(c::CategoricalValue) =
     c.pool.ordered ? FiniteOrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
-scitype(c::CategoricalString, ::Val{false}) =
+scitype(c::CategoricalString) = 
     c.pool.ordered ? FiniteOrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
-
 
 # arrays:
-function scitype(A::AbstractArray, ::Val{false})
+function union_scitypes(A::AbstractArray)
     ret = Union{}
     for j in eachindex(A)
         ret = Union{ret, scitype(A[j])}
@@ -39,16 +33,12 @@ function scitype(A::AbstractArray, ::Val{false})
 end
 
 # tables:
-# TODO: slow. fiddly to fix because schema(table).eltype does
-# not determine scitype.
-function scitype(table, ::Val{true})
+function union_scitypes(table)
     ret = Union{}
-    cols = Tables.columns(table)
-    names = Tables.schema(table).names
-    for name in names
-        for x in getproperty(cols, name)
-            ret = Union{ret,scitype(x)}
-        end
+    features = schema(table).names
+    for ftr in features
+        col = selectcols(table, ftr)
+        ret = Union{ret,union_scitypes(col)}
     end
     return ret
 end

@@ -7,7 +7,7 @@ function load_boston()
     return SupervisedTask(data=df,
                           targets=:MedV,
                           ignore=[:Chas,],
-                          probabilistic=true)
+                          is_probabilistic=true)
 end
 
 """Load a reduced version of the well-known Ames Housing task,
@@ -23,7 +23,7 @@ function load_reduced_ames()
 #    df[:YearRemodAdd] = categorical(df[:YearRemodAdd], ordered=true)
     return SupervisedTask(data=df,
                           targets=:target,
-                          probabilistic=false)
+                          is_probabilistic=false)
 end
 
 """Load the full version of the well-known Ames Housing task."""
@@ -34,7 +34,7 @@ function load_ames()
     return SupervisedTask(data=df,
                           targets=:target,
                           ignore=[:Id,],
-                          probabilistic=false)
+                          is_probabilistic=false)
 end
 
 """Load a well-known public classification task with nominal features."""
@@ -43,7 +43,7 @@ function load_iris()
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
                           targets=:target,
-                          probabilistic=true)
+                          is_probabilistic=true)
 end
 
 """Load a well-known crab classification dataset with nominal features."""
@@ -53,7 +53,7 @@ function load_crabs()
     return SupervisedTask(data=df,
                           targets=:sp,
                           ignore=[:sex, :index],
-                          probabilistic=true)
+                          is_probabilistic=true)
 end
 
 """Get some supervised data now!!"""

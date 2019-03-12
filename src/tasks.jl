@@ -1,48 +1,48 @@
 abstract type MLJTask <: MLJType end # `Task` already has meaning in Base
 
 struct UnsupervisedTask <: MLJTask
-    data
-    ignore::Vector{Symbol}
-    input_scitypes
+    X
+    input_scitypes::DataType
     input_is_multivariate::Bool
 end
 
 """
-    task = UnsupervisedTask(; data=nothing, ignore=Symbol[])
+    task = UnsupervisedTask(data; ignore=Symbol[], input_is_multivariate=true)
 
-Construct a unsupervised learning task using `data`, which is any table
-supported by Tables.jl. Note that rows must correspond to patterns and
-columns to features.  The input features for the task are all
-the columns of `data`, with the exception of those specified
-by `ignore`. 
+Construct an unsupervised learning task with given input `data`, which
+should be a single vector (for univariate inputs) or a table.  Rows of
+`data` must correspond to patterns and columns to features. Columns in
+`data` whose names appear in `ignore` will be ignored by models
+trained on the task.
 
     X = task()
 
-Retrieve the table of inputs for `task` (the table `data` without
-features in `ignore`.
+Return the input data (with ignored features removed). 
 
 """
-function UnsupervisedTask(
-    ; data=nothing
-    , ignore=Symbol[])
+function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate=true)
 
-    data != nothing  || throw(error("You must specify data=..."))
-
-    input_scitypes = scitype(data)
-    input_is_multivariate = true
-#        data isa AbstractVector ? false : multivariate
-
+    data != nothing || error("You must specify data=... ")
+    
     if ignore isa Symbol
         ignore = [ignore, ]
     end
+
+    features = filter(schema(data).names |> collect) do ftr
+        !(ftr in ignore)
+    end
+    X = selectcols(data, collect(features))
     
-    return UnsupervisedTask(data, ignore, input_scitypes, input_is_multivariate)
+    input_scitypes = union_scitypes(X)
+
+    return UnsupervisedTask(X, input_scitypes, input_is_multivariate)
 end
 
-struct SupervisedTask{U} <: MLJTask # U is true for single target
-    data
-    targets
-    ignore::Vector{Symbol}
+# U is true for univariate targest.
+# X and y can be different views of a common object.
+struct SupervisedTask{U} <: MLJTask 
+    X                               
+    y
     is_probabilistic
     target_scitype
     input_scitypes
@@ -50,99 +50,99 @@ struct SupervisedTask{U} <: MLJTask # U is true for single target
 end
 
 """
-    task = SupervisedTask(; data=nothing, targets=nothing, ignore=Symbol[], probabilistic=nothing)
+    task = SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false)
 
-Construct a supervised learning task using `data`, which is any table
-supported by Tables.jl. Note that rows must correspond to patterns and
-columns to features. The name of the target column(s) is specfied by
-`target` (a symbol or vector of symbols). The input features are all
-the remaining columns of `data`, with the exception of those specified
-by `ignore`. All keyword arguments except `ignore` are compulsory.
+Construct a supervised learning task with input features `X` and
+target `y`. Both `X` and `y` must be tables or vectors, according to
+whether they are multivariate or univariate. Table rows must
+correspond to patterns and columns to features. The boolean keyword
+argument `is_probabilistic` must be specified.
+
+    task = SupervisedTask(data; is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
+
+Construct a supervised learning task with input features `X` and
+target `y`, where `y` consists of all columns of `data` with names in
+`targets` and `X` consists of all remaining columns of `data` not
+named in `ignore`.
 
     X, y = task()
 
-Retrieve the table of input features `X` and target(s) `y`. For single
-targets, `y` is a `Vector` or `CategoricalVector`. In the multivariate
-case, `y` is a named tuple of vectors (and, in particular, a table
-supported by Tables.jl). Additional methods give access to select parts of the data: 
-
-    X_(task), y_(task) == task()   # true
+Returns the input `X` and target `y` of the task, also available as
+`task.X` and `task.y`.
 
 """
-function SupervisedTask(
-    ; data=nothing
-    , targets=nothing
-    , ignore=Symbol[]
-    , probabilistic=nothing)
+function SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false)
 
-    data != nothing    || error("You must specify data=... ")
-
-    targets != nothing ||
-        error("You must specify targets=... (use Symbol or Vector{Symbol}) ")
-
-    probabilistic != nothing ||
+    is_probabilistic != nothing ||
         error("You must specify is_probabilistic=true or is_proabilistic=false. ")
 
-    is_univariate = true
-
-    if targets isa Vector
-        is_univariate = false
-        target_scitype = Tuple{[scitype(getproperty(data, t)) for t in targets]...}
+    if target_is_multivariate
+        target_scitype = Tuple{[union_scitypes(selectcols(y, c)) for c in schema(y).names]...}
     else
-        target_scitype = scitype(getproperty(data, targets))
-        targets = [targets, ]
+        target_scitype = union_scitypes(y)
     end
 
-    issubset(Set(targets), Set(schema(data).names)) ||
-        throw(error("One or more specified targets missing from supplied data. "))
-                                      
+    input_scitypes = union_scitypes(X)
+
+    return SupervisedTask{!target_is_multivariate}(X, y, is_probabilistic, target_scitype,
+                                         input_scitypes, input_is_multivariate)
+end
+
+function SupervisedTask(; data=nothing, is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
+
+    data != nothing ||
+        error("You must specify data=... or use SupervisedTask(X, y, ...).")
+
+    is_probabilistic != nothing ||
+        error("You must specify is_probabilistic=true or is_proabilistic=false. ")
+
     if ignore isa Symbol
         ignore = [ignore, ]
     end
     
-    input_is_multivariate = true
-#        data isa AbstractVector ? false : true
+    targets != nothing ||
+        error("You must specify targets=... (use Symbol or Vector{Symbol}) ")
 
-    return SupervisedTask{is_univariate}(data, targets, ignore,
-                                         probabilistic, target_scitype,
-                                         input_scitypes, input_is_multivariate)
+    if targets isa Vector
+        target_is_multivariate = true
+        issubset(Set(targets), Set(schema(data).names)) ||
+                error("One or more specified targets missing from supplied data. ")
+        y = selectcols(data, targets)
+    else
+        target_is_multivariate = false
+        targets in schema(data).names ||
+            error("Specificed target not found in data. ")
+        y = selectcols(data, targets)
+        targets = [targets, ]
+    end
+
+    features = filter(schema(data).names |> collect) do ftr
+        !(ftr in targets) && !(ftr in ignore)
+    end
+
+    if length(features) == 1
+        X = selectcols(data, features[1])
+        input_is_multivariate = false
+    else
+        X = selectcols(data, features)
+        input_is_multivariate = true
+    end
+    
+    return SupervisedTask(X, y; is_probabilistic=is_probabilistic,
+                          input_is_multivariate=input_is_multivariate,
+                          target_is_multivariate=target_is_multivariate)
 end
+
 
 
 ## RUDIMENTARY TASK OPERATIONS
 
-nrows(task::MLJTask) = schema(task.data).nrows
+nrows(task::MLJTask) = schema(task.X).nrows
 Base.eachindex(task::MLJTask) = Base.OneTo(nrows(task))
 
-"""
-    names(task::UnsupervisedTask)
+X_(task::MLJTask) = task.X
 
-Return the names of all columns of the task data, excluding any in `task.ignore`.
-
-"""
-Base.names(task::UnsupervisedTask) = filter!(schema(task.data).names |> collect) do ftr
-    !(ftr in task.ignore)
-end
-
-"""
-    names(task::SupervisedTask)
-
-Return the names of all columns of the task data, excluding target
-columns and any names in `task.ignore`.
-
-"""
-Base.names(task::SupervisedTask) = filter(schema(task.data).names |> collect) do ftr
-    !(ftr in task.targets) && !(ftr in task.ignore)
-end
-
-X_(task::MLJTask) = selectcols(task.data, names(task))
-
-y_(task::SupervisedTask{true}) = selectcols(task.data, task.targets[1])
-
-function y_(task::SupervisedTask{false})
-    cols = [selectcols(task.data, fld) for fld in task.targets]
-    return NamedTuple{tuple(task.targets...)}(tuple(cols...))
-end
+y_(task::SupervisedTask) = task.y
 
 
 X_and_y(task::SupervisedTask) = (X_(task), y_(task))

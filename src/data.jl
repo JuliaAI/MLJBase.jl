@@ -277,7 +277,7 @@ function schema(::Val{true}, X)
     else
         row = first(row_iterator) # a named tuple
         ncols = length(propertynames(row))
-        s = Tables.schema(X)
+        s = Tables.schema(Tables.columns(X))
         names, eltypes = s.names, s.types
     end
                     
