@@ -105,6 +105,25 @@ function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array)
 end
 
 
+## TABULAR DATA
+
+# HACK: Tables.istable is too permissive (see Tables.jl #74) so we
+# must define our local version.
+isindexedtable(X) = isdefined(X, :cardinality)
+isndsparse(X) = isdefined(X, :data_buffer) 
+istable(X) = Tables.istable(X) & (Tables.rowaccess(X) || Tables.columnaccess(X)) ||
+                                  isindexedtable(X) 
+function container_type(X)
+    if istable(X)
+        return :table
+    elseif isndsparse(X)
+        return :sparse
+    else
+        return :other
+    end
+end
+
+
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
 """"
@@ -116,7 +135,7 @@ a `AbstractMatrix`, return `X`. Optimized for column-based sources.
 """
 function matrix(X)
 
-    Tables.istable(X) || error("Argument is not tabular.")
+    istable(X) || error("Argument is not tabular.")
     cols = Tables.columns(X) # property-accessible object
 
     return reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
@@ -144,7 +163,7 @@ named tuple of columns of `X`, with `keys(cols) = names`.
 
 """
 function table(cols::NamedTuple; prototype=cols)
-    Tables.istable(prototype) || error("prototype is not tabular.")
+    istable(prototype) || error("prototype is not tabular.")
     return Tables.materializer(prototype)(cols)
 end
 function table(X::AbstractMatrix; names=nothing, prototype=nothing)
@@ -159,62 +178,65 @@ function table(X::AbstractMatrix; names=nothing, prototype=nothing)
 end
                
 
-## TOOLS FOR INDEXING TABLES 
+## UNIFIED API FOR ACCESSING  TABLES, MATRICES AND VECTORS
 
-struct Schema{names, eltypes}
-    nrows::Int
-    ncols::Int
-    Schema(names, eltypes, nrows, ncols) = new{names,Tuple{eltypes...}}(nrows, ncols)
-end
-
-function Base.getproperty(s::Schema{names,eltypes}, field::Symbol) where {names,eltypes}
-    if field === :names
-        return names
-    elseif field === :eltypes
-        return Tuple(fieldtype(eltypes, i) for i = 1:fieldcount(eltypes))
-    else
-        return getfield(s, field)
-    end
-end
 
 """
     selectrows(X, r)
 
 Select single or multiple rows from any object `X` for which
-`Tables.istable(X)` is true.  The object returned is a table of the
+`istable(X)` is true.  The object returned is a table of the
 preferred sink type of `typeof(X)`, even a single row is selected.
 
-The method is overloaded to additionally work on abstract matrices
-and vectors.
+The method is overloaded to additionally work on abstract vectors.
 
 """
-selectrows(X, r) = selectrows(Val(Tables.istable(X)), X, r)
-selectrows(::Val{false}, X, r) = error("Argument is not tabular.")
+selectrows(X, r) = selectrows(Val(container_type(X)), X, r)
+selectrows(::Val{:other}, X, r) = throw(ArgumentError)
 
 """
     selectcols(X, c)
 
 Select single or multiple columns from any object `X` for which
-`Tables.istable(X)` is true. If `c` is an abstract vector of integers
+`istable(X)` is true. If `c` is an abstract vector of integers
 or symbols, then the object returned is a table of the preferred sink
 type of `typeof(X)`. If `c` is a *single* integer or column, then
 a `Vector` or `CategoricalVector` is returned. 
 
-The method is overloaded to additionally work on abstract matrices.
+"""
+selectcols(X, c) = selectcols(Val(container_type(X)), X, c)
+selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 
 """
-selectcols(X, c) = selectcols(Val(Tables.istable(X)), X, c)
-selectcols(::Val{false}, X, c) = error("Argument is not tabular.")
+    select(X, r, c)
+
+Equivalent to `selectcols(selectrows(X, r), c)`. 
+
+See also: selectrows, selectcols
+
+"""
+select(X, r, c) = select(Val(container_type(X)), X, r, c)
+select(::Val{:other}, X, r, c) = throw(ArgumentError)
 
 """
     schema(X)
 
-Returns a struct with properties `names`, `eltypes`, `nrows, `ncols`,
+Returns a struct with properties `names`, `eltypes`
 with the obvious meanings. Here `X` is any object for which
-`Tables.istable(X)` is true, an abstract matrix, or vector. 
+`istable(X)` is true.
 """
-schema(X) = schema(Val(Tables.istable(X)), X)
-schema(::Val{false}, X) = error("Argument is not tabular.")
+schema(X) = schema(Val(container_type(X)), X)
+schema(::Val{:other}, X) = throw(ArgumentError)
+
+"""
+    nrows(X)
+
+Return the number of rows in a table or abstract vector.
+
+"""
+nrows(X) = nrows(Val(container_type(X)), X)
+nrows(::Val{:other}, X) = throw(ArgumentError)
+
 
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
@@ -225,27 +247,27 @@ project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
 # multiple columns:
-function selectcols(::Val{true}, X, c::Union{Colon, AbstractArray{I}}) where I<:Union{Symbol,Integer}
+function selectcols(::Val{:table}, X, c::Union{Colon, AbstractArray{I}}) where I<:Union{Symbol,Integer}
     cols = Tables.columntable(X) # named tuple of vectors
     newcols = project(cols, c)
     return Tables.materializer(X)(newcols)
 end
                     
 # single column:
-function selectcols(::Val{true}, X, c::I) where I<:Union{Symbol,Integer}
+function selectcols(::Val{:table}, X, c::I) where I<:Union{Symbol,Integer}
     cols = Tables.columntable(X) # named tuple of vectors
     return cols[c]
 end
 
 # multiple rows (using columntable):
-function selectrows(::Val{true}, X, r::Union{Colon,AbstractVector{<:Integer}})
+function selectrows(::Val{:table}, X, r::Union{Colon,AbstractVector{<:Integer}})
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple([c[r] for c in values(cols)]...))
     return Tables.materializer(X)(new_cols)
 end
 
 # single row (using columntable):
-function selectrows(::Val{true}, X, r::Integer)
+function selectrows(::Val{:table}, X, r::Integer)
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple([c[r:r] for c in values(cols)]...))
     return Tables.materializer(X)(new_cols)
@@ -254,58 +276,73 @@ end
 ## ALTERNATIVE CODE FOR PREVIOUS TWO FUNCTIONS.
 ## ROWTABLE SELECTION OF ROWS INSTEAD OF COLUMNTABLE SELECTION
 # # multiple rows:
-# function selectrows(::Val{true}, X, r::Union{Colon,AbstractVector{<:Integer}})
+# function selectrows(::Val{:table}, X, r::Union{Colon,AbstractVector{<:Integer}})
 #     rows = Tables.rowtable(X) # vector of named tuples
 #     return Tables.materializer(X)(rows[r])
 # end
 
 # # single row:
-# function selectrows(::Val{true}, X, r::Integer)
+# function selectrows(::Val{:table}, X, r::Integer)
 #     rows = Tables.rowtable(X) # vector of named tuples
 #     return Tables.materializer(X)([rows[r]])
 # end
 
-function schema(::Val{true}, X)
+select(::Val{:table}, X, r::Integer, c::Symbol) = selectcols(selectrows(X, r), c)[1]
+select(::Val{:table}, X, r::Integer, c) = selectcols(selectrows(X, r), c)
+select(::Val{:table}, X, r, c::Symbol) = selectcols(X, c)[r]
+select(::Val{:table}, X, r, c) = selectcols(selectrows(X, r), c)
 
-    row_iterator = Tables.rows(X)
-    nrows = length(row_iterator)
-
-    if nrows == 0
-        ncols = 0
-        names = ()
-        eltypes = ()
+function schema(::Val{:table}, X)
+    istable(X) || throw(ArgumentError)
+    if !Tables.columnaccess(X)
+        return Tables.schema(Tables.rows(X))
     else
-        row = first(row_iterator) # a named tuple
-        ncols = length(propertynames(row))
-        s = Tables.schema(Tables.columns(X))
-        names, eltypes = s.names, s.types
+        return Tables.schema(Tables.columns(X))
     end
-                    
-    return Schema(names, eltypes, nrows, ncols)
-
 end
 
-# select(df::JuliaDB.IndexedTable, ::Type{Rows}, r) = df[r]
-# select(df::JuliaDB.NextTable, ::Type{Cols}, c) = select(df, c)
-# select(df::JuliaDB.NextTable, ::Type{Names}) = getfields(typeof(df.columns.columns))
-# select(df::JuliaDB.NextTable, ::Type{NRows}) = length(df)
-
-selectrows(::Val{false}, A::AbstractMatrix, r; prototype=nothing) = A[r,:]
-selectcols(::Val{false}, A::AbstractMatrix, c; prototype=nothing) = A[:,c]
-function schema(::Val{false}, A::AbstractMatrix{T}) where T
-    nrows = size(A, 1)
-    ncols = size(A, 2)
-    names = tuple([Symbol(:x, j) for j in 1:ncols]...)
-    eltypes = tuple(fill(T, ncols)...)
-    return Schema(names, eltypes, nrows, ncols)
+function nrows(::Val{:table}, X)
+    if !Tables.columnaccess(X)
+        return length(collect(X))
+    else
+        cols = Tables.columntable(X)
+        !isempty(cols) || return 0
+        return length(cols[1])
+    end
 end
 
-selectrows(::Val{false}, v::AbstractVector, r; prototype=nothing) = v[r]
-selectcols(::Val{false}, v::AbstractVector, c; prototype=nothing) = error("AbstractVectors are not column-indexable.")
-schema(::Val{false}, v::AbstractVector{T}) where T = Schema((:x,), (T,), length(v), 1)
-selectrows(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, r; prototype=nothing) = @inbounds v[r]
-selectcols(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}, c; prototype=nothing) =
-    error("Categorical vectors are not column-indexable.")
-schema(::Val{false}, v::CategoricalArray{T,1,S} where {T,S}) =
-    schema(Val(false), collect(v))
+
+## ACCESSORS FOR ABSTRACT VECTORS
+
+selectrows(::Val{:other}, v::AbstractVector, r) = v[r]
+nrows(::Val{:other}, v::AbstractVector) = length(v)
+selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
+
+
+## ACCESSOR FOR JULIA NDSPARSE ARRAYS (N=2)
+
+nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
+function schema(::Val{:sparse}, X)
+    names = unique([r[2] for r in keys(X)])
+    types = fill(typeof(iterate(values(X))[1][1]), length(names))
+    return Tables.Schema(names, types)
+end
+function select(::Val{:sparse}, X, r::Integer, c::Symbol)
+    try
+        X[r,c][1]
+    catch exception
+        exception isa KeyError || throw(exception)
+        missing
+    end
+end
+select(::Val{:sparse}, X, r::AbstractVector{<:Integer}, c::Symbol) = [select(X, s, c) for s in r]
+select(::Val{:sparse}, X, ::Colon, c::Symbol) = [select(X, s, c) for s in 1:nrows(X)]
+selectrows(::Val{:sparse}, X, r::Integer) = X[r:r,:]
+selectrows(::Val{:sparse}, X, r) = X[r,:]
+selectcols(::Val{:sparse}, X, c::Symbol) = select(X, :, c)
+selectcols(::Val{:sparse}, X, c::AbstractVector{Symbol}) = X[:,sort(c)]
+selectcols(::Val{:sparse}, X, ::Colon) = X
+select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
+select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
+select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
 
