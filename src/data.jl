@@ -113,6 +113,19 @@ isindexedtable(X) = isdefined(X, :cardinality)
 isndsparse(X) = isdefined(X, :data_buffer) 
 istable(X) = Tables.istable(X) & (Tables.rowaccess(X) || Tables.columnaccess(X)) ||
                                   isindexedtable(X) 
+
+"""
+    container_type(X)
+
+Return `:table`, `:sparse`, or `:other`, according to whether `X` is a
+supported table format, a supported sparse table format, or something
+else.
+
+The first two formats, together abstract vectors, support the
+`MLJBase` accessor methods `selectrows`, `selectcols`, `select`,
+`nrows`, `schema`, and `union_scitypes`.
+
+"""
 function container_type(X)
     if istable(X)
         return :table
@@ -199,11 +212,10 @@ end
 """
     selectrows(X, r)
 
-Select single or multiple rows from any object `X` for which
-`istable(X)` is true.  The object returned is a table of the
-preferred sink type of `typeof(X)`, even a single row is selected.
-
-The method is overloaded to additionally work on abstract vectors.
+Select single or multiple rows from any table, sparse table, or
+abstract vector `X`.  If `X` is tabular, the object returned is a
+table of the preferred sink type of `typeof(X)`, even a single row is
+selected.
 
 """
 selectrows(X, r) = selectrows(Val(container_type(X)), X, r)
@@ -212,11 +224,11 @@ selectrows(::Val{:other}, X, r) = throw(ArgumentError)
 """
     selectcols(X, c)
 
-Select single or multiple columns from any object `X` for which
-`istable(X)` is true. If `c` is an abstract vector of integers
-or symbols, then the object returned is a table of the preferred sink
-type of `typeof(X)`. If `c` is a *single* integer or column, then
-a `Vector` or `CategoricalVector` is returned. 
+Select single or multiple columns from any table or sparse table
+`X`. If `c` is an abstract vector of integers or symbols, then the
+object returned is a table of the preferred sink type of
+`typeof(X)`. If `c` is a *single* integer or column, then a `Vector`
+or `CategoricalVector` is returned.
 
 """
 selectcols(X, c) = selectcols(Val(container_type(X)), X, c)
@@ -225,7 +237,7 @@ selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 """
     select(X, r, c)
 
-Equivalent to `selectcols(selectrows(X, r), c)`. 
+Select element of a table or sparse table at row `r` and column `c`.
 
 See also: selectrows, selectcols
 
@@ -236,9 +248,9 @@ select(::Val{:other}, X, r, c) = throw(ArgumentError)
 """
     schema(X)
 
-Returns a struct with properties `names`, `eltypes`
-with the obvious meanings. Here `X` is any object for which
-`istable(X)` is true.
+Returns a struct with properties `names`, `types`
+with the obvious meanings. Here `X` is any table or sparse table.
+
 """
 schema(X) = schema(Val(container_type(X)), X)
 schema(::Val{:other}, X) = throw(ArgumentError)
@@ -246,7 +258,7 @@ schema(::Val{:other}, X) = throw(ArgumentError)
 """
     nrows(X)
 
-Return the number of rows in a table or abstract vector.
+Return the number of rows in a table, sparse table, or abstract vector.
 
 """
 nrows(X) = nrows(Val(container_type(X)), X)

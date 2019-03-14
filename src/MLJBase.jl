@@ -4,22 +4,26 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
-export selectrows, selectcols, select, nrows, schema, table, levels_seen
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
-export target_scitype, target_quantity, input_scitypes, input_is_multivariate, is_pure_julia
 export load_path, package_url, package_name, package_uuid
+export input_scitypes, input_is_multivariate       
+export target_scitype, target_quantity            
+export is_pure_julia                                 
 export fitresult_type
 
+export selectrows, selectcols, select, nrows, schema # data.jl
+export table, levels_seen, matrix, containter_type   # data.jl
 export partition                                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
 export FiniteOrderedFactor                           # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
-export scitype
+export scitype, union_scitypes                       # scitypes.jl
+export union_scitypes, column_scitypes_as_tuple      # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
-export SupervisedTask, UnsupervisedTask, MLJTask        # tasks.jl
+export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_                               # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_reduced_ames                             # datasets.jl
