@@ -14,7 +14,7 @@ export is_pure_julia
 export fitresult_type
 
 export selectrows, selectcols, select, nrows, schema # data.jl
-export table, levels_seen, matrix, containter_type   # data.jl
+export table, levels_seen, matrix, container_type   # data.jl
 export partition                                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
 export FiniteOrderedFactor                           # scitypes.jl
