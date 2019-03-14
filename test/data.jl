@@ -7,6 +7,7 @@ using DataFrames
 using TypedTables
 using JuliaDB
 
+using SparseArrays
 import CategoricalArrays
 
 A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
@@ -40,8 +41,8 @@ decoder = MLJBase.CategoricalDecoder(v[1:2], Float16)
 df = DataFrame(A)
 tt = Table(df)
 db = JuliaDB.table(tt)
-nd = ndsparse((document=[1, 1, 2, 3, 4],
-               word=[:house, :sofa, :sofa, :chair, :house]), (values=[23, 17, 34, 4, 5],))
+nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
+               word=[:house, :house, :sofa, :sofa, :chair, :house]), (values=["big", "small", 17, 34, 4, "small"],))
 
 @test !MLJBase.istable(A)
 @test !MLJBase.istable([1,2,3])
@@ -95,12 +96,15 @@ db = JuliaDB.table(tt)
 @test selectcols(db, :w) == v
 
 @test MLJBase.select(nd, 2, :house) isa Missing
-@test MLJBase.select(nd, 1, :house) == 23
-@test all(MLJBase.select(nd, :, :house) .=== [23, missing, missing, 5])
-@test all(MLJBase.select(nd, [2,4], :house) .=== [missing, 5])
+@test MLJBase.select(nd, 1, :house) == "small"
+@test all(MLJBase.select(nd, :, :house) .=== ["small", missing, missing, "small", missing, "big"])
+@test all(MLJBase.select(nd, [2,4], :house) .=== [missing, "small"])
 @test all(selectcols(nd, :house) .=== MLJBase.select(nd, :, :house))
-@test nrows(nd) == 4
-schema(nd)
+@test nrows(nd) == 6
+s = schema(nd)
+@test s.names == (:chair, :house, :sofa)
+@test s.types == (Union{Missing,Int64}, Union{Missing,String}, Union{Missing,Int64})
+
 
 
 ## MANIFESTING ARRAYS AS TABLES
@@ -110,6 +114,8 @@ tab = MLJBase.table(A)
 tab[1] == v
 MLJBase.matrix(tab) == A
 
+sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2], ["big", "small", 17, 34, 4, "small"])
+@test MLJBase.matrix(nd) == sparsearray
 end # module
 
 true

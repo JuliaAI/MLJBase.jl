@@ -32,7 +32,7 @@ function union_scitypes(A::AbstractArray)
     return ret
 end
 
-# tables:
+# tables and sparse tables:
 function union_scitypes(table)
     ret = Union{}
     features = schema(table).names

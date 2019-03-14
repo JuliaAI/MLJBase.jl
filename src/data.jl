@@ -129,20 +129,35 @@ end
 """"
     MLJBase.matrix(X)
 
-Convert a generic table source `X` into an `Matrix`; or, if `X` is
+Convert a table source `X` into an `Matrix`; or, if `X` is
 a `AbstractMatrix`, return `X`. Optimized for column-based sources.
 
+If instead X is a sparse table, then a `SparseMatrixCSC` object is
+returned. The integer relabelling of column names follows the
+lexicographic ordering (as indicated by `schema(X).names`).
+
 """
-function matrix(X)
+matrix(X) = matrix(Val(container_type(X)), X)
+matrix(::Val{:other}, X) = throw(ArgumentError)
+matrix(::Val{:other}, X::AbstractMatrix) = X
 
-    istable(X) || error("Argument is not tabular.")
+function matrix(::Val{:table}, X)
     cols = Tables.columns(X) # property-accessible object
-
     return reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
-
 end
-matrix(X::AbstractMatrix) = X
 
+function matrix(::Val{:sparse}, X)
+    K = keys(X)
+    features = schema(X).names
+    index_given_feature = Dict{Symbol,Int}()
+    for j in eachindex(features)
+        index_given_feature[features[j]] = j
+    end
+    I = [k[1] for k in K]
+    J = [index_given_feature[k[2]] for k in K]
+    V = [v[1] for v in values(X)]
+    return sparse(I, J, V)
+end
 
 """
     MLJBase.table(cols; prototype=cols)
@@ -319,14 +334,9 @@ nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
 
 
-## ACCESSOR FOR JULIA NDSPARSE ARRAYS (N=2)
+## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
 
 nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
-function schema(::Val{:sparse}, X)
-    names = unique([r[2] for r in keys(X)])
-    types = fill(typeof(iterate(values(X))[1][1]), length(names))
-    return Tables.Schema(names, types)
-end
 function select(::Val{:sparse}, X, r::Integer, c::Symbol)
     try
         X[r,c][1]
@@ -345,4 +355,10 @@ selectcols(::Val{:sparse}, X, ::Colon) = X
 select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
 select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
 select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
+
+function schema(::Val{:sparse}, X)
+    names = sort(unique([r[2] for r in keys(X)]))
+    types = [eltype(selectcols(X, name)) for name in names]
+    return Tables.Schema(names, types)
+end
 

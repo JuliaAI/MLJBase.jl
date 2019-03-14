@@ -46,7 +46,7 @@ import StatsBase: fit, predict
 using Statistics
 using Random
 using InteractiveUtils
-
+using SparseArrays
 
 ## CONSTANTS
 
