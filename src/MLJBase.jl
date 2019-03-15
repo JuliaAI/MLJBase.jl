@@ -24,7 +24,7 @@ export union_scitypes, column_scitypes_as_tuple      # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
-export X_and_y, X_, y_                               # tasks.jl
+export X_and_y, X_, y_, nrows                        # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_reduced_ames                             # datasets.jl
 export load_crabs, datanow                           # datasets.jl
