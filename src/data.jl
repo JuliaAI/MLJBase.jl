@@ -54,6 +54,7 @@ julia> levels(ans)
  "a"
  "b"
  "c"
+````
 
 """
 struct CategoricalDecoder{I<:Real,B,V,N,R<:Integer,C}
@@ -237,7 +238,9 @@ selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 """
     select(X, r, c)
 
-Select element of a table or sparse table at row `r` and column `c`.
+Select element of a table or sparse table at row `r` and column
+`c`. In the case of sparse data where the key `(r, c)`, zero or
+`missing` is returned, depending on the value type.
 
 See also: selectrows, selectcols
 

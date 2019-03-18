@@ -58,6 +58,7 @@ function info(M::Type{<:Supervised})
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
     d[:is_probabilistic] = is_probabilistic(M)
+    d[:is_wrapper] = is_wrapper(M)
     return d
 end
 
@@ -95,6 +96,7 @@ function info(M::Type{<:Unsupervised})
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
+    d[:is_wrapper] = is_wrapper(M)
 
     return d
 end

@@ -26,7 +26,8 @@ d = Dict(:name => "Dummy",
          :input_is_multivariate => false,
          :is_probabilistic => true,
          :package_url   => "https://mickey.mouse.org",
-         :is_supervised => true)
+         :is_supervised => true,
+         :is_wrapper => false)
 
 info(Dummy)[:name]
 @test info(Dummy) == d

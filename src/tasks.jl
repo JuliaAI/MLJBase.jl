@@ -137,13 +137,12 @@ end
 
 ## RUDIMENTARY TASK OPERATIONS
 
-nrows(task::MLJTask) = schema(task.X).nrows
+nrows(task::MLJTask) = nrows(task.X)
 Base.eachindex(task::MLJTask) = Base.OneTo(nrows(task))
+nfeatures(task::MLJTask) = length(schema(task.X))
 
 X_(task::MLJTask) = task.X
-
 y_(task::SupervisedTask) = task.y
-
 
 X_and_y(task::SupervisedTask) = (X_(task), y_(task))
 

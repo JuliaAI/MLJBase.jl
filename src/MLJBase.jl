@@ -14,7 +14,7 @@ export is_pure_julia
 export fitresult_type
 
 export selectrows, selectcols, select, nrows, schema # data.jl
-export table, levels_seen, matrix, container_type   # data.jl
+export table, levels_seen, matrix, container_type    # data.jl
 export partition                                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
 export FiniteOrderedFactor                           # scitypes.jl
@@ -24,7 +24,7 @@ export union_scitypes, column_scitypes_as_tuple      # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
-export X_and_y, X_, y_, nrows                        # tasks.jl
+export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
 export load_boston, load_ames, load_iris             # datasets.jl
 export load_reduced_ames                             # datasets.jl
 export load_crabs, datanow                           # datasets.jl
@@ -133,6 +133,9 @@ package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
+is_wrapper(::Type{<:Model}) = false
+is_wrapper(m::Model) = is_wrapper(typeof(m))
+
 
 target_scitype(model::Model) = target_scitype(typeof(model))
 input_scitypes(model::Model) = input_scitypes(typeof(model))
