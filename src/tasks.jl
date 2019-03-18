@@ -1,6 +1,6 @@
 abstract type MLJTask <: MLJType end # `Task` already has meaning in Base
 
-struct UnsupervisedTask <: MLJTask
+mutable struct UnsupervisedTask <: MLJTask
     X
     input_scitypes::DataType
     input_is_multivariate::Bool
@@ -40,7 +40,7 @@ end
 
 # U is true for univariate targest.
 # X and y can be different views of a common object.
-struct SupervisedTask{U} <: MLJTask 
+mutable struct SupervisedTask{U} <: MLJTask 
     X                               
     y
     is_probabilistic

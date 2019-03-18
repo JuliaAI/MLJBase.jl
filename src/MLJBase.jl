@@ -10,7 +10,7 @@ export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
 export input_scitypes, input_is_multivariate       
 export target_scitype, target_quantity            
-export is_pure_julia                                 
+export is_pure_julia, is_wrapper                                 
 export fitresult_type
 
 export selectrows, selectcols, select, nrows, schema # data.jl
