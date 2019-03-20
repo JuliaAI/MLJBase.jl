@@ -1,4 +1,4 @@
-datadir = joinpath(srcdir, "../data/") # TODO: make OS agnostic
+datadir = joinpath(srcdir, "..", "data") # TODO: make OS agnostic
 
 """Load a well-known public regression dataset with nominal features."""
 function load_boston()
