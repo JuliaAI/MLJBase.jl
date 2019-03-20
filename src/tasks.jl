@@ -7,13 +7,15 @@ mutable struct UnsupervisedTask <: MLJTask
 end
 
 """
-    task = UnsupervisedTask(data; ignore=Symbol[], input_is_multivariate=true)
+    task = UnsupervisedTask(data=nothing, ignore=Symbol[], input_is_multivariate=true)
 
 Construct an unsupervised learning task with given input `data`, which
-should be a single vector (for univariate inputs) or a table.  Rows of
-`data` must correspond to patterns and columns to features. Columns in
-`data` whose names appear in `ignore` will be ignored by models
-trained on the task.
+should be a table or, in the case of univariate inputs, a single
+vector. 
+
+Rows of `data` must correspond to patterns and columns to
+features. Columns in `data` whose names appear in `ignore` will be
+ignored by models trained on the task.
 
     X = task()
 
@@ -58,7 +60,7 @@ whether they are multivariate or univariate. Table rows must
 correspond to patterns and columns to features. The boolean keyword
 argument `is_probabilistic` must be specified.
 
-    task = SupervisedTask(data; is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
+    task = SupervisedTask(data=nothing, is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
 
 Construct a supervised learning task with input features `X` and
 target `y`, where `y` consists of all columns of `data` with names in
