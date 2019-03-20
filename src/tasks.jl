@@ -63,9 +63,10 @@ argument `is_probabilistic` must be specified.
     task = SupervisedTask(data=nothing, is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
 
 Construct a supervised learning task with input features `X` and
-target `y`, where `y` consists of all columns of `data` with names in
-`targets` and `X` consists of all remaining columns of `data` not
-named in `ignore`.
+target `y`, where `y` is the column vector from `data` named `target`
+(if this is a single symbol) or, a table whose columns are those named
+in `target` (if this is vector); `X` consists of all remaining columns
+of `data` not named in `ignore`.
 
     X, y = task()
 
@@ -90,7 +91,7 @@ function SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=tr
                                          input_scitypes, input_is_multivariate)
 end
 
-function SupervisedTask(; data=nothing, is_probabilistic=nothing, targets=nothing, ignore=Symbol[], input_is_multivariate=true)
+function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing, ignore=Symbol[], input_is_multivariate=true)
 
     data != nothing ||
         error("You must specify data=... or use SupervisedTask(X, y, ...).")
@@ -102,24 +103,24 @@ function SupervisedTask(; data=nothing, is_probabilistic=nothing, targets=nothin
         ignore = [ignore, ]
     end
     
-    targets != nothing ||
-        error("You must specify targets=... (use Symbol or Vector{Symbol}) ")
+    target != nothing ||
+        error("You must specify target=... (use Symbol or Vector{Symbol}) ")
 
-    if targets isa Vector
+    if target isa Vector
         target_is_multivariate = true
-        issubset(Set(targets), Set(schema(data).names)) ||
+        issubset(Set(target), Set(schema(data).names)) ||
                 error("One or more specified targets missing from supplied data. ")
-        y = selectcols(data, targets)
+        y = selectcols(data, target)
     else
         target_is_multivariate = false
-        targets in schema(data).names ||
+        target in schema(data).names ||
             error("Specificed target not found in data. ")
-        y = selectcols(data, targets)
-        targets = [targets, ]
+        y = selectcols(data, target)
+        target = [target, ]
     end
 
     features = filter(schema(data).names |> collect) do ftr
-        !(ftr in targets) && !(ftr in ignore)
+        !(ftr in target) && !(ftr in ignore)
     end
 
     if length(features) == 1

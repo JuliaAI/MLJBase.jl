@@ -13,7 +13,7 @@ task = load_boston();
 XX = X_(task);
 allnames = collect(MLJBase.schema(XX).names)
 
-task = SupervisedTask(data=XX, targets=[:Crim, :Zn], is_probabilistic=true, ignore=:Dis)
+task = SupervisedTask(data=XX, target=[:Crim, :Zn], is_probabilistic=true, ignore=:Dis)
 y = y_(task);
 X = X_(task);
 s = MLJBase.schema(y);
@@ -23,7 +23,7 @@ t = MLJBase.schema(X);
     !(ftr in [:Crim, :Zn, :Dis])
 end
 
-task = SupervisedTask(data=XX, targets=:Crim, is_probabilistic=true, ignore=[:Dis, :Rm])
+task = SupervisedTask(data=XX, target=:Crim, is_probabilistic=true, ignore=[:Dis, :Rm])
 y = y_(task);
 X = X_(task);
 t = MLJBase.schema(X)

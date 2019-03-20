@@ -5,7 +5,7 @@ function load_boston()
     df = CSV.read(joinpath(datadir, "Boston.csv"),
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
-                          targets=:MedV,
+                          target=:MedV,
                           ignore=[:Chas,],
                           is_probabilistic=true)
 end
@@ -22,7 +22,7 @@ function load_reduced_ames()
 #    df[:YearBuilt] = categorical(df[:YearBuilt], ordered=true)
 #    df[:YearRemodAdd] = categorical(df[:YearRemodAdd], ordered=true)
     return SupervisedTask(data=df,
-                          targets=:target,
+                          target=:target,
                           is_probabilistic=false)
 end
 
@@ -32,7 +32,7 @@ function load_ames()
                   allowmissing=:none)
     df[:target] = exp.(df[:target])
     return SupervisedTask(data=df,
-                          targets=:target,
+                          target=:target,
                           ignore=[:Id,],
                           is_probabilistic=false)
 end
@@ -42,7 +42,7 @@ function load_iris()
     df = CSV.read(joinpath(datadir, "iris.csv"),
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
-                          targets=:target,
+                          target=:target,
                           is_probabilistic=true)
 end
 
@@ -51,7 +51,7 @@ function load_crabs()
     df = CSV.read(joinpath(datadir, "crabs.csv"),
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
-                          targets=:sp,
+                          target=:sp,
                           ignore=[:sex, :index],
                           is_probabilistic=true)
 end
