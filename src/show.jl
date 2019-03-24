@@ -50,15 +50,12 @@ end
 
 ## SHOW METHOD FOR NAMED TUPLES
 
-# string consisting of carriage return followed by indentation of length n:
-crind(n) = "\n"*repeat(' ', n)
-
 # long version of showing a named tuple:
-Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty(stream, t)
-pretty(t) = pretty(stdout, t)
-pretty(stream::IO, t) = pretty(stream, t, 0)
-pretty(stream, t, n) = print(stream, t)
-function pretty(stream, t::NamedTuple, n)
+Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty_nt(stream, t)
+pretty_nt(t) = pretty_nt(stdout, t)
+pretty_nt(stream::IO, t) = pretty_nt(stream, t, 0)
+pretty_nt(stream, t, n) = print(stream, t)
+function pretty_nt(stream, t::NamedTuple, n)
     print(stream, "(")
     first_item = true
     for k in keys(t)
@@ -69,19 +66,21 @@ function pretty(stream, t::NamedTuple, n)
             first_item = false
         end
         print(stream, "$k = ")
-        pretty(stream, value, n + length("$k = ") + 1)
+        pretty_nt(stream, value, n + length("$k = ") + 1)
         print(stream, ",")
     end
     print(stream, ")")
 end
 
 
-## TRAIT TO TAG THOSE OBJECTS TO BE DISPLAYED AS CONSTRUCTED:
+## OTHER EXPOSED SHOW METHODS
 
+# string consisting of carriage return followed by indentation of length n:
+crind(n) = "\n"*repeat(' ', n)
+
+# trait to tag those objects to be displayed as constructed:
 show_as_constructed(::Any) = false
 show_as_constructed(::Type{<:Model}) = true
-
-## OTHER EXPOSED SHOW METHODS
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
@@ -104,21 +103,43 @@ function Base.show(stream::IO, object::MLJType)
     end
 end
 
-# longer version of showing a `MLJType` object (used at REPL):
-function Base.show(stream::IO, T::MIME"text/plain", object::M) where M<:MLJType
-    show(stream, T, object, Val(show_as_constructed(M)))
+# longer versions of showing objects
+function Base.show(stream::IO, T::MIME"text/plain", object::MLJType)
+    show(stream, T, object, Val(show_as_constructed(typeof(object))))
 end
 
+# fallback:
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{false})
+    show(stream, MIME("text/plain"), object) 
+end
+
+# fallback for MLJType:
+function Base.show(stream::IO, ::MIME"text/plain", object::MLJType, ::Val{false})
     _recursive_show(stream, object, 1, DEFAULT_SHOW_DEPTH)
 end
 
-# special case for models:
-function Base.show(stream::IO, ::MIME"text/plain", model::M, ::Val{true}) where M<:MLJType
-    prefix = string(coretype(M))
-    print(stream, prefix)
-    pretty(stream, params(model), length(prefix))
+Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true}) =
+    pretty(stream, object)
+pretty(stream::IO, object) = pretty(stream, object, 0)
+pretty(stream, object, n) = show(stream, object)
+function pretty(stream, object::M, n) where M<:MLJType
+    prefix = string(coretype(typeof(object)))
+    print(stream, prefix, "(")
+    first_item = true
+    for k in fieldnames(M)
+        value =  getproperty(object, k)
+        if !first_item
+            print(stream, crind(n + length(prefix) + 1))
+        else
+            first_item = false
+        end
+        print(stream, "$k = ")
+        pretty(stream, value, n + length(prefix) + 1 + length("$k = "))
+        print(stream, ",")
+    end
+    print(stream, ")")
 end
+
 
 # version showing a `MLJType` object to arbitrary depth:
 function Base.show(stream::IO, object::MLJType, depth::Int)
