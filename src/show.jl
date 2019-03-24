@@ -237,6 +237,42 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
 end
 
 
+## SHOW METHOD FOR NAMED TUPLES
+
+# string consisting of carriage return followed by indentation of length n:
+crind(n) = "\n"*repeat(' ', n)
+
+# long version of showing a named tuple:
+Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty(stream, t)
+pretty(t) = pretty(stdout, t)
+pretty(stream::IO, t) = pretty(stream, t, 0)
+pretty(stream, t, n) = print(stream, t)
+function pretty(stream, t::NamedTuple, n)
+    print(stream, "(")
+    first_item = true
+    for k in keys(t)
+        value =  getproperty(t, k)
+        if !first_item
+            print(stream, crind(n + 1))
+        else
+            first_item = false
+        end
+        print(stream, "$k = ")
+        pretty(stream, value, n + length("$k = ") + 1)
+        print(stream, ",")
+    end
+    print(stream, ")")
+end
+
+
+
+
+
+    
+    
+    
+    
+
 
     
 

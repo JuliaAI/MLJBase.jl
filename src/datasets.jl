@@ -7,7 +7,7 @@ function load_boston()
     return SupervisedTask(data=df,
                           target=:MedV,
                           ignore=[:Chas,],
-                          is_probabilistic=true)
+                          is_probabilistic=false)
 end
 
 """Load a reduced version of the well-known Ames Housing task,
@@ -43,7 +43,7 @@ function load_iris()
                   categorical=true, allowmissing=:none)
     return SupervisedTask(data=df,
                           target=:target,
-                          is_probabilistic=true)
+                          is_probabilistic=false)
 end
 
 """Load a well-known crab classification dataset with nominal features."""

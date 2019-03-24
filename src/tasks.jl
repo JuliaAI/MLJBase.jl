@@ -142,7 +142,7 @@ end
 
 nrows(task::MLJTask) = nrows(task.X)
 Base.eachindex(task::MLJTask) = Base.OneTo(nrows(task))
-nfeatures(task::MLJTask) = length(schema(task.X))
+nfeatures(task::MLJTask) = length(schema(task.X).names)
 
 X_(task::MLJTask) = task.X
 y_(task::SupervisedTask) = task.y
