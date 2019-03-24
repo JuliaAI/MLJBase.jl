@@ -48,7 +48,40 @@ function handle(X)
 end
 
 
-## EXPOSED SHOW METHODS
+## SHOW METHOD FOR NAMED TUPLES
+
+# string consisting of carriage return followed by indentation of length n:
+crind(n) = "\n"*repeat(' ', n)
+
+# long version of showing a named tuple:
+Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty(stream, t)
+pretty(t) = pretty(stdout, t)
+pretty(stream::IO, t) = pretty(stream, t, 0)
+pretty(stream, t, n) = print(stream, t)
+function pretty(stream, t::NamedTuple, n)
+    print(stream, "(")
+    first_item = true
+    for k in keys(t)
+        value =  getproperty(t, k)
+        if !first_item
+            print(stream, crind(n + 1))
+        else
+            first_item = false
+        end
+        print(stream, "$k = ")
+        pretty(stream, value, n + length("$k = ") + 1)
+        print(stream, ",")
+    end
+    print(stream, ")")
+end
+
+
+## TRAIT TO TAG THOSE OBJECTS TO BE DISPLAYED AS CONSTRUCTED:
+
+show_as_constructed(::Any) = false
+show_as_constructed(::Type{<:Model}) = true
+
+## OTHER EXPOSED SHOW METHODS
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
@@ -72,8 +105,19 @@ function Base.show(stream::IO, object::MLJType)
 end
 
 # longer version of showing a `MLJType` object (used at REPL):
-function Base.show(stream::IO, ::MIME"text/plain", object::MLJType)
+function Base.show(stream::IO, T::MIME"text/plain", object::M) where M<:MLJType
+    show(stream, T, object, Val(show_as_constructed(M)))
+end
+
+function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{false})
     _recursive_show(stream, object, 1, DEFAULT_SHOW_DEPTH)
+end
+
+# special case for models:
+function Base.show(stream::IO, ::MIME"text/plain", model::M, ::Val{true}) where M<:MLJType
+    prefix = string(coretype(M))
+    print(stream, prefix)
+    pretty(stream, params(model), length(prefix))
 end
 
 # version showing a `MLJType` object to arbitrary depth:
@@ -83,6 +127,7 @@ end
 
 # for convenience:
 Base.show(object::MLJType, depth::Int) = show(stdout, object, depth)
+
 
 """ 
     @more
@@ -236,52 +281,6 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
     end
 end
 
-
-## SHOW METHOD FOR NAMED TUPLES
-
-"""
-    params(m)
-
-Recursively convert any object of subtype `MLJType` into a named
-tuple, keyed on the fields of `m`. The named tuple is possibly nested
-because `params` is recursively applied to the field values, which
-themselves might be `MLJType` objects.
-
-    julia> params(EnsembleModel(atom=ConstantClassifier()))
-    (atom = (target_type = Bool,), weights = Float64[], bagging_fraction = 0.8, rng_seed = 0, n = 100, parallel = true)
-
-"""
-params(field) = field
-
-function params(m::MLJType)
-    fields = fieldnames(M)
-    NamedTuple{fields}(Tuple([params(getfield(m, field)) for field in fields]))
-end
-
-# string consisting of carriage return followed by indentation of length n:
-crind(n) = "\n"*repeat(' ', n)
-
-# long version of showing a named tuple:
-Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty(stream, t)
-pretty(t) = pretty(stdout, t)
-pretty(stream::IO, t) = pretty(stream, t, 0)
-pretty(stream, t, n) = print(stream, t)
-function pretty(stream, t::NamedTuple, n)
-    print(stream, "(")
-    first_item = true
-    for k in keys(t)
-        value =  getproperty(t, k)
-        if !first_item
-            print(stream, crind(n + 1))
-        else
-            first_item = false
-        end
-        print(stream, "$k = ")
-        pretty(stream, value, n + length("$k = ") + 1)
-        print(stream, ",")
-    end
-    print(stream, ")")
-end
 
 
 

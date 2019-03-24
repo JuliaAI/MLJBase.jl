@@ -13,6 +13,7 @@ export target_scitype, target_quantity
 export is_pure_julia, is_wrapper                                 
 export fitresult_type
 
+export params                                        # parameters.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition                                     # utilities.jl
@@ -59,7 +60,7 @@ const srcdir = dirname(@__FILE__)
 # horizontal space for field names in `MLJType` object display:
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
-const DEFAULT_SHOW_DEPTH = 1
+const DEFAULT_SHOW_DEPTH = 0
 
 include("utilities.jl")
 include("scitypes.jl")
@@ -197,6 +198,9 @@ function ==(m1::M, m2::M) where M<:Model
     end
     return ret
 end
+
+# for unpacking the fields of MLJ objects:
+include("parameters.jl")
 
 # for displaying objects of `MLJType`:
 include("show.jl") 
