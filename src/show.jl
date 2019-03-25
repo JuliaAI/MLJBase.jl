@@ -13,7 +13,8 @@ Equivalent to `const x = value` but registers the binding thus:
 
     MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
 
-Registered objects get displayed using the variable name to which it was bound in calls to `show(x)`, etc. 
+Registered objects get displayed using the variable name to which it
+was bound in calls to `show(x)`, etc.
 
 WARNING: As with any `const` declaration, binding `x` to new value of
 the same type is not prevented and the registration will not be updated.
@@ -87,13 +88,13 @@ function Base.show(stream::IO, object::MLJType)
     id = objectid(object) 
     description = string(typeof(object).name.name)
     parameters = typeof(object).parameters
-    if length(parameters) == 1
-        p_string = string(parameters[1])
-        if length(p_string) > 25
-            p_string = p_string[1:24]*"…"
-        end
-        description *= "{"*p_string*"}"
-    end
+    # if length(parameters) == 1
+    #     p_string = string(parameters[1])
+    #     if length(p_string) > 25
+    #         p_string = p_string[1:24]*"…"
+    #     end
+    #     description *= "{"*p_string*"}"
+    # end
     #   description = string(typeof(object))
     str = "$description @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
@@ -118,33 +119,45 @@ function Base.show(stream::IO, ::MIME"text/plain", object::MLJType, ::Val{false}
     _recursive_show(stream, object, 1, DEFAULT_SHOW_DEPTH)
 end
 
-Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true}) =
+function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true})
     pretty(stream, object)
-pretty(stream::IO, object) = pretty(stream, object, 0)
-pretty(stream, object, n) = show(stream, object)
-function pretty(stream, object::M, n) where M<:MLJType
-    prefix = string(coretype(typeof(object)))
-    print(stream, prefix, "(")
-    first_item = true
-    for k in fieldnames(M)
-        value =  getproperty(object, k)
-        if !first_item
-            print(stream, crind(n + length(prefix) + 1))
-        else
-            first_item = false
+end
+pretty(stream::IO, object) = pretty(stream, object, 0, DEFAULT_SHOW_DEPTH + 1, 0)
+pretty(stream, object, current_depth, depth, n) = show(stream, object)
+function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
+    if current_depth == depth
+        show(stream, object)
+    else
+        prefix = string(coretype(typeof(object)))
+        print(stream, prefix, "(")
+        first_item = true
+        for k in fieldnames(M)
+            value =  getproperty(object, k)
+            if !first_item
+                print(stream, crind(n + length(prefix) + 1))
+            else
+                first_item = false
+            end
+            print(stream, "$k = ")
+            pretty(stream, value, current_depth + 1, depth, n + length(prefix) + 1 + length("$k = "))
+            print(stream, ",")
         end
-        print(stream, "$k = ")
-        pretty(stream, value, n + length(prefix) + 1 + length("$k = "))
-        print(stream, ",")
+        print(stream, ")")
+        if current_depth == 0
+            description = " @ $(handle(object))"
+            printstyled(IOContext(stream, :color=> true), description, bold=true)#color=:blue
+        end
     end
-    print(stream, ")")
 end
 
 
 # version showing a `MLJType` object to arbitrary depth:
-function Base.show(stream::IO, object::MLJType, depth::Int)
+Base.show(stream::IO, object::M, depth::Int) where M<:MLJType =
+    show(stream, object, depth, Val(show_as_constructed(M)))
+Base.show(stream::IO, object::MLJType, depth::Int, ::Val{false}) =
     _recursive_show(stream, object, 1, depth)
-end
+Base.show(stream::IO, object::MLJType, depth::Int, ::Val{true}) = 
+    pretty(stream, object, 0, 100, 0)
 
 # for convenience:
 Base.show(object::MLJType, depth::Int) = show(stdout, object, depth)
