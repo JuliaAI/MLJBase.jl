@@ -45,7 +45,7 @@ import CSV
 using DataFrames # remove ultimately
 
 # to be extended:
-import StatsBase: fit, predict
+import StatsBase: fit, predict, fit!
 
 # from Standard Library:
 using Statistics
