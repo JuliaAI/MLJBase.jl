@@ -83,13 +83,24 @@ abstract type Probabilistic{R} <: Supervised{R} end
 # supervised models that `predict` point-values are of:
 abstract type Deterministic{R} <: Supervised{R} end
 
-# MLJType objects are `==` if they have the same type and their field values are `==`:
+# MLJType objects are `==` if: (i) they have a common supertype AND (ii)
+# they have the same set of defined fields AND (iii) their defined field
+# values are `==`:
 function ==(m1::M, m2::M) where M<:MLJType
-    ret = true
-    for fld in fieldnames(M)
-        ret = ret && getfield(m1, fld) == getfield(m2, fld)
+    defined1 = filter(fieldnames(M)|>collect) do fld
+        isdefined(m1, fld)
     end
-    return ret
+    defined2 = filter(fieldnames(M)|>collect) do fld
+        isdefined(m2, fld)
+    end
+    if defined1 != defined2
+        return false
+    end
+    same_values = true
+    for fld in defined1
+        same_values = same_values && getfield(m1, fld) == getfield(m2, fld)
+    end
+    return same_values
 end
 
 
