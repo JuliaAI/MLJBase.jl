@@ -83,6 +83,15 @@ abstract type Probabilistic{R} <: Supervised{R} end
 # supervised models that `predict` point-values are of:
 abstract type Deterministic{R} <: Supervised{R} end
 
+# MLJType objects are `==` if they have the same type and their field values are `==`:
+function ==(m1::M, m2::M) where M<:MLJType
+    ret = true
+    for fld in fieldnames(M)
+        ret = ret && getfield(m1, fld) == getfield(m2, fld)
+    end
+    return ret
+end
+
 
 ## THE MODEL INTERFACE
 
@@ -189,15 +198,6 @@ Returns the fitresult type of any supervised model (or model type)
 """
 fitresult_type(M::Type{<:Supervised}) = supertype(M).parameters[1]
 fitresult_type(m::Supervised) = fitresult_type(typeof(m))
-
-# models are `==` if they have the same type and their field values are `==`:
-function ==(m1::M, m2::M) where M<:Model
-    ret = true
-    for fld in fieldnames(M)
-        ret = ret && getfield(m1, fld) == getfield(m2, fld)
-    end
-    return ret
-end
 
 # for unpacking the fields of MLJ objects:
 include("parameters.jl")

@@ -12,7 +12,7 @@ with MLJ if it is defined in a package that imports the MLJBase
 module, and implements the model API defined there. For more
 information, see the MLJ document ["Implementing the MLJ interface for
 a learning
-algorithm"](https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md).
+algorithm"](https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_models_for_general_use.md).
 
 Requires at least Julia v1.0.
 
