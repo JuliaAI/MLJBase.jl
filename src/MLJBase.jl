@@ -16,7 +16,7 @@ export fitresult_type
 export params                                        # parameters.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
-export partition                                     # utilities.jl
+export partition,StratifiedKFold                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
 export FiniteOrderedFactor                           # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
