@@ -42,3 +42,36 @@ function finaltypes(T::Type)
     end
 end
 
+
+function unique_inverse(A::AbstractArray)
+    out = Array{eltype(A)}(undef, 0)
+    out_idx = Array{Vector{Int}}(undef, 0)
+    seen = Dict{eltype(A), Int}()
+    for (idx, x) in enumerate(A)
+        if !in(x, keys(seen))
+            seen[x] = length(seen) + 1
+            push!(out, x)
+            push!(out_idx, Int[])
+        end
+        push!(out_idx[seen[x]], idx)
+    end
+    out, out_idx
+end 
+
+
+"""
+
+    StratifiedKFold(categories,k)
+Splits the data into k separate instances, where categories are divided into each instance.
+"""
+function StratifiedKFold(categories, k)
+        2 <= k <= length(categories) || error("The value of k must be in [2, length(categories)].")
+        categories_labels, permseqs = unique_inverse(categories)
+        map(Random.shuffle!, permseqs)
+        coeffs = Float64[]
+        for (stratum, permseq) in zip(categories_labels, permseqs)
+            k <= length(permseq) || error("k is greater than the length of stratum $stratum")
+            push!(coeffs, length(permseq) / k)
+        end
+        new(length(categories), permseqs, k, coeffs)
+    end
