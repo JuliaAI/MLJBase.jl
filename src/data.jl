@@ -140,7 +140,7 @@ end
 
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
-""""
+"""
     MLJBase.matrix(X)
 
 Convert a table source `X` into an `Matrix`; or, if `X` is

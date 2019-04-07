@@ -86,11 +86,14 @@ abstract type Deterministic{R} <: Supervised{R} end
 # MLJType objects are `==` if: (i) they have a common supertype AND (ii)
 # they have the same set of defined fields AND (iii) their defined field
 # values are `==`:
-function ==(m1::M, m2::M) where M<:MLJType
-    defined1 = filter(fieldnames(M)|>collect) do fld
+function ==(m1::M1, m2::M2) where {M1<:MLJType,M2<:MLJType}
+    if M1 != M1
+        return false
+    end
+    defined1 = filter(fieldnames(M1)|>collect) do fld
         isdefined(m1, fld)
     end
-    defined2 = filter(fieldnames(M)|>collect) do fld
+    defined2 = filter(fieldnames(M1)|>collect) do fld
         isdefined(m2, fld)
     end
     if defined1 != defined2
