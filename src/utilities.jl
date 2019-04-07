@@ -42,7 +42,7 @@ function finaltypes(T::Type)
     end
 end
 
-
+import Random
 function unique_inverse(A::AbstractArray)
     out = Array{eltype(A)}(undef, 0)
     out_idx = Array{Vector{Int}}(undef, 0)
