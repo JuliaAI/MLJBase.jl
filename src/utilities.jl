@@ -43,6 +43,9 @@ function finaltypes(T::Type)
 end
 
 import Random
+import Base.length
+
+
 function unique_inverse(A::AbstractArray)
     out = Array{eltype(A)}(undef, 0)
     out_idx = Array{Vector{Int}}(undef, 0)
@@ -60,18 +63,35 @@ end
 
 
 """
-
-    StratifiedKFold(categories,k)
-Splits the data into k separate instances, where categories are divided into each instance.
+    StratifiedKFold(strata,k)
+Struct for StratifiedKFold
+provide strata's and number of partitions(k) and simply collect the object for the indices. 
+Taken from MLBase (https://github.com/JuliaStats/MLBase.jl).
 """
-function StratifiedKFold(categories, k)
-        2 <= k <= length(categories) || error("The value of k must be in [2, length(categories)].")
-        categories_labels, permseqs = unique_inverse(categories)
+struct StratifiedKFold 
+    n::Int                         #Total number of observations
+    permseqs::Vector{Vector{Int}}  #Vectors of vectors of indexes for each stratum
+    k::Int                         #Number of splits
+    coeffs::Vector{Float64}        #About how many observations per strata are in a val set
+    function StratifiedKFold(strata, k)
+        2 <= k <= length(strata) || error("The value of k must be in [2, length(strata)].")
+        strata_labels, permseqs = unique_inverse(strata)
         map(Random.shuffle!, permseqs)
         coeffs = Float64[]
-        for (stratum, permseq) in zip(categories_labels, permseqs)
+        for (stratum, permseq) in zip(strata_labels, permseqs)
             k <= length(permseq) || error("k is greater than the length of stratum $stratum")
             push!(coeffs, length(permseq) / k)
         end
-        new(length(categories), permseqs, k, coeffs)
+        new(length(strata), permseqs, k, coeffs)
     end
+end
+length(c::StratifiedKFold) = c.k
+function Base.iterate(c::StratifiedKFold, s::Int=1)
+    (s > c.k) && return nothing
+    r = Int[]
+    for (permseq, coeff) in zip(c.permseqs, c.coeffs)
+        a, b = round.(Integer, [s-1, s] .* coeff)
+        append!(r, view(permseq, a+1:b))
+    end
+    return setdiff(1:c.n, r), s+1
+end
