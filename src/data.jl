@@ -2,17 +2,19 @@
 
 """
     CategoricalDecoder(C::CategoricalArray)
-    CategoricalDecoder(C::CategoricalArray, eltype)
+    CategoricalDecoder(C::CategoricalArray, eltype, start_at_zero=false)
 
 Construct a decoder for transforming a `CategoricalArray{T}` object
 into an ordinary array, and for re-encoding similar arrays back into a
 `CategoricalArray{T}` object having the same `pool` (and, in
 particular, the same levels) as `C`. If `eltype` is not specified then
 the element type of the transformed array is `T`. Otherwise, the
-element type is `eltype` and the elements are promotions of the
-internal (integer) `ref`s of the `CategoricalArray`. One must have `R
-<: eltype <: Real` where `R` is the reference type of the
-`CategoricalArray` (usually `UInt32`).
+element type is `eltype` and the elements are conversions to `eltype`
+of the internal (unsigned integer) `ref`s of the `CategoricalArray`,
+shifted backwards by one if `start_at_zero=false`. One must have
+`eltype <: Real`.
+
+If `eltype = Bool`, then `start_at_zero` is ignored.
 
     transform(decoder::CategoricalDecoder, C::CategoricalArray)
 
@@ -65,6 +67,7 @@ struct CategoricalDecoder{I<:Real,B,V,N,R<:Integer,C}
 
     pool::CategoricalPool{V,R,C}
     levels_seen::Vector{V}
+    start_at_zero::Bool
 
 end
 
@@ -74,11 +77,24 @@ levels_seen(d::CategoricalDecoder) = d.levels_seen
 # constructors:
 # using original type:
 CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}) where {T,N,R,V,C} = 
-    CategoricalDecoder{R,true,V,N,R,C}(X.pool, unique(X)) # the first `R` will never be used
+    CategoricalDecoder{R,true,V,N,R,C}(X.pool, unique(X), false) # the first `R` will never be used
 
 # using specified type:
-CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}, eltype) where {T,N,R,V,C} =
-    CategoricalDecoder{eltype,false,V,N,R,C}(X.pool, unique(X))
+function CategoricalDecoder(X::CategoricalArray{T,N,R,V,C},
+                            eltype,
+                            start_at_zero=false) where {T,N,R,V,C}
+    
+    eltype <: Real || error("eltype must be a subtype of Real.")
+    if eltype <: Integer
+        if eltype  <: Unsigned && start_at_zero
+            error("Integer relabeling cannot start at zero if eltype <: Unsigned. ")
+        elseif eltype <: Bool
+            start_at_zero = true
+        end
+    end
+    
+    return CategoricalDecoder{eltype,false,V,N,R,C}(X.pool, unique(X), start_at_zero)
+end
 
 # using original type:
 transform(decoder::CategoricalDecoder, C::CategoricalArray) = collect(C)
@@ -86,7 +102,7 @@ transform(decoder::CategoricalDecoder, C::CategoricalArray) = collect(C)
 # using specified type:
 transform(decoder::CategoricalDecoder{I,false}, C::CategoricalArray) where I =
     broadcast(C.refs) do element
-        ref = convert(I, element)
+        ref = convert(I, element - decoder.start_at_zero)
     end
 
 # using original type:
@@ -100,7 +116,15 @@ end
 # using specified type:
 function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array) where {I,V,N,R}
     refs = broadcast(A) do element
-        round(R, element)
+        round(R, element + decoder.start_at_zero)
+    end
+    return CategoricalArray{V,N}(refs, decoder.pool)
+end
+
+# special boolean case:
+function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Union{Array{Bool},BitArray}) where {I,V,N,R}
+    refs = broadcast(A) do element
+        round(R, element + decoder.start_at_zero)
     end
     return CategoricalArray{V,N}(refs, decoder.pool)
 end

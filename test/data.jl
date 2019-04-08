@@ -20,6 +20,16 @@ Xsmall = X[2:5,3:4]
 # using specified output type:
 decoder = MLJBase.CategoricalDecoder(X, Float16)
 @test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
+@test minimum(unique(transform(decoder, X))) == 1.0
+
+# special boolean case:
+Xb = categorical([:y, :n, :n, :n, :y, :y])
+decoder = MLJBase.CategoricalDecoder(Xb, Bool)
+@test inverse_transform(decoder, transform(decoder, Xb[1:4])) == Xb[1:4]
+
+decoder = MLJBase.CategoricalDecoder(X, Float16, true)
+@test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
+@test minimum(unique(transform(decoder, X))) == 0.0
 
 # using original type:
 decoder = MLJBase.CategoricalDecoder(X)
@@ -29,6 +39,9 @@ v = CategoricalArrays.categorical(collect("asdfasdfasdf"))
 decoder = MLJBase.CategoricalDecoder(v[1:2], Float16)
 @test levels(decoder) == ['a', 'd', 'f', 's']
 @test levels_seen(decoder) == ['a', 's']
+
+@test_throws Exception MLJBase.CategoricalDecoder(X, UInt64, true)
+
 
 
 ## MATRIX
