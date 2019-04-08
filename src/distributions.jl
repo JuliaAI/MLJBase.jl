@@ -69,7 +69,8 @@ end
 UnivariateNominal(prob_given_level::Dict{L,T}) where {L,T<:Real} =
     UnivariateNominal{L,T}(prob_given_level)
 
-function UnivariateNominal(levels::Vector{L}, p::Vector{T}) where {L,T<:Real}
+function UnivariateNominal(levels::Union{Vector{L},CategoricalVector{L}},
+                           p::Vector{T}) where {L,T<:Real}
         Distributions.@check_args(UnivariateNominal, length(levels)==length(p))
         prob_given_level = Dict{L,T}()
         for i in eachindex(p)
