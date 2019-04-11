@@ -4,7 +4,7 @@ datadir = joinpath(srcdir, "..", "data") # TODO: make OS agnostic
 function load_boston()
     df = CSV.read(joinpath(datadir, "Boston.csv"),
                   categorical=true, allowmissing=:none)
-    return SupervisedTask(data=df,
+    return SupervisedTask(verbosity=0, data=df,
                           target=:MedV,
                           ignore=[:Chas,],
                           is_probabilistic=false)
@@ -21,7 +21,7 @@ function load_reduced_ames()
 #    df[:GarageCars] = categorical(df[:GarageCars], ordered=true)
 #    df[:YearBuilt] = categorical(df[:YearBuilt], ordered=true)
 #    df[:YearRemodAdd] = categorical(df[:YearRemodAdd], ordered=true)
-    return SupervisedTask(data=df,
+    return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           is_probabilistic=false)
 end
@@ -31,7 +31,7 @@ function load_ames()
     df = CSV.read(joinpath(datadir, "ames.csv"), categorical=true,
                   allowmissing=:none)
     df[:target] = exp.(df[:target])
-    return SupervisedTask(data=df,
+    return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           ignore=[:Id,],
                           is_probabilistic=false)
@@ -41,7 +41,7 @@ end
 function load_iris()
     df = CSV.read(joinpath(datadir, "iris.csv"),
                   categorical=true, allowmissing=:none)
-    return SupervisedTask(data=df,
+    return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           is_probabilistic=false)
 end
@@ -50,7 +50,7 @@ end
 function load_crabs()
     df = CSV.read(joinpath(datadir, "crabs.csv"),
                   categorical=true, allowmissing=:none)
-    return SupervisedTask(data=df,
+    return SupervisedTask(verbosity=0, data=df,
                           target=:sp,
                           ignore=[:sex, :index],
                           is_probabilistic=true)
