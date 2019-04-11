@@ -13,8 +13,15 @@ abstract type Found end
 # aliases:
 const Binary = Multiclass{2}
 
-# universal fallback:
-scitype(::Any) = Other
+"""
+    scitype(x)
+
+Return the scientific type for scalar values that object `x` can
+represent. Returns the type `Other` if `x` cannot represent scalar
+data.
+
+""" 
+scitype(::Any) = Other # ultimate fallback
 scitype(::Missing) = Missing
 scitype(::Real) = Continuous
 scitype(::Integer) = Count

@@ -7,7 +7,7 @@ mutable struct UnsupervisedTask <: MLJTask
 end
 
 """
-    task = UnsupervisedTask(data=nothing, ignore=Symbol[], input_is_multivariate=true)
+    task = UnsupervisedTask(data=nothing, ignore=Symbol[], input_is_multivariate=true, verbosity=1)
 
 Construct an unsupervised learning task with given input `data`, which
 should be a table or, in the case of univariate inputs, a single
@@ -22,7 +22,8 @@ ignored.
 Return the input data in form to be used in models.
 
 """
-function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate=true)
+function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate=true,
+                          verbosity=1)
 
     data != nothing || error("You must specify data=... ")
     
@@ -37,10 +38,18 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate
     
     input_scitypes = union_scitypes(X)
 
+    if Other <: input_scitypes
+        @warn "An input feature with scitype Other has been encountered. "
+    end
+
+    if verbosity > 0
+        @info "input_scitypes = $input_scitypes"
+    end
+
     return UnsupervisedTask(X, input_scitypes, input_is_multivariate)
 end
 
-# U is true for univariate targest.
+# U is true for univariate targets.
 # X and y can be different views of a common object.
 mutable struct SupervisedTask{U} <: MLJTask 
     X                               
@@ -52,7 +61,7 @@ mutable struct SupervisedTask{U} <: MLJTask
 end
 
 """
-    task = SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false)
+    task = SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false, verbosity=1)
 
 Construct a supervised learning task with input features `X` and
 target `y`. Both `X` and `y` must be tables or vectors, according to
@@ -60,7 +69,7 @@ whether they are multivariate or univariate. Table rows must
 correspond to patterns and columns to features. The boolean keyword
 argument `is_probabilistic` must be specified.
 
-    task = SupervisedTask(data=nothing, is_probabilistic=nothing, target=nothing, ignore=Symbol[], input_is_multivariate=true)
+    task = SupervisedTask(data=nothing, is_probabilistic=nothing, target=nothing, ignore=Symbol[], input_is_multivariate=true, verbosity)
 
 Construct a supervised learning task with input features `X` and
 target `y`, where `y` is the column vector from `data` named `target`
@@ -74,24 +83,40 @@ Returns the input `X` and target `y` of the task, also available as
 `task.X` and `task.y`.
 
 """
-function SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false)
+function SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=true, target_is_multivariate=false, verbosity=1)
 
+    other_found = false
+    
     is_probabilistic != nothing ||
-        error("You must specify is_probabilistic=true or is_proabilistic=false. ")
+        error("You must specify is_probabilistic=true or is_probabilistic=false. ")
 
     if target_is_multivariate
-        target_scitype = Tuple{[union_scitypes(selectcols(y, c)) for c in schema(y).names]...}
+        target_scitype = column_scitypes_as_tuple(y)
+        types = target_scitype.parameters        
+        other_found = reduce(|, [Other <: t for t in types])
     else
         target_scitype = union_scitypes(y)
+        other_found = Other <: target_scitype
     end
 
     input_scitypes = union_scitypes(X)
+    other_found = other_found || (Other <: input_scitypes)
+
+    if other_found
+        @warn "An input feature or target column with "*
+              "scitype Other has been encountered. "
+    end
+
+    if verbosity > 0
+        @info "input_scitypes = $input_scitypes"
+        @info "target_scitype = $target_scitype"
+    end
 
     return SupervisedTask{!target_is_multivariate}(X, y, is_probabilistic, target_scitype,
                                          input_scitypes, input_is_multivariate)
 end
 
-function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing, ignore=Symbol[], input_is_multivariate=true)
+function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing, ignore=Symbol[], input_is_multivariate=true, verbosity=1)
 
     data != nothing ||
         error("You must specify data=... or use SupervisedTask(X, y, ...).")
@@ -133,7 +158,8 @@ function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing
     
     return SupervisedTask(X, y; is_probabilistic=is_probabilistic,
                           input_is_multivariate=input_is_multivariate,
-                          target_is_multivariate=target_is_multivariate)
+                          target_is_multivariate=target_is_multivariate,
+                          verbosity=verbosity)
 end
 
 
