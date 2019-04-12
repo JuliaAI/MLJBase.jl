@@ -26,12 +26,16 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate
                           verbosity=1)
 
     data != nothing || error("You must specify data=... ")
-    
+
     if ignore isa Symbol
         ignore = [ignore, ]
     end
 
-    features = filter(schema(data).names |> collect) do ftr
+    names = schema(data).names |> collect
+    
+    issubset(ignore, names) || error("ignore=$ignore contains a column name not encountered in supplied data.")
+
+    features = filter(names) do ftr
         !(ftr in ignore)
     end
     X = selectcols(data, collect(features))
@@ -128,13 +132,17 @@ function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing
         ignore = [ignore, ]
     end
     
+    names = schema(data).names |> collect
+    
+    issubset(ignore, names) || error("ignore=$ignore contains a column name not encountered in supplied data.")
+
     target != nothing ||
         error("You must specify target=... (use Symbol or Vector{Symbol}) ")
 
     if target isa Vector
         target_is_multivariate = true
-        issubset(Set(target), Set(schema(data).names)) ||
-                error("One or more specified targets missing from supplied data. ")
+        issubset(target, names) ||
+                error("One or more specified target columns missing from supplied data. ")
         y = selectcols(data, target)
     else
         target_is_multivariate = false
@@ -144,7 +152,7 @@ function SupervisedTask(; data=nothing, is_probabilistic=nothing, target=nothing
         target = [target, ]
     end
 
-    features = filter(schema(data).names |> collect) do ftr
+    features = filter(names) do ftr
         !(ftr in target) && !(ftr in ignore)
     end
 
