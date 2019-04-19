@@ -127,7 +127,8 @@ tab = MLJBase.table(A)
 tab[1] == v
 MLJBase.matrix(tab) == A
 
-sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2], ["big", "small", 17, 34, 4, "small"])
+sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
+                     ["big", "small", 17, 34, 4, "small"])
 @test MLJBase.matrix(nd) == sparsearray
 end # module
 

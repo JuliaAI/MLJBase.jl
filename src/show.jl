@@ -98,7 +98,7 @@ function Base.show(stream::IO, object::MLJType)
     #   description = string(typeof(object))
     str = "$description @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
-        printstyled(IOContext(stream, :color=> true), str, bold=true)#color=:blue
+        printstyled(IOContext(stream, :color=> true), str, bold=false, color=:blue)
     else
         print(stream, str)
     end
@@ -145,7 +145,7 @@ function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
         print(stream, ")")
         if current_depth == 0
             description = " @ $(handle(object))"
-            printstyled(IOContext(stream, :color=> true), description, bold=true)#color=:blue
+            printstyled(IOContext(stream, :color=> true), description, bold=false, color=:blue)
         end
     end
 end
