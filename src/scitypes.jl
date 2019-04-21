@@ -2,15 +2,17 @@ nlevels(c::CategoricalValue) = length(levels(c.pool))
 nlevels(c::CategoricalString) = length(levels(c.pool))
 
 abstract type Found end
-    struct Continuous <: Found end 
-    abstract type Discrete <: Found end
-        struct Multiclass{N} <: Discrete end
-        abstract type OrderedFactor <: Discrete end
-            struct FiniteOrderedFactor{N} <: OrderedFactor end
-            struct Count <: OrderedFactor end
-    struct Other <: Found end
+    abstract type Known <: Found end
+        struct Continuous <: Known end 
+        abstract type Discrete <: Known end
+            struct Multiclass{N} <: Discrete end
+            abstract type OrderedFactor <: Discrete end
+                struct FiniteOrderedFactor{N} <: OrderedFactor end
+                struct Count <: OrderedFactor end
+    struct Unknown <: Found end 
 
 # aliases:
+const Other = Unknown # TODO: depreciate:
 const Binary = Multiclass{2}
 
 """
