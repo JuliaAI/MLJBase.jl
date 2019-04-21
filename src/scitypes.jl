@@ -19,11 +19,10 @@ const Binary = Multiclass{2}
     scitype(x)
 
 Return the scientific type for scalar values that object `x` can
-represent. Returns the type `Other` if `x` cannot represent scalar
-data.
+represent.
 
 """ 
-scitype(::Any) = Other # ultimate fallback
+scitype(::Any) = Unknown     
 scitype(::Missing) = Missing
 scitype(::Real) = Continuous
 scitype(::Integer) = Count

@@ -42,8 +42,8 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], input_is_multivariate
     
     input_scitypes = union_scitypes(X)
 
-    if Other <: input_scitypes
-        @warn "An input feature with scitype Other has been encountered. "
+    if Unknown <: input_scitypes
+        @warn "An input feature with unknown scitype has been encountered. "
     end
 
     if verbosity > 0
@@ -97,18 +97,17 @@ function SupervisedTask(X, y; is_probabilistic=nothing, input_is_multivariate=tr
     if target_is_multivariate
         target_scitype = column_scitypes_as_tuple(y)
         types = target_scitype.parameters        
-        other_found = reduce(|, [Other <: t for t in types])
+        unknown_found = reduce(|, [Unknown <: t for t in types])
     else
         target_scitype = union_scitypes(y)
-        other_found = Other <: target_scitype
+        unknown_found = Unknown <: target_scitype
     end
 
     input_scitypes = union_scitypes(X)
-    other_found = other_found || (Other <: input_scitypes)
+    unknown_found = unknown_found || (Unknown <: input_scitypes)
 
-    if other_found
-        @warn "An input feature or target column with "*
-              "scitype Other has been encountered. "
+    if unknown_found
+        @warn "An Unknown scitype has been encountered. "
     end
 
     if verbosity > 0
