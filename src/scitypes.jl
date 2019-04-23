@@ -19,7 +19,21 @@ const Binary = Multiclass{2}
     scitype(x)
 
 Return the scientific type for scalar values that object `x` can
-represent.
+represent. If `x` is a tuple, then `Tuple{scitype.(x)...}` is returned. 
+
+    julia> scitype(4.5)
+    Continous
+
+    julia> scitype("book")
+    Unknown
+
+    julia> scitype((1, 4.5))
+    Tuple{Count,Continuous}
+
+    julia> using CategoricalArrays
+    julia> v = categorical([:m, :f, :f])
+    julia> scitype(v[1])
+    Multiclass{2}
 
 """ 
 scitype(::Any) = Unknown     
