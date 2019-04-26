@@ -29,6 +29,8 @@ db = JuliaDB.table((x=rand(5), y=rand(Int, 5),
                                y=Count,
                                z=Multiclass{4})
 
+@test_throws ArgumentError MLJBase.scitypes(categorical([:x, :y]))
+
 A = Any[2 4.5;
         4 4.5;
         6 4.5]
