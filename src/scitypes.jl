@@ -38,7 +38,7 @@ represent. If `x` is a tuple, then `Tuple{scitype.(x)...}` is returned.
 """ 
 scitype(::Any) = Unknown     
 scitype(::Missing) = Missing
-scitype(::Real) = Continuous
+scitype(::AbstractFloat) = Continuous
 scitype(::Integer) = Count
 scitype(c::CategoricalValue) =
     c.pool.ordered ? FiniteOrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
