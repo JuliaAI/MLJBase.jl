@@ -65,7 +65,7 @@ values the corresponding scitype unions over a column's entries.
 """
 function scitypes(X)
     container_type(X) in [:table, :sparse] ||
-        throw(ArgumentError("Container should be a table format or a sparse table format"))
+        throw(ArgumentError("Container should be a table or sparse table. "))
     names =    schema(X).names
     return NamedTuple{names}(scitype_union(selectcols(X, c)) for c in names)
 end
