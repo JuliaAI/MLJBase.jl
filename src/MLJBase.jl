@@ -1,5 +1,5 @@
 # Users of this module should first read the document
-# https://github.com/alan-turing-institute/MLJ.jl/blob/master/doc/adding_new_models.md 
+# https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
 
 module MLJBase
 
