@@ -36,6 +36,7 @@ A = Any[2 4.5;
         6 4.5]
 
 @test MLJBase.scitype_union(A) == Union{Count,Continuous}
+scitype_union(randn(1000000))
 
 end
 true
