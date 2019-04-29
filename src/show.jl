@@ -1,6 +1,10 @@
 ## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
 
 const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
+SHOW_COLOR = true
+color_on() = (global SHOW_COLOR=true;)
+color_off() = (global SHOW_COLOR=false;)
+
 
 macro colon(p)
     Expr(:quote, p)
@@ -98,7 +102,7 @@ function Base.show(stream::IO, object::MLJType)
     #   description = string(typeof(object))
     str = "$description @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
-        printstyled(IOContext(stream, :color=> true), str, bold=false, color=:blue)
+        printstyled(IOContext(stream, :color=> SHOW_COLOR), str, bold=false, color=:blue)
     else
         print(stream, str)
     end
@@ -145,7 +149,7 @@ function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
         print(stream, ")")
         if current_depth == 0
             description = " @ $(handle(object))"
-            printstyled(IOContext(stream, :color=> true), description, bold=false, color=:blue)
+            printstyled(IOContext(stream, :color=> SHOW_COLOR), description, bold=false, color=:blue)
         end
     end
 end
