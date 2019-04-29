@@ -36,7 +36,11 @@ A = Any[2 4.5;
         6 4.5]
 
 @test MLJBase.scitype_union(A) == Union{Count,Continuous}
-scitype_union(randn(1000000))
+@test scitype_union(randn(1000000)) == Continuous
+@test scitype_union(1) == Count
+@test scitype_union([1]) == Count
+@test scitype_union(Any[1]) == Count
+@test scitype_union([1, 2.0, "3"]) == Union{Continuous, Count, Unknown}
 
 end
 true
