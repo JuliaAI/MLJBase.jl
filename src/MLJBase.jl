@@ -22,6 +22,7 @@ export FiniteOrderedFactor                           # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
+export color_on, color_off                           # show.jl
 export UnivariateNominal, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
