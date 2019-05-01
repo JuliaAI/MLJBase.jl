@@ -12,7 +12,6 @@ export load_path, package_url, package_name, package_uuid
 export input_scitype_union, input_is_multivariate       
 export target_scitype_union, target_quantity            
 export is_pure_julia, is_wrapper                                 
-export fitresult_type
 
 export params                                        # parameters.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
@@ -206,18 +205,6 @@ function predict_median(model::Probabilistic, fitresult, ::Type{<:OrderedFactor}
 end
 predict_median(model::Probabilistic, fitresult, ::Type{<:Union{Continuous, Count}}, Xnew) =
     median.(predict(model, fitresult, Xnew))
-
-# returns the fit-result type declared by a supervised model
-# declaration (to test actual fit-results have the declared type):
-"""
-    MLJBase.fitresult_type(m)
-
-Returns the fitresult type of any supervised model (or model type)
-`m`, as declared in the model `mutable struct` declaration.
-
-"""
-fitresult_type(M::Type{<:Supervised}) = supertype(M).parameters[1]
-fitresult_type(m::Supervised) = fitresult_type(typeof(m))
 
 # for unpacking the fields of MLJ objects:
 include("parameters.jl")
