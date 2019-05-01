@@ -4,6 +4,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
+export DeterministicNetwork, ProbabilisticNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
@@ -74,18 +75,23 @@ abstract type MLJType end
 # for storing hyperparameters:
 abstract type Model <: MLJType end
 
-abstract type Supervised{R} <: Model end # parameterized by fit-result type `R`
-abstract type Unsupervised <: Model  end
+abstract type Supervised <: Model end 
+abstract type Unsupervised <: Model end
 
 # supervised models that `predict` probability distributions are of:
-abstract type Probabilistic{R} <: Supervised{R} end
+abstract type Probabilistic <: Supervised end
 
 # supervised models that `predict` point-values are of:
-abstract type Deterministic{R} <: Supervised{R} end
+abstract type Deterministic <: Supervised end
 
-# MLJType objects are `==` if: (i) they have a common supertype AND (ii)
-# they have the same set of defined fields AND (iii) their defined field
-# values are `==`:
+# for models that are "exported" learning networks (return a Node as
+# their fit-result; see MLJ/networks.jl):
+abstract type ProbabilisticNetwork <: Probabilistic end
+abstract type DeterministicNetwork <: Deterministic end
+
+# by default, MLJType objects are `==` if: (i) they have a common
+# supertype AND (ii) they have the same set of defined fields AND
+# (iii) their defined field values are `==`:
 function ==(m1::M1, m2::M2) where {M1<:MLJType,M2<:MLJType}
     if M1 != M1
         return false

@@ -5,7 +5,7 @@ using MLJBase
 import MLJBase
 using Test
 
-mutable struct Dummy <: Probabilistic{Int} end
+mutable struct Dummy <: Probabilistic end
 
 MLJBase.load_path(::Type{Dummy}) = "GreatPackage.MLJ.Dummy"
 MLJBase.target_scitype_union(::Type{Dummy}) = Continuous
