@@ -18,7 +18,7 @@ export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition,StratifiedKFold                     # utilities.jl
 export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
-export FiniteOrderedFactor                           # scitypes.jl
+export FiniteOrderedFactor, Unknown                  # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl

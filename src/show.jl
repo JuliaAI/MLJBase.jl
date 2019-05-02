@@ -2,7 +2,19 @@
 
 const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
 SHOW_COLOR = true
+"""
+    color_on()
+
+Enable color and bold output at the REPL, for enhanced display of MLJ objects.
+
+"""
 color_on() = (global SHOW_COLOR=true;)
+"""
+    color_off()
+
+Suppress color and bold output at the REPL for displaying MLJ objects. 
+
+"""
 color_off() = (global SHOW_COLOR=false;)
 
 
