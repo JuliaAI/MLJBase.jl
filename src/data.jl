@@ -259,7 +259,7 @@ function table(X::AbstractMatrix; names=nothing, prototype=nothing)
 end
                
 
-## UNIFIED API FOR ACCESSING  TABLES, MATRICES AND VECTORS
+## UNIFIED API FOR ACCESSING TABLES, MATRICES AND VECTORS
 
 
 """

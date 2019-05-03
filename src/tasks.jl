@@ -120,16 +120,19 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
     
     names = schema(data).names |> collect
     
-    issubset(ignore, names) || error("ignore=$ignore contains a column name not encountered in supplied data.")
+    issubset(ignore, names) ||
+        error("ignore=$ignore contains a column name not encountered "*
+              "in supplied data.")
 
     target != nothing ||
         error("You must specify target=... (use Symbol or Vector{Symbol}) ")
 
     if target isa Vector
         issubset(target, names) ||
-                error("One or more specified target columns missing from supplied data. ")
-        ymatrix = matrix(selectcols(data, target))
-        y = [Tuple(ymatrix[i,:]) for i in 1:size(ymatrix, 1)]
+            error("One or more specified target columns missing from "*
+                  "supplied data. ")
+        yrowtable = Tables.rowtable(selectcols(data, target))
+        y = values.(yrowtable)
     else
         target in schema(data).names ||
             error("Specificed target not found in data. ")
