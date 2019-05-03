@@ -14,6 +14,7 @@ export is_pure_julia, is_wrapper
 export fitresult_type
 
 export params                                        # parameters.jl
+export rescue                                        # data.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition,StratifiedKFold                     # utilities.jl

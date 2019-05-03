@@ -1,6 +1,34 @@
 ## CATEGORICAL ARRAY DECODER UTILITY
 
 """
+    reconstruct(A)
+
+For reconstructing categorical arrays from their elements alone. Here
+`A` is of type `Array{T}` where `T` is a subtype of
+`CategoricalString` or `CategoricalValue`. The function `reconstruct` has
+the property that `reconstruct(broadcast(identity, A)) == A`, whenever `A`
+is a `CategoricalArray`. In other words, `reconstruct` is a left-inverse
+for the function `A -> broadcast(identity, A)` that strips a
+CategoricalArray of its "categorical wrapper".
+
+"""
+function reconstruct(A::Array{<:CategoricalValue{T},N}) where {T,N}
+    !isempty(A) || error("Cannot reconstruct an empty array")
+    proto_element = A[1]
+    pool = A[1].pool
+    refs = map(x -> x.level, A)
+    return CategoricalArray{T,N}(refs, pool)
+end
+function reconstruct(A::Array{<:CategoricalString,N}) where {T,N}
+    !isempty(A) || error("Cannot reconstruct an empty array")
+    proto_element = A[1]
+    pool = A[1].pool
+    refs = map(x -> x.level, A)
+    return CategoricalArray{String,N}(refs, pool)
+end
+
+
+"""
     CategoricalDecoder(C::CategoricalArray)
     CategoricalDecoder(C::CategoricalArray, eltype, start_at_zero=false)
 

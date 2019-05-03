@@ -6,16 +6,29 @@ using MLJBase
 using DataFrames
 using TypedTables
 using JuliaDB
+import Random.seed!
 
 using SparseArrays
 import CategoricalArrays
 
-A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
-X = CategoricalArrays.categorical(A)
-Xsmall = X[2:5,3:4]
+
+## RECONSTRUCT
+
+A = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
+@test length(levels(A)) > 6
+@test reconstruct(broadcast(identity, A)) == A
+
+A = categorical(rand(UInt8,20,20))[1:2,1:3]
+@test length(levels(A)) > 6
+@test reconstruct(broadcast(identity, A)) == A
 
 
 ## DECODER
+
+seed!(1234)
+A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
+X = CategoricalArrays.categorical(A)
+Xsmall = X[2:5,3:4]
 
 # using specified output type:
 decoder = MLJBase.CategoricalDecoder(X, Float16)
