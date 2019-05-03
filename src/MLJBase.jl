@@ -14,6 +14,7 @@ export target_scitype_union, target_quantity
 export is_pure_julia, is_wrapper                                 
 
 export params                                        # parameters.jl
+export reconstruct                                   # data.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition,StratifiedKFold                     # utilities.jl

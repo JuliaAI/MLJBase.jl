@@ -6,22 +6,7 @@ mutable struct UnsupervisedTask <: MLJTask
     input_scitype_union::DataType
     input_is_multivariate::Bool
 end
-"""
-    task = UnsupervisedTask(data=nothing, ignore=Symbol[], verbosity=1)
 
-Construct an unsupervised learning task with given input `data`, which
-should be a table or, in the case of univariate inputs, a single
-vector. 
-
-Rows of `data` must correspond to patterns and columns to
-features. Columns in `data` whose names appear in `ignore` are
-ignored.
-
-    X = task()
-
-Return the input data in form to be used in models.
-
-"""
 function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
 
     data != nothing || error("You must specify data=... ")
@@ -79,32 +64,7 @@ mutable struct SupervisedTask <: MLJTask
     target_scitype_union
     input_is_multivariate::Bool
 end
-"""
-    task = SupervisedTask(data=nothing, is_probabilistic=false, target=nothing, ignore=Symbol[], verbosity=1)
 
-Construct a supervised learning task with input features `X` and
-target `y`, where: `y` is the column vector from `data` named
-`target`, if this is a single symbol, or, a vector of tuples, if
-`target` is a vector; `X` consists of all remaining columns of `data`
-not named in `ignore`, and is a table unless it has only one column, in
-which case it is a vector.
-
-    task = SupervisedTask(X, y; is_probabilistic=false, input_is_multivariate=true, verbosity=1)
-
-A more customizable constructor, this returns a supervised learning
-task with input features `X` and target `y`, where: `X` must be a table or
-vector, according to whether it is multivariate or univariate, while
-`y` must be a vector whose elements are scalars, or tuples scalars
-(of constant length for ordinary multivariate predictions, and of
-variable length for sequence prediction). Table rows must correspond
-to patterns and columns to features. 
-
-    X, y = task()
-
-Returns the input `X` and target `y` of the task, also available as
-`task.X` and `task.y`.
-
-"""
 function SupervisedTask(X, y; is_probabilistic=false, input_is_multivariate=true,
                         verbosity=1)
 
