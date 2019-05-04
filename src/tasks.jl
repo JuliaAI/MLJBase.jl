@@ -60,12 +60,16 @@ mutable struct SupervisedTask <: MLJTask
     y
     is_probabilistic
     input_scitypes
+    target
     input_scitype_union
     target_scitype_union
     input_is_multivariate::Bool
 end
 
-function SupervisedTask(X, y; is_probabilistic=false, input_is_multivariate=true,
+function SupervisedTask(X, y;
+                        is_probabilistic=false,
+                        input_is_multivariate=true,
+                        target=:target,
                         verbosity=1)
 
     # is_probabilistic != nothing ||
@@ -101,8 +105,11 @@ function SupervisedTask(X, y; is_probabilistic=false, input_is_multivariate=true
         "$input_scitype_union \ntarget_scitype_union = $target_scitype_union"
     end
 
-    return SupervisedTask(X, y, is_probabilistic, 
-                          input_scitypes, input_scitype_union, target_scitype_union,
+    return SupervisedTask(X, y,
+                          is_probabilistic, 
+                          input_scitypes,
+                          target,
+                          input_scitype_union, target_scitype_union,
                           input_is_multivariate)
 end
 
@@ -152,8 +159,10 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
         input_is_multivariate = true
     end
     
-    return SupervisedTask(X, y; is_probabilistic=is_probabilistic,
+    return SupervisedTask(X, y;
+                          is_probabilistic=is_probabilistic,
                           input_is_multivariate=input_is_multivariate,
+                          target=target,
                           verbosity=verbosity)
 end
 
