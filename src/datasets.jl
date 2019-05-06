@@ -36,7 +36,8 @@ end
 
 """Load a well-known public classification task with nominal features."""
 function load_iris()
-    df = CSV.read(joinpath(datadir, "iris.csv"), categorical=true)
+    df = CSV.read(joinpath(datadir, "iris.csv"), pool=true, copycols=true,
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           is_probabilistic=false)
@@ -44,7 +45,8 @@ end
 
 """Load a well-known crab classification dataset with nominal features."""
 function load_crabs()
-    df = CSV.read(joinpath(datadir, "crabs.csv"), categorical=true)
+    df = CSV.read(joinpath(datadir, "crabs.csv"), pool=true, copycols=true,
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:sp,
                           ignore=[:sex, :index],
@@ -53,8 +55,6 @@ end
 
 """Get some supervised data now!!"""
 function datanow()
-    Xtable, y = X_and_y(load_boston())
-    X = DataFrame(Xtable)  # force table to be dataframe; should become redundant
-
-    return (X[1:75,:], y[1:75])
+    X, y = X_and_y(load_boston())
+    return (selectrows(X, 1:75), y[1:75])
 end
