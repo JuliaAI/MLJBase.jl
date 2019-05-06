@@ -5,7 +5,7 @@ using Test
 using MLJBase
 using DataFrames
 using TypedTables
-using JuliaDB
+# using JuliaDB
 import Random.seed!
 
 using SparseArrays
@@ -66,22 +66,25 @@ decoder = MLJBase.CategoricalDecoder(v[1:2], Float16)
 
 df = DataFrame(A)
 tt = Table(df)
-db = JuliaDB.table(tt)
-nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
-               word=[:house, :house, :sofa, :sofa, :chair, :house]), (values=["big", "small", 17, 34, 4, "small"],))
+# uncomment 4 lines to restore JuliaDB testing:
+# db = JuliaDB.table(tt)
+# nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
+#                word=[:house, :house, :sofa, :sofa, :chair, :house]), (values=["big", "small", 17, 34, 4, "small"],))
 
 @test !MLJBase.istable(A)
 @test !MLJBase.istable([1,2,3])
 @test MLJBase.istable(df)
 @test MLJBase.istable(tt)
-@test MLJBase.istable(db)
-@test MLJBase.isndsparse(nd)
+# uncomment 2 lines to restore JuliaDB testing:
+# @test MLJBase.istable(db)
+# @test MLJBase.isndsparse(nd)
 
 ## TABLE INDEXING
 
 df.z  = 1:10
 tt = Table(df)
-db = JuliaDB.table(tt)
+# uncomment 1 line to restore JuliaDB testing:
+# db = JuliaDB.table(tt)
 
 @test selectcols(df, 4:6) == selectcols(df[4:6], :)
 @test selectcols(df, [:x1, :z]) == selectcols(df[[:x1, :z]], :)
@@ -117,19 +120,22 @@ v = categorical(collect("asdfasdf"))
 df = DataFrame(v=v, w=v)
 @test selectcols(df, :w) == v
 tt = TypedTables.Table(df)
-db = JuliaDB.table(tt)
+# uncomment 1 line to restore JuliaDB testing:
+# db = JuliaDB.table(tt)
 @test selectcols(tt, :w) == v
-@test selectcols(db, :w) == v
+# uncomment 1 line to restore JuliaDB testing:
+# @test selectcols(db, :w) == v
 
-@test MLJBase.select(nd, 2, :house) isa Missing
-@test MLJBase.select(nd, 1, :house) == "small"
-@test all(MLJBase.select(nd, :, :house) .=== ["small", missing, missing, "small", missing, "big"])
-@test all(MLJBase.select(nd, [2,4], :house) .=== [missing, "small"])
-@test all(selectcols(nd, :house) .=== MLJBase.select(nd, :, :house))
-@test nrows(nd) == 6
-s = schema(nd)
-@test s.names == (:chair, :house, :sofa)
-@test s.types == (Union{Missing,Int64}, Union{Missing,String}, Union{Missing,Int64})
+# uncomment 9 lines to restore JuliaDB testing:
+# @test MLJBase.select(nd, 2, :house) isa Missing
+# @test MLJBase.select(nd, 1, :house) == "small"
+# @test all(MLJBase.select(nd, :, :house) .=== ["small", missing, missing, "small", missing, "big"])
+# @test all(MLJBase.select(nd, [2,4], :house) .=== [missing, "small"])
+# @test all(selectcols(nd, :house) .=== MLJBase.select(nd, :, :house))
+# @test nrows(nd) == 6
+# s = schema(nd)
+# @test s.names == (:chair, :house, :sofa)
+# @test s.types == (Union{Missing,Int64}, Union{Missing,String}, Union{Missing,Int64})
 
 
 
@@ -140,9 +146,11 @@ tab = MLJBase.table(A)
 tab[1] == v
 MLJBase.matrix(tab) == A
 
-sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
-                     ["big", "small", 17, 34, 4, "small"])
-@test MLJBase.matrix(nd) == sparsearray
+# uncomment 3 lines to restore JuliaDB testing:
+# sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
+#                      ["big", "small", 17, 34, 4, "small"])
+# @test MLJBase.matrix(nd) == sparsearray
+
 end # module
 
 true
