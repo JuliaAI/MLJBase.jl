@@ -9,7 +9,7 @@ mutable struct Dummy <: Probabilistic end
 
 MLJBase.load_path(::Type{Dummy}) = "GreatPackage.MLJ.Dummy"
 MLJBase.target_scitype_union(::Type{Dummy}) = Continuous
-MLJBase.input_scitype_union(::Type{Dummy}) = Union{Continuous, Discrete, Missing}
+MLJBase.input_scitype_union(::Type{Dummy}) = Union{Continuous, Missing}
 MLJBase.input_is_multivariate(::Type{Dummy}) = false
 MLJBase.is_pure_julia(::Type{Dummy}) = true
 MLJBase.package_name(::Type{Dummy}) = "GreatPackage"
@@ -22,7 +22,7 @@ d = Dict(:name => "Dummy",
          :package_uuid  => "6f286f6a-111f-5878-ab1e-185364afe411",
          :package_name  => "GreatPackage",
          :target_scitype_union => Continuous,
-         :input_scitype_union => Union{Continuous, Discrete, Missing},
+         :input_scitype_union => Union{Continuous, Missing},
          :input_is_multivariate => false,
          :is_probabilistic => true,
          :package_url   => "https://mickey.mouse.org",

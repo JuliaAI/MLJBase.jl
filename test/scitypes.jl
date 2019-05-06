@@ -14,7 +14,7 @@ u = uv[1]
 
 scitype((4, 4.5, c, u, "X")) ==
     Tuple{Count,Continuous,Multiclass{2},
-          FiniteOrderedFactor{2},MLJBase.Unknown}
+          OrderedFactor{2},MLJBase.Unknown}
 
 nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
                word=[:house, :house, :sofa, :sofa, :chair, :house]),

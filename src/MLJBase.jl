@@ -18,8 +18,8 @@ export reconstruct                                   # data.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition,StratifiedKFold                     # utilities.jl
-export Found, Continuous, Discrete, OrderedFactor    # scitypes.jl
-export FiniteOrderedFactor, Unknown                  # scitypes.jl
+export Found, Continuous, Finite, Infinite           # scitypes.jl
+export OrderedFactor, Unknown                        # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
@@ -182,7 +182,7 @@ package_url(model::Model) = package_url(typeof(model))
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
     predict_mode(model, fitresult, target_scitype_union(model), Xnew)
-function predict_mode(model::Probabilistic, fitresult, ::Type{<:Union{Multiclass,OrderedFactor}}, Xnew)
+function predict_mode(model::Probabilistic, fitresult, ::Type{<:Finite}, Xnew)
     prob_predictions = predict(model, fitresult, Xnew)
     null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
     modes = categorical(mode.(prob_predictions))
@@ -198,7 +198,7 @@ predict_mean(model::Probabilistic, fitresult, Xnew) =
 # median:
 predict_median(model::Probabilistic, fitresult, Xnew) =
     predict_median(model, fitresult, target_scitype_union(model), Xnew)
-function predict_median(model::Probabilistic, fitresult, ::Type{<:OrderedFactor}, Xnew) 
+function predict_median(model::Probabilistic, fitresult, ::Type{<:Union{Finite}}, Xnew) 
     prob_predictions = predict(model, fitresult, Xnew)
     null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
     medians = categorical(median.(prob_predictions))
