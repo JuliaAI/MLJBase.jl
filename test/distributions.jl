@@ -5,15 +5,19 @@ using Test
 using MLJBase
 using CategoricalArrays
 import Distributions
+import Random.seed!
+seed!(1234)
 
 
 ## UNIVARIATE NOMINAL
 
 v = collect("asdfghjklzxc")
-d = UnivariateNominal(v, [0.09, 0.02, 0.1, 0.1, 0.1, 0.1, 0.1, 0.11, 0.01, 0.1, 0.07, 0.1])
+d = UnivariateNominal(v, [0.09, 0.02, 0.1, 0.1,
+                          0.1, 0.1, 0.1, 0.11,
+                          0.01, 0.1, 0.07, 0.1])
 @test pdf(d, 's') ≈ 0.02
 @test mode(d) == 'k'
-rand(d, 5)
+@test rand(d, 5) == ['a', 'z', 'a', 'k', 'z']
 
 v = collect("abcd")
 d = UnivariateNominal(v, [0.2, 0.3, 0.1, 0.4])
@@ -22,10 +26,20 @@ freq_given_level = Distributions.countmap(sample)
 pairs  = collect(freq_given_level)
 sort!(pairs, by=pair->pair[2], alg=QuickSort)
 sorted_levels = first.(pairs)
-# if this fails it is bug or an exceedingly rare event or a bug:
 @test sorted_levels == ['c', 'a', 'b', 'd']
 
-v=['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a']
+# test unseen values in pool get zero probability:
+v = levels!(categorical(collect("abcd")), collect("abcdf"))
+d = UnivariateNominal(v, [0.2, 0.3, 0.1, 0.4])
+@test d.prob_given_level['f'] == 0
+vp = broadcast(identity, v)
+d = UnivariateNominal(vp, [0.2, 0.3, 0.1, 0.4])
+@test d.prob_given_level['f'] == 0
+vpp = levels!(categorical(["x", "y"]), ["x", "y", "z"])
+d = UnivariateNominal(vpp, [0.2, 0.8])
+@test d.prob_given_level["z"] == 0
+
+v = categorical(['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a'])
 d = Distributions.fit(UnivariateNominal, v) 
 @test pdf(d, 'a') ≈ 0.5
 @test pdf(d, 'b') ≈ 0.375 
@@ -33,8 +47,7 @@ d = Distributions.fit(UnivariateNominal, v)
 
 # to check fitting to categorical returns zero prob for missing
 # levels, we add and drop new level to a categorical version of v:
-w = categorical(append!(v, 'f'))
-w = w[1:end-1]
+w = levels!(v, ['a', 'b', 'c', 'f'])
 e = Distributions.fit(UnivariateNominal, w) 
 @test e.prob_given_level['f'] == 0
 

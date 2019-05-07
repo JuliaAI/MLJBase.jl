@@ -1,161 +1,146 @@
 ## CATEGORICAL ARRAY DECODER UTILITY
 
+# don't know if we really need this:
 """
     reconstruct(A)
 
 For reconstructing categorical arrays from their elements alone. Here
-`A` is of type `Array{T}` where `T` is a subtype of
+`A` is of type `AbstractArray{T}` where `T` is a subtype of
 `CategoricalString` or `CategoricalValue`. The function `reconstruct` has
-the property that `reconstruct(broadcast(identity, A)) == A`, whenever `A`
+the property that `reconstruct(broadcast(identity, C)) == C`, whenever `C`
 is a `CategoricalArray`. In other words, `reconstruct` is a left-inverse
-for the function `A -> broadcast(identity, A)` that strips a
+for the function `C -> broadcast(identity, C)` that strips a
 CategoricalArray of its "categorical wrapper".
 
+Does not handle missing values.
+
 """
-function reconstruct(A::Array{<:CategoricalValue{T},N}) where {T,N}
-    !isempty(A) || error("Cannot reconstruct an empty array")
-    proto_element = A[1]
-    pool = A[1].pool
-    refs = map(x -> x.level, A)
+function reconstruct(A::AbstractArray{<:CategoricalValue{T},N}) where {T,N}
+    firstnonmissing = findfirst(x->!ismissing(x), A)
+    isnothing(firstnonmissing) && error("No non-missing values encountered. ")
+    pool = A[firstnonmissing].pool
+    refs = broadcast(x -> x.level, A)
     return CategoricalArray{T,N}(refs, pool)
 end
-function reconstruct(A::Array{<:CategoricalString,N}) where {T,N}
-    !isempty(A) || error("Cannot reconstruct an empty array")
-    proto_element = A[1]
-    pool = A[1].pool
-    refs = map(x -> x.level, A)
+function reconstruct(A::AbstractArray{<:CategoricalString,N}) where {T,N}
+    firstnonmissing = findfirst(x->!ismissing(x), A)
+    isnothing(firstnonmissing) && error("No non-missing values encountered. ")
+    pool = A[firstnonmissing].pool
+    refs = broadcast(x -> x.level, A)
     return CategoricalArray{String,N}(refs, pool)
 end
 
+CategoricalElement = Union{CategoricalValue,CategoricalString}
 
 """
-    CategoricalDecoder(C::CategoricalArray)
-    CategoricalDecoder(C::CategoricalArray, eltype, start_at_zero=false)
+    classes(x)
 
-Construct a decoder for transforming a `CategoricalArray{T}` object
-into an ordinary array, and for re-encoding similar arrays back into a
-`CategoricalArray{T}` object having the same `pool` (and, in
-particular, the same levels) as `C`. If `eltype` is not specified then
-the element type of the transformed array is `T`. Otherwise, the
-element type is `eltype` and the elements are conversions to `eltype`
-of the internal (unsigned integer) `ref`s of the `CategoricalArray`,
-shifted backwards by one if `start_at_zero=false`. One must have
-`eltype <: Real`.
+All the categorical values in the same pool as `x` (including `x`),
+returned as a list, with an ordering consistent with the pool. Here
+`x` has `CategoricalValue` or `CategoricalString` type, and
+`classes(x)` is a vector of the same eltype. 
 
-If `eltype = Bool`, then `start_at_zero` is ignored.
+Not to be confused with the levels of `x.pool` which have a
+different type. In particular, while `x in classes(x)` is always
+true, `x in x.pool.levels` is not true.
 
-    transform(decoder::CategoricalDecoder, C::CategoricalArray)
-
-Transform `C` into an ordinary `Array`.
-
-    inverse_transform(decoder::CategoricalDecoder, A::Array)
-
-Transform an array `A` suitably compatible with `decoder` into a
-`CategoricalArray` having the same `pool` as `C`.
-
-    levels(decoder::CategoricalDecoder)
-    levels_seen(decoder::CategoricaDecoder)
-
-Return, respectively, all levels in pool of the categorical vector `C`
-used to construct `decoder` (ie, `levels(C)`), and just those levels
-explicitly appearing as entries of `C` (ie, `unique(C)`).
-
-### Example
-
-````
-julia> using CategoricalArrays
-julia> C = categorical(["a" "b"; "a" "c"])
-2×2 CategoricalArray{String,2,UInt32}:
- "a"  "b"
- "a"  "c"
-
-julia> decoder = MLJBase.CategoricalDecoder(C, eltype=Float64);
-julia> A = transform(decoder, C)
-2×2 Array{Float64,2}:
- 1.0  2.0
- 1.0  3.0
-
-julia> inverse_transform(decoder, A[1:1,:])
-1×2 CategoricalArray{String,2,UInt32}:
- "a"  "b"
-
-julia> levels(ans)
-3-element Array{String,1}:
- "a"
- "b"
- "c"
-````
+    julia> v = categorical([:c, :b, :c, :a])
+    julia> levels(v)
+    3-element Array{Symbol,1}:
+     :a
+     :b
+     :c
+    julia> classes(v[4])
+    3-element Array{CategoricalValue{Symbol,UInt32},1}:
+     :a
+     :b
+     :c
 
 """
-struct CategoricalDecoder{I<:Real,B,V,N,R<:Integer,C}
 
-    # I = output eltype if not using original type (junk otherwise)
-    # B is boolean, whether to use original type or I
-    # N is the dimension of the array to be encoded/decoded
-
-    pool::CategoricalPool{V,R,C}
-    levels_seen::Vector{V}
-    start_at_zero::Bool
-
+@inline function classes(x::CategoricalElement)
+    p = x.pool
+    return [p.valindex[p.invindex[v]] for v in p.levels]
 end
+raw(x::CategoricalElement) = x.pool.index[x.level] # a method just for testing
 
-CategoricalArrays.levels(d::CategoricalDecoder) = levels(d.pool)
-levels_seen(d::CategoricalDecoder) = d.levels_seen
+"""
+   int(x)
 
-# constructors:
-# using original type:
-CategoricalDecoder(X::CategoricalArray{T,N,R,V,C}) where {T,N,R,V,C} = 
-    CategoricalDecoder{R,true,V,N,R,C}(X.pool, unique(X), false) # the first `R` will never be used
+The positional integer of the `CategoricalString` or `CategoricalValue`
+`x`, in the ordering defined by the pool of `x`. The type of `int(x)`
+is the refrence type of `x`.
 
-# using specified type:
-function CategoricalDecoder(X::CategoricalArray{T,N,R,V,C},
-                            eltype,
-                            start_at_zero=false) where {T,N,R,V,C}
+Not to be confused with `x.ref`, which is unchanged by reordering of
+the pool of `x`, but has the same type.
+
+    int(X::CategoricalArray)
+    int(W::Array{<:CategoricalString})
+    int(W::Array{<:CategoricalValue})
+
+Broadcasted versions of `int`.
+
+    julia> v = categorical([:c, :b, :c, :a])
+    julia> levels(v)
+    3-element Array{Symbol,1}:
+     :a
+     :b
+     :c
+    julia> int(v)
+    4-element Array{UInt32,1}:
+     0x00000003
+     0x00000002
+     0x00000003
+     0x00000001
     
-    eltype <: Real || error("eltype must be a subtype of Real.")
-    if eltype <: Integer
-        if eltype  <: Unsigned && start_at_zero
-            error("Integer relabeling cannot start at zero if eltype <: Unsigned. ")
-        elseif eltype <: Bool
-            start_at_zero = true
-        end
-    end
-    
-    return CategoricalDecoder{eltype,false,V,N,R,C}(X.pool, unique(X), start_at_zero)
+See also: decoder
+"""
+int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+int(X::CategoricalArray) = broadcast(r -> X.pool.order[r], X.refs)
+int(V::Array{<:CategoricalElement}) = broadcast(int, V)
+
+struct CategoricalDecoder{T,R} # <: MLJType
+    pool::CategoricalPool{T,R}
+    invorder::Vector{Int}
 end
 
-# using original type:
-transform(decoder::CategoricalDecoder, C::CategoricalArray) = collect(C)
+"""
+    d = decoder(x)
 
-# using specified type:
-transform(decoder::CategoricalDecoder{I,false}, C::CategoricalArray) where I =
-    broadcast(C.refs) do element
-        ref = convert(I, element - decoder.start_at_zero)
-    end
+A callable object for decoding the integer representation of a
+`CategoricalString` or `CategoricalValue` sharing the same pool as
+`x`. (Here `x` is of one of these two types.) Specifically, one has
+`d(int(y)) == y` for all `y in classes(x)`. One can also call `d` on
+integer arrays, in which case `d` is broadcast over all elements.
 
-# using original type:
-function inverse_transform(decoder::CategoricalDecoder{I,true,V,N}, A::Array) where {I,V,N}
-    refs = broadcast(A) do element
-        get(decoder.pool, element)
-    end
-    return CategoricalArray{V,N}(refs, decoder.pool)
-end
+    julia> v = categorical([:c, :b, :c, :a])
+    julia> int(v)
+    4-element Array{UInt32,1}:
+     0x00000003
+     0x00000002
+     0x00000003
+     0x00000001
+    julia> d = decoder(v[3])
+    julia> d(int(v)) == v
+    true
 
-# using specified type:
-function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Array) where {I,V,N,R}
-    refs = broadcast(A) do element
-        round(R, element + decoder.start_at_zero)
-    end
-    return CategoricalArray{V,N}(refs, decoder.pool)
-end
+See also: int, classes
 
-# special boolean case:
-function inverse_transform(decoder::CategoricalDecoder{I,false,V,N,R}, A::Union{Array{Bool},BitArray}) where {I,V,N,R}
-    refs = broadcast(A) do element
-        round(R, element + decoder.start_at_zero)
-    end
-    return CategoricalArray{V,N}(refs, decoder.pool)
-end
+"""
+decoder(element::CategoricalElement) =
+    CategoricalDecoder(element.pool, sortperm(element.pool.order))
+## in the next lot need to skip the missing one
+# decoder(X::CategoricalArray) = CategoricalDecoder(X.pool)
+# function decoder(V::Array{<:CategoricalElement})
+#     isempty(V) && error("Unable to extract decoder from empty array. ")
+#     return X[1]
+# end
+
+(decoder::CategoricalDecoder{T,R})(i::Integer) where {T,R} =
+    CategoricalValue{T,R}(decoder.invorder[i], decoder.pool)
+(decoder::CategoricalDecoder{String,R})(i::Integer) where R =
+    CategoricalString{R}(decoder.invorder[i], decoder.pool)
+(decoder::CategoricalDecoder)(I::AbstractArray{<:Integer}) = broadcast(decoder, I)
 
 
 ## TABULAR DATA

@@ -66,7 +66,7 @@ mutable struct SupervisedTask <: MLJTask
     input_is_multivariate::Bool
 end
 
-function SupervisedTask(X, y;
+function SupervisedTask(X, y::AbstractVector;
                         is_probabilistic=false,
                         input_is_multivariate=true,
                         target=:target,

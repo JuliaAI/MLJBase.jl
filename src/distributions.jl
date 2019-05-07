@@ -25,19 +25,39 @@ isdistribution(d) = isdistribution(typeof(d))
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
+# to pad a dictionary of probabilities with zeros for unseen levels,
+# if the key type is CategoricalElement:
+pad_probabilities(prob_given_level) = prob_given_level
+@inline function pad_probabilities(prob_given_level::Dict{<:CategoricalElement, T}) where T
+    proto_element = first(keys(prob_given_level))
+    return merge!(Dict([y=>zero(T) for y in classes(proto_element)]),
+                  prob_given_level)
+end
+
 """
-    UnivariateNominal(prob_given_level)
-
-A discrete univariate distribution whose finite support is the set of keys of the
-provided dictionary, `prob_given_level`. The dictionary values specify
-the corresponding probabilities, which must be nonnegative and sum to
-one.
-
     UnivariateNominal(levels, p)
 
 A discrete univariate distribution whose finite support is the
 elements of the vector `levels`, and whose corresponding probabilities
-are elements of the vector `p`.
+are elements of the vector `p`, which must sum to one.
+
+In the special case that `levels` has type `AbstractVector{L}` where
+`L <: CategoricalValue` or `L <: CategoricalString` (for example
+`levels` is a `CategoricalVector`) the constructor adds the unobserved
+classes (from the common pool) with probability zero.
+
+    UnivariateNominal(prob_given_level)
+
+A discrete univariate distribution whose finite support is the set of
+keys of the provided dictionary, `prob_given_level`. The dictionary
+values specify the corresponding probabilities, which must be
+nonnegative and sum to one. 
+
+In the special case that `keys(prob_given_level)` has type
+`AbstractVector{L}` where `L <: CategoricalValue` or `L <:
+CategoricalString` (for example it is a `CategoricalVector`) the
+constructor adds the unobserved classes from the common pool with
+probability zero.
 
     levels(d::UnivariateNominal)
 
@@ -53,9 +73,11 @@ pdf(d, "maybe") ≈ 0.5 # true
 levels(d) # ["yes", "no", "maybe"]
 ````
 
-If `v` is a `CategoricalVector` then `fit(UnivariateNominal, v)`
-includes *all* levels in pool of `v` in its support, assigning unseen
-levels probability zero.
+If the element type of `v` is a `CategoricalValue` or
+`CategoricalString`, then `fit(UnivariateNominal, v)` assigns a
+probability of zero to unobserved classes from the common pool.
+
+See also classes
 
 """
 struct UnivariateNominal{L,T<:Real} <: Distribution
@@ -63,23 +85,18 @@ struct UnivariateNominal{L,T<:Real} <: Distribution
     function UnivariateNominal{L,T}(prob_given_level::Dict{L,T}) where {L,T<:Real}
         p = values(prob_given_level) |> collect
         Distributions.@check_args(UnivariateNominal, Distributions.isprobvec(p))
-        return new{L,T}(prob_given_level)
+        return new{L,T}(pad_probabilities(prob_given_level))
     end
 end
+
 UnivariateNominal(prob_given_level::Dict{L,T}) where {L,T<:Real} =
     UnivariateNominal{L,T}(prob_given_level)
 
-function UnivariateNominal(levels::Union{Vector{L},CategoricalVector{L}},
-                           p::Vector{T}) where {L,T<:Real}
+function UnivariateNominal(levels::AbstractVector, p::AbstractVector{<:Real})
         Distributions.@check_args(UnivariateNominal, length(levels)==length(p))
-        prob_given_level = Dict{L,T}()
-        for i in eachindex(p)
-            prob_given_level[levels[i]] = p[i]
-        end
-        return  UnivariateNominal(prob_given_level)
+    prob_given_level = Dict([levels[i]=>p[i] for i in eachindex(p)])
+    return  UnivariateNominal(prob_given_level)
 end
-
-CategoricalArrays.levels(d::UnivariateNominal) = keys(d.prob_given_level) |> collect
 
 function average(dvec::Vector{UnivariateNominal{L,T}}; weights=nothing) where {L,T}
 
@@ -189,29 +206,13 @@ function Base.rand(d::UnivariateNominal, n::Int)
     levels = collect(keys(d.prob_given_level))
     return [levels[_rand(p_cummulative)] for i in 1:n]
 end
-    
-function Distributions.fit(d::Type{<:UnivariateNominal}, v::AbstractVector{L}) where L
-    N = length(v)
-    prob_given_level = Dict{L,Float64}()
-    count_given_level = Distributions.countmap(v)
-    for (x, c) in count_given_level
-        prob_given_level[x] = c/N
-    end
-    return UnivariateNominal(prob_given_level)
-end
 
-
-# if fitting to categorical array, must include missing levels with prob zero
-function Distributions.fit(d::Type{<:UnivariateNominal}, v::CategoricalVector{L,R,V}) where {L,R,V}
-    N = length(skipmissing(v) |> collect)
-    prob_given_level = Dict{V,Float64}() # V is the type of levels
-    for x in levels(v)
-        prob_given_level[x] = 0
-    end
-    count_given_level = Distributions.countmap(skipmissing(v) |> collect)
-    for (x, c) in count_given_level
-        prob_given_level[x] = c/N
-    end
+function Distributions.fit(d::Type{<:UnivariateNominal}, v::AbstractVector)
+    vpure = skipmissing(v) |> collect
+    isempty(vpure) && error("No non-missing data to fit. ")
+    N = length(vpure)
+    count_given_level = Distributions.countmap(vpure)
+    prob_given_level = Dict([x=>c/N for (x, c) in count_given_level])
     return UnivariateNominal(prob_given_level)
 end
     

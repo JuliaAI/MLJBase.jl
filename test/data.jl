@@ -5,64 +5,84 @@ using Test
 using MLJBase
 using DataFrames
 using TypedTables
+using StatsBase
 # using JuliaDB
-import Random.seed!
-
 using SparseArrays
-import CategoricalArrays
+using CategoricalArrays
+
+using Random
+import Random.seed!
+seed!(1234)
+
+import MLJBase: decoder, int, raw, classes
 
 
 ## RECONSTRUCT
 
-A = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
-@test length(levels(A)) > 6
-@test reconstruct(broadcast(identity, A)) == A
+C = categorical(rand(UInt8,20,20))[1:2,1:3]
+@test length(levels(C)) > 6
+@test reconstruct(broadcast(identity, C)) == C
 
-A = categorical(rand(UInt8,20,20))[1:2,1:3]
-@test length(levels(A)) > 6
-@test reconstruct(broadcast(identity, A)) == A
+C = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
+@test length(levels(C)) > 6
+@test reconstruct(broadcast(identity, C)) == C
 
 
 ## DECODER
 
-seed!(1234)
-A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
-X = CategoricalArrays.categorical(A)
-Xsmall = X[2:5,3:4]
+N = 10
+mix = shuffle(0:N - 1)
 
-# using specified output type:
-decoder = MLJBase.CategoricalDecoder(X, Float16)
-@test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
-@test minimum(unique(transform(decoder, X))) == 1.0
+Xraw = broadcast(x->mod(x,N), rand(Int, 20, 100))
+Yraw = string.(Xraw)
 
-# special boolean case:
-Xb = categorical([:y, :n, :n, :n, :y, :y])
-decoder = MLJBase.CategoricalDecoder(Xb, Bool)
-@test inverse_transform(decoder, transform(decoder, Xb[1:4])) == Xb[1:4]
+X = categorical(Xraw)
+x = X[1]
+Y = categorical(Yraw)
+y = Y[1]
+V = broadcast(identity, X)
+W = broadcast(identity, Y)
+Xo = levels!(deepcopy(X), mix)
+xo = Xo[1]
+Yo = levels!(deepcopy(Y), string.(mix))
+yo = Yo[1]
+Vo = broadcast(identity, Xo)
+Wo = broadcast(identity, Yo)
 
-decoder = MLJBase.CategoricalDecoder(X, Float16, true)
-@test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
-@test minimum(unique(transform(decoder, X))) == 0.0
+# classes:
+@test raw.(classes(xo)) == xo.pool.levels
+@test raw.(classes(yo)) == yo.pool.levels
 
-# using original type:
-decoder = MLJBase.CategoricalDecoder(X)
-@test inverse_transform(decoder, transform(decoder, Xsmall)) == Xsmall
+# getting all possible elements from one:
+@test raw.(X) == Xraw
+@test raw.(Y) == Yraw
+@test raw.(classes(xo)) == levels(Xo)
+@test raw.(classes(yo)) == levels(Yo)
 
-v = CategoricalArrays.categorical(collect("asdfasdfasdf"))
-decoder = MLJBase.CategoricalDecoder(v[1:2], Float16)
-@test levels(decoder) == ['a', 'd', 'f', 's']
-@test levels_seen(decoder) == ['a', 's']
+# broadcasted encoding:
+@test int(X) == int(V)
+@test int(Y) == int(W)
 
-@test_throws Exception MLJBase.CategoricalDecoder(X, UInt64, true)
-
+# encoding and decoding are inverses:
+d = decoder(xo)
+@test d(int(Vo)) == Vo
+e = decoder(yo)
+@test e(int(Wo)) == Wo
+A = sample(xo.pool.order, 100)
+@test int(d(A)) == A
+@test int(e(A)) == A
 
 
 ## MATRIX
 
-@test MLJBase.matrix(DataFrame(A)) == A
+B = rand(UInt8, (4, 5))
+@test MLJBase.matrix(DataFrame(B)) == B
 
 
 ## ISTABLE
+
+A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
+X = CategoricalArrays.categorical(A)
 
 df = DataFrame(A)
 tt = Table(df)

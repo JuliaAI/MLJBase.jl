@@ -180,14 +180,6 @@ package_url(model::Model) = package_url(typeof(model))
 
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
-    predict_mode(model, fitresult, target_scitype_union(model), Xnew)
-function predict_mode(model::Probabilistic, fitresult, ::Type{<:Finite}, Xnew)
-    prob_predictions = predict(model, fitresult, Xnew)
-    null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
-    modes = categorical(mode.(prob_predictions))
-    return vcat(null, modes)
-end
-predict_mode(model::Probabilistic, fitresult, ::Type{<:Count}, Xnew) =
     mode.(predict(model, fitresult, Xnew))
 
 # mean:
@@ -196,14 +188,6 @@ predict_mean(model::Probabilistic, fitresult, Xnew) =
 
 # median:
 predict_median(model::Probabilistic, fitresult, Xnew) =
-    predict_median(model, fitresult, target_scitype_union(model), Xnew)
-function predict_median(model::Probabilistic, fitresult, ::Type{<:Union{Finite}}, Xnew) 
-    prob_predictions = predict(model, fitresult, Xnew)
-    null = categorical(levels(prob_predictions[1]))[1:0] # empty cat vector with all levels
-    medians = categorical(median.(prob_predictions))
-    return vcat(null, medians)
-end
-predict_median(model::Probabilistic, fitresult, ::Type{<:Union{Continuous, Count}}, Xnew) =
     median.(predict(model, fitresult, Xnew))
 
 # for unpacking the fields of MLJ objects:
@@ -212,12 +196,12 @@ include("parameters.jl")
 # for displaying objects of `MLJType`:
 include("show.jl") 
 
+# convenience methods for manipulating categorical and tabular data
+include("data.jl")
+
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
-
-# convenience methods for manipulating categorical and tabular data
-include("data.jl")
 
 include("info.jl")
 include("tasks.jl")
