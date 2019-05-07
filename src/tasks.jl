@@ -115,6 +115,8 @@ end
 
 function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, ignore=Symbol[], verbosity=1)
 
+    target_as_input = target
+
     data != nothing ||
         error("You must specify data=... or use SupervisedTask(X, y, ...).")
 
@@ -162,7 +164,7 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
     return SupervisedTask(X, y;
                           is_probabilistic=is_probabilistic,
                           input_is_multivariate=input_is_multivariate,
-                          target=target,
+                          target=target_as_input,
                           verbosity=verbosity)
 end
 
