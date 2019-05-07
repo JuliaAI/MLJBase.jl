@@ -209,7 +209,9 @@ matrix(::Val{:other}, X::AbstractMatrix) = X
 
 function matrix(::Val{:table}, X)
     cols = Tables.columns(X) # property-accessible object
-    return reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
+    mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
+    # tightest eltype:
+    return broadcast(identity, mat)
 end
 
 function matrix(::Val{:sparse}, X)
