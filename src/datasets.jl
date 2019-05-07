@@ -2,7 +2,8 @@ datadir = joinpath(srcdir, "..", "data") # TODO: make OS agnostic
 
 """Load a well-known public regression dataset with nominal features."""
 function load_boston()
-    df = CSV.read(joinpath(datadir, "Boston.csv"), categorical=true)
+    df = CSV.read(joinpath(datadir, "Boston.csv"), copycols=true,
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:MedV,
                           ignore=[:Chas,],
@@ -12,7 +13,8 @@ end
 """Load a reduced version of the well-known Ames Housing task,
 having six numerical and six categorical features."""
 function load_reduced_ames()
-    df = CSV.read(joinpath(datadir, "reduced_ames.csv"), categorical=true)
+    df = CSV.read(joinpath(datadir, "reduced_ames.csv"), copycols=true,
+                  categorical=true)
     df[:target] = exp.(df[:target])
     # TODO: uncomment following after julia #29501 is resolved
 #    df.OverallQual = categorical(df.OverallQual, ordered=true)
@@ -26,7 +28,8 @@ end
 
 """Load the full version of the well-known Ames Housing task."""
 function load_ames()
-    df = CSV.read(joinpath(datadir, "ames.csv"), categorical=true)              
+    df = CSV.read(joinpath(datadir, "ames.csv"), copycols=true,
+                  categorical=true)              
     df[:target] = exp.(df[:target])
     return SupervisedTask(verbosity=0, data=df,
                           target=:target,
