@@ -98,6 +98,8 @@ function UnivariateNominal(levels::AbstractVector, p::AbstractVector{<:Real})
     return  UnivariateNominal(prob_given_level)
 end
 
+CategoricalArrays.levels(d::UnivariateNominal) = collect(keys(d.prob_given_level))
+
 function average(dvec::Vector{UnivariateNominal{L,T}}; weights=nothing) where {L,T}
 
     n = length(dvec)

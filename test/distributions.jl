@@ -18,6 +18,7 @@ d = UnivariateNominal(v, [0.09, 0.02, 0.1, 0.1,
 @test pdf(d, 's') ≈ 0.02
 @test mode(d) == 'k'
 @test rand(d, 5) == ['a', 'z', 'a', 'k', 'z']
+@test Set(levels(d)) == Set(v)
 
 v = collect("abcd")
 d = UnivariateNominal(v, [0.2, 0.3, 0.1, 0.4])
