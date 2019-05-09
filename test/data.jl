@@ -17,15 +17,15 @@ seed!(1234)
 import MLJBase: decoder, int, raw, classes
 
 
-## RECONSTRUCT
+# ## RECONSTRUCT
 
-C = categorical(rand(UInt8,20,20))[1:2,1:3]
-@test length(levels(C)) > 6
-@test reconstruct(broadcast(identity, C)) == C
+# C = categorical(rand(UInt8,20,20))[1:2,1:3]
+# @test length(levels(C)) > 6
+# @test reconstruct(broadcast(identity, C)) == C
 
-C = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
-@test length(levels(C)) > 6
-@test reconstruct(broadcast(identity, C)) == C
+# C = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
+# @test length(levels(C)) > 6
+# @test reconstruct(broadcast(identity, C)) == C
 
 
 ## DECODER
