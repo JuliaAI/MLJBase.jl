@@ -1,34 +1,33 @@
 ## CATEGORICAL ARRAY DECODER UTILITY
 
-# don't know if we really need this:
-"""
-    reconstruct(A)
+# """
+#     reconstruct(A)
 
-For reconstructing categorical arrays from their elements alone. Here
-`A` is of type `AbstractArray{T}` where `T` is a subtype of
-`CategoricalString` or `CategoricalValue`. The function `reconstruct` has
-the property that `reconstruct(broadcast(identity, C)) == C`, whenever `C`
-is a `CategoricalArray`. In other words, `reconstruct` is a left-inverse
-for the function `C -> broadcast(identity, C)` that strips a
-CategoricalArray of its "categorical wrapper".
+# For reconstructing categorical arrays from their elements alone. Here
+# `A` is of type `AbstractArray{T}` where `T` is a subtype of
+# `CategoricalString` or `CategoricalValue`. The function `reconstruct` has
+# the property that `reconstruct(broadcast(identity, C)) == C`, whenever `C`
+# is a `CategoricalArray`. In other words, `reconstruct` is a left-inverse
+# for the function `C -> broadcast(identity, C)` that strips a
+# CategoricalArray of its "categorical wrapper".
 
-Does not handle missing values.
+# Does not handle missing values.
 
-"""
-function reconstruct(A::AbstractArray{<:CategoricalValue{T},N}) where {T,N}
-    firstnonmissing = findfirst(x->!ismissing(x), A)
-    isnothing(firstnonmissing) && error("No non-missing values encountered. ")
-    pool = A[firstnonmissing].pool
-    refs = broadcast(x -> x.level, A)
-    return CategoricalArray{T,N}(refs, pool)
-end
-function reconstruct(A::AbstractArray{<:CategoricalString,N}) where {T,N}
-    firstnonmissing = findfirst(x->!ismissing(x), A)
-    isnothing(firstnonmissing) && error("No non-missing values encountered. ")
-    pool = A[firstnonmissing].pool
-    refs = broadcast(x -> x.level, A)
-    return CategoricalArray{String,N}(refs, pool)
-end
+# """
+# function reconstruct(A::AbstractArray{<:CategoricalValue{T},N}) where {T,N}
+#     firstnonmissing = findfirst(x->!ismissing(x), A)
+#     isnothing(firstnonmissing) && error("No non-missing values encountered. ")
+#     pool = A[firstnonmissing].pool
+#     refs = broadcast(x -> x.level, A)
+#     return CategoricalArray{T,N}(refs, pool)
+# end
+# function reconstruct(A::AbstractArray{<:CategoricalString,N}) where {T,N}
+#     firstnonmissing = findfirst(x->!ismissing(x), A)
+#     isnothing(firstnonmissing) && error("No non-missing values encountered. ")
+#     pool = A[firstnonmissing].pool
+#     refs = broadcast(x -> x.level, A)
+#     return CategoricalArray{String,N}(refs, pool)
+# end
 
 CategoricalElement = Union{CategoricalValue,CategoricalString}
 
@@ -57,11 +56,11 @@ true, `x in x.pool.levels` is not true.
      :c
 
 """
-
-@inline function classes(x::CategoricalElement)
+function classes(x::CategoricalElement)
     p = x.pool
     return [p.valindex[p.invindex[v]] for v in p.levels]
 end
+
 raw(x::CategoricalElement) = x.pool.index[x.level] # a method just for testing
 
 """
