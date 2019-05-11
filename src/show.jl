@@ -104,14 +104,12 @@ function Base.show(stream::IO, object::MLJType)
     id = objectid(object) 
     description = string(typeof(object).name.name)
     parameters = typeof(object).parameters
-    # if length(parameters) == 1
-    #     p_string = string(parameters[1])
-    #     if length(p_string) > 25
-    #         p_string = p_string[1:24]*"…"
-    #     end
-    #     description *= "{"*p_string*"}"
-    # end
-    #   description = string(typeof(object))
+    p_string = ""
+    if length(parameters) == 1
+        p = parameters[1]
+        p isa DataType && (p_string = string(p.name.name))
+    end
+    description *= "{"*p_string*"}"
     str = "$description @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
         printstyled(IOContext(stream, :color=> SHOW_COLOR), str, bold=false, color=:blue)
