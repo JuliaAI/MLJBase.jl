@@ -18,7 +18,7 @@ isdistribution(::Type{<:Any}) = false
 isdistribution(::Type{<:Distributions.Sampleable}) = true
 
 # for MLJ custom distributions defined below:
-isdistribution(::Type{Distribution}) = true  
+isdistribution(::Type{<:Distribution}) = true  
 
 isdistribution(d) = isdistribution(typeof(d))
 
