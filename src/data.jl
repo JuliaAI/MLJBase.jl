@@ -144,12 +144,11 @@ decoder(element::CategoricalElement) =
 
 ## TABULAR DATA
 
-# HACK: Tables.istable is too permissive (see Tables.jl #74) so we
-# must define our local version.
-isindexedtable(X) = isdefined(X, :cardinality)
+const istable = Tables.istable 
+
+# hack for detecting JuliaDB.NDSparse tables without loading as dependency:
 isndsparse(X) = isdefined(X, :data_buffer) 
-istable(X) = Tables.istable(X) & (Tables.rowaccess(X) || Tables.columnaccess(X)) ||
-                                  isindexedtable(X) 
+
 
 """
     container_type(X)
