@@ -11,6 +11,10 @@ using Test
   @test include("utilities.jl")
 end
 
+@testset "parameters" begin
+  @test include("parameters.jl")
+end
+
 @testset "scitypes" begin
   @test include("scitypes.jl")
 end

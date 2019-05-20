@@ -1,13 +1,16 @@
+istransparent(::Any) = false
+istransparent(::MLJType) = true
+
 """
     params(m)
 
-Recursively convert any object of subtype `MLJType` into a named
-tuple, keyed on the fields of `m`. The named tuple is possibly nested
+Recursively convert any transparent object `m` into a named tuple,
+keyed on the fields of `m`. A model is *transparent* if
+`MLJBase.istransparent(m) == true`. The named tuple is possibly nested
 because `params` is recursively applied to the field values, which
-themselves might be `MLJType` objects. 
+themselves might be transparent.
 
-Used, in particluar, in the case that `m` is a model, to inspect its
-nested hyperparameters:
+Most objects of type `MLJType` are transparent.
 
     julia> params(EnsembleModel(atom=ConstantClassifier()))
     (atom = (target_type = Bool,),
@@ -18,9 +21,10 @@ nested hyperparameters:
      parallel = true,)
 
 """
-params(field) = field
-
-function params(m::M) where M<:MLJType
-    fields = fieldnames(M)
+params(m) = params(m, Val(istransparent(m)))
+params(m, ::Val{false}) = m 
+function params(m, ::Val{true}) 
+    fields = fieldnames(typeof(m))
     NamedTuple{fields}(Tuple([params(getfield(m, field)) for field in fields]))
 end
+
