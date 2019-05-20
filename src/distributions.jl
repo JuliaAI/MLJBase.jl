@@ -1,6 +1,11 @@
-abstract type Distribution end
+## CONSTANTS
 
-function ==(d1::D, d2::D) where D<:Distribution
+const Dist = Distributions
+
+
+## EQUALITY OF DISTRIBUTIONS (minor type piracy)
+
+function ==(d1::D, d2::D) where D<:Dist.Sampleable
     ret = true
     for fld in fieldnames(D)
         ret = ret && getfield(d1, fld) == getfield(d2, fld)
@@ -9,18 +14,20 @@ function ==(d1::D, d2::D) where D<:Distribution
 end
 
 
-# DISTRIBUTION AS TRAIT
+# DISTRIBUTION AS TRAIT (needed?)
 
-# fallback
+# fallback:
+isdistribution(d) = isdistribution(typeof(d))
 isdistribution(::Type{<:Any}) = false
 
-# for distributions in Distributions.jl:
-isdistribution(::Type{<:Distributions.Sampleable}) = true
+# for anything sampleable in Distributions.jl:
+isdistribution(::Type{<:Dist.Sampleable}) = true
 
-# for MLJ custom distributions defined below:
-isdistribution(::Type{<:Distribution}) = true  
 
-isdistribution(d) = isdistribution(typeof(d))
+# ADD TO distributions.jl TYPE HIERARCHY TO ACCOUNT FOR NON-EUCLIDEAN
+# SUPPORTS
+
+abstract type NonEuclidean <: Distributions.ValueSupport end
 
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
@@ -28,7 +35,7 @@ isdistribution(d) = isdistribution(typeof(d))
 # to pad a dictionary of probabilities with zeros for unseen levels,
 # if the key type is CategoricalElement:
 pad_probabilities(prob_given_level) = prob_given_level
-@inline function pad_probabilities(prob_given_level::Dict{<:CategoricalElement, T}) where T
+function pad_probabilities(prob_given_level::Dict{<:CategoricalElement, T}) where T
     proto_element = first(keys(prob_given_level))
     return merge!(Dict([y=>zero(T) for y in classes(proto_element)]),
                   prob_given_level)
@@ -77,14 +84,14 @@ If the element type of `v` is a `CategoricalValue` or
 `CategoricalString`, then `fit(UnivariateFinite, v)` assigns a
 probability of zero to unobserved classes from the common pool.
 
-See also classes
+See also `classes`.
 
 """
-struct UnivariateFinite{L,T<:Real} <: Distribution
+struct UnivariateFinite{L,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuclidean}
     prob_given_level::Dict{L,T}
     function UnivariateFinite{L,T}(prob_given_level::Dict{L,T}) where {L,T<:Real}
         p = values(prob_given_level) |> collect
-        Distributions.@check_args(UnivariateFinite, Distributions.isprobvec(p))
+        Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
         return new{L,T}(pad_probabilities(prob_given_level))
     end
 end
@@ -93,7 +100,7 @@ UnivariateFinite(prob_given_level::Dict{L,T}) where {L,T<:Real} =
     UnivariateFinite{L,T}(prob_given_level)
 
 function UnivariateFinite(levels::AbstractVector, p::AbstractVector{<:Real})
-        Distributions.@check_args(UnivariateFinite, length(levels)==length(p))
+        Dist.@check_args(UnivariateFinite, length(levels)==length(p))
     prob_given_level = Dict([levels[i]=>p[i] for i in eachindex(p)])
     return  UnivariateFinite(prob_given_level)
 end
@@ -104,7 +111,7 @@ function average(dvec::Vector{UnivariateFinite{L,T}}; weights=nothing) where {L,
 
     n = length(dvec)
     
-    Distributions.@check_args(UnivariateFinite, weights == nothing || n==length(weights))
+    Dist.@check_args(UnivariateFinite, weights == nothing || n==length(weights))
 
     if weights == nothing
         weights = fill(1/n, n)
@@ -213,7 +220,7 @@ function Distributions.fit(d::Type{<:UnivariateFinite}, v::AbstractVector)
     vpure = skipmissing(v) |> collect
     isempty(vpure) && error("No non-missing data to fit. ")
     N = length(vpure)
-    count_given_level = Distributions.countmap(vpure)
+    count_given_level = Dist.countmap(vpure)
     prob_given_level = Dict([x=>c/N for (x, c) in count_given_level])
     return UnivariateFinite(prob_given_level)
 end
@@ -221,13 +228,14 @@ end
     
 ## NORMAL DISTRIBUTION ARITHMETIC
 
-# *(lambda::Number, d::Distributions.Normal) = Distributions.Normal(lambda*d.μ, lambda*d.σ)
-# function +(ds::Distributions.Normal...)
+# *(lambda::Number, d::Dist.Normal) = Dist.Normal(lambda*d.μ, lambda*d.σ)
+# function +(ds::Dist.Normal...)
 #     μ = sum([d.μ for d in ds])
 #     σ = sum([d.σ^2 for d in ds]) |> sqrt
-#     return Distributions.Normal(μ, σ)
+#     return Dist.Normal(μ, σ)
 # end
 
-# hack for issue #809 in Distributions.jl:
-Distributions.fit(::Type{Distributions.Normal{T}}, args...) where T = Distributions.fit(Distributions.Normal, args...)
+# hack for issue #809 in Dist.jl:
+Distributions.fit(::Type{Dist.Normal{T}}, args...) where T =
+    Dist.fit(Dist.Normal, args...)
 
