@@ -18,8 +18,9 @@ const Binary = Multiclass{2}
 """
     scitype(x)
 
-Return the scientific type for scalar values that object `x` can
-represent. If `x` is a tuple, then `Tuple{scitype.(x)...}` is returned. 
+Return the scientific type that an object `x` can represent, when
+appearing as an element of a table or vector used as input or target
+in fitting MLJ models.
 
     julia> scitype(4.5)
     Continous
@@ -27,13 +28,32 @@ represent. If `x` is a tuple, then `Tuple{scitype.(x)...}` is returned.
     julia> scitype("book")
     Unknown
 
-    julia> scitype((1, 4.5))
-    Tuple{Count,Continuous}
-
     julia> using CategoricalArrays
     julia> v = categorical([:m, :f, :f])
     julia> scitype(v[1])
     Multiclass{2}
+
+Note that `scitype` "commutes" with the formation of tuples or arrays,
+as these examples illustrate:
+
+```julia
+scitype((42, float(π), "Julia"))
+```
+
+```julia 
+Tuple{Count,Continuous,Unknown}
+```
+
+```julia
+scitype(rand(7,3))
+```
+
+```julia
+AbstractArray{Continuous,2}
+```
+
+For getting the union of the scitypes of all elements of an iterable,
+use `scitype_union`.
 
 """ 
 scitype(::Any) = Unknown     
@@ -46,6 +66,8 @@ scitype(c::CategoricalString) =
     c.pool.ordered ? OrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
 
 scitype(t::Tuple) = Tuple{scitype.(t)...}
+MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}
+
 
 """
     scitype_union(A)
