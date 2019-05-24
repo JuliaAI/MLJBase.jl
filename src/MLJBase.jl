@@ -167,7 +167,6 @@ package_url(::Type{<:Model}) = "unknown"
 is_wrapper(::Type{<:Model}) = false
 is_wrapper(m::Model) = is_wrapper(typeof(m))
 
-
 target_scitype_union(model::Model) = target_scitype_union(typeof(model))
 input_scitype_union(model::Model) = input_scitype_union(typeof(model))
 input_is_multivariate(model::Model) = input_is_multivariate(typeof(model))
