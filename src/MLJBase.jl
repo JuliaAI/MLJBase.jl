@@ -120,7 +120,7 @@ end
 # or, one the simplified versions
 # `fit(model, X, y) -> fitresult`
 # `fit(model, X, ys...) -> fitresult`
-fit(model::Model, verbosity::Int, args...) = fit(model, args...), nothing, nothing
+fit(model::Model, verbosity::Integer, args...) = fit(model, args...), nothing, nothing
 
 # each model interface may optionally overload the following refitting
 # method:
