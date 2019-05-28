@@ -152,7 +152,7 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-target_scitype_union(::Type{<:Supervised}) = Union{Found,NTuple{<:Found}}  # a Tuple type in multivariate case
+target_scitype_union(::Type{<:Supervised}) = Union{Found,NTuple{N,<:Found} where N} # a Tuple type in multivariate case
 output_scitype_union(::Type{<:Unsupervised}) = Union{Missing,Found} # never a Tuple type
 output_is_multivariate(::Type{<:Unsupervised}) = true
 input_scitype_union(::Type{<:Model}) = Union{Missing,Found}

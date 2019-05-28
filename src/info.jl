@@ -33,7 +33,7 @@ function info(M::Type{<:Supervised})
 
     # check target_scitype_union:
     T = target_scitype_union(M)
-    T <: Union{Found,NTuple{<:Found}} ||
+    T <: Union{Found,NTuple{N,<:Found} where N} ||
         error(message*"target_scitype_union($M) (defining upper bound of target scitype) "*
               "is not a subtype of Found. ")
 
