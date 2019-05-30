@@ -99,20 +99,28 @@ crind(n) = "\n"*repeat(' ', n)
 show_as_constructed(::Any) = false
 show_as_constructed(::Type{<:Model}) = true
 
-# short version of showing a `MLJType` object:
-function Base.show(stream::IO, object::MLJType)
-    id = objectid(object) 
-    description = string(typeof(object).name.name)
-    parameters = typeof(object).parameters
+
+# simplified string rep of an Type:
+function simple_repr(T)
+    repr = string(T.name.name)
+    parameters = T.parameters
     p_string = ""
     if length(parameters) == 1
         p = parameters[1]
-        p isa DataType && (p_string = string(p.name.name))
+        p isa DataType && (p_string = simple_repr(p))
     end
-    description *= "{"*p_string*"}"
-    str = "$description @ $(handle(object))"
+    isempty(p_string) || (repr *= "{"*p_string*"}")
+    return repr
+end
+
+# short version of showing a `MLJType` object:
+function Base.show(stream::IO, object::MLJType)
+    id = objectid(object)
+    repr = simple_repr(typeof(object))
+    str = "$repr @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
-        printstyled(IOContext(stream, :color=> SHOW_COLOR), str, bold=false, color=:blue)
+        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+                    str, bold=false, color=:blue)
     else
         print(stream, str)
     end
