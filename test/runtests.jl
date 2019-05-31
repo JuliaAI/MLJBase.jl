@@ -7,6 +7,10 @@
 using MLJBase
 using Test
 
+@testset "equality" begin
+  @test include("equality.jl")
+end
+
 @testset "utilities" begin
   @test include("utilities.jl")
 end
