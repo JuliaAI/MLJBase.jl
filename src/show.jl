@@ -71,7 +71,7 @@ end
 Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty_nt(stream, t)
 pretty_nt(t) = pretty_nt(stdout, t)
 pretty_nt(stream::IO, t) = pretty_nt(stream, t, 0)
-pretty_nt(stream, t, n) = print(stream, t)
+pretty_nt(stream, t, n) = show(stream, t)
 function pretty_nt(stream, t::NamedTuple, n)
     print(stream, "(")
     first_item = true
