@@ -17,7 +17,7 @@ export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
-export partition,StratifiedKFold                     # utilities.jl
+export partition, @set_defaults                          # utilities.jl
 export Found, Continuous, Finite, Infinite           # scitypes.jl
 export OrderedFactor, Unknown                        # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
