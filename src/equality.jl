@@ -2,6 +2,7 @@
 # supertype AND (ii) they have the same set of defined fields AND
 # (iii) their defined field values are `==` OR the values are both
 # AbstractRNG objects.
+import Base.==
 function ==(m1::M1, m2::M2) where {M1<:MLJType,M2<:MLJType}
     if M1 != M1
         return false
@@ -23,3 +24,10 @@ function ==(m1::M1, m2::M2) where {M1<:MLJType,M2<:MLJType}
     end
     return same_values
 end
+
+# for using `replace` or `replace!` on collections of MLJType objects
+# (eg, Model objects in a learning network) we need a stricter
+# equality:
+MLJBase.isequal(m1::MLJType, m2::MLJType) = (m1 === m2)
+
+## TODO: Do we need to overload hash here?
