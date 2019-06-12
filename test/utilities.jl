@@ -11,7 +11,8 @@ train, test = partition(1:100, 0.9, shuffle=true)
 @test length(train) == 90
 
 y=[:a,:b,:a,:b,:c,:c]
-part1,part2=collect(MStratifiedKFold(y,2))
+part1,part2=collect(MLJBase.StratifiedKFold(y,2))
 @test sort(y[part1])==sort(y[part2])
+
 end # module
 true
