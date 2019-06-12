@@ -84,10 +84,11 @@ abstract type Probabilistic <: Supervised end
 abstract type Deterministic <: Supervised end
 
 # for models that are "exported" learning networks (return a Node as
-# their fit-result; see MLJ/networks.jl):
+# their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
-
+abstract type UnsupervisedNetwork <: Unsupervised end
+    
 include("equality.jl")
 
 
