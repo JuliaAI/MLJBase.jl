@@ -68,8 +68,8 @@ scitype(c::CategoricalValue) =
     c.pool.ordered ? OrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
 scitype(c::CategoricalString) = 
     c.pool.ordered ? OrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
-scitype(::ColorTypes.Gray) = GrayImage
-scitype(::ColorTypes.AbstractRGB) = ColorImage
+scitype(::ColorTypes.Gray) = Array{GrayImage,2}
+scitype(::ColorTypes.AbstractRGB) = Array{ColorImage,2}
 
 scitype(t::Tuple) = Tuple{scitype.(t)...}
 MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}
