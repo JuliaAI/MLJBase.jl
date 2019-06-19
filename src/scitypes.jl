@@ -3,7 +3,11 @@ nlevels(c::CategoricalString) = length(levels(c.pool))
 
 abstract type Found end
     struct Unknown <: Found end 
-    abstract type Known <: Found end
+abstract type Known <: Found end
+abstract type Image <: Known end
+struct GrayImage <: Image end
+struct ColorImage <: Image end
+
         abstract type Infinite <: Known end
            struct Continuous <: Infinite end
            struct Count <: Infinite end
@@ -64,6 +68,8 @@ scitype(c::CategoricalValue) =
     c.pool.ordered ? OrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
 scitype(c::CategoricalString) = 
     c.pool.ordered ? OrderedFactor{nlevels(c)} : Multiclass{nlevels(c)}
+scitype(::ColorTypes.Gray) = GrayImage
+scitype(::ColorTypes.AbstractRGB) = ColorImage
 
 scitype(t::Tuple) = Tuple{scitype.(t)...}
 MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}

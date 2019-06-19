@@ -17,8 +17,8 @@ export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
-export partition, @set_defaults                          # utilities.jl
-export Found, Continuous, Finite, Infinite           # scitypes.jl
+export partition, @set_defaults                      # utilities.jl
+export Found, Continuous, Finite, Infinite           # sgcitypes.jl
 export OrderedFactor, Unknown                        # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
@@ -43,6 +43,7 @@ import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
 import CSV
+import ColorTypes
 
 # to be extended:
 import StatsBase: fit, predict, fit!
