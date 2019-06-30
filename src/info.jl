@@ -25,12 +25,6 @@ function info(M::Type{<:Supervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    # check target_scitype_union:
-    T = target_scitype_union(M)
-    T <: Union{Found,NTuple{N,Found}} where N ||
-        error(message*"target_scitype_union($M) (defining upper bound of target scitype) "*
-              "is not a subtype of Found. ")
-
     input_scitype_union(M) <: Union{Missing, Found} ||
         error(message*"input_scitype_union($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
 

@@ -19,9 +19,10 @@ export selectrows, selectcols, select, nrows, schema # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, @set_defaults                      # utilities.jl
 export Found, Continuous, Finite, Infinite           # sgcitypes.jl
-export OrderedFactor, Unknown                        # scitypes.jl
+export OrderedFactor, Unknown, ⊂                     # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
+export TableScitype, VectorScitype                   # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
 export UnivariateFinite, average                    # distributions.jl
