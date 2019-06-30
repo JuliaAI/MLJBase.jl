@@ -65,13 +65,16 @@ const COLUMN_WIDTH = 24
 const DEFAULT_SHOW_DEPTH = 0
 
 include("utilities.jl")
-include("scitypes.jl")
 
 
-## ABSTRACT TYPES
+## BASE TYPES AND SCITYPES
 
-# overarching MLJ type:
 abstract type MLJType end
+include("equality.jl") # equality for MLJType objects
+include("scitypes.jl") 
+
+
+## ABSTRACT MODEL TYPES
 
 # for storing hyperparameters:
 abstract type Model <: MLJType end
@@ -91,7 +94,6 @@ abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type UnsupervisedNetwork <: Unsupervised end
     
-include("equality.jl")
 
 
 ## THE MODEL INTERFACE
@@ -136,27 +138,25 @@ clean!(model::Model) = ""
 # fallback trait declarations:
 target_scitype_union(::Type{<:Supervised}) =
     Union{Found,NTuple{N,Found}} where N # a Tuple type in multivariate case
-output_scitype_union(::Type{<:Unsupervised}) =
-    Union{Missing,Found}                 
-output_is_multivariate(::Type{<:Unsupervised}) = true
-input_scitype_union(::Type{<:Model}) = Union{Missing,Found}
-input_is_multivariate(::Type{<:Model}) = true 
+scitype_X(::Type{<:Model}) = TableScitype(Set([AtomicScitype]))
+scitype_out(::Type{<:Unsupervised}) = TableScitype(Set([AtomicScitype]))
+scitype_y(::Type{<:Supervised}) = VectorScitype(AtomicScitype)
 is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 is_wrapper(::Type{<:Model}) = false
-is_wrapper(m::Model) = is_wrapper(typeof(m))
 
-target_scitype_union(model::Model) = target_scitype_union(typeof(model))
-input_scitype_union(model::Model) = input_scitype_union(typeof(model))
-input_is_multivariate(model::Model) = input_is_multivariate(typeof(model))
+scitype_X(model::Model) = scitype_X(typeof(model))
+scitype_out(model::Model) = scitype_out(typeof(model))
+scitype_y(model::Model) = scitype_y(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
 load_path(model::Model) = load_path(typeof(model))
 package_uuid(model::Model) = package_uuid(typeof(model))
 package_url(model::Model) = package_url(typeof(model))
+is_wrapper(m::Model) = is_wrapper(typeof(m))
 
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.

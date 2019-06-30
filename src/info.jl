@@ -25,27 +25,26 @@ function info(M::Type{<:Supervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    input_scitype_union(M) <: Union{Missing, Found} ||
-        error(message*"input_scitype_union($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
+    is_scitype(scitype_X(M)) ||
+        error(message*"scitype_X($M) is not a scitype. ")
 
-    input_is_multivariate(M) in [false, true] ||
-        error(message*"input_is_multivariate($M) must return true or false. ")
-    
+    is_scitype(scitype_y(M)) ||
+        error(message*"scitype_y($M) is not a scitype. ")
+
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
     d = Dict{Symbol,Any}()
     d[:is_supervised] = true
+    d[:is_probabilistic] = is_probabilistic(M)
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:target_scitype_union] = target_scitype_union(M)
-    d[:input_scitype_union] = input_scitype_union(M)
-    d[:input_is_multivariate] = input_is_multivariate(M)
+    d[:scitype_X] = scitype_X(M)
+    d[:scitype_y] = scitype_y(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
-    d[:is_probabilistic] = is_probabilistic(M)
     d[:is_wrapper] = is_wrapper(M)
     return d
 end
@@ -57,18 +56,13 @@ function info(M::Type{<:Unsupervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    output_scitype_union(M) <: Union{Missing,Found} ||
-        error(message*"output_scitype_union($M) (defining upper bound of output scitypes) is not a subtype of Union{Missing,Found}. ")
+    is_scitype(scitype_X(M)) ||
+        error(message*"scitype_X($M) is not a scitype. ")
 
-    output_is_multivariate(M) in [false, true] ||
-        error(message*"output_is_multivariate($M) must return true or false.")
+    is_scitype(scitype_output(M)) ||
+        error(message*"scitype_ouput($M) is not a scitype. ")
 
-    input_scitype_union(M) <: Union{Missing, Found} ||
-        error(message*"input_scitype_union($M) (defining upper bound of input scitypes) not a subtype of Union{Missing,Found}. ")
 
-    input_is_multivariate(M) in [false, true] ||
-        error(message*"input_is_multivariate($M) must return true or false.")
-    
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
@@ -76,16 +70,14 @@ function info(M::Type{<:Unsupervised})
     d[:is_supervised] = false
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:output_scitype_union] = output_scitype_union(M)
-    d[:output_is_multivariate] = output_is_multivariate(M)
-    d[:input_scitype_union] = input_scitype_union(M)
-    d[:input_is_multivariate] = input_is_multivariate(M)
+    d[:scitype_X] = scitype_X(M)
+    d[:scitype_output] = scitype_output(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
     d[:is_wrapper] = is_wrapper(M)
-
+\
     return d
 end
 

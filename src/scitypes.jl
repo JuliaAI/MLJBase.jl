@@ -113,7 +113,7 @@ scitype(::AbstractArray{<:ColorTypes.AbstractRGB,2}) = ColorImage
 
 ## VECTORS
 
-struct VectorScitype
+struct VectorScitype <: MLJType
     eltype
     function VectorScitype(eltype)
         is_scitype(eltype) || throw(ArgumentError)
@@ -131,7 +131,7 @@ scitype(v::AbstractVector) = VectorScitype(scitype_union(v))
 ## SCITYPES WITHIN A CONTAINER (SCITYPE SCHEMA)
 
 scitypes(X) = scitypes(X, Val(container_type(X)))
-scitypes(X, ::Val{:unknown}) = error("Unknown container type. ")
+scitypes(X, ::Val{:other}) = throw(ArgumentError("Unknown container type. "))
 
 
 ## TABLES
@@ -151,7 +151,7 @@ function scitypes(X, ::Val{:table})
 end
 
 # we use instances of the following as scitypes for tables:
-struct TableScitype 
+struct TableScitype <: MLJType
     column_types::Set
     function TableScitype(column_types)
         okay = reduce(&, [is_scitype(T) for T in column_types])
@@ -159,6 +159,8 @@ struct TableScitype
         return new(column_types)
     end
 end
+
+is_scitype(v::TableScitype) = true
 
 function is_subtype_of_one(T, S::Set{<:Type})
     isempty(S) && return false

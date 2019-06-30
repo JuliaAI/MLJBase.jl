@@ -8,9 +8,8 @@ using Test
 mutable struct Dummy <: Probabilistic end
 
 MLJBase.load_path(::Type{Dummy}) = "GreatPackage.MLJ.Dummy"
-MLJBase.target_scitype_union(::Type{Dummy}) = Continuous
-MLJBase.input_scitype_union(::Type{Dummy}) = Union{Continuous, Missing}
-MLJBase.input_is_multivariate(::Type{Dummy}) = false
+MLJBase.scitype_X(::Type{Dummy}) = MLJBase.TableScitype(Set([Finite]))
+MLJBase.scitype_y(::Type{Dummy}) = MLJBase.VectorScitype(Continuous)
 MLJBase.is_pure_julia(::Type{Dummy}) = true
 MLJBase.package_name(::Type{Dummy}) = "GreatPackage"
 MLJBase.package_uuid(::Type{Dummy}) = "6f286f6a-111f-5878-ab1e-185364afe411"
@@ -21,9 +20,8 @@ d = Dict(:name => "Dummy",
          :is_pure_julia => true,
          :package_uuid  => "6f286f6a-111f-5878-ab1e-185364afe411",
          :package_name  => "GreatPackage",
-         :target_scitype_union => Continuous,
-         :input_scitype_union => Union{Continuous, Missing},
-         :input_is_multivariate => false,
+         :scitype_X => MLJBase.TableScitype(Set([Finite])),
+         :scitype_y => MLJBase.VectorScitype(Continuous),
          :is_probabilistic => true,
          :package_url   => "https://mickey.mouse.org",
          :is_supervised => true,
