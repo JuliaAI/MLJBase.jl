@@ -5,7 +5,7 @@ istransparent(::MLJType) = true
     params(m)
 
 Recursively convert any transparent object `m` into a named tuple,
-keyed on the fields of `m`. A model is *transparent* if
+keyed on the fields of `m`. An object is *transparent* if
 `MLJBase.istransparent(m) == true`. The named tuple is possibly nested
 because `params` is recursively applied to the field values, which
 themselves might be transparent.

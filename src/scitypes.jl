@@ -73,6 +73,10 @@ is_scitype(U::Union) = is_scitype(U.a) && is_scitype(U.b)
 ⊂(a, b) = false # to be overidden for non-julia scitypes
 ⊂(a::DataType, b::DataType) = a <: b
 
+# 6. Scitypes that are not julia types are called *container scitypes*
+# and these are all instances of the julia abstract type
+# ContainerScitype.
+
 # fallbacks for the scitype method (taking scitypes as values):
 scitype(t::Tuple) = Tuple{scitype.(t)...}
 scitype(X) = scitype(X, Val(container_type(X)))
@@ -111,21 +115,57 @@ scitype(::AbstractArray{<:ColorTypes.Gray,2}) = GrayImage
 scitype(::AbstractArray{<:ColorTypes.AbstractRGB,2}) = ColorImage
 
 
-## VECTORS
+## CONTAINER SCITYPES 
 
-struct VectorScitype <: MLJType
+abstract type ContainerScitype end
+
+# ContainerScitype objects are `==` if: (i) they have a common
+# supertype AND (ii) they have the same set of defined fields AND
+# (iii) their defined field values are `==`
+import Base.==
+function ==(m1::M1, m2::M2) where {M1<:ContainerScitype,M2<:ContainerScitype}
+    if M1 != M1
+        return false
+    end
+    defined1 = filter(fieldnames(M1)|>collect) do fld
+        isdefined(m1, fld)
+    end
+    defined2 = filter(fieldnames(M1)|>collect) do fld
+        isdefined(m2, fld)
+    end
+    if defined1 != defined2
+        return false
+    end
+    same_values = true
+    for fld in defined1
+        same_values = same_values &&
+            getfield(m1, fld) == getfield(m2, fld)
+    end
+    return same_values
+end
+
+
+## ARRAYS
+
+struct ArrayScitype <: ContainerScitype
     eltype
-    function VectorScitype(eltype)
+    dim::Int
+    function ArrayScitype(eltype, N)
         is_scitype(eltype) || throw(ArgumentError)
-        return new(eltype)
+        return new(eltype, N)
     end
 end
 
-is_scitype(v::VectorScitype) = true
+VectorScitype(eltype) = ArrayScitype(eltype, 1)
+MatrixScitype(eltype) = ArrayScitype(eltype, 2)
 
-⊂(v1::VectorScitype, v2::VectorScitype) = ⊂(v1.eltype, v2.eltype)
+is_scitype(v::ArrayScitype) = true
 
-scitype(v::AbstractVector) = VectorScitype(scitype_union(v))
+⊂(v1::ArrayScitype, v2::ArrayScitype) =
+    v1.dim == v2.dim && ⊂(v1.eltype, v2.eltype)
+
+scitype(v::AbstractArray{T,N}) where {T,N} =
+    ArrayScitype(scitype_union(v), N)
 
 
 ## SCITYPES WITHIN A CONTAINER (SCITYPE SCHEMA)
@@ -151,11 +191,11 @@ function scitypes(X, ::Val{:table})
 end
 
 # we use instances of the following as scitypes for tables:
-struct TableScitype <: MLJType
+struct TableScitype <: ContainerScitype
     column_types::Set
     function TableScitype(column_types)
-        okay = reduce(&, [is_scitype(T) for T in column_types])
-        okay || throw(ArgumentError)
+        reduce(&, [is_scitype(T) for T in column_types]) ||
+            throw(ArgumentError)
         return new(column_types)
     end
 end
