@@ -39,12 +39,49 @@ function reduce_nested_field(ex)
     return (subex, field)
 end
 
+"""
+    getproperty(object, nested_name::Expr)
 
+Call getproperty recursively on `object` to extract the value of some
+nested property, as in the following example:
+
+    julia> object = (X = (x = 1, y = 2), Y = 3)
+    julia> getproperty(object, :(X.y))
+    2
+
+"""
 function Base.getproperty(obj, ex::Expr)
     subex, field = reduce_nested_field(ex)
     return getproperty(getproperty(obj, subex), field)
 end
 
+"""
+    setproperty!(object, nested_name::Expr, value)
+
+Set a nested property of an `object` to `value`, as in the following example:
+
+```
+julia> mutable struct Foo
+           X
+           Y
+       end
+
+julia> mutable struct Bar
+           x
+           y
+       end
+
+julia> object = Foo(Bar(1, 2), 3)
+Foo(Bar(1, 2), 3)
+
+julia> setproperty!(object, :(X.y), 42)
+42
+
+julia> object
+Foo(Bar(1, 42), 3)
+```
+
+"""
 function Base.setproperty!(obj, ex::Expr, value)
     subex, field = reduce_nested_field(ex)
     last_obj = getproperty(obj, subex)
