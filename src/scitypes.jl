@@ -118,11 +118,10 @@ scitype(::AbstractArray{<:ColorTypes.AbstractRGB,2}) = ColorImage
 ## CONTAINER SCITYPES 
 
 abstract type ContainerScitype end
-# by default, MLJType objects are `==` if: (i) they have a common
-# supertype AND (ii) they have the same set of defined fields AND
-# (iii) their defined field values are `==` OR the values are both
-# AbstractRNG objects.
 
+# ContainerScitype objects are `==` if: (i) they have a common
+# supertype AND (ii) they have the same set of defined fields AND
+# (iii) their defined field values are `==`
 import Base.==
 function ==(m1::M1, m2::M2) where {M1<:ContainerScitype,M2<:ContainerScitype}
     if M1 != M1
