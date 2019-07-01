@@ -4,12 +4,6 @@ is_probabilistic(::Type{<:Model}) = false
 is_probabilistic(::Type{<:Deterministic}) = false
 is_probabilistic(::Type{<:Probabilistic}) = true
 
-
-# TODO: depreciate? currently used by ensembles.jl
-# output_is(modeltype::Type{<:Model}) =
-#     [is_probabilistic(modeltype), output_kind(modeltype), target_quantity(modeltype)]
-# output_is(model::Model) = output_is(typeof(model))
-
 function coretype(M)
     if isdefined(M, :name)
         return M.name

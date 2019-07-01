@@ -30,9 +30,9 @@ end
 # equality:
 MLJBase.isequal(m1::MLJType, m2::MLJType) = (m1 === m2)
 
-## TODO: Do we need to overload hash here?
 
-function Base.in(x::MLJType, itr)
+## TODO: Do we need to overload hash here?
+function Base.in(x::MLJType, itr::Set)
     anymissing = false
     for y in itr
         v = (y === x)
