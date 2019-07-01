@@ -28,3 +28,28 @@ function params(m, ::Val{true})
     NamedTuple{fields}(Tuple([params(getfield(m, field)) for field in fields]))
 end
 
+# applying the following to `:(a.b.c)` returns `(:(a.b), :c)`
+function reduce_nested_field(ex)
+    ex.head == :. || throw(ArgumentError)
+    tail = ex.args[2]
+    tail isa QuoteNode || throw(ArgumentError)
+    field = tail.value
+    field isa Symbol || throw(ArgmentError)
+    subex = ex.args[1]
+    return (subex, field)
+end
+
+
+function Base.getproperty(obj, ex::Expr)
+    subex, field = reduce_nested_field(ex)
+    return getproperty(getproperty(obj, subex), field)
+end
+
+function Base.setproperty!(obj, ex::Expr, value)
+    subex, field = reduce_nested_field(ex)
+    last_obj = getproperty(obj, subex)
+    return setproperty!(last_obj, field, value)
+end
+
+
+
