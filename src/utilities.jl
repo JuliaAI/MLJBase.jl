@@ -12,6 +12,11 @@ ones. So, for example,
 """
 function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
     rows = collect(rows)
+
+    if rng isa Integer
+        rng = MersenneTwister(rng)
+    end
+
     shuffle && shuffle!(rng, rows)
     rowss = []
     if sum(fractions) >= 1
