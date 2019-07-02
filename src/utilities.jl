@@ -10,9 +10,14 @@ ones. So, for example,
     (1:200, 201:900, 901:1000)
 
 """
-function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false)
+function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
     rows = collect(rows)
-    shuffle && shuffle!(rows)
+
+    if rng isa Integer
+        rng = MersenneTwister(rng)
+    end
+
+    shuffle && shuffle!(rng, rows)
     rowss = []
     if sum(fractions) >= 1
         throw(DomainError)
