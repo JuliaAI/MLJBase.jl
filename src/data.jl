@@ -37,7 +37,7 @@ CategoricalElement = Union{CategoricalValue,CategoricalString}
 All the categorical values in the same pool as `x` (including `x`),
 returned as a list, with an ordering consistent with the pool. Here
 `x` has `CategoricalValue` or `CategoricalString` type, and
-`classes(x)` is a vector of the same eltype. 
+`classes(x)` is a vector of the same eltype.
 
 Not to be confused with the levels of `x.pool` which have a
 different type. In particular, while `x in classes(x)` is always
@@ -91,8 +91,8 @@ Broadcasted versions of `int`.
      0x00000002
      0x00000003
      0x00000001
-    
-See also: decoder
+
+See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
 int(X::CategoricalArray) = broadcast(r -> X.pool.order[r], X.refs)
@@ -123,7 +123,7 @@ integer arrays, in which case `d` is broadcast over all elements.
     julia> d(int(v)) == v
     true
 
-See also: int, classes
+See also: [`int`](@ref), [`classes`](@ref).
 
 """
 decoder(element::CategoricalElement) =
@@ -144,10 +144,10 @@ decoder(element::CategoricalElement) =
 
 ## TABULAR DATA
 
-const istable = Tables.istable 
+const istable = Tables.istable
 
 # hack for detecting JuliaDB.NDSparse tables without loading as dependency:
-isndsparse(X) = isdefined(X, :data_buffer) 
+isndsparse(X) = isdefined(X, :data_buffer)
 
 
 """
@@ -215,7 +215,7 @@ end
 
 Convert a named tuple of vectors `cols`, into a table. The table
 type returned is the "preferred sink type" for `prototype` (see the
-Tables.jl documentation). 
+Tables.jl documentation).
 
     MLJBase.table(X::AbstractMatrix; names=nothing, prototype=nothing)
 
@@ -242,7 +242,7 @@ function table(X::AbstractMatrix; names=nothing, prototype=nothing)
     _prototype = (prototype == nothing ? cols : prototype)
     return table(cols; prototype=_prototype)
 end
-               
+
 
 ## UNIFIED API FOR ACCESSING TABLES, MATRICES AND VECTORS
 
@@ -279,7 +279,7 @@ Select element of a table or sparse table at row `r` and column
 `c`. In the case of sparse data where the key `(r, c)`, zero or
 `missing` is returned, depending on the value type.
 
-See also: selectrows, selectcols
+See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
 select(X, r, c) = select(Val(container_type(X)), X, r, c)
@@ -319,7 +319,7 @@ function selectcols(::Val{:table}, X, c::Union{Colon, AbstractArray{I}}) where I
     newcols = project(cols, c)
     return Tables.materializer(X)(newcols)
 end
-                    
+
 # single column:
 function selectcols(::Val{:table}, X, c::I) where I<:Union{Symbol,Integer}
     cols = Tables.columntable(X) # named tuple of vectors
@@ -413,4 +413,3 @@ function schema(::Val{:sparse}, X)
     types = [eltype(selectcols(X, name)) for name in names]
     return Tables.Schema(names, types)
 end
-
