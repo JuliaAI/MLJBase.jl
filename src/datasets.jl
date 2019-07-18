@@ -1,9 +1,15 @@
-datadir = joinpath(srcdir, "..", "data") # TODO: make OS agnostic
+using .CSV
+
+export load_boston, load_ames, load_iris             # datasets.jl
+export load_reduced_ames                             # datasets.jl
+export load_crabs, datanow                           # datasets.jl
+
+datadir = joinpath(dirname(dirname(@__FILE__)), "data") # OS agnostic
 
 """Load a well-known public regression dataset with nominal features."""
 function load_boston()
     df = CSV.read(joinpath(datadir, "Boston.csv"), copycols=true,
-                  categorical=true) 
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:MedV,
                           ignore=[:Chas,],
@@ -14,7 +20,7 @@ end
 having six numerical and six categorical features."""
 function load_reduced_ames()
     df = CSV.read(joinpath(datadir, "reduced_ames.csv"), copycols=true,
-                  categorical=true) 
+                  categorical=true)
     df[:target] = exp.(df[:target])
     # TODO: uncomment following after julia #29501 is resolved
 #    df.OverallQual = categorical(df.OverallQual, ordered=true)
@@ -29,7 +35,7 @@ end
 """Load the full version of the well-known Ames Housing task."""
 function load_ames()
     df = CSV.read(joinpath(datadir, "ames.csv"), copycols=true,
-                  categorical=true)               
+                  categorical=true)
     df[:target] = exp.(df[:target])
     return SupervisedTask(verbosity=0, data=df,
                           target=:target,
@@ -40,7 +46,7 @@ end
 """Load a well-known public classification task with nominal features."""
 function load_iris()
     df = CSV.read(joinpath(datadir, "iris.csv"), pool=true, copycols=true,
-                  categorical=true) 
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           is_probabilistic=false)
@@ -49,7 +55,7 @@ end
 """Load a well-known crab classification dataset with nominal features."""
 function load_crabs()
     df = CSV.read(joinpath(datadir, "crabs.csv"), pool=true, copycols=true,
-                  categorical=true) 
+                  categorical=true)
     return SupervisedTask(verbosity=0, data=df,
                           target=:sp,
                           ignore=[:sex, :index],

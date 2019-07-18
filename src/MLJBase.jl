@@ -9,9 +9,9 @@ export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
-export input_scitype_union, input_is_multivariate       
-export target_scitype_union, target_quantity            
-export is_pure_julia, is_wrapper                                 
+export input_scitype_union, input_is_multivariate
+export target_scitype_union, target_quantity
+export is_pure_julia, is_wrapper
 
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
@@ -27,9 +27,6 @@ export color_on, color_off                           # show.jl
 export UnivariateFinite, average                    # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
-export load_boston, load_ames, load_iris             # datasets.jl
-export load_reduced_ames                             # datasets.jl
-export load_crabs, datanow                           # datasets.jl
 export info                                          # info.jl
 
 # methods from other packages to be rexported:
@@ -42,7 +39,6 @@ import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
-import CSV
 import ColorTypes
 
 # to be extended:
@@ -75,7 +71,7 @@ abstract type MLJType end
 # for storing hyperparameters:
 abstract type Model <: MLJType end
 
-abstract type Supervised <: Model end 
+abstract type Supervised <: Model end
 abstract type Unsupervised <: Model end
 
 # supervised models that `predict` probability distributions are of:
@@ -89,7 +85,7 @@ abstract type Deterministic <: Supervised end
 abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type UnsupervisedNetwork <: Unsupervised end
-    
+
 include("equality.jl")
 
 
@@ -136,10 +132,10 @@ clean!(model::Model) = ""
 target_scitype_union(::Type{<:Supervised}) =
     Union{Found,NTuple{N,Found}} where N # a Tuple type in multivariate case
 output_scitype_union(::Type{<:Unsupervised}) =
-    Union{Missing,Found}                 
+    Union{Missing,Found}
 output_is_multivariate(::Type{<:Unsupervised}) = true
 input_scitype_union(::Type{<:Model}) = Union{Missing,Found}
-input_is_multivariate(::Type{<:Model}) = true 
+input_is_multivariate(::Type{<:Model}) = true
 is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
@@ -176,7 +172,7 @@ predict_median(model::Probabilistic, fitresult, Xnew) =
 include("parameters.jl")
 
 # for displaying objects of `MLJType`:
-include("show.jl") 
+include("show.jl")
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
@@ -187,7 +183,8 @@ include("distributions.jl")
 
 include("info.jl")
 include("tasks.jl")
-include("datasets.jl")
+
+# __init__() function:
+include("init.jl")
 
 end # module
-
