@@ -26,10 +26,11 @@ scitype((4, 4.5, c, u, "X")) ==
 #                                sofa=Union{Missing,Count})
 
 db = (x=rand(5), y=rand(Int, 5),
-                    z=categorical(collect("asdfa")))
+                    z=categorical(collect("asdfa")), w=rand(5))
 @test MLJBase.scitypes(db) == (x=Continuous,
                                y=Count,
-                               z=Multiclass{4})
+                               z=Multiclass{4},
+                               w=Continuous)
 
 @test_throws ArgumentError MLJBase.scitypes(categorical([:x, :y]))
 
@@ -44,5 +45,10 @@ A = Any[2 4.5;
 @test scitype_union(Any[1]) == Count
 @test scitype_union([1, 2.0, "3"]) == Union{Continuous, Count, Unknown}
 
+t = scitype(db)
+@test t <: MLJBase.Table(Continuous, Finite, Count)
+@test t <: MLJBase.Table(Infinite, Multiclass)
+@test !(t <: MLJBase.Table(Continuous, Union{Missing, Count}))
 end
+
 true

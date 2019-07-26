@@ -18,18 +18,18 @@ The scientific type that `x` may represent.
     Multiclass{2}
 
     julia> scitype(v)
-    VectorScitype(Multiclass{2})
+    AbstractArray{Multiclass{2}, 1}
 
     julia> X = (x1=rand(3), x2=rand(Int, 3), x3=rand(3))
     julia> scitype(X)
-    TableScitype(Set(DataType[Count, Continuous]))
+    Table{Union{Col{Continuous}, Col{Count}}}
  
     julia> scitype((42, float(π), "Julia"))
     Tuple{Count,Continuous,Unknown}
 
 For getting the union of the scitypes of all elements of an iterable,
 use `scitype_union`. For inspecting in detail the internal scitypes of
-a container, use `scitypes`. Compare scitypes with `⊂`.
+a container, use `scitypes`. 
 
 """
 function scitype end
@@ -45,40 +45,7 @@ not also a julia type.
 """
 scitype_union(A) = reduce((a,b)->Union{a,b}, (scitype(el) for el in A))
 
-
-## BASIC STRUCTURE OF SCITYPES
-
-# 0. Scitypes, dilineated by the `is_scitype` trait, are objects that
-# are sometimes julia types and sometimes not.
-
-# 1. By default, no object is a scitype:
-is_scitype(::Any) = false
-
-# 2. A collection of julia types called *atomic scitypes* - by
-# definition, the subtypes of `AtomicScitypes` below - are all
-# scitypes.
-
-# 3. The closure C in the set of all julia types, under the
-# operation Tuple{...} and Union{...}, is a collection of scitypes:
-is_scitype(T::Type{<:Tuple}) = reduce(&, [is_scitype(p) for p in T.parameters])
-is_scitype(U::Union) = is_scitype(U.a) && is_scitype(U.b)
-
-# 4. C is *all* of the scitypes that are simultaneously
-# julia types. That is, a julia type that cannot be constructed from
-# atomic scitypes using the basic union and tuple operations is
-# forbidden to be a scitype.
-
-# 5. The the scitype partial order restricts to the julia type partial
-# order on C:
-⊂(a, b) = false # to be overidden for non-julia scitypes
-⊂(a::DataType, b::DataType) = a <: b
-
-# 6. Scitypes that are not julia types are called *container scitypes*
-# and these are all instances of the julia abstract type
-# ContainerScitype.
-
 # fallbacks for the scitype method (taking scitypes as values):
-scitype(t::Tuple) = Tuple{scitype.(t)...}
 scitype(X) = scitype(X, Val(container_type(X)))
 scitype(::Any, ::Val{:other}) = Unknown     
 
@@ -102,8 +69,6 @@ struct OrderedFactor{N} <: Finite{N} end
 const Binary = Multiclass{2}
 const AtomicScitype = Union{Missing,Found}
 
-is_scitype(::Type{<:AtomicScitype}) = true
-
 scitype(::Missing) = Missing
 scitype(::AbstractFloat) = Continuous
 scitype(::Integer) = Count
@@ -115,66 +80,17 @@ scitype(::AbstractArray{<:ColorTypes.Gray,2}) = GrayImage
 scitype(::AbstractArray{<:ColorTypes.AbstractRGB,2}) = ColorImage
 
 
-## CONTAINER SCITYPES 
+## SCITYPES OF TUPLES ARE TUPLE TYPES
 
-abstract type ContainerScitype end
-
-# ContainerScitype objects are `==` if: (i) they have a common
-# supertype AND (ii) they have the same set of defined fields AND
-# (iii) their defined field values are `==`
-import Base.==
-function ==(m1::M1, m2::M2) where {M1<:ContainerScitype,M2<:ContainerScitype}
-    if M1 != M1
-        return false
-    end
-    defined1 = filter(fieldnames(M1)|>collect) do fld
-        isdefined(m1, fld)
-    end
-    defined2 = filter(fieldnames(M1)|>collect) do fld
-        isdefined(m2, fld)
-    end
-    if defined1 != defined2
-        return false
-    end
-    same_values = true
-    for fld in defined1
-        same_values = same_values &&
-            getfield(m1, fld) == getfield(m2, fld)
-    end
-    return same_values
-end
+scitype(t::Tuple) = Tuple{scitype.(t)...}
 
 
-## ARRAYS
+## SCITYPES OF ARRAYS ARE ARRAY TYPES
 
-struct ArrayScitype <: ContainerScitype
-    eltype
-    dim::Int
-    function ArrayScitype(eltype, N)
-        is_scitype(eltype) || throw(ArgumentError)
-        return new(eltype, N)
-    end
-end
-
-VectorScitype(eltype) = ArrayScitype(eltype, 1)
-MatrixScitype(eltype) = ArrayScitype(eltype, 2)
-
-is_scitype(v::ArrayScitype) = true
-
-⊂(v1::ArrayScitype, v2::ArrayScitype) =
-    v1.dim == v2.dim && ⊂(v1.eltype, v2.eltype)
-
-scitype(v::AbstractArray{T,N}) where {T,N} =
-    ArrayScitype(scitype_union(v), N)
+MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}
 
 
-## SCITYPES WITHIN A CONTAINER (SCITYPE SCHEMA)
-
-scitypes(X) = scitypes(X, Val(container_type(X)))
-scitypes(X, ::Val{:other}) = throw(ArgumentError("Unknown container type. "))
-
-
-## TABLES
+## TABLE SCHEMA OF SCITYPES
 
 """
     scitypes(X)
@@ -183,6 +99,9 @@ Inspect the internal scitypes of a container object - the column
 scitypes of a table, for example.
 
 """
+scitypes(X) = scitypes(X, Val(container_type(X)))
+scitypes(X, ::Val{:other}) = throw(ArgumentError("Unknown container type. "))
+
 function scitypes(X, ::Val{:table})
     container_type(X) in [:table, :sparse] ||
         throw(ArgumentError("Container should be a table or sparse table. "))
@@ -190,27 +109,34 @@ function scitypes(X, ::Val{:table})
     return NamedTuple{names}(scitype_union(selectcols(X, c)) for c in names)
 end
 
-# we use instances of the following as scitypes for tables:
-struct TableScitype <: ContainerScitype
-    column_types::Set
-    function TableScitype(column_types)
-        reduce(&, [is_scitype(T) for T in column_types]) ||
-            throw(ArgumentError)
-        return new(column_types)
-    end
-end
 
-is_scitype(v::TableScitype) = true
+## TABLE SCITYPE
 
-function is_subtype_of_one(T, S::Set{<:Type})
-    isempty(S) && return false
-    return reduce(|, [T <: T2 for T2 in S])
-end
-⊂(t1::TableScitype, t2::TableScitype) =
-    reduce(&, [is_subtype_of_one(T, t2.column_types)
-               for T in t1.column_types])
+struct Table{K} end
+struct Column{T} end
 
-scitype(X, ::Val{:table}) = TableScitype(Set(values(scitypes(X))))
+"""
+    Table(T1, T2, T3, ..., Tn)
+
+Special constructor for the Table scientific type with the property that
+
+    scitype(X) <: Table(T1, T2, T3, ..., Tn)
+
+if and only if `X` is a table *and*, for every column `col` of `X`,
+`scitype(col) <: Tj`, for some `j` between `1` and `n`.
+
+Not to be confused with the constructor for *instances* of the type,
+which play no role in MLJ.
+
+
+"""
+Table(Ts...) = Table{<:Union{[Column{<:T} for T in Ts]...}}
+
+
+scitype(X, ::Val{:table}) =
+    Table{Union{[Column{T} for T in values(scitypes(X))]...}}
+
+
 
 
 
