@@ -9,15 +9,9 @@ export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
-<<<<<<< HEAD
 export input_scitype, input_is_multivariate       
 export target_scitype, target_quantity            
 export is_pure_julia, is_wrapper                                 
-=======
-export input_scitype_union, input_is_multivariate
-export target_scitype_union, target_quantity
-export is_pure_julia, is_wrapper
->>>>>>> master
 
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
