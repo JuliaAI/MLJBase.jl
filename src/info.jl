@@ -1,5 +1,5 @@
 target_quantity(m) =
-    target_scitype_union(m) <: Tuple ? true : false
+    target_scitype(m) <: Tuple ? true : false
 is_probabilistic(::Type{<:Model}) = false
 is_probabilistic(::Type{<:Deterministic}) = false
 is_probabilistic(::Type{<:Probabilistic}) = true
@@ -25,12 +25,6 @@ function info(M::Type{<:Supervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    is_scitype(scitype_X(M)) ||
-        error(message*"scitype_X($M) is not a scitype. ")
-
-    is_scitype(scitype_y(M)) ||
-        error(message*"scitype_y($M) is not a scitype. ")
-
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
@@ -39,8 +33,9 @@ function info(M::Type{<:Supervised})
     d[:is_probabilistic] = is_probabilistic(M)
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:scitype_X] = scitype_X(M)
-    d[:scitype_y] = scitype_y(M)
+    d[:input_scitype] = input_scitype(M)
+    d[:target_scitype] = target_scitype(M)
+    d[:output_scitype] = output_scitype(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
@@ -56,10 +51,10 @@ function info(M::Type{<:Unsupervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    is_scitype(scitype_X(M)) ||
-        error(message*"scitype_X($M) is not a scitype. ")
+    is_scitype(input_scitype(M)) ||
+        error(message*"input_scitype($M) is not a scitype. ")
 
-    is_scitype(scitype_output(M)) ||
+    is_scitype(output_scitypeput(M)) ||
         error(message*"scitype_ouput($M) is not a scitype. ")
 
 
@@ -70,8 +65,8 @@ function info(M::Type{<:Unsupervised})
     d[:is_supervised] = false
     d[:load_path] = load_path(M)
     d[:name] = name(M)
-    d[:scitype_X] = scitype_X(M)
-    d[:scitype_output] = scitype_output(M)
+    d[:input_scitype] = input_scitype(M)
+    d[:output_scitypeput] = output_scitypeput(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)

@@ -9,8 +9,8 @@ export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
-export input_scitype_union, input_is_multivariate       
-export target_scitype_union, target_quantity            
+export input_scitype, input_is_multivariate       
+export target_scitype, target_quantity            
 export is_pure_julia, is_wrapper                                 
 
 export params                                        # parameters.jl
@@ -22,7 +22,6 @@ export Found, Continuous, Finite, Infinite           # sgcitypes.jl
 export OrderedFactor, Unknown, ⊂                     # scitypes.jl
 export Count, Multiclass, Binary                     # scitypes.jl
 export scitype, scitype_union, scitypes              # scitypes.jl
-export TableScitype, VectorScitype, ArrayScitype     # scitypes.jl
 export MatrixScitype                                 # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
@@ -137,11 +136,10 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-target_scitype_union(::Type{<:Supervised}) =
-    Union{Found,NTuple{N,Found}} where N # a Tuple type in multivariate case
-scitype_X(::Type{<:Model}) = TableScitype(Set([AtomicScitype]))
-scitype_out(::Type{<:Unsupervised}) = TableScitype(Set([AtomicScitype]))
-scitype_y(::Type{<:Supervised}) = VectorScitype(AtomicScitype)
+input_scitype(::Type{<:Model}) = Table(Union{Missing,Found})
+output_scitype(::Type{<:Model}) = Table(Union{Missing,Found})
+target_scitype(::Type{<:Supervised}) =
+    AbstractVector{<:Union{Found,NTuple{N,Found}}} where N
 is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
 load_path(M::Type{<:Model}) = "unknown"
@@ -149,9 +147,9 @@ package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 is_wrapper(::Type{<:Model}) = false
 
-scitype_X(model::Model) = scitype_X(typeof(model))
-scitype_out(model::Model) = scitype_out(typeof(model))
-scitype_y(model::Model) = scitype_y(typeof(model))
+input_scitype(model::Model) = input_scitype(typeof(model))
+output_scitype(model::Model) = output_scitype(typeof(model))
+target_scitype(model::Model) = target_scitype(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
 load_path(model::Model) = load_path(typeof(model))

@@ -90,30 +90,10 @@ scitype(t::Tuple) = Tuple{scitype.(t)...}
 MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}
 
 
-## TABLE SCHEMA OF SCITYPES
-
-"""
-    scitypes(X)
-
-Inspect the internal scitypes of a container object - the column
-scitypes of a table, for example.
-
-"""
-scitypes(X) = scitypes(X, Val(container_type(X)))
-scitypes(X, ::Val{:other}) = throw(ArgumentError("Unknown container type. "))
-
-function scitypes(X, ::Val{:table})
-    container_type(X) in [:table, :sparse] ||
-        throw(ArgumentError("Container should be a table or sparse table. "))
-    names =    schema(X).names
-    return NamedTuple{names}(scitype_union(selectcols(X, c)) for c in names)
-end
-
-
 ## TABLE SCITYPE
 
 struct Table{K} end
-struct Column{T} end
+# struct Column{T} end
 
 """
     Table(T1, T2, T3, ..., Tn)
@@ -130,11 +110,40 @@ which play no role in MLJ.
 
 
 """
-Table(Ts...) = Table{<:Union{[Column{<:T} for T in Ts]...}}
+function Table(Ts...)
+    Union{Ts...} <: Union{Missing, Found} ||
+        error("Argements of Table scitype constructor must be subtypes of "*
+              "`Union{Missing,Found}`")
+    return Table{<:Union{[AbstractVector{<:T} for T in Ts]...}}
+end
+
+function scitype(X, ::Val{:table})
+    #    Table{Union{[Column{T} for T in values(scitypes(X))]...}}
+    Xcol = Tables.columns(X)
+    col_names = propertynames(Xcol)
+    types = map(col_names) do name
+        scitype(getproperty(Xcol, name))
+    end
+    return Table{Union{types...}}
+end
 
 
-scitype(X, ::Val{:table}) =
-    Table{Union{[Column{T} for T in values(scitypes(X))]...}}
+## SCHEMA OF SCITYPES FOR TABLES
+
+"""
+    scitypes(X)
+
+Inspect the internal scitypes of a container object - the column
+scitypes of a table, for example.
+
+"""
+scitypes(X) = scitypes(X, Val(container_type(X)))
+scitypes(X, ::Val{:other}) = throw(ArgumentError("Unknown container type. "))
+
+function scitypes(X, ::Val{:table})
+    names =    schema(X).names
+    return NamedTuple{names}(scitype_union(selectcols(X, c)) for c in names)
+end
 
 
 

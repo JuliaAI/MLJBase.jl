@@ -14,13 +14,13 @@ XX = X_(task);
 allnames = collect(MLJBase.schema(XX).names)
 
 task = SupervisedTask(data=XX, target=[:Crim, :Zn], is_probabilistic=true, ignore=:Dis)
-y = y_(task)
+y = y_(task);
 X = X_(task);
 t = MLJBase.schema(X);
 @test collect(t.names) == filter(allnames) do ftr
     !(ftr in [:Crim, :Zn, :Dis])
 end
-y1 = [(XX.Crim[i], XX.Zn[i]) for i in 1:length(y)]
+y1 = [(XX.Crim[i], XX.Zn[i]) for i in 1:length(y)];
 @test y == y1
 
 

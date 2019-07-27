@@ -8,8 +8,8 @@ using Test
 mutable struct Dummy <: Probabilistic end
 
 MLJBase.load_path(::Type{Dummy}) = "GreatPackage.MLJ.Dummy"
-MLJBase.scitype_X(::Type{Dummy}) = MLJBase.TableScitype(Set([Finite]))
-MLJBase.scitype_y(::Type{Dummy}) = MLJBase.VectorScitype(Continuous)
+MLJBase.input_scitype(::Type{Dummy}) = MLJBase.Table(Finite)
+MLJBase.target_scitype(::Type{Dummy}) = AbstractVector{<:Continuous}
 MLJBase.is_pure_julia(::Type{Dummy}) = true
 MLJBase.package_name(::Type{Dummy}) = "GreatPackage"
 MLJBase.package_uuid(::Type{Dummy}) = "6f286f6a-111f-5878-ab1e-185364afe411"
@@ -20,8 +20,9 @@ d = Dict(:name => "Dummy",
          :is_pure_julia => true,
          :package_uuid  => "6f286f6a-111f-5878-ab1e-185364afe411",
          :package_name  => "GreatPackage",
-         :scitype_X => MLJBase.TableScitype(Set([Finite])),
-         :scitype_y => MLJBase.VectorScitype(Continuous),
+         :input_scitype => MLJBase.Table(Finite),
+         :output_scitype => MLJBase.Table(Union{Missing,Found}),
+         :target_scitype => MLJBase.AbstractVector{<:Continuous},
          :is_probabilistic => true,
          :package_url   => "https://mickey.mouse.org",
          :is_supervised => true,
@@ -30,6 +31,9 @@ d = Dict(:name => "Dummy",
 info(Dummy)[:name]
 @test info(Dummy) == d
 @test info(Dummy()) == d
+# for k in keys(d)
+#     println(string(k, " ",  info(Dummy)[k] == d[k]))
+# end
 
 end
 true
