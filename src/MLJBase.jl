@@ -90,8 +90,6 @@ abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type UnsupervisedNetwork <: Unsupervised end
 
-include("equality.jl")
-
 
 ## THE MODEL INTERFACE
 
