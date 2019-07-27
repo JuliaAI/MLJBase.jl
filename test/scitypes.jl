@@ -45,6 +45,11 @@ A = Any[2 4.5;
 @test scitype_union(Any[1]) == Count
 @test scitype_union([1, 2.0, "3"]) == Union{Continuous, Count, Unknown}
 
+@test scitype(A) == AbstractArray{Union{Count, Continuous}, 2}
+@test scitype([1,2,3, missing]) == AbstractVector{Union{Missing, Count}}
+
+
+
 t = scitype(db)
 @test t <: MLJBase.Table(Continuous, Finite, Count)
 @test t <: MLJBase.Table(Infinite, Multiclass)

@@ -87,29 +87,56 @@ scitype(t::Tuple) = Tuple{scitype.(t)...}
 
 ## SCITYPES OF ARRAYS ARE ARRAY TYPES
 
-MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} = AbstractArray{scitype(first(A)),N}
+MLJBase.scitype(A::B) where {T,N,B<:AbstractArray{T,N}} =
+    AbstractArray{scitype_union(A),N}
 
 
 ## TABLE SCITYPE
 
-struct Table{K} end
-# struct Column{T} end
-
 """
-    Table(T1, T2, T3, ..., Tn)
+    MLJBase.Table{K}
 
-Special constructor for the Table scientific type with the property that
+The scientific type for tabular data (a containter `X` for which
+`Tables.is_table(X)=true`).
+
+If `X` has columns `c1, c2, ..., cn`, then, by definition, 
+
+    scitype(X) = Table{Union{scitype(c1), scitype(c2), ..., scitype(cn)}}
+
+A special constructor of `Table` types exists: 
+
+    `Table(T1, T2, T3, ..., Tn) <: Table` 
+
+has the property that
 
     scitype(X) <: Table(T1, T2, T3, ..., Tn)
 
 if and only if `X` is a table *and*, for every column `col` of `X`,
-`scitype(col) <: Tj`, for some `j` between `1` and `n`.
+`scitype(col) <: Tj`, for some `j` between `1` and `n`. Note that this
+constructor constructs a *type* not an instance; `Table` instances
+play no role in MLJ.
 
-Not to be confused with the constructor for *instances* of the type,
-which play no role in MLJ.
+    julia> (x1 = [10.0, 20.0, missing],
+            x2 = [1.0, 2.0, 3.0],
+            x3 = [4, 5, 6],)
 
+    julia> scitype(X)
+    Table{Union{AbstractArray{Continuous,1}, AbstractArray{Count,1}}}
+
+    Table{Union{AbstractArray{Continuous,1}, AbstractArray{Count,1}}}
+
+    julia> scitype(X) <: Table(Continuous, Count)
+    true
+
+    julia> scitype(X)
+
+
+julia> 
 
 """
+struct Table{K} end
+# struct Column{T} end
+
 function Table(Ts...)
     Union{Ts...} <: Union{Missing, Found} ||
         error("Argements of Table scitype constructor must be subtypes of "*
