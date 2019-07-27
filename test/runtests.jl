@@ -5,6 +5,7 @@
 
 # using Revise
 using MLJBase
+using CSV
 using Test
 
 @testset "equality" begin
@@ -42,5 +43,3 @@ end
 @testset "tasks" begin
   @test include("tasks.jl")
 end
-
-
