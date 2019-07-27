@@ -116,22 +116,15 @@ if and only if `X` is a table *and*, for every column `col` of `X`,
 constructor constructs a *type* not an instance; `Table` instances
 play no role in MLJ.
 
-    julia> (x1 = [10.0, 20.0, missing],
-            x2 = [1.0, 2.0, 3.0],
-            x3 = [4, 5, 6],)
+    julia> X = (x1 = [10.0, 20.0, missing],
+                x2 = [1.0, 2.0, 3.0],
+                x3 = [4, 5, 6])
 
-    julia> scitype(X)
-    Table{Union{AbstractArray{Continuous,1}, AbstractArray{Count,1}}}
+    julia> scitype(X) <: MLJBase.Table(Continuous, Count)
+    false
 
-    Table{Union{AbstractArray{Continuous,1}, AbstractArray{Count,1}}}
-
-    julia> scitype(X) <: Table(Continuous, Count)
+    julia> scitype(X) <: MLJBase.Table(Union{Continuous, Missing}, Count)
     true
-
-    julia> scitype(X)
-
-
-julia> 
 
 """
 struct Table{K} end
