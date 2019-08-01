@@ -17,17 +17,6 @@ seed!(1234)
 import MLJBase: decoder, int, raw, classes
 
 
-# ## RECONSTRUCT
-
-# C = categorical(rand(UInt8,20,20))[1:2,1:3]
-# @test length(levels(C)) > 6
-# @test reconstruct(broadcast(identity, C)) == C
-
-# C = categorical(string.(rand(UInt8,20,20)))[1:2,1:3]
-# @test length(levels(C)) > 6
-# @test reconstruct(broadcast(identity, C)) == C
-
-
 ## DECODER
 
 N = 10
@@ -79,7 +68,7 @@ B = rand(UInt8, (4, 5))
 @test MLJBase.matrix(DataFrame(B)) == B
 
 
-## ISTABLE
+## TABLE INDEXING
 
 A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
 X = CategoricalArrays.categorical(A)
@@ -90,16 +79,6 @@ tt = Table(df)
 # db = JuliaDB.table(tt)
 # nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
 #                word=[:house, :house, :sofa, :sofa, :chair, :house]), (values=["big", "small", 17, 34, 4, "small"],))
-
-@test !MLJBase.istable(A)
-@test !MLJBase.istable([1,2,3])
-@test MLJBase.istable(df)
-@test MLJBase.istable(tt)
-# uncomment 2 lines to restore JuliaDB testing:
-# @test MLJBase.istable(db)
-# @test MLJBase.isndsparse(nd)
-
-## TABLE INDEXING
 
 df.z  = 1:10
 tt = Table(df)
@@ -114,8 +93,6 @@ tt = Table(df)
 @test selectrows(df, 1) == selectrows(df[1:1, :], :)
 @test MLJBase.select(df, 2, :x2) == df[2,:x2]
 s = schema(df)
-@test s.names == tuple(names(df)...)
-@test s.types == (Char, Char, Char, Char, Char, Int64)
 @test nrows(df) == size(df, 1)
 
 @test selectcols(tt, 4:6) == selectcols(Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
@@ -123,9 +100,6 @@ s = schema(df)
 @test selectcols(tt, :x2) == tt.x2
 @test selectcols(tt, 2) == tt.x2
 @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
-s = schema(tt)
-@test s.names == tuple(names(df)...)
-@test s.types == (Char, Char, Char, Char, Char, Int64)
 @test nrows(tt) == length(tt.x1)
 @test MLJBase.select(tt, 2, :x2) == tt.x2[2]
 

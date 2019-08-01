@@ -15,13 +15,9 @@ export is_pure_julia, is_wrapper
 
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
-export selectrows, selectcols, select, nrows, schema # data.jl
+export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, @set_defaults                      # utilities.jl
-export Found, Continuous, Finite, Infinite           # sgcitypes.jl
-export OrderedFactor, Unknown                        # scitypes.jl
-export Count, Multiclass, Binary                     # scitypes.jl
-export scitype, scitype_union, scitypes              # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
 export UnivariateFinite, average                     # distributions.jl
@@ -32,6 +28,13 @@ export info                                          # info.jl
 # methods from other packages to be rexported:
 export pdf, mean, mode
 
+# re-export of ScientificTypes (`Table` not exported):
+export trait
+export Scientific, Found, Unknown, Finite, Infinite
+export OrderedFactor, Multiclass, Count, Continuous
+export Binary, ColorImage, GrayImage
+export scitype, scitype_union, scitypes, coerce, schema
+
 import Base.==
 
 using Tables
@@ -39,7 +42,8 @@ import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
-import ColorTypes
+using ScientificTypes
+import ScientificTypes: trait
 
 # to be extended:
 import StatsBase: fit, predict, fit!
@@ -62,11 +66,10 @@ const DEFAULT_SHOW_DEPTH = 0
 include("utilities.jl")
 
 
-## BASE TYPES AND SCITYPES
+## BASE TYPES 
 
 abstract type MLJType end
 include("equality.jl") # equality for MLJType objects
-include("scitypes.jl") 
 
 
 ## ABSTRACT MODEL TYPES

@@ -1,3 +1,5 @@
+_scitypes(X) = NamedTuple{schema(X).names}(schema(X).scitypes)
+
 abstract type MLJTask <: MLJType end # `Task` already has meaning in Base
 
 mutable struct UnsupervisedTask <: MLJTask
@@ -34,7 +36,7 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
     input_scitype = scitype(X)
     
     if input_is_multivariate
-        input_scitypes = scitypes(X)
+        input_scitypes = _scitypes(X)
     else
         input_scitypes = (input=scitype_union(X), )
     end
@@ -76,7 +78,7 @@ element has `Unknown` scitype. In all other cases, return `false`.
 function contains_unknown(X)
     target_scitype = scitype(X)
     if target_scitype <: Table
-        types = values(scitypes(X))
+        types = values(_scitypes(X))
         unknown_detected = !all([!(Unknown <: t) for t in types])
     elseif target_scitype <: AbstractArray{<:Tuple}
         types = scitype_union(X).types 
@@ -101,7 +103,7 @@ function SupervisedTask(X, y::AbstractVector;
     input_scitype = scitype(X)
 
     if input_scitype <: Table
-        input_scitypes = scitypes(X)
+        input_scitypes = _scitypes(X)
     else
         input_scitypes = (input=scitype_union(X),)
     end
