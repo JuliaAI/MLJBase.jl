@@ -59,13 +59,13 @@ function info(M::Type{<:Unsupervised})
     d[:load_path] = load_path(M)
     d[:name] = name(M)
     d[:input_scitype] = input_scitype(M)
-    d[:output_scitypeput] = output_scitypeput(M)
+    d[:output_scitype] = output_scitype(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_name] = package_name(M)
     d[:package_uuid] = package_uuid(M)
     d[:package_url] = package_url(M)
     d[:is_wrapper] = is_wrapper(M)
-\
+
     return d
 end
 
