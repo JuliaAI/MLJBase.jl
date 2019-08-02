@@ -51,13 +51,6 @@ function info(M::Type{<:Unsupervised})
     load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
                                     "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
 
-    is_scitype(input_scitype(M)) ||
-        error(message*"input_scitype($M) is not a scitype. ")
-
-    is_scitype(output_scitypeput(M)) ||
-        error(message*"scitype_ouput($M) is not a scitype. ")
-
-
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
