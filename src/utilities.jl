@@ -9,6 +9,11 @@ ones. So, for example,
     julia> partition(1:1000, 0.2, 0.7)
     (1:200, 201:900, 901:1000)
 
+If `rng` is an integer, then `MersenneTwister(rng)` is the random
+number generator used for bagging. Otherwise some `AbstractRNG` object
+is expected.
+
+
 """
 function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
     rows = collect(rows)
