@@ -38,12 +38,14 @@ export scitype, scitype_union, scitypes, coerce, schema
 import Base.==
 
 using Tables
+using OrderedCollections # already a dependency of StatsBase
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
 import CategoricalArrays
 using ScientificTypes
 import ScientificTypes: trait
+
 
 # to be extended:
 import StatsBase: fit, predict, fit!

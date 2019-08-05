@@ -28,19 +28,19 @@ function info(M::Type{<:Supervised})
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
-    d = Dict{Symbol,Any}()
+    d = LittleDict{Symbol,Any}()
+    d[:name] = name(M)
+    d[:package_name] = package_name(M)
+    d[:package_url] = package_url(M)
+    d[:load_path] = load_path(M)
+    d[:is_wrapper] = is_wrapper(M)
+    d[:is_pure_julia] = is_pure_julia(M)
+    d[:package_uuid] = package_uuid(M)
+    d[:supports_sample_weights] = supports_sample_weights(M)
     d[:is_supervised] = true
     d[:is_probabilistic] = is_probabilistic(M)
-    d[:load_path] = load_path(M)
-    d[:name] = name(M)
     d[:input_scitype] = input_scitype(M)
     d[:target_scitype] = target_scitype(M)
-    d[:supports_sample_weights] = supports_sample_weights(M)
-    d[:is_pure_julia] = is_pure_julia(M)
-    d[:package_name] = package_name(M)
-    d[:package_uuid] = package_uuid(M)
-    d[:package_url] = package_url(M)
-    d[:is_wrapper] = is_wrapper(M)
     return d
 end
 
@@ -54,17 +54,17 @@ function info(M::Type{<:Unsupervised})
     is_pure_julia(M) in [true, false, :unknown] ||
         error(message*"is_pure_julia($M) must return true or false. ")
 
-    d = Dict{Symbol,Any}()
-    d[:is_supervised] = false
-    d[:load_path] = load_path(M)
+    d = LittleDict{Symbol,Any}()
     d[:name] = name(M)
+    d[:package_name] = package_name(M)
+    d[:package_url] = package_url(M)
+    d[:package_uuid] = package_uuid(M)
+    d[:load_path] = load_path(M)
+    d[:is_wrapper] = is_wrapper(M)
+    d[:is_pure_julia] = is_pure_julia(M)
+    d[:is_supervised] = false
     d[:input_scitype] = input_scitype(M)
     d[:output_scitype] = output_scitype(M)
-    d[:is_pure_julia] = is_pure_julia(M)
-    d[:package_name] = package_name(M)
-    d[:package_uuid] = package_uuid(M)
-    d[:package_url] = package_url(M)
-    d[:is_wrapper] = is_wrapper(M)
 
     return d
 end

@@ -16,7 +16,7 @@ MLJBase.package_name(::Type{Dummy}) = "GreatPackage"
 MLJBase.package_uuid(::Type{Dummy}) = "6f286f6a-111f-5878-ab1e-185364afe411"
 MLJBase.package_url(::Type{Dummy}) = "https://mickey.mouse.org"
 
-d = Dict(:name => "Dummy",
+d = LittleDict{Symbol,Any}(:name => "Dummy",
          :load_path => "GreatPackage.MLJ.Dummy",
          :is_pure_julia => true,
          :package_uuid  => "6f286f6a-111f-5878-ab1e-185364afe411",
