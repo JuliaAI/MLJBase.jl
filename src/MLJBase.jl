@@ -9,7 +9,7 @@ export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
-export input_scitype, input_is_multivariate       
+export input_scitype, supports_sample_weights
 export target_scitype, target_quantity            
 export is_pure_julia, is_wrapper                                 
 
@@ -96,10 +96,9 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 ## THE MODEL INTERFACE
 
 # every model interface must implement a `fit` method of the form
-# `fit(model, verbosity, X, y) -> fitresult, cache, report` or
-# `fit(model, verbosity, X, ys...) -> fitresult, cache, report` (multivariate case)
+# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report` 
 # or, one the simplified versions
-# `fit(model, X, y) -> fitresult`
+# `fit(model, training_args...) -> fitresult`
 # `fit(model, X, ys...) -> fitresult`
 fit(model::Model, verbosity::Integer, args...) = fit(model, args...), nothing, nothing
 
@@ -134,7 +133,7 @@ clean!(model::Model) = ""
 
 # fallback trait declarations:
 input_scitype(::Type{<:Model}) = Table(Union{Missing,Found})
-output_scitype(::Type{<:Model}) = Table(Union{Missing,Found})
+output_scitype(::Type{<:Unsupervised}) = Table(Union{Missing,Found})
 target_scitype(::Type{<:Supervised}) =
     AbstractVector{<:Union{Found,NTuple{N,Found}}} where N
 is_pure_julia(::Type{<:Model}) = false
@@ -143,6 +142,7 @@ load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 is_wrapper(::Type{<:Model}) = false
+supports_sample_weights(::Type{<:Supervised}) = false
 
 input_scitype(model::Model) = input_scitype(typeof(model))
 output_scitype(model::Model) = output_scitype(typeof(model))

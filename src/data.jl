@@ -294,15 +294,7 @@ select(::Val{:table}, X, r::Integer, c) = selectcols(selectrows(X, r), c)
 select(::Val{:table}, X, r, c::Symbol) = selectcols(X, c)[r]
 select(::Val{:table}, X, r, c) = selectcols(selectrows(X, r), c)
 
-function nrows(::Val{:table}, X)
-    if !Tables.columnaccess(X)
-        return length(collect(X))
-    else
-        cols = Tables.columntable(X)
-        !isempty(cols) || return 0
-        return length(cols[1])
-    end
-end
+nrows(::Val{:table}, X) = schema(X).nrows
 
 
 ## ACCESSORS FOR ABSTRACT VECTORS
