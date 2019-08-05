@@ -4,6 +4,7 @@ module TestIntrospection
 using MLJBase
 import MLJBase
 using Test
+using OrderedCollections
 
 mutable struct Dummy <: Probabilistic end
 

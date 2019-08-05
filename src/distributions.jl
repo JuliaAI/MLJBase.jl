@@ -34,10 +34,10 @@ abstract type NonEuclidean <: Distributions.ValueSupport end
 
 # to pad a dictionary of probabilities with zeros for unseen levels,
 # if the key type is CategoricalElement:
-pad_probabilities(prob_given_level) = prob_given_level
-function pad_probabilities(prob_given_level::Dict{<:CategoricalElement, T}) where T
+pad_probabilities(prob_given_level::AbstractDict) = LittleDict(prob_given_level)
+function pad_probabilities(prob_given_level::AbstractDict{<:CategoricalElement, T}) where T
     proto_element = first(keys(prob_given_level))
-    return merge!(Dict([y=>zero(T) for y in classes(proto_element)]),
+    return merge!(LittleDict([y=>zero(T) for y in classes(proto_element)]),
                   prob_given_level)
 end
 
@@ -88,20 +88,20 @@ See also `classes`.
 
 """
 struct UnivariateFinite{L,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuclidean}
-    prob_given_level::Dict{L,T}
-    function UnivariateFinite{L,T}(prob_given_level::Dict{L,T}) where {L,T<:Real}
+    prob_given_level::LittleDict{L,T}
+    function UnivariateFinite{L,T}(prob_given_level::AbstractDict{L,T}) where {L,T<:Real}
         p = values(prob_given_level) |> collect
         Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
         return new{L,T}(pad_probabilities(prob_given_level))
     end
 end
 
-UnivariateFinite(prob_given_level::Dict{L,T}) where {L,T<:Real} =
+UnivariateFinite(prob_given_level::AbstractDict{L,T}) where {L,T<:Real} =
     UnivariateFinite{L,T}(prob_given_level)
 
 function UnivariateFinite(levels::AbstractVector, p::AbstractVector{<:Real})
         Dist.@check_args(UnivariateFinite, length(levels)==length(p))
-    prob_given_level = Dict([levels[i]=>p[i] for i in eachindex(p)])
+    prob_given_level = LittleDict([levels[i]=>p[i] for i in eachindex(p)])
     return  UnivariateFinite(prob_given_level)
 end
 
@@ -128,7 +128,7 @@ function average(dvec::Vector{UnivariateFinite{L,T}}; weights=nothing) where {L,
     end
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_level = Dict{L,T}()
+    prob_given_level = LittleDict{L,T}()
     for x in levels
         prob_given_level[x] = zero(T)
     end
@@ -221,7 +221,7 @@ function Distributions.fit(d::Type{<:UnivariateFinite}, v::AbstractVector)
     isempty(vpure) && error("No non-missing data to fit. ")
     N = length(vpure)
     count_given_level = Dist.countmap(vpure)
-    prob_given_level = Dict([x=>c/N for (x, c) in count_given_level])
+    prob_given_level = LittleDict([x=>c/N for (x, c) in count_given_level])
     return UnivariateFinite(prob_given_level)
 end
     
