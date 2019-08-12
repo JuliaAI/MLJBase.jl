@@ -29,7 +29,7 @@
 #     return CategoricalArray{String,N}(refs, pool)
 # end
 
-CategoricalElement = Union{CategoricalValue,CategoricalString}
+CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 """
     classes(x)

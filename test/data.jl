@@ -33,7 +33,7 @@ import MLJBase: decoder, int, raw, classes
 N = 10
 mix = shuffle(0:N - 1)
 
-Xraw = broadcast(x->mod(x,N), rand(Int, 20, 100))
+Xraw = broadcast(x->mod(x,N), rand(Int, 2N, 3N))
 Yraw = string.(Xraw)
 
 X = categorical(Xraw)
@@ -50,6 +50,7 @@ Vo = broadcast(identity, Xo)
 Wo = broadcast(identity, Yo)
 
 # classes:
+
 @test raw.(classes(xo)) == xo.pool.levels
 @test raw.(classes(yo)) == yo.pool.levels
 

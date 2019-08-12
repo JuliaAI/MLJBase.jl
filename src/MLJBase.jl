@@ -38,6 +38,7 @@ using Tables
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
+using OrderedCollections
 import CategoricalArrays
 import ColorTypes
 
