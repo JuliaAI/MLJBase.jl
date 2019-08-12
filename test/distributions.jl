@@ -29,11 +29,11 @@ levels!(v, reverse(levels(v)))
 v = categorical(collect("abcd"))
 d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
 sample = rand(d, 10^4)
-freq_given_level = Distributions.countmap(sample)
-pairs  = collect(freq_given_level)
+freq_given_class = Distributions.countmap(sample)
+pairs  = collect(freq_given_class)
 sort!(pairs, by=pair->pair[2], alg=QuickSort)
-sorted_levels = first.(pairs)
-@test sorted_levels == ['c', 'a', 'b', 'd']
+sorted_classes = first.(pairs)
+@test sorted_classes == ['c', 'a', 'b', 'd']
 
 junk = categorical(['j',])
 j = junk[1]

@@ -33,77 +33,85 @@ abstract type NonEuclidean <: Distributions.ValueSupport end
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
 """
-    UnivariateFinite(levels, p)
+    UnivariateFinite(classes, p)
 
 A discrete univariate distribution whose finite support is the
-elements of the vector `levels`, and whose corresponding probabilities
-are elements of the vector `p`, which must sum to one.
+elements of the vector `classes`, and whose corresponding
+probabilities are elements of the vector `p`, which must sum to
+one. Here `classes` must have type
+`AbstractVector{<:CategoricalElement}` where
 
-    UnivariateFinite(prob_given_level)
+    CategoricalElement = Union{CategoricalValue,CategoricalString}
+
+and all classes are assumed to share the same categorical pool.
+
+    UnivariateFinite(prob_given_class)
 
 A discrete univariate distribution whose finite support is the set of
-keys of the provided dictionary, `prob_given_level`. The dictionary
-values specify the corresponding probabilities, which must be
-nonnegative and sum to one. 
+keys of the provided dictionary, `prob_given_class`. The dictionary
+keys must be of type `CategoricalValue` (see above) and the dictionary
+values specify the corresponding probabilities.
 
-    levels(d::UnivariateFinite)
+    classes(d::UnivariateFinite)
 
-Return the support of `d`. In the special case that
-`keys(prob_given_level)` has type `AbstractVector{L}` where `L <:
-CategoricalValue` or `L <: CategoricalString` (for example it is a
-`CategoricalVector`) the levels returned includes all categorical
-values/strings sharing the pool of the values appearing as keys. One
-may call `pdf` on all such values, with zero returned if the level
-does not appear as a key.
+A list of categorial values in the common pool of classes used to
+construct `d`. 
+
+    Distributions.support(d::UnivariateFinite)
+
+Those classes associated with non-zero probabilities.
 
 ````julia
-d = UnivariateFinite(["yes", "no", "maybe"], [0.1, 0.2, 0.7])
-pdf(d, "no") # 0.2
-mode(d) # "maybe"
-rand(d, 5) # ["maybe", "no", "maybe", "maybe", "no"]
-d = fit(UnivariateFinite, ["maybe", "no", "maybe", "yes"])
-pdf(d, "maybe") ≈ 0.5 # true
-levels(d) # ["yes", "no", "maybe"]
+v = categorical(["yes", "maybe", "no", "yes"])
+d = UnivariateFinite(v[1:2], [0.3, 0.7])
+pdf(d, "yes")     # 0.3
+pdf(d, v[1])      # 0.3
+pdf(d, "no")      # 0.0
+pdf(d, "house")   # throws error
+classes(d) # Array{CategoricalString{UInt32}, 1}["maybe", "no", "yes"]
+support(d) # Array{CategoricalString{UInt32}, 1}["maybe", "no"]
+mode(d)    # CategoricalString{UInt32} "maybe"
+rand(d, 5) # Array{CategoricalString{UInt32}, 1}["maybe", "no", "maybe", "maybe", "no"] or similar
+d = fit(UnivariateFinite, v)
+pdf(d, "maybe") # 0.25 
 ````
-See also `classes`.
+See also `classes`, `support`.
 
 """
 struct UnivariateFinite{L,U,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuclidean}
     pool::CategoricalPool{L,U}
-    prob_given_level::LittleDict{U,T}
+    prob_given_class::LittleDict{U,T}
 end
 
-function UnivariateFinite(prob_given_level::AbstractDict{L}) where L
+function UnivariateFinite(prob_given_class::AbstractDict{L}) where L
     L <: CategoricalElement ||
         error("The support of a UnivariateFinite can consist only of "*
               "CategoricalString or CategoricalValue elements. ")
 end
 
-function UnivariateFinite(prob_given_level::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
+function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
     
-    an_element = first(keys(prob_given_level))
+    an_element = first(keys(prob_given_class))
     pool = an_element.pool
     
-    p = values(prob_given_level) |> collect
+    p = values(prob_given_class) |> collect
     Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
     
     d = LittleDict{U,T}()
     for key in classes(an_element)
-        haskey(prob_given_level, key) && (d[key.level] = prob_given_level[key] )
+        haskey(prob_given_class, key) && (d[key.level] = prob_given_class[key] )
     end
     return UnivariateFinite(pool, d)
 end
 
-function UnivariateFinite(levels::AbstractVector{L},
+function UnivariateFinite(classes::AbstractVector{L},
                           p::AbstractVector{<:Real}) where L
-    L <: CategoricalElement || error("levels must have CategoricalValue or "*
+    L <: CategoricalElement || error("classes must have CategoricalValue or "*
                                      "CategoricalString type.")
-    Dist.@check_args(UnivariateFinite, length(levels)==length(p))
-    prob_given_level = LittleDict([levels[i]=>p[i] for i in eachindex(p)])
-    return  UnivariateFinite(prob_given_level)
+    Dist.@check_args(UnivariateFinite, length(classes)==length(p))
+    prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
+    return  UnivariateFinite(prob_given_class)
 end
-
-# CategoricalArrays.levels(d::UnivariateFinite) = collect(keys(d.prob_given_level))
 
 function classes(d::UnivariateFinite)
     p = d.pool
@@ -113,15 +121,15 @@ end
 
 function Distributions.support(d::UnivariateFinite)
     p = d.pool
-    return sort(p.valindex[collect(keys(d.prob_given_level))])
+    return sort(p.valindex[collect(keys(d.prob_given_class))])
 end
 
 function Base.show(stream::IO, d::UnivariateFinite)
     support = Dist.support(d)
     x1 = first(support)
-    p1 = d.prob_given_level[x1.level]
+    p1 = d.prob_given_class[x1.level]
     str = "UnivariateFinite($x1=>$p1"
-    pairs = (x=>d.prob_given_level[x.level] for x in support[2:end])
+    pairs = (x=>d.prob_given_class[x.level] for x in support[2:end])
     for pair in pairs
         str *= ", $(pair[1])=>$(pair[2])"
     end
@@ -145,18 +153,18 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     end
 
     # get all refs:
-    refs = reduce(union, [keys(d.prob_given_level) for d in dvec])
+    refs = reduce(union, [keys(d.prob_given_class) for d in dvec])
 
     # pad each individual dicts so they have common keys:
     z = LittleDict{U,T}([x => zero(T) for x in refs]...)    
-    prob_given_level_vec = map(dvec) do d
-        merge(z, d.prob_given_level)
+    prob_given_class_vec = map(dvec) do d
+        merge(z, d.prob_given_class)
     end
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_level = LittleDict{U,T}()
+    prob_given_class = LittleDict{U,T}()
     for x in refs
-        prob_given_level[x] = zero(T)
+        prob_given_class[x] = zero(T)
     end
     
     # sum up:
@@ -164,28 +172,28 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
         scale = 1/n
         for x in refs
             for k in 1:n
-                prob_given_level[x] += scale*prob_given_level_vec[k][x]
+                prob_given_class[x] += scale*prob_given_class_vec[k][x]
             end
         end
     else
         scale = 1/sum(weights)
         for x in refs
             for k in 1:n
-                prob_given_level[x] +=
-                    weights[k]*prob_given_level_vec[k][x]*scale
+                prob_given_class[x] +=
+                    weights[k]*prob_given_class_vec[k][x]*scale
             end
         end
     end
 
-    return UnivariateFinite(first(dvec).pool, prob_given_level)
+    return UnivariateFinite(first(dvec).pool, prob_given_class)
     
 end        
 
 function Distributions.mode(d::UnivariateFinite)
-    dic = d.prob_given_level
+    dic = d.prob_given_class
     p = values(dic)
     max_prob = maximum(p)
-    m = first(first(dic)) # mode, just some level for now
+    m = first(first(dic)) # mode, just some ref for now
     for (x, prob) in dic
         if prob == max_prob
             m = x
@@ -196,8 +204,8 @@ function Distributions.mode(d::UnivariateFinite)
 end
 
 function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
-    if haskey(d.prob_given_level, ref)
-        return d.prob_given_level[ref]
+    if haskey(d.prob_given_class, ref)
+        return d.prob_given_class[ref]
     else
         return zero(T)
     end
@@ -224,12 +232,12 @@ end
 
 Return the cummulative probability vector `[0, ..., 1]` for the
 distribution `d`, using whatever ordering is used in the dictionary
-`d.prob_given_level`. Used only for to implement random sampling from
+`d.prob_given_class`. Used only for to implement random sampling from
 `d`.
 
 """
 function _cummulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
-    p = collect(values(d.prob_given_level))
+    p = collect(values(d.prob_given_class))
     K = length(p)
     p_cummulative = Array{T}(undef, K + 1)
     p_cummulative[1] = zero(T)
@@ -265,14 +273,14 @@ end
 
 function Base.rand(d::UnivariateFinite)
     p_cummulative = _cummulative(d)
-    levels = d.pool.valindex[collect(keys(d.prob_given_level))]
-    return levels[_rand(p_cummulative)]
+    classes = d.pool.valindex[collect(keys(d.prob_given_class))]
+    return classes[_rand(p_cummulative)]
 end
 
 function Base.rand(d::UnivariateFinite, n::Int)
     p_cummulative = _cummulative(d)
-    levels = d.pool.valindex[collect(keys(d.prob_given_level))]
-    return [levels[_rand(p_cummulative)] for i in 1:n]
+    classes = d.pool.valindex[collect(keys(d.prob_given_class))]
+    return [classes[_rand(p_cummulative)] for i in 1:n]
 end
 
 function Distributions.fit(d::Type{<:UnivariateFinite},
@@ -283,9 +291,9 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     vpure = skipmissing(v) |> collect
     isempty(vpure) && error("No non-missing data to fit. ")
     N = length(vpure)
-    count_given_level = Dist.countmap(vpure)
-    prob_given_level = LittleDict([x=>c/N for (x, c) in count_given_level])
-    return UnivariateFinite(prob_given_level)
+    count_given_class = Dist.countmap(vpure)
+    prob_given_class = LittleDict([x=>c/N for (x, c) in count_given_class])
+    return UnivariateFinite(prob_given_class)
 end
     
     
