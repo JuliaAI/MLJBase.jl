@@ -302,12 +302,7 @@ selectrows(::Val{:other}, v::AbstractVector, r) = v[r]
 nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
 
-
-<<<<<<< HEAD
-# TODO: this is going to get replaced by some better sparse format:
-=======
-## to be depreciated:
->>>>>>> removepadding
+## to be replaced (not used anywhere):
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
 
 nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
