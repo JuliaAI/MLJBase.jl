@@ -65,8 +65,11 @@ Broadcasted versions of `int`.
 See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
-int(X::CategoricalArray) = broadcast(r -> X.pool.order[r], X.refs)
-int(V::Array{<:CategoricalElement}) = broadcast(int, V)
+int(A::AbstractArray{<:CategoricalElement}) = broadcast(int, A)
+# workaround for CategoricalArrays issue
+# https://github.com/JuliaData/CategoricalArrays.jl/issues/199:
+# function int(X::CategoricalArray)
+    
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
