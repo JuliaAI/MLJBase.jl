@@ -4,6 +4,7 @@ module TestDistributions
 using Test
 using MLJBase
 using CategoricalArrays
+import Distributions:pdf, support
 import Distributions
 import Random.seed!
 seed!(1234)
@@ -11,52 +12,61 @@ seed!(1234)
 
 ## UNIVARIATE NOMINAL
 
-v = collect("asdfghjklzxc")
-d = UnivariateFinite(v, [0.09, 0.02, 0.1, 0.1,
-                          0.1, 0.1, 0.1, 0.11,
-                          0.01, 0.1, 0.07, 0.1])
-@test pdf(d, 's') ≈ 0.02
-@test mode(d) == 'k'
-@test rand(d, 5) == ['a', 'z', 'a', 'k', 'z']
-@test Set(levels(d)) == Set(v)
+v = categorical(collect("asqfasqffqsaaaa"))
+a, s, q, f = v[1], v[2], v[3], v[4]
+dic=Dict(s=>0.1, q=> 0.2, f=> 0.7)
+d = UnivariateFinite(dic)
+@test classes(d) == [a, f, q, s]
+@test support(d) == [f, q, s]
+levels!(v, reverse(levels(v)))
+@test classes(d) == [s, q, f, a]
+@test support(d) == [s, q, f]
 
-v = collect("abcd")
+@test pdf(d, s) ≈ 0.1
+@test mode(d) == f
+@test rand(d, 5) == [f, q, f, f, q]
+
+v = categorical(collect("abcd"))
 d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
 sample = rand(d, 10^4)
-freq_given_level = Distributions.countmap(sample)
-pairs  = collect(freq_given_level)
+freq_given_class = Distributions.countmap(sample)
+pairs  = collect(freq_given_class)
 sort!(pairs, by=pair->pair[2], alg=QuickSort)
-sorted_levels = first.(pairs)
-@test sorted_levels == ['c', 'a', 'b', 'd']
+sorted_classes = first.(pairs)
+@test sorted_classes == ['c', 'a', 'b', 'd']
 
-# test unseen values in pool get zero probability:
-v = levels!(categorical(collect("abcd")), collect("abcdf"))
-d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
-@test d.prob_given_level['f'] == 0
-vp = broadcast(identity, v)
-d = UnivariateFinite(vp, [0.2, 0.3, 0.1, 0.4])
-@test d.prob_given_level['f'] == 0
-vpp = levels!(categorical(["x", "y"]), ["x", "y", "z"])
-d = UnivariateFinite(vpp, [0.2, 0.8])
-@test d.prob_given_level["z"] == 0
-
-v = categorical(['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a'])
+junk = categorical(['j',])
+j = junk[1]
+v = categorical(['a', 'b', 'a', 'b', 'c', 'b', 'a', 'a', 'f'])
+a = v[1]
+f = v[end]
+# remove f from sample:
+v = v[1 : end - 1]
 d = Distributions.fit(UnivariateFinite, v) 
+@test pdf(d, a) ≈ 0.5
 @test pdf(d, 'a') ≈ 0.5
 @test pdf(d, 'b') ≈ 0.375 
 @test pdf(d, 'c') ≈ 0.125
-
-# to check fitting to categorical returns zero prob for missing
-# levels, we add and drop new level to a categorical version of v:
-w = levels!(v, ['a', 'b', 'c', 'f'])
-e = Distributions.fit(UnivariateFinite, w) 
-@test e.prob_given_level['f'] == 0
+@test pdf(d, 'f') == 0
+@test pdf(d, f) == 0
+@test_throws ArgumentError pdf(d, 'j')
+@test_throws ArgumentError pdf(d, j)
 
 # arithmetic
-d1 = UnivariateFinite(['a', 'b'], [0.2, 0.8])
-d2 = UnivariateFinite(['b', 'c'], [0.3, 0.7])
-d = average([d1, d2])
-@test d.prob_given_level['a'] ≈ 0.1 && d.prob_given_level['b'] ≈ 0.55 &&  d.prob_given_level['c'] ≈ 0.35
+v = categorical(collect("abc"))
+a, b, c = v[1], v[2], v[3]
+d1 = UnivariateFinite([a, b], [0.2, 0.8])
+d2 = UnivariateFinite([b, c], [0.3, 0.7])
+dvec = [d1, d2]
+d = average(dvec)
+@test pdf(d, 'a') ≈ 0.1
+@test pdf(d, 'b') ≈ 0.55
+@test pdf(d, 'c') ≈ 0.35
+w = [4, 6]
+d = average(dvec, weights=w)
+@test pdf(d, 'a') ≈ 0.4*0.2
+@test pdf(d, 'b') ≈ 0.4*0.8 + 0.6*0.3
+@test pdf(d, 'c') ≈ 0.6*0.7
 
 
 end # module
