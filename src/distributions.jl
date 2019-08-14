@@ -99,7 +99,6 @@ function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigne
     
     d = LittleDict{U,T}()
     for key in classes(an_element)
-        @show key key.level prob_given_class[key]
         haskey(prob_given_class, key) && (d[key.level] = prob_given_class[key] )
     end
     return UnivariateFinite(pool, d)

@@ -22,6 +22,12 @@ levels!(v, reverse(levels(v)))
 @test classes(d) == [s, q, f, a]
 @test support(d) == [s, q, f]
 
+# y = categorical(["yes", "no", "yes", "yes", "maybe"])
+# yes = y[1]
+# no = y[2]
+# prob_given_class = Dict(yes=>0.7, no=>0.3)
+# UnivariateFinite(prob_given_class)
+
 
 @test pdf(d, s) ≈ 0.1
 @test mode(d) == f
