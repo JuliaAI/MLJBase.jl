@@ -42,6 +42,7 @@ using OrderedCollections # already a dependency of StatsBase
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
+using OrderedCollections
 import CategoricalArrays
 using ScientificTypes
 import ScientificTypes: trait

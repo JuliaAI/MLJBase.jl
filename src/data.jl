@@ -1,6 +1,4 @@
-## CATEGORICAL ARRAY DECODER UTILITY
-
-CategoricalElement = Union{CategoricalValue,CategoricalString}
+CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 """
     classes(x)
@@ -32,7 +30,8 @@ function classes(x::CategoricalElement)
     return [p.valindex[p.invindex[v]] for v in p.levels]
 end
 
-raw(x::CategoricalElement) = x.pool.index[x.level] # a method just for testing
+# a method just for testing:
+raw(x::CategoricalElement) = x.pool.index[x.level]
 
 """
    int(x)
@@ -304,7 +303,11 @@ nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
 
 
+<<<<<<< HEAD
 # TODO: this is going to get replaced by some better sparse format:
+=======
+## to be depreciated:
+>>>>>>> removepadding
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
 
 nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
