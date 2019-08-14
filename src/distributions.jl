@@ -83,7 +83,7 @@ struct UnivariateFinite{L,U,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuc
     prob_given_class::LittleDict{U,T}
 end
 
-function UnivariateFinite(prob_given_class::AbstractDict{L}) where L
+function UnivariateFinite(prob_given_cSlass::AbstractDict{L}) where L
     L <: CategoricalElement ||
         error("The support of a UnivariateFinite can consist only of "*
               "CategoricalString or CategoricalValue elements. ")
@@ -99,6 +99,7 @@ function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigne
     
     d = LittleDict{U,T}()
     for key in classes(an_element)
+        @show key key.level prob_given_class[key]
         haskey(prob_given_class, key) && (d[key.level] = prob_given_class[key] )
     end
     return UnivariateFinite(pool, d)
@@ -116,12 +117,13 @@ end
 function classes(d::UnivariateFinite)
     p = d.pool
     return [p.valindex[p.invindex[v]] for v in p.levels]
-#    return (d.pool).valindex[sortperm(d.pool.order)]
 end
 
+class(pool, ref) = pool.valindex[ref]
+
 function Distributions.support(d::UnivariateFinite)
-    p = d.pool
-    return sort(p.valindex[collect(keys(d.prob_given_class))])
+    refs = collect(keys(d.prob_given_class)) 
+    return sort!(map(r->class(d.pool, r), refs))
 end
 
 function Base.show(stream::IO, d::UnivariateFinite)

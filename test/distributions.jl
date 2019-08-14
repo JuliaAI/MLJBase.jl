@@ -22,6 +22,7 @@ levels!(v, reverse(levels(v)))
 @test classes(d) == [s, q, f, a]
 @test support(d) == [s, q, f]
 
+
 @test pdf(d, s) ≈ 0.1
 @test mode(d) == f
 @test rand(d, 5) == [f, q, f, f, q]
