@@ -12,8 +12,14 @@ seed!(1234)
 
 ## UNIVARIATE NOMINAL
 
-v = categorical(collect("asqfasqffqsaaaa"))
+v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
 a, s, q, f = v[1], v[2], v[3], v[4]
+p = a.pool
+@test MLJBase.class(a.level, p) == a
+levels!(v, reverse(levels(v)))
+@test MLJBase.class(a.level, p) == a
+levels!(v, reverse(levels(v)))
+
 dic=Dict(s=>0.1, q=> 0.2, f=> 0.7)
 d = UnivariateFinite(dic)
 @test classes(d) == [a, f, q, s]
@@ -22,16 +28,19 @@ levels!(v, reverse(levels(v)))
 @test classes(d) == [s, q, f, a]
 @test support(d) == [s, q, f]
 
-# y = categorical(["yes", "no", "yes", "yes", "maybe"])
-# yes = y[1]
-# no = y[2]
-# prob_given_class = Dict(yes=>0.7, no=>0.3)
-# UnivariateFinite(prob_given_class)
-
-
 @test pdf(d, s) ≈ 0.1
 @test mode(d) == f
 @test rand(d, 5) == [f, q, f, f, q]
+
+y = categorical(["yes", "no", "yes", "yes", "maybe"])
+yes = y[1]
+no = y[2]
+maybe = y[end]
+prob_given_class = Dict(yes=>0.7, no=>0.3)
+d =UnivariateFinite(prob_given_class)
+@test pdf(d, yes) ≈ 0.7
+@test pdf(d, no) ≈ 0.3
+@test pdf(d, maybe) ≈ 0
 
 v = categorical(collect("abcd"))
 d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])

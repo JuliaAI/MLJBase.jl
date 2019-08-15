@@ -32,6 +32,8 @@ abstract type NonEuclidean <: Distributions.ValueSupport end
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
+class(ref, pool) = pool.valindex[ref]
+
 """
     UnivariateFinite(classes, p)
 
@@ -118,11 +120,9 @@ function classes(d::UnivariateFinite)
     return [p.valindex[p.invindex[v]] for v in p.levels]
 end
 
-class(pool, ref) = pool.valindex[ref]
-
 function Distributions.support(d::UnivariateFinite)
     refs = collect(keys(d.prob_given_class)) 
-    return sort!(map(r->class(d.pool, r), refs))
+    return sort!(map(r->class(r, d.pool), refs))
 end
 
 function Base.show(stream::IO, d::UnivariateFinite)
