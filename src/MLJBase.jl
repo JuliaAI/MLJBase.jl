@@ -141,6 +141,7 @@ target_scitype(::Type{<:Supervised}) =
     AbstractVector{<:Union{Found,NTuple{N,Found}}} where N
 is_pure_julia(::Type{<:Model}) = false
 package_name(::Type{<:Model}) = "unknown"
+package_license(::Type{<:Model}) = "unkown"
 load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
