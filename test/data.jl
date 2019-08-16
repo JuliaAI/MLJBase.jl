@@ -62,6 +62,12 @@ A = sample(xo.pool.order, 100)
 @test int(d(A)) == A
 @test int(e(A)) == A
 
+# int is based on ordering not index
+v = categorical(['a', 'b', 'c'], ordered=true)
+@test int(v) == 1:3
+levels!(v, ['c', 'a', 'b'])
+@test int(v) == [2, 3, 1]
+
 
 ## MATRIX
 

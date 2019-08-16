@@ -135,7 +135,7 @@ function Base.show(stream::IO, d::UnivariateFinite)
         str *= ", $(pair[1])=>$(pair[2])"
     end
     str *= ")"
-    show(stream, str)
+    print(stream, str)
 end
 
 function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
