@@ -135,18 +135,17 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-input_scitype(::Type{<:Model}) = Table(Union{Missing,Found})
-output_scitype(::Type{<:Unsupervised}) = Table(Union{Missing,Found})
-target_scitype(::Type{<:Supervised}) =
-    AbstractVector{<:Union{Found,NTuple{N,Found}}} where N
-is_pure_julia(::Type{<:Model}) = false
-package_name(::Type{<:Model}) = "unknown"
-package_license(::Type{<:Model}) = "unkown"
-load_path(M::Type{<:Model}) = "unknown"
-package_uuid(::Type{<:Model}) = "unknown"
-package_url(::Type{<:Model}) = "unknown"
-is_wrapper(::Type{<:Model}) = false
-supports_weights(::Type{<:Supervised}) = false
+input_scitype(::Any) = Unknown
+output_scitype(::Any) = Unknown
+target_scitype(::Any) = Unknown
+is_pure_julia(::Any) = false
+package_name(::Any) = "unknown"
+package_license(::Any) = "unkown"
+load_path(::Any) = "unknown"
+package_uuid(::Any) = "unknown"
+package_url(::Any) = "unknown"
+is_wrapper(::Any) = false
+supports_weights(::Any) = false
 
 input_scitype(model::Model) = input_scitype(typeof(model))
 output_scitype(model::Model) = output_scitype(typeof(model))
