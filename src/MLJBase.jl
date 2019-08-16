@@ -146,7 +146,7 @@ load_path(M::Type{<:Model}) = "unknown"
 package_uuid(::Type{<:Model}) = "unknown"
 package_url(::Type{<:Model}) = "unknown"
 is_wrapper(::Type{<:Model}) = false
-supports_sample_weights(::Type{<:Supervised}) = false
+supports_weights(::Type{<:Supervised}) = false
 
 input_scitype(model::Model) = input_scitype(typeof(model))
 output_scitype(model::Model) = output_scitype(typeof(model))

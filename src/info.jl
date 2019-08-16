@@ -37,7 +37,7 @@ function info(M::Type{<:Supervised})
     d[:is_wrapper] = is_wrapper(M)
     d[:is_pure_julia] = is_pure_julia(M)
     d[:package_uuid] = package_uuid(M)
-    d[:supports_sample_weights] = supports_sample_weights(M)
+    d[:supports_weights] = supports_weights(M)
     d[:is_supervised] = true
     d[:is_probabilistic] = is_probabilistic(M)
     d[:input_scitype] = input_scitype(M)
