@@ -21,7 +21,7 @@ having six numerical and six categorical features."""
 function load_reduced_ames()
     df = CSV.read(joinpath(datadir, "reduced_ames.csv"), copycols=true,
                   categorical=true)
-    df[:target] = exp.(df[:target])
+    df[!, :target] = exp.(df[:target])
     # TODO: uncomment following after julia #29501 is resolved
 #    df.OverallQual = categorical(df.OverallQual, ordered=true)
 #    df[:GarageCars] = categorical(df[:GarageCars], ordered=true)
@@ -36,7 +36,7 @@ end
 function load_ames()
     df = CSV.read(joinpath(datadir, "ames.csv"), copycols=true,
                   categorical=true)
-    df[:target] = exp.(df[:target])
+    df[!, :target] = exp.(df[:target])
     return SupervisedTask(verbosity=0, data=df,
                           target=:target,
                           ignore=[:Id,],
