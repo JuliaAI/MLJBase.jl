@@ -3,6 +3,7 @@ module TestDatasets
 # using Revise
 using Test
 using MLJBase
+using CSV
 
 task = load_boston()
 load_ames()

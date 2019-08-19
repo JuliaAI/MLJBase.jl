@@ -9,22 +9,18 @@ export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
-export input_scitype_union, input_is_multivariate
-export target_scitype_union, target_quantity
-export is_pure_julia, is_wrapper
+export input_scitype, supports_weights
+export target_scitype, target_quantity            
+export is_pure_julia, is_wrapper                                 
 
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
-export selectrows, selectcols, select, nrows, schema # data.jl
+export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, @set_defaults                      # utilities.jl
-export Found, Continuous, Finite, Infinite           # sgcitypes.jl
-export OrderedFactor, Unknown                        # scitypes.jl
-export Count, Multiclass, Binary                     # scitypes.jl
-export scitype, scitype_union, scitypes              # scitypes.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
-export UnivariateFinite, average                    # distributions.jl
+export UnivariateFinite, average                     # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
 export info                                          # info.jl
@@ -32,14 +28,24 @@ export info                                          # info.jl
 # methods from other packages to be rexported:
 export pdf, mean, mode
 
+# re-export of ScientificTypes (`Table` not exported):
+export trait
+export Scientific, Found, Unknown, Finite, Infinite
+export OrderedFactor, Multiclass, Count, Continuous
+export Binary, ColorImage, GrayImage
+export scitype, scitype_union, coerce, schema
+
 import Base.==
 
 using Tables
+using OrderedCollections # already a dependency of StatsBase
 import Distributions
 import Distributions: pdf, mode
 using CategoricalArrays
+using OrderedCollections
 import CategoricalArrays
-import ColorTypes
+using ScientificTypes
+import ScientificTypes: trait
 
 # to be extended:
 import StatsBase: fit, predict, fit!
@@ -60,13 +66,15 @@ const COLUMN_WIDTH = 24
 const DEFAULT_SHOW_DEPTH = 0
 
 include("utilities.jl")
-include("scitypes.jl")
 
 
-## ABSTRACT TYPES
+## BASE TYPES 
 
-# overarching MLJ type:
 abstract type MLJType end
+include("equality.jl") # equality for MLJType objects
+
+
+## ABSTRACT MODEL TYPES
 
 # for storing hyperparameters:
 abstract type Model <: MLJType end
@@ -86,16 +94,13 @@ abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type UnsupervisedNetwork <: Unsupervised end
 
-include("equality.jl")
-
 
 ## THE MODEL INTERFACE
 
 # every model interface must implement a `fit` method of the form
-# `fit(model, verbosity, X, y) -> fitresult, cache, report` or
-# `fit(model, verbosity, X, ys...) -> fitresult, cache, report` (multivariate case)
+# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report` 
 # or, one the simplified versions
-# `fit(model, X, y) -> fitresult`
+# `fit(model, training_args...) -> fitresult`
 # `fit(model, X, ys...) -> fitresult`
 fit(model::Model, verbosity::Integer, args...) = fit(model, args...), nothing, nothing
 
@@ -129,29 +134,27 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-target_scitype_union(::Type{<:Supervised}) =
-    Union{Found,NTuple{N,Found}} where N # a Tuple type in multivariate case
-output_scitype_union(::Type{<:Unsupervised}) =
-    Union{Missing,Found}
-output_is_multivariate(::Type{<:Unsupervised}) = true
-input_scitype_union(::Type{<:Model}) = Union{Missing,Found}
-input_is_multivariate(::Type{<:Model}) = true
-is_pure_julia(::Type{<:Model}) = false
-package_name(::Type{<:Model}) = "unknown"
-load_path(M::Type{<:Model}) = "unknown"
-package_uuid(::Type{<:Model}) = "unknown"
-package_url(::Type{<:Model}) = "unknown"
-is_wrapper(::Type{<:Model}) = false
-is_wrapper(m::Model) = is_wrapper(typeof(m))
+input_scitype(::Any) = Unknown
+output_scitype(::Any) = Unknown
+target_scitype(::Any) = Unknown
+is_pure_julia(::Any) = false
+package_name(::Any) = "unknown"
+package_license(::Any) = "unkown"
+load_path(::Any) = "unknown"
+package_uuid(::Any) = "unknown"
+package_url(::Any) = "unknown"
+is_wrapper(::Any) = false
+supports_weights(::Any) = false
 
-target_scitype_union(model::Model) = target_scitype_union(typeof(model))
-input_scitype_union(model::Model) = input_scitype_union(typeof(model))
-input_is_multivariate(model::Model) = input_is_multivariate(typeof(model))
+input_scitype(model::Model) = input_scitype(typeof(model))
+output_scitype(model::Model) = output_scitype(typeof(model))
+target_scitype(model::Model) = target_scitype(typeof(model))
 is_pure_julia(model::Model) = is_pure_julia(typeof(model))
 package_name(model::Model) = package_name(typeof(model))
 load_path(model::Model) = load_path(typeof(model))
 package_uuid(model::Model) = package_uuid(typeof(model))
 package_url(model::Model) = package_url(typeof(model))
+is_wrapper(m::Model) = is_wrapper(typeof(m))
 
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.

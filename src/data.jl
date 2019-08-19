@@ -1,35 +1,4 @@
-## CATEGORICAL ARRAY DECODER UTILITY
-
-# """
-#     reconstruct(A)
-
-# For reconstructing categorical arrays from their elements alone. Here
-# `A` is of type `AbstractArray{T}` where `T` is a subtype of
-# `CategoricalString` or `CategoricalValue`. The function `reconstruct` has
-# the property that `reconstruct(broadcast(identity, C)) == C`, whenever `C`
-# is a `CategoricalArray`. In other words, `reconstruct` is a left-inverse
-# for the function `C -> broadcast(identity, C)` that strips a
-# CategoricalArray of its "categorical wrapper".
-
-# Does not handle missing values.
-
-# """
-# function reconstruct(A::AbstractArray{<:CategoricalValue{T},N}) where {T,N}
-#     firstnonmissing = findfirst(x->!ismissing(x), A)
-#     isnothing(firstnonmissing) && error("No non-missing values encountered. ")
-#     pool = A[firstnonmissing].pool
-#     refs = broadcast(x -> x.level, A)
-#     return CategoricalArray{T,N}(refs, pool)
-# end
-# function reconstruct(A::AbstractArray{<:CategoricalString,N}) where {T,N}
-#     firstnonmissing = findfirst(x->!ismissing(x), A)
-#     isnothing(firstnonmissing) && error("No non-missing values encountered. ")
-#     pool = A[firstnonmissing].pool
-#     refs = broadcast(x -> x.level, A)
-#     return CategoricalArray{String,N}(refs, pool)
-# end
-
-CategoricalElement = Union{CategoricalValue,CategoricalString}
+CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 """
     classes(x)
@@ -61,7 +30,8 @@ function classes(x::CategoricalElement)
     return [p.valindex[p.invindex[v]] for v in p.levels]
 end
 
-raw(x::CategoricalElement) = x.pool.index[x.level] # a method just for testing
+# a method just for testing:
+raw(x::CategoricalElement) = x.pool.index[x.level]
 
 """
    int(x)
@@ -95,8 +65,11 @@ Broadcasted versions of `int`.
 See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
-int(X::CategoricalArray) = broadcast(r -> X.pool.order[r], X.refs)
-int(V::Array{<:CategoricalElement}) = broadcast(int, V)
+int(A::AbstractArray{<:CategoricalElement}) = broadcast(int, A)
+# workaround for CategoricalArrays issue
+# https://github.com/JuliaData/CategoricalArrays.jl/issues/199:
+# function int(X::CategoricalArray)
+    
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
@@ -144,33 +117,8 @@ decoder(element::CategoricalElement) =
 
 ## TABULAR DATA
 
-const istable = Tables.istable
-
 # hack for detecting JuliaDB.NDSparse tables without loading as dependency:
 isndsparse(X) = isdefined(X, :data_buffer)
-
-
-"""
-    container_type(X)
-
-Return `:table`, `:sparse`, or `:other`, according to whether `X` is a
-supported table format, a supported sparse table format, or something
-else.
-
-The first two formats, together abstract vectors, support the
-`MLJBase` accessor methods `selectrows`, `selectcols`, `select`,
-`nrows`, `schema`, and `union_scitypes`.
-
-"""
-function container_type(X)
-    if istable(X)
-        return :table
-    elseif isndsparse(X)
-        return :sparse
-    else
-        return :other
-    end
-end
 
 
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
@@ -186,7 +134,7 @@ returned. The integer relabelling of column names follows the
 lexicographic ordering (as indicated by `schema(X).names`).
 
 """
-matrix(X) = matrix(Val(container_type(X)), X)
+matrix(X) = matrix(Val(ScientificTypes.trait(X)), X)
 matrix(::Val{:other}, X) = throw(ArgumentError)
 matrix(::Val{:other}, X::AbstractMatrix) = X
 
@@ -229,7 +177,7 @@ named tuple of columns of `X`, with `keys(cols) = names`.
 
 """
 function table(cols::NamedTuple; prototype=cols)
-    istable(prototype) || error("prototype is not tabular.")
+    Tables.istable(prototype) || error("prototype is not tabular.")
     return Tables.materializer(prototype)(cols)
 end
 function table(X::AbstractMatrix; names=nothing, prototype=nothing)
@@ -246,7 +194,6 @@ end
 
 ## UNIFIED API FOR ACCESSING TABLES, MATRICES AND VECTORS
 
-
 """
     selectrows(X, r)
 
@@ -256,7 +203,7 @@ table of the preferred sink type of `typeof(X)`, even a single row is
 selected.
 
 """
-selectrows(X, r) = selectrows(Val(container_type(X)), X, r)
+selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
 selectrows(::Val{:other}, X, r) = throw(ArgumentError)
 
 """
@@ -269,7 +216,7 @@ object returned is a table of the preferred sink type of
 or `CategoricalVector` is returned.
 
 """
-selectcols(X, c) = selectcols(Val(container_type(X)), X, c)
+selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
 selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 
 """
@@ -282,18 +229,8 @@ Select element of a table or sparse table at row `r` and column
 See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
-select(X, r, c) = select(Val(container_type(X)), X, r, c)
+select(X, r, c) = select(Val(ScientificTypes.trait(X)), X, r, c)
 select(::Val{:other}, X, r, c) = throw(ArgumentError)
-
-"""
-    schema(X)
-
-Returns a struct with properties `names`, `types`
-with the obvious meanings. Here `X` is any table or sparse table.
-
-"""
-schema(X) = schema(Val(container_type(X)), X)
-schema(::Val{:other}, X) = throw(ArgumentError)
 
 """
     nrows(X)
@@ -301,7 +238,7 @@ schema(::Val{:other}, X) = throw(ArgumentError)
 Return the number of rows in a table, sparse table, or abstract vector.
 
 """
-nrows(X) = nrows(Val(container_type(X)), X)
+nrows(X) = nrows(Val(ScientificTypes.trait(X)), X)
 nrows(::Val{:other}, X) = throw(ArgumentError)
 
 
@@ -359,24 +296,7 @@ select(::Val{:table}, X, r::Integer, c) = selectcols(selectrows(X, r), c)
 select(::Val{:table}, X, r, c::Symbol) = selectcols(X, c)[r]
 select(::Val{:table}, X, r, c) = selectcols(selectrows(X, r), c)
 
-function schema(::Val{:table}, X)
-    istable(X) || throw(ArgumentError)
-    if !Tables.columnaccess(X)
-        return Tables.schema(Tables.rows(X))
-    else
-        return Tables.schema(Tables.columns(X))
-    end
-end
-
-function nrows(::Val{:table}, X)
-    if !Tables.columnaccess(X)
-        return length(collect(X))
-    else
-        cols = Tables.columntable(X)
-        !isempty(cols) || return 0
-        return length(cols[1])
-    end
-end
+nrows(::Val{:table}, X) = schema(X).nrows
 
 
 ## ACCESSORS FOR ABSTRACT VECTORS
@@ -385,7 +305,7 @@ selectrows(::Val{:other}, v::AbstractVector, r) = v[r]
 nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
 
-
+## to be replaced (not used anywhere):
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
 
 nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
@@ -408,8 +328,3 @@ select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
 select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
 select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
 
-function schema(::Val{:sparse}, X)
-    names = sort(unique([r[2] for r in keys(X)]))
-    types = [eltype(selectcols(X, name)) for name in names]
-    return Tables.Schema(names, types)
-end
