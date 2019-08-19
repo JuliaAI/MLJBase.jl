@@ -33,7 +33,7 @@ export trait
 export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage
-export scitype, scitype_union, scitypes, coerce, schema
+export scitype, scitype_union, coerce, schema
 
 import Base.==
 
@@ -46,7 +46,6 @@ using OrderedCollections
 import CategoricalArrays
 using ScientificTypes
 import ScientificTypes: trait
-
 
 # to be extended:
 import StatsBase: fit, predict, fit!
