@@ -3,7 +3,7 @@ CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 """
     classes(x)
 
-All the categorical values in the same pool as `x` (including `x`),
+All the categorical elements with the same pool as `x` (including `x`),
 returned as a list, with an ordering consistent with the pool. Here
 `x` has `CategoricalValue` or `CategoricalString` type, and
 `classes(x)` is a vector of the same eltype.
