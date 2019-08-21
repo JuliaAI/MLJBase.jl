@@ -32,7 +32,7 @@ export pdf, mean, mode
 export trait
 export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
-export Binary, ColorImage, GrayImage
+export Binary, ColorImage, GrayImage, Image
 export scitype, scitype_union, coerce, schema
 
 import Base.==
