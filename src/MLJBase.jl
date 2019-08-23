@@ -10,7 +10,7 @@ export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
 export input_scitype, supports_weights
-export target_scitype, target_quantity            
+export target_scitype, output_scitype
 export is_pure_julia, is_wrapper                                 
 
 export params                                        # parameters.jl

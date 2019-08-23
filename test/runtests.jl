@@ -5,7 +5,6 @@
 
 # using Revise
 using MLJBase
-using CSV
 using Test
 
 @testset "equality" begin
