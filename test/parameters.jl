@@ -30,38 +30,6 @@ end
                         n = 42)
 end
 
-mutable struct M
-    a1
-    a2
-end
-mutable struct A1
-    a11
-    a12
-end
-mutable struct A2
-    a21
-end
-mutable struct A21
-    a211
-    a212
-end
-
-@testset "getproperty, setproperty! extensions" begin
-    
-    m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),)) 
-
-    @test getproperty(m, :(a1.a12)) == 20
-    @test getproperty(m, :a1) == (a11 = 10, a12 = 20)
-    @test getproperty(m, :(a2.a21.a212)) == 40
-
-    m = M(A1(10, 20), A2(A21(30, 40)))
-    setproperty!(m, :(a2.a21.a212), 42)
-    @test getproperty(m, :(a1.a11)) == 10
-    @test getproperty(m, :(a1.a12)) == 20
-    @test getproperty(m, :(a2.a21.a211)) == 30
-    @test getproperty(m, :(a2.a21.a212)) == 42
-    @test getproperty(getproperty(m, :(a2.a21)), :a212) == 42
-
-end
+end # module
 
 true
