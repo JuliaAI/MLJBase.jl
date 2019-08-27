@@ -29,7 +29,4 @@ end
                         o = Opaque(7),
                         n = 42)
 end
-
-end # module
-
 true
