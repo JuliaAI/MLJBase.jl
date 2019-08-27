@@ -51,12 +51,12 @@ and all classes are assumed to share the same categorical pool.
 
 A discrete univariate distribution whose finite support is the set of
 keys of the provided dictionary, `prob_given_class`. The dictionary
-keys must be of type `CategoricalValue` (see above) and the dictionary
+keys must be of type `CategoricalElement` (see above) and the dictionary
 values specify the corresponding probabilities.
 
     classes(d::UnivariateFinite)
 
-A list of categorial values in the common pool of classes used to
+A list of categorial elements in the common pool of classes used to
 construct `d`. 
 
     Distributions.support(d::UnivariateFinite)

@@ -10,7 +10,7 @@ export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
 export input_scitype, supports_weights
-export target_scitype, target_quantity            
+export target_scitype, output_scitype
 export is_pure_julia, is_wrapper                                 
 
 export params                                        # parameters.jl
@@ -32,7 +32,7 @@ export pdf, mean, mode
 export trait
 export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
-export Binary, ColorImage, GrayImage
+export Binary, ColorImage, GrayImage, Image
 export scitype, scitype_union, coerce, schema
 
 import Base.==
@@ -55,6 +55,7 @@ using Statistics
 using Random
 using InteractiveUtils
 using SparseArrays
+
 
 ## CONSTANTS
 
@@ -139,7 +140,7 @@ output_scitype(::Any) = Unknown
 target_scitype(::Any) = Unknown
 is_pure_julia(::Any) = false
 package_name(::Any) = "unknown"
-package_license(::Any) = "unkown"
+package_license(::Any) = "unknown"
 load_path(::Any) = "unknown"
 package_uuid(::Any) = "unknown"
 package_url(::Any) = "unknown"
