@@ -118,7 +118,7 @@ decoder(element::CategoricalElement) =
 ## TABULAR DATA
 
 # hack for detecting JuliaDB.NDSparse tables without loading as dependency:
-isndsparse(X) = isdefined(X, :data_buffer)
+# isndsparse(X) = isdefined(X, :data_buffer)
 
 
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
@@ -308,23 +308,23 @@ selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
 ## to be replaced (not used anywhere):
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
 
-nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
-function select(::Val{:sparse}, X, r::Integer, c::Symbol)
-    try
-        X[r,c][1]
-    catch exception
-        exception isa KeyError || throw(exception)
-        missing
-    end
-end
-select(::Val{:sparse}, X, r::AbstractVector{<:Integer}, c::Symbol) = [select(X, s, c) for s in r]
-select(::Val{:sparse}, X, ::Colon, c::Symbol) = [select(X, s, c) for s in 1:nrows(X)]
-selectrows(::Val{:sparse}, X, r::Integer) = X[r:r,:]
-selectrows(::Val{:sparse}, X, r) = X[r,:]
-selectcols(::Val{:sparse}, X, c::Symbol) = select(X, :, c)
-selectcols(::Val{:sparse}, X, c::AbstractVector{Symbol}) = X[:,sort(c)]
-selectcols(::Val{:sparse}, X, ::Colon) = X
-select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
-select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
-select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
+# nrows(::Val{:sparse}, X) = maximum([r[1] for r in keys(X)])
+# function select(::Val{:sparse}, X, r::Integer, c::Symbol)
+#     try
+#         X[r,c][1]
+#     catch exception
+#         exception isa KeyError || throw(exception)
+#         missing
+#     end
+# end
+# select(::Val{:sparse}, X, r::AbstractVector{<:Integer}, c::Symbol) = [select(X, s, c) for s in r]
+# select(::Val{:sparse}, X, ::Colon, c::Symbol) = [select(X, s, c) for s in 1:nrows(X)]
+# selectrows(::Val{:sparse}, X, r::Integer) = X[r:r,:]
+# selectrows(::Val{:sparse}, X, r) = X[r,:]
+# selectcols(::Val{:sparse}, X, c::Symbol) = select(X, :, c)
+# selectcols(::Val{:sparse}, X, c::AbstractVector{Symbol}) = X[:,sort(c)]
+# selectcols(::Val{:sparse}, X, ::Colon) = X
+# select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
+# select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
+# select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
 
