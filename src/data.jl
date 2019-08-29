@@ -1,3 +1,117 @@
+## SPLITTING DATA SETS
+
+"""
+    partition(rows::AbstractVector{Int}, fractions...; shuffle=false, rng=Random.GLOBAL_RNG)
+
+Splits the vector `rows` into a tuple of vectors whose lengths are
+given by the corresponding `fractions` of `length(rows)`. The last
+fraction is not provided, as it is inferred from the preceding
+ones. So, for example,
+
+    julia> partition(1:1000, 0.2, 0.7)
+    (1:200, 201:900, 901:1000)
+
+If `rng` is an integer, then `MersenneTwister(rng)` is the random
+number generator used for bagging. Otherwise some `AbstractRNG` object
+is expected.
+
+"""
+function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
+    rows = collect(rows)
+
+    if rng isa Integer
+        rng = MersenneTwister(rng)
+    end
+
+    shuffle && shuffle!(rng, rows)
+    rowss = []
+    if sum(fractions) >= 1
+        throw(DomainError)
+    end
+    n_patterns = length(rows)
+    first = 1
+    for p in fractions
+        n = round(Int, p*n_patterns)
+        n == 0 ? (@warn "A split has only one element"; n = 1) : nothing
+        push!(rowss, rows[first:(first + n - 1)])
+        first = first + n
+    end
+    if first > n_patterns
+        @warn "Last vector in the split has only one element."
+        first = n_patterns
+    end
+    push!(rowss, rows[first:n_patterns])
+    return tuple(rowss...)
+end
+
+"""
+    t1, t2, ...., tk = unnpack(table, c1, c2, ... ck; wrap_singles=false)
+
+Split any Tables.jl compatible `table` into smaller tables (or
+vectors) `t1, t2, ..., tk` by making selections *without replacement*
+from the column names defined by the conditionals `c1`, `c2`, ...,
+`ck`. A *conditional* is any object `c` such that `c(name)` is `true`
+or `false` for each column `name::Symbol` of `table`. 
+
+Whenever a returned table contains a single column, it is converted to
+a vector unless `wrap_singles=true`.
+
+Scientific type conversions can be optionally specified:
+
+    unpack(table, c...; col1=>scitype1, col2=>scitype2, ... )
+
+### Example
+
+```
+julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=[:A, :B])
+julia> Z, XY = unpack(table, ==(:z), !=(:w);
+               :x=>Continuous, :y=>Multiclass) 
+julia> XY
+2×2 DataFrame
+│ Row │ x       │ y            │
+│     │ Float64 │ Categorical… │
+├─────┼─────────┼──────────────┤
+│ 1   │ 1.0     │ 'a'          │
+│ 2   │ 2.0     │ 'b'          │
+
+julia> Z
+2-element Array{Float64,1}:
+ 10.0
+ 20.0
+```
+ 
+"""
+function unpack(X, conditionals...; wrap_singles=false, pairs...)
+
+    if isempty(pairs)
+        Xfixed = X
+    else
+        fix_dict = Dict(pairs...)
+        Xfixed = ScientificTypes.coerce(fix_dict, X)
+    end
+
+    unpacked = Any[]
+    names_left = schema(Xfixed).names |> collect
+    history = ""
+    counter = 1
+    for c in conditionals
+        names = filter(c, names_left)
+        filter!(!in(names), names_left)
+        history *= "selection $counter: $names\n remaining: $names_left\n"
+        isempty(names) &&
+            error("Empty column selection encountered at selection $counter"*
+                  "\n$history")
+        length(names) == 1 && !wrap_singles && (names = names[1])
+        push!(unpacked, selectcols(Xfixed, names))
+        counter += 1
+    end
+    return Tuple(unpacked)
+    
+end
+
+
+## DEALING WITH CATEGORICAL ELEMENTS
+
 CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 """
@@ -29,9 +143,6 @@ function classes(x::CategoricalElement)
     p = x.pool
     return [p.valindex[p.invindex[v]] for v in p.levels]
 end
-
-# a method just for testing:
-raw(x::CategoricalElement) = x.pool.index[x.level]
 
 """
    int(x)

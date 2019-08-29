@@ -2,19 +2,83 @@ module TestData
 
 # using Revise
 using Test
-using MLJBase
 using DataFrames
-using TypedTables
+import TypedTables
 using StatsBase
 # using JuliaDB
 using SparseArrays
 using CategoricalArrays
+import Tables
+using ScientificTypes
 
 using Random
 import Random.seed!
 seed!(1234)
 
-import MLJBase: decoder, int, raw, classes
+import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
+    CategoricalElement, selectrows, select, table, nrows
+
+@testset "partition" begin
+    train, test = partition(1:100, 0.9)
+    @test collect(train) == collect(1:90)
+    @test collect(test) == collect(91:100)
+    train, test = partition(1:100, 0.9, shuffle=true)
+    @test length(train) == 90
+    
+    train, test = partition(1:100, 0.9, shuffle=true, rng=1)
+    @test length(train) == 90
+    
+    train, test = partition(1:100, 0.9, shuffle=true, rng=Random.MersenneTwister(3))
+    @test length(train) == 90
+end
+
+@testset "unpack" begin
+    channing = TypedTables.Table(
+        Sex = categorical(["Female", "Male", "Female"]),
+        Entry = Int32[965, 988, 850],
+        Exit = Int32[1088, 1045, 940],
+        Time = Int32[123, 57, 90],
+        Cens = Int32[0, 0, 1],
+        weights = [1,2,5])
+    
+    w, y, X =  unpack(channing,
+                  ==(:weights), 
+                  ==(:Exit),           
+                  x -> x != :Time;
+                  :Exit=>Continuous,     
+                  :Entry=>Continuous,
+                  :Cens=>Multiclass)
+    
+    @test w == selectcols(channing, :weights)
+    @test y == selectcols(channing, :Exit)
+    @test X == selectcols(channing, [:Sex, :Entry, :Cens])
+    @test scitype_union(y) <: Continuous
+    @test scitype_union(selectcols(X, :Cens)) <: Multiclass
+    
+    
+    w, y, X =  unpack(channing,
+                      ==(:weights), 
+                      ==(:Exit),           
+                      x -> x != :Time;
+                      wrap_singles=true,
+                      :Exit=>Continuous,     
+                      :Entry=>Continuous,
+                      :Cens=>Multiclass)
+    
+    @test selectcols(w, 1)  == selectcols(channing, :weights)
+    @test selectcols(y, 1)  == selectcols(channing, :Exit)
+    @test X == selectcols(channing, [:Sex, :Entry, :Cens])
+    
+    @test_throws(Exception, unpack(channing,
+                                   ==(:weights), 
+                                   ==(:Exit),
+                                   ==(:weights),
+                                   x -> x != :Time;     
+                                   :Exit=>Continuous,     
+                                   :Entry=>Continuous,
+                                   :Cens=>Multiclass))
+    
+end
 
 
 ## DECODER
@@ -40,6 +104,7 @@ Wo = broadcast(identity, Yo)
 
 # classes:
 
+raw(x::CategoricalElement) = x.pool.index[x.level]
 @test raw.(classes(xo)) == xo.pool.levels
 @test raw.(classes(yo)) == yo.pool.levels
 
@@ -72,7 +137,7 @@ levels!(v, ['c', 'a', 'b'])
 ## MATRIX
 
 B = rand(UInt8, (4, 5))
-@test MLJBase.matrix(DataFrame(B)) == B
+@test matrix(DataFrame(B)) == B
 
 
 ## TABLE INDEXING
@@ -81,14 +146,14 @@ A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
 X = CategoricalArrays.categorical(A)
 
 df = DataFrame(A)
-tt = Table(df)
+tt = TypedTables.Table(df)
 # uncomment 4 lines to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 # nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
 #                word=[:house, :house, :sofa, :sofa, :chair, :house]), (values=["big", "small", 17, 34, 4, "small"],))
 
 df.z  = 1:10
-tt = Table(df)
+tt = TypedTables.Table(df)
 # uncomment 1 line to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 
@@ -98,17 +163,17 @@ tt = Table(df)
 @test selectcols(df, 2) == df.x2
 @test selectrows(df, 4:6) == selectrows(df[4:6, :], :)
 @test selectrows(df, 1) == selectrows(df[1:1, :], :)
-@test MLJBase.select(df, 2, :x2) == df[2,:x2]
+@test select(df, 2, :x2) == df[2,:x2]
 s = schema(df)
 @test nrows(df) == size(df, 1)
 
-@test selectcols(tt, 4:6) == selectcols(Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
-@test selectcols(tt, [:x1, :z]) == selectcols(Table(x1=tt.x1, z=tt.z), :)
+@test selectcols(tt, 4:6) == selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
+@test selectcols(tt, [:x1, :z]) == selectcols(TypedTables.Table(x1=tt.x1, z=tt.z), :)
 @test selectcols(tt, :x2) == tt.x2
 @test selectcols(tt, 2) == tt.x2
 @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
 @test nrows(tt) == length(tt.x1)
-@test MLJBase.select(tt, 2, :x2) == tt.x2[2]
+@test select(tt, 2, :x2) == tt.x2[2]
 
 v = rand(Int, 4)
 @test selectrows(v, 2:3) == v[2:3]
@@ -128,11 +193,11 @@ tt = TypedTables.Table(df)
 # @test selectcols(db, :w) == v
 
 # uncomment 9 lines to restore JuliaDB testing:
-# @test MLJBase.select(nd, 2, :house) isa Missing
-# @test MLJBase.select(nd, 1, :house) == "small"
-# @test all(MLJBase.select(nd, :, :house) .=== ["small", missing, missing, "small", missing, "big"])
-# @test all(MLJBase.select(nd, [2,4], :house) .=== [missing, "small"])
-# @test all(selectcols(nd, :house) .=== MLJBase.select(nd, :, :house))
+# @test select(nd, 2, :house) isa Missing
+# @test select(nd, 1, :house) == "small"
+# @test all(select(nd, :, :house) .=== ["small", missing, missing, "small", missing, "big"])
+# @test all(select(nd, [2,4], :house) .=== [missing, "small"])
+# @test all(selectcols(nd, :house) .=== select(nd, :, :house))
 # @test nrows(nd) == 6
 # s = schema(nd)
 # @test s.names == (:chair, :house, :sofa)
@@ -143,14 +208,14 @@ tt = TypedTables.Table(df)
 ## MANIFESTING ARRAYS AS TABLES
 
 A = hcat(v, v)
-tab = MLJBase.table(A)
+tab = table(A)
 tab[1] == v
-MLJBase.matrix(tab) == A
+matrix(tab) == A
 
 # uncomment 3 lines to restore JuliaDB testing:
 # sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
 #                      ["big", "small", 17, 34, 4, "small"])
-# @test MLJBase.matrix(nd) == sparsearray
+# @test matrix(nd) == sparsearray
 
 end # module
 
