@@ -17,7 +17,8 @@ export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
-export partition, @set_defaults                      # utilities.jl
+export partition, unpack                             # data.jl
+export @set_defaults                                 # utilities.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
 export UnivariateFinite, average                     # distributions.jl
