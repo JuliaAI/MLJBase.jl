@@ -107,7 +107,11 @@ function simple_repr(T)
     p_string = ""
     if length(parameters) == 1
         p = parameters[1]
-        p isa DataType && (p_string = simple_repr(p))
+        if p isa DataType 
+            p_string = simple_repr(p)
+        elseif p isa Symbol
+            p_string = string(":", p)
+        end
     end
     isempty(p_string) || (repr *= "{"*p_string*"}")
     return repr
