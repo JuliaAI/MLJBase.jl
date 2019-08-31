@@ -272,9 +272,9 @@ end
 """
     MLJBase.table(cols; prototype=cols)
 
-Convert a named tuple of vectors `cols`, into a table. The table
-type returned is the "preferred sink type" for `prototype` (see the
-Tables.jl documentation).
+Convert a named tuple of vectors or tuples `cols`, into a table. The
+table type returned is the "preferred sink type" for `prototype` (see
+the Tables.jl documentation).
 
     MLJBase.table(X::AbstractMatrix; names=nothing, prototype=nothing)
 
@@ -287,8 +287,14 @@ Equivalent to `table(cols, prototype=prototype)` where `cols` is the
 named tuple of columns of `X`, with `keys(cols) = names`.
 
 """
-function table(cols::NamedTuple; prototype=cols)
-    Tables.istable(prototype) || error("prototype is not tabular.")
+function table(cols::NamedTuple; prototype=NamedTuple())
+    Tables.istable(prototype) || error("`prototype` is not a table. ")
+    if !Tables.istable(cols)
+        tuple_of_vectors = Tuple([collect(v) for v in values(cols)])
+        names = keys(cols)
+        cols = NamedTuple{names}(tuple_of_vectors)
+        Tables.istable(cols) || throw(ArgumentError(""))
+    end
     return Tables.materializer(prototype)(cols)
 end
 function table(X::AbstractMatrix; names=nothing, prototype=nothing)
