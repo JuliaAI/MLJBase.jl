@@ -7,11 +7,18 @@ mutable struct Foo <: MLJType
     x::Int
 end
 
+mutable struct Bar <: MLJType
+    rng::AbstractRNG
+    x::Int
+end
+
 f1 = Foo(MersenneTwister(7), 1)
 f2 = Foo(MersenneTwister(8), 1)
 @test f1.rng != f2.rng
 @test f1 == f2
 f1.x = 2
 @test f1 != f2
+b = Bar(MersenneTwister(7), 1)
+@test f1 != b
 
 true

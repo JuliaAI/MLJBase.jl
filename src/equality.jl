@@ -1,10 +1,10 @@
-# by default, MLJType objects are `==` if: (i) they have a common
-# supertype AND (ii) they have the same set of defined fields AND
-# (iii) their defined field values are `==` OR the values are both
+# by default, MLJType objects are `==` if: (i) they have == 
+# type, AND (ii) they have the same set of *defined* fields AND (iii)
+# their defined field values are `==` OR the values are both
 # AbstractRNG objects.
 import Base.==
 function ==(m1::M1, m2::M2) where {M1<:MLJType,M2<:MLJType}
-    if M1 != M1
+    if typeof(m1) != typeof(m2)
         return false
     end
     defined1 = filter(fieldnames(M1)|>collect) do fld
