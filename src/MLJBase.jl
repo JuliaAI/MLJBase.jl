@@ -11,7 +11,7 @@ export transform, inverse_transform, se, evaluate, best
 export load_path, package_url, package_name, package_uuid
 export input_scitype, supports_weights
 export target_scitype, output_scitype
-export is_pure_julia, is_wrapper                                 
+export is_pure_julia, is_wrapper, prediction_type                              
 
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
@@ -90,6 +90,9 @@ abstract type Probabilistic <: Supervised end
 # supervised models that `predict` point-values are of:
 abstract type Deterministic <: Supervised end
 
+# supervised models that `predict` intervals:
+abstract type Interval <: Supervised end
+
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
@@ -136,27 +139,37 @@ function best end
 clean!(model::Model) = ""
 
 # fallback trait declarations:
-input_scitype(::Any) = Unknown
-output_scitype(::Any) = Unknown
-target_scitype(::Any) = Unknown
-is_pure_julia(::Any) = false
-package_name(::Any) = "unknown"
-package_license(::Any) = "unknown"
-load_path(::Any) = "unknown"
-package_uuid(::Any) = "unknown"
-package_url(::Any) = "unknown"
-is_wrapper(::Any) = false
-supports_weights(::Any) = false
+input_scitype(::Type) = Unknown
+output_scitype(::Type) = Unknown
+target_scitype(::Type) = Unknown  # used for measures too
+is_pure_julia(::Type) = false
+package_name(::Type) = "unknown"
+package_license(::Type) = "unknown"
+load_path(::Type) = "unknown"
+package_uuid(::Type) = "unknown"
+package_url(::Type) = "unknown"
+is_wrapper(::Type) = false
+supports_weights(::Type) = false  # used for measures too
+docstring(object::Type{<:MLJType}) =
+    """"$(name(object)) from $(package_name(object)).jl.
+Documenation at: [$(package_url(object))]((package_url(object)))."""
 
-input_scitype(model::Model) = input_scitype(typeof(model))
-output_scitype(model::Model) = output_scitype(typeof(model))
-target_scitype(model::Model) = target_scitype(typeof(model))
-is_pure_julia(model::Model) = is_pure_julia(typeof(model))
-package_name(model::Model) = package_name(typeof(model))
-load_path(model::Model) = load_path(typeof(model))
-package_uuid(model::Model) = package_uuid(typeof(model))
-package_url(model::Model) = package_url(typeof(model))
-is_wrapper(m::Model) = is_wrapper(typeof(m))
+# "derived" traits:
+name(M::Type{<:MLJType}) = split(string(coretype(M)), '.')[end] |> String
+prediction_type(::Type) = :unknown # used for measures too
+prediction_type(::Type{<:Deterministic}) = :probabilistic
+prediction_type(::Type{<:Probabilistic}) = :deterministic
+prediction_type(::Type{<:Interval}) = :interval
+
+# declare `trait(object) = trait(typeof(object))`:
+for trait in [:input_scitype, :input_scitype, :target_scitype,
+    :is_pure_julia, :package_name, :load_path, :package_uuid,
+    :package_url, :is_wrapper, :supports_weights, :docstring,
+    :prediction_type, :name]
+    eval(quote
+        $trait(object) = $trait(typeof(object))
+    end)
+end
 
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.

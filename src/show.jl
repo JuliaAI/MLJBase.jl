@@ -148,7 +148,7 @@ end
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true})
     pretty(stream, object)
 end
-pretty(stream::IO, object) = pretty(stream, object, 0, DEFAULT_SHOW_DEPTH + 1, 0)
+pretty(stream::IO, object) = pretty(stream, object, 0, DEFAULT_SHOW_DEPTH + 2, 0)
 pretty(stream, object, current_depth, depth, n) = show(stream, object)
 function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
     if current_depth == depth

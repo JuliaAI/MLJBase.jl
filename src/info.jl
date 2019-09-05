@@ -1,23 +1,3 @@
-target_quantity(m) =
-    target_scitype(m) <: Tuple ? true : false
-is_probabilistic(::Type{<:Model}) = false
-is_probabilistic(::Type{<:Deterministic}) = false
-is_probabilistic(::Type{<:Probabilistic}) = true
-
-function coretype(M)
-    if isdefined(M, :name)
-        return M.name
-    else
-        return coretype(M.body)
-    end
-end
-    
-name(M::Type{<:Model}) = split(string(coretype(M)), '.')[end] |> String
-
-if VERSION < v"1.0.0"
-    import Base.info
-end
-
 function info(M::Type{<:Supervised})
 
     message = "$M has a bad trait declaration. "
@@ -30,16 +10,17 @@ function info(M::Type{<:Supervised})
 
     d = LittleDict{Symbol,Any}()
     d[:name] = name(M)
+    d[:docstring] = docstring(M)
     d[:package_name] = package_name(M)
     d[:package_url] = package_url(M)
+    d[:package_uuid] = package_uuid(M)
     d[:package_license] = package_license(M)
     d[:load_path] = load_path(M)
     d[:is_wrapper] = is_wrapper(M)
     d[:is_pure_julia] = is_pure_julia(M)
-    d[:package_uuid] = package_uuid(M)
     d[:supports_weights] = supports_weights(M)
     d[:is_supervised] = true
-    d[:is_probabilistic] = is_probabilistic(M)
+    d[:prediction_type] = prediction_type(M)
     d[:input_scitype] = input_scitype(M)
     d[:target_scitype] = target_scitype(M)
     return d
@@ -57,9 +38,11 @@ function info(M::Type{<:Unsupervised})
 
     d = LittleDict{Symbol,Any}()
     d[:name] = name(M)
+    d[:docstring] = docstring(M)
     d[:package_name] = package_name(M)
     d[:package_url] = package_url(M)
     d[:package_uuid] = package_uuid(M)
+    d[:package_license] = package_license(M)
     d[:load_path] = load_path(M)
     d[:is_wrapper] = is_wrapper(M)
     d[:is_pure_julia] = is_pure_julia(M)
