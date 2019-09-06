@@ -16,6 +16,7 @@ MLJBase.package_name(::Type{DummyProb}) = "GreatPackage"
 MLJBase.package_uuid(::Type{DummyProb}) = "6f286f6a-111f-5878-ab1e-185364afe411"
 MLJBase.package_url(::Type{DummyProb}) = "https://mickey.mouse.org"
 MLJBase.package_license(::Type{DummyProb}) = "MIT"
+MLJBase.predict(::DummyProb, fr, X) = nothing
 
 mutable struct DummyDeterm <: Deterministic end
 MLJBase.load_path(::Type{DummyDeterm}) = "GreatPackage.MLJ.DummyDeterm"
@@ -27,17 +28,7 @@ MLJBase.package_name(::Type{DummyDeterm}) = "GreatPackage"
 MLJBase.package_uuid(::Type{DummyDeterm}) = "6f286f6a-111f-5878-ab1e-185364afe411"
 MLJBase.package_url(::Type{DummyDeterm}) = "https://mickey.mouse.org"
 MLJBase.package_license(::Type{DummyDeterm}) = "MIT"
-
-mutable struct DummyUnsup <: Unsupervised end
-MLJBase.load_path(::Type{DummyUnsup}) = "GreatPackage.MLJ.DummyUnsup"
-MLJBase.input_scitype(::Type{DummyUnsup}) = MLJBase.Table(Finite)
-MLJBase.output_scitype(::Type{DummyUnsup}) = AbstractVector{<:Continuous}
-MLJBase.is_pure_julia(::Type{DummyUnsup}) = true
-MLJBase.supports_weights(::Type{DummyUnsup}) = true
-MLJBase.package_name(::Type{DummyUnsup}) = "GreatPackage"
-MLJBase.package_uuid(::Type{DummyUnsup}) = "6f286f6a-111f-5878-ab1e-185364afe411"
-MLJBase.package_url(::Type{DummyUnsup}) = "https://mickey.mouse.org"
-MLJBase.package_license(::Type{DummyUnsup}) = "MIT"
+MLJBase.predict(::DummyDeterm, fr, X) = nothing
 
 mutable struct DummyInt <: Interval end
 MLJBase.load_path(::Type{DummyInt}) = "GreatPackage.MLJ.DummyInt"
@@ -49,6 +40,19 @@ MLJBase.package_name(::Type{DummyInt}) = "GreatPackage"
 MLJBase.package_uuid(::Type{DummyInt}) = "6f286f6a-111f-5878-ab1e-185364afe411"
 MLJBase.package_url(::Type{DummyInt}) = "https://mickey.mouse.org"
 MLJBase.package_license(::Type{DummyInt}) = "MIT"
+MLJBase.predict(::DummyInt, fr, X) = nothing
+
+mutable struct DummyUnsup <: Unsupervised end
+MLJBase.load_path(::Type{DummyUnsup}) = "GreatPackage.MLJ.DummyUnsup"
+MLJBase.input_scitype(::Type{DummyUnsup}) = MLJBase.Table(Finite)
+MLJBase.output_scitype(::Type{DummyUnsup}) = AbstractVector{<:Continuous}
+MLJBase.is_pure_julia(::Type{DummyUnsup}) = true
+MLJBase.supports_weights(::Type{DummyUnsup}) = true
+MLJBase.package_name(::Type{DummyUnsup}) = "GreatPackage"
+MLJBase.package_uuid(::Type{DummyUnsup}) = "6f286f6a-111f-5878-ab1e-185364afe411"
+MLJBase.package_url(::Type{DummyUnsup}) = "https://mickey.mouse.org"
+MLJBase.package_license(::Type{DummyUnsup}) = "MIT"
+MLJBase.transform(::DummyUnsup, fr, X) = nothing
 
 @testset "info on probabilistic models" begin
 
@@ -65,7 +69,8 @@ MLJBase.package_license(::Type{DummyInt}) = "MIT"
                                :package_url   => "https://mickey.mouse.org",
                                :is_supervised => true,
                                :is_wrapper => false,
-                               :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).")
+                               :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
+                               :implemented_methods => [:predict, ])
     
     @test info(DummyProb) == d
     @test info(DummyProb()) == d
@@ -91,7 +96,8 @@ end
                                :package_url   => "https://mickey.mouse.org",
                                :is_supervised => true,
                                :is_wrapper => false,
-                               :docstring => "DummyDeterm from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).")
+                               :docstring => "DummyDeterm from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
+                               :implemented_methods => [:predict, ])
     
     @test info(DummyDeterm) == d
     @test info(DummyDeterm()) == d
@@ -102,7 +108,7 @@ end
 end
 
 @testset "info on interval models" begin
-
+    
     d = LittleDict{Symbol,Any}(:name => "DummyInt",
                                :load_path => "GreatPackage.MLJ.DummyInt",
                                :is_pure_julia => true,
@@ -116,7 +122,8 @@ end
                                :package_url   => "https://mickey.mouse.org",
                                :is_supervised => true,
                                :is_wrapper => false,
-                               :docstring => "DummyInt from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).")
+                               :docstring => "DummyInt from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
+                               :implemented_methods => [:predict, ])
     
     @test info(DummyInt) == d
     @test info(DummyInt()) == d
@@ -139,7 +146,8 @@ end
                                :package_url   => "https://mickey.mouse.org",
                                :is_supervised => false,
                                :is_wrapper => false,
-                               :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).")
+                               :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
+                               :implemented_methods => [:transform, ])
     
     @test info(DummyUnsup) == d
     @test info(DummyUnsup()) == d

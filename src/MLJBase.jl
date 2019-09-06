@@ -1,6 +1,6 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-
+__precompile__(false)
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised
@@ -146,9 +146,10 @@ clean!(model::Model) = ""
 # model trait names:
 const ALL_TRAITS = [:input_scitype, :output_scitype, :target_scitype,
                     :is_pure_julia, :package_name, :package_license,
-                    :load_path, :package_uuid,
+                    :load_path, :package_uuid, 
                     :package_url, :is_wrapper, :supports_weights, :docstring,
-                    :name, :is_supervised, :prediction_type]
+                    :name, :is_supervised, :prediction_type,
+                    :implemented_methods]
 const SUPERVISED_TRAITS = filter(ALL_TRAITS) do trait
     !(trait in [:output_scitype,])
 end
@@ -180,6 +181,7 @@ prediction_type(::Type) = :unknown # used for measures too
 prediction_type(::Type{<:Deterministic}) = :deterministic
 prediction_type(::Type{<:Probabilistic}) = :probabilistic
 prediction_type(::Type{<:Interval}) = :interval
+implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
 
 # declare `trait(object) = trait(typeof(object))`:      
 for trait in ALL_TRAITS
@@ -187,6 +189,7 @@ for trait in ALL_TRAITS
         $trait(object) = $trait(typeof(object))
     end)
 end
+
 
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.
