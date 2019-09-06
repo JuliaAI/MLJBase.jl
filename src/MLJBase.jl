@@ -26,6 +26,10 @@ export UnivariateFinite, average                     # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
 export info                                          # info.jl
+export @load_boston, @load_ames, @load_iris          # datasets.jl
+export @load_reduced_ames                            # datasets.jl
+export @load_crabs                                   # datasets.jl
+
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -213,6 +217,7 @@ include("data.jl")
 include("distributions.jl")
 
 include("info.jl")
+include("datasets.jl") # importing CSV will also load datasets_requires.jl
 include("tasks.jl")
 
 # __init__() function:

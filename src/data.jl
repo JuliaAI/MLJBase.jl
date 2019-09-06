@@ -56,9 +56,10 @@ or `false` for each column `name::Symbol` of `table`.
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
 
-Scientific type conversions can be optionally specified:
+Scientific type conversions can be optionally specified (note
+semicolon):
 
-    unpack(table, c...; col1=>scitype1, col2=>scitype2, ... )
+    unpack(table, c...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
 
 ### Example
 
@@ -86,8 +87,7 @@ function unpack(X, conditionals...; wrap_singles=false, pairs...)
     if isempty(pairs)
         Xfixed = X
     else
-        fix_dict = Dict(pairs...)
-        Xfixed = ScientificTypes.coerce(fix_dict, X)
+        Xfixed = ScientificTypes.coerce(X, pairs...)
     end
 
     unpacked = Any[]
