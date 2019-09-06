@@ -235,56 +235,58 @@ decoder(element::CategoricalElement) =
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
 """
-    MLJBase.matrix(X)
+    MLJBase.matrix(X; transpose=false)
 
-Convert a table source `X` into an `Matrix`; or, if `X` is
-a `AbstractMatrix`, return `X`. Optimized for column-based sources.
-
-If instead X is a sparse table, then a `SparseMatrixCSC` object is
-returned. The integer relabelling of column names follows the
-lexicographic ordering (as indicated by `schema(X).names`).
+Convert a Tables.jl compatible table source `X` into an `Matrix`; or,
+if `X` is a `AbstractMatrix`, return `X`. Optimized for column-based
+sources. Rows of the table or input matrix, correspond to rows of the
+output, unless `transpose=true`.
 
 """
-matrix(X) = matrix(Val(ScientificTypes.trait(X)), X)
-matrix(::Val{:other}, X) = throw(ArgumentError)
-matrix(::Val{:other}, X::AbstractMatrix) = X
+matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
+matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError)
+matrix(::Val{:other}, X::AbstractMatrix; kwargs...) = X
 
-function matrix(::Val{:table}, X)
-    cols = Tables.columns(X) # property-accessible object
-    mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
-    # tightest eltype:
-    return broadcast(identity, mat)
-end
+matrix(::Val{:table}, X; kwargs...) = Tables.matrix(X; kwargs...)
+# matrix(::Val{:table, X)
+#     cols = Tables.columns(X) # property-accessible object
+#     mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
+#     # tightest eltype:
+#     return broadcast(identity, mat)
+# end
 
-function matrix(::Val{:sparse}, X)
-    K = keys(X)
-    features = schema(X).names
-    index_given_feature = Dict{Symbol,Int}()
-    for j in eachindex(features)
-        index_given_feature[features[j]] = j
-    end
-    I = [k[1] for k in K]
-    J = [index_given_feature[k[2]] for k in K]
-    V = [v[1] for v in values(X)]
-    return sparse(I, J, V)
-end
+# function matrix(::Val{:sparse}, X)
+#     K = keys(X)
+#     features = schema(X).names
+#     index_given_feature = Dict{Symbol,Int}()
+#     for j in eachindex(features)
+#         index_given_feature[features[j]] = j
+#     end
+#     I = [k[1] for k in K]
+#     J = [index_given_feature[k[2]] for k in K]
+#     V = [v[1] for v in values(X)]
+#     return sparse(I, J, V)
+# end
 
 """
-    MLJBase.table(cols; prototype=cols)
+    MLJBase.table(columntable; prototype=nothing)
 
-Convert a named tuple of vectors or tuples `cols`, into a table. The
-table type returned is the "preferred sink type" for `prototype` (see
-the Tables.jl documentation).
+Convert a named tuple of vectors or tuples `columntable`, into a table
+of the "preferred sink type" of `prototype`. This is often the type of
+`prototype` itself, when `prototype` is a sink; see the Tables.jl
+documentation. If `prototype` is not specified, then a named tuple of
+vectors is returned.
 
-    MLJBase.table(X::AbstractMatrix; names=nothing, prototype=nothing)
+    MLJBase.table(A::AbstractMatrix; names=nothing, prototype=nothing)
 
-Convert an abstract matrix `X` into a table with `names` (a tuple of
-symbols) as column names, or with labels `(:x1, :x2, ..., :xn)` where
-`n=size(X, 2)`, if `names` is not specified.  If prototype=nothing,
-then a named tuple of vectors is returned.
+Wrap an abstract matrix `A` as a Tables.jl compatible table with the
+specified column `names` (a tuple of symbols). If `names` are not
+specified, `names=(:x1, :x2, ..., :xn)` is used, where `n=size(A, 2)`.
 
-Equivalent to `table(cols, prototype=prototype)` where `cols` is the
-named tuple of columns of `X`, with `keys(cols) = names`.
+If a `prototype` is specified, then the matrix is materialized as a
+table of the preferred sink type of `prototype`, rather than
+wrapped. Note that if `protottype` is *not* specified, then
+`MLJ.matrix(MLJ.table(A))` is essentially a non-operation.
 
 """
 function table(cols::NamedTuple; prototype=NamedTuple())
@@ -297,15 +299,18 @@ function table(cols::NamedTuple; prototype=NamedTuple())
     end
     return Tables.materializer(prototype)(cols)
 end
-function table(X::AbstractMatrix; names=nothing, prototype=nothing)
+function table(A::AbstractMatrix; names=nothing, prototype=nothing)
     if names == nothing
-        _names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
+        _names = [Symbol(:x, j) for j in 1:size(A, 2)]
     else
-        _names = names
+        _names = collect(names)
     end
-    cols = NamedTuple{_names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
-    _prototype = (prototype == nothing ? cols : prototype)
-    return table(cols; prototype=_prototype)
+    matrix_table = Tables.table(A, header=_names)
+    if prototype === nothing
+        return matrix_table
+    else
+        return Tables.materializer(prototype)(matrix_table)
+    end
 end
 
 

@@ -209,7 +209,7 @@ tt = TypedTables.Table(df)
 
 A = hcat(v, v)
 tab = table(A)
-tab[1] == v
+selectcols(tab, 1) == v
 matrix(tab) == A
 
 # uncomment 3 lines to restore JuliaDB testing:
