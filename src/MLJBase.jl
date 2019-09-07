@@ -186,7 +186,16 @@ implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
 hyperparameters(M::Type) = collect(fieldnames(M))
 hyperparameter_types(M::Type) =
     [Meta.parse(string(T)) for T in fieldtypes(M)]
-
+# function hyperparmeter_defaults(M::Type)
+#     try
+#         model = M()
+#         return [Meta.parse(string(getproperty(model, fld)))
+#                 for fld in fieldnames(M)]
+#     catch
+#         return []
+#     end
+# end
+                    
 
 # declare `trait(object) = trait(typeof(object))`:      
 for trait in ALL_TRAITS
