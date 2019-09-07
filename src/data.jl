@@ -319,10 +319,9 @@ end
 """
     selectrows(X, r)
 
-Select single or multiple rows from any table, sparse table, or
-abstract vector `X`.  If `X` is tabular, the object returned is a
-table of the preferred sink type of `typeof(X)`, even a single row is
-selected.
+Select single or multiple rows from any table, or abstract vector `X`,
+or matrix.  If `X` is tabular, the object returned is a table of the
+preferred sink type of `typeof(X)`, even if only a single row is selected.
 
 """
 selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
@@ -331,11 +330,10 @@ selectrows(::Val{:other}, X, r) = throw(ArgumentError)
 """
     selectcols(X, c)
 
-Select single or multiple columns from any table or sparse table
-`X`. If `c` is an abstract vector of integers or symbols, then the
-object returned is a table of the preferred sink type of
-`typeof(X)`. If `c` is a *single* integer or column, then a `Vector`
-or `CategoricalVector` is returned.
+Select single or multiple columns from any table or matrix `X`. If `c`
+is an abstract vector of integers or symbols, then the object returned
+is a table of the preferred sink type of `typeof(X)`. If `c` is a
+*single* integer or column, then an `AbstractVector` is returned.
 
 """
 selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
@@ -344,7 +342,7 @@ selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 """
     select(X, r, c)
 
-Select element of a table or sparse table at row `r` and column
+Select element of a table or matrix at row `r` and column
 `c`. In the case of sparse data where the key `(r, c)`, zero or
 `missing` is returned, depending on the value type.
 
@@ -357,12 +355,12 @@ select(::Val{:other}, X, r, c) = throw(ArgumentError)
 """
     nrows(X)
 
-Return the number of rows in a table, sparse table, or abstract vector.
+Return the number of rows in a table, abstract vector or abstract
+matrix.
 
 """
 nrows(X) = nrows(Val(ScientificTypes.trait(X)), X)
 nrows(::Val{:other}, X) = throw(ArgumentError)
-
 
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
@@ -424,8 +422,27 @@ nrows(::Val{:table}, X) = schema(X).nrows
 ## ACCESSORS FOR ABSTRACT VECTORS
 
 selectrows(::Val{:other}, v::AbstractVector, r) = v[r]
-nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
+
+# single row selection must return a matrix!
+selectrows(::Val{:other}, v::AbstractVector, r::Integer) = v[r:r]
+selectrows(::Val{:other}, v::CategoricalVector, r::Integer) = @inbounds v[r:r]
+
+nrows(::Val{:other}, v::AbstractVector) = length(v)
+
+
+## ACCESSORS FOR ABSTRACT MATRICES
+
+selectrows(::Val{:other}, A::AbstractMatrix, r) = A[r, :] 
+selectrows(::Val{:other}, A::CategoricalMatrix, r) = @inbounds A[r, :]
+
+# single row selection must return a matrix!
+selectrows(::Val{:other}, A::AbstractMatrix, r::Integer) = A[r:r, :] 
+selectrows(::Val{:other}, A::CategoricalMatrix, r::Integer) =
+    @inbounds A[r:r, :]
+
+nrows(::Val{:other}, A::AbstractMatrix) = size(A, 1)
+
 
 ## to be replaced (not used anywhere):
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
