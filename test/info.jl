@@ -6,7 +6,12 @@ import MLJBase
 using Test
 using OrderedCollections
 
-mutable struct DummyProb <: Probabilistic end
+mutable struct DummyProb <: Probabilistic
+    an_int::Int
+    a_float::Float64
+    a_vector::Vector{Float64}
+    untyped
+end
 MLJBase.load_path(::Type{DummyProb}) = "GreatPackage.MLJ.DummyProb"
 MLJBase.input_scitype(::Type{DummyProb}) = MLJBase.Table(Finite)
 MLJBase.target_scitype(::Type{DummyProb}) = AbstractVector{<:Continuous}
@@ -70,10 +75,15 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                :is_supervised => true,
                                :is_wrapper => false,
                                :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
-                               :implemented_methods => [:predict, ])
+                               :implemented_methods => [:predict, ],
+                               :hyperparameter_types  => [:Int64, :Float64,
+                                                     :(Array{Float64, 1}), :(Any)],
+                               :hyperparameters => [:an_int, :a_float,
+                                                    :a_vector, :untyped])
+    
     
     @test info(DummyProb) == d
-    @test info(DummyProb()) == d
+    @test info(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
     # for k in keys(d)
     #      println(string(k, " ",  info(DummyProb)[k] == d[k]))
     # end
@@ -97,7 +107,10 @@ end
                                :is_supervised => true,
                                :is_wrapper => false,
                                :docstring => "DummyDeterm from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
-                               :implemented_methods => [:predict, ])
+                               :implemented_methods => [:predict, ],
+                               :hyperparameter_types  => [],
+                               :hyperparameters => [])
+
     
     @test info(DummyDeterm) == d
     @test info(DummyDeterm()) == d
@@ -123,7 +136,9 @@ end
                                :is_supervised => true,
                                :is_wrapper => false,
                                :docstring => "DummyInt from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
-                               :implemented_methods => [:predict, ])
+                               :implemented_methods => [:predict, ],
+                               :hyperparameter_types  => [],
+                               :hyperparameters => [])
     
     @test info(DummyInt) == d
     @test info(DummyInt()) == d
@@ -147,7 +162,9 @@ end
                                :is_supervised => false,
                                :is_wrapper => false,
                                :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
-                               :implemented_methods => [:transform, ])
+                               :implemented_methods => [:transform, ],
+                               :hyperparameter_types  => [],
+                               :hyperparameters => [])
     
     @test info(DummyUnsup) == d
     @test info(DummyUnsup()) == d

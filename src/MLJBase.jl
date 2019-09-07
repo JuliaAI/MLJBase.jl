@@ -149,7 +149,8 @@ const ALL_TRAITS = [:input_scitype, :output_scitype, :target_scitype,
                     :load_path, :package_uuid, 
                     :package_url, :is_wrapper, :supports_weights, :docstring,
                     :name, :is_supervised, :prediction_type,
-                    :implemented_methods]
+                    :implemented_methods, :hyperparameters,
+                    :hyperparameter_types]
 const SUPERVISED_TRAITS = filter(ALL_TRAITS) do trait
     !(trait in [:output_scitype,])
 end
@@ -182,6 +183,10 @@ prediction_type(::Type{<:Deterministic}) = :deterministic
 prediction_type(::Type{<:Probabilistic}) = :probabilistic
 prediction_type(::Type{<:Interval}) = :interval
 implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
+hyperparameters(M::Type) = collect(fieldnames(M))
+hyperparameter_types(M::Type) =
+    [Meta.parse(string(T)) for T in fieldtypes(M)]
+
 
 # declare `trait(object) = trait(typeof(object))`:      
 for trait in ALL_TRAITS
