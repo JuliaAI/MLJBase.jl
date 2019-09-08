@@ -76,8 +76,8 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                :is_wrapper => false,
                                :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => [:Int64, :Float64,
-                                                     :(Array{Float64, 1}), :(Any)],
+                               :hyperparameter_types  => ["Int64", "Float64",
+                                                     "Array{Float64,1}", "Any"],
                                :hyperparameters => [:an_int, :a_float,
                                                     :a_vector, :untyped])
     
@@ -85,7 +85,7 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
     @test info(DummyProb) == d
     @test info(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
     # for k in keys(d)
-    #      println(string(k, " ",  info(DummyProb)[k] == d[k]))
+    #       println(string(k, " ",  info(DummyProb)[k] == d[k]))
     # end
 end
 
