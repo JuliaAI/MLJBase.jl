@@ -1,3 +1,9 @@
+# `info` returns a dictionary of model trait values suitable, after
+# encoding, to serializing to TOML file. Not intended to be exposed to
+# user. The `traits` function, defined in MLJ, returns the trait
+# values as a named-tuple, more friendly for user-interaction. One can
+# similarly call `traits` on performance measures.
+
 info(M::Type{<:Supervised}) = info(M, SUPERVISED_TRAITS)
 info(M::Type{<:Unsupervised}) = info(M, UNSUPERVISED_TRAITS)
 info(model::Model) = info(typeof(model))
