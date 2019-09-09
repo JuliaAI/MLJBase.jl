@@ -4,11 +4,11 @@
 # values as a named-tuple, more friendly for user-interaction. One can
 # similarly call `traits` on performance measures.
 
-info(M::Type{<:Supervised}) = info(M, SUPERVISED_TRAITS)
-info(M::Type{<:Unsupervised}) = info(M, UNSUPERVISED_TRAITS)
-info(model::Model) = info(typeof(model))
+info_dict(M::Type{<:Supervised}) = info_dict(M, SUPERVISED_TRAITS)
+info_dict(M::Type{<:Unsupervised}) = info_dict(M, UNSUPERVISED_TRAITS)
+info_dict(model::Model) = info_dict(typeof(model))
 
-function info(M::Type{<:Model}, traits)
+function info_dict(M::Type{<:Model}, traits)
 
     message = "$M has a bad trait declaration.\n"
 

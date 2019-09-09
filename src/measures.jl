@@ -88,7 +88,7 @@ is_measure(::Measure) = true
 Base.show(stream::IO, ::MIME"text/plain", m::Measure) = print(stream, "$(name(m)) (callable Measure)")
 Base.show(stream::IO, m::Measure) = print(stream, name(m))
 
-MLJBase.traits(measure, ::Val{:measure}) = 
+MLJBase.info(measure, ::Val{:measure}) = 
     (name=name(measure),
      target_scitype=target_scitype(measure),
      prediction_type=prediction_type(measure),
@@ -109,7 +109,7 @@ Mean absolute error (also known as MAE).
 
 ``\\text{MAV} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or ``\\text{MAV} =  ∑ᵢwᵢ|yᵢ-ŷᵢ|/∑ᵢwᵢ``
 
-For more information, run `MLJBase.info(mav)`.
+For more information, run `MLJBase.info_dict(mav)`.
 
 """
 mav = MAV()
@@ -161,7 +161,7 @@ Root mean squared error:
 
 ``\\text{RMS} = \\sqrt{n^{-1}∑ᵢ|yᵢ-ŷᵢ|^2}`` or ``\\text{RMS} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 
-For more information, run `MLJBase.info(rms)`.
+For more information, run `MLJBase.info_dict(rms)`.
 
 """
 rms = RMS()
@@ -200,7 +200,7 @@ struct L2 <: Measure end
 
 L2 per-observation loss.
 
-For more information, run `MLJBase.info(l2)`.
+For more information, run `MLJBase.info_dict(l2)`.
 
 """
 l2 = L2()
@@ -229,7 +229,7 @@ struct L1 <: Measure end
 
 L1 per-observation loss.
 
-For more information, run `MLJBase.info(l1)`.
+For more information, run `MLJBase.info_dict(l1)`.
 
 """
 l1 = L1()
@@ -259,7 +259,7 @@ Root mean squared logarithmic error:
 
 ``\\text{RMSL} = n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 
-For more information, run `MLJBase.info(rmsl)`.
+For more information, run `MLJBase.info_dict(rmsl)`.
 
 See also [`rmslp1`](@ref).
 
@@ -292,7 +292,7 @@ Root mean squared logarithmic error with an offset of 1:
 
 ``\\text{RMSLP1} = n^{-1}∑ᵢ\\log\\left({yᵢ + 1 \\over ŷᵢ + 1}\\right)``
 
-For more information, run `MLJBase.info(rmslp1)`.
+For more information, run `MLJBase.info_dict(rmslp1)`.
 
 See also [`rmsl`](@ref).
 """
@@ -326,7 +326,7 @@ Root mean squared percentage loss:
 where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
 of such indices.
 
-For more information, run `MLJBase.info(rmsp)`.
+For more information, run `MLJBase.info_dict(rmsp)`.
 
 """
 rmsp = RMSP()
@@ -365,7 +365,7 @@ Returns the rate of misclassification of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
 
-For more information, run `MLJBase.info(misclassification_rate)`.
+For more information, run `MLJBase.info_dict(misclassification_rate)`.
 
 """
 misclassification_rate = MisclassificationRate()
@@ -398,7 +398,7 @@ probabilistic predictions) and an abstract vector of true observations
 `y`, return the negative log-probability that each observation would
 occur, according to the corresponding probabilistic prediction.
 
-For more information, run `MLJBase.info(cross_entropy)`.
+For more information, run `MLJBase.info_dict(cross_entropy)`.
 
 """
 cross_entropy = CrossEntropy()

@@ -8,7 +8,7 @@ export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
-export traits
+export info
 
 export load_path, package_url, package_name, package_uuid  # model_traits.jl
 export input_scitype, supports_weights                     # model_traits.jl
@@ -44,6 +44,10 @@ export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage, Image
 export scitype, scitype_union, coerce, schema
+
+# rexport from Random, Statistics, Distributions, CategoricalArrays:
+export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
+export std
 
 import Base.==
 
@@ -167,12 +171,12 @@ clean!(model::Model) = ""
 
 """ 
 
-    traits(object)
+    info(object)
 
 List the traits of an object, such as a model or a performance measure.
 
 """
-traits(object) = traits(object, Val(ScientificTypes.trait(object))) 
+info(object) = info(object, Val(ScientificTypes.trait(object))) 
 
 
 include("model_traits.jl")

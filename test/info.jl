@@ -2,7 +2,7 @@ module TestInfo
 
 # using Revise
 using MLJBase
-import MLJBase
+import MLJBase.info_dict
 using Test
 using OrderedCollections
 
@@ -82,10 +82,10 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                                     :a_vector, :untyped])
     
     
-    @test info(DummyProb) == d
-    @test info(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
+    @test info_dict(DummyProb) == d
+    @test info_dict(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
     # for k in keys(d)
-    #       println(string(k, " ",  info(DummyProb)[k] == d[k]))
+    #       println(string(k, " ",  info_dict(DummyProb)[k] == d[k]))
     # end
 end
 
@@ -112,10 +112,10 @@ end
                                :hyperparameters => [])
 
     
-    @test info(DummyDeterm) == d
-    @test info(DummyDeterm()) == d
+    @test info_dict(DummyDeterm) == d
+    @test info_dict(DummyDeterm()) == d
     # for k in keys(d)
-    #      println(string(k, " ",  info(DummyDeterm)[k] == d[k]))
+    #      println(string(k, " ",  info_dict(DummyDeterm)[k] == d[k]))
     # end
     
 end
@@ -140,10 +140,10 @@ end
                                :hyperparameter_types  => [],
                                :hyperparameters => [])
     
-    @test info(DummyInt) == d
-    @test info(DummyInt()) == d
+    @test info_dict(DummyInt) == d
+    @test info_dict(DummyInt()) == d
     # for k in keys(d)
-    #      println(string(k, " ",  info(DummyInt)[k] == d[k]))
+    #      println(string(k, " ",  info_dict(DummyInt)[k] == d[k]))
     # end
     
 end
@@ -166,10 +166,10 @@ end
                                :hyperparameter_types  => [],
                                :hyperparameters => [])
     
-    @test info(DummyUnsup) == d
-    @test info(DummyUnsup()) == d
+    @test info_dict(DummyUnsup) == d
+    @test info_dict(DummyUnsup()) == d
     # for k in keys(d)
-    #     println(string(k, " ",  info(DummyUnsup)[k] == d[k]))
+    #     println(string(k, " ",  info_dict(DummyUnsup)[k] == d[k]))
     # end
 
 end

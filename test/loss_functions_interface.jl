@@ -1,6 +1,9 @@
+module TestLossFunctionsInterface
+
 # using Revise
-using MLJBase
+import MLJBase
 using Test
+using Statistics
 using LossFunctions
 import Random.seed!
 using CategoricalArrays
@@ -12,8 +15,8 @@ seed!(1234)
 
     y =    categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
-    dyes = UnivariateFinite([yes, no], [0.6, 0.4])
-    dno =  UnivariateFinite([yes, no], [0.3, 0.7])
+    dyes = MLJBase.UnivariateFinite([yes, no], [0.6, 0.4])
+    dno =  MLJBase.UnivariateFinite([yes, no], [0.3, 0.7])
     yhat = [dno, dno, dyes, dyes]
     X = nothing
     w = [1, 2, 3, 4]
@@ -29,7 +32,7 @@ seed!(1234)
     ym = MLJBase.pm1(y) # observations for raw LossFunctions measure
     p_vec = rand(N) # probabilities of yes
     yhat  = map(p_vec) do p
-        UnivariateFinite([yes, no], [p, 1 - p])
+        MLJBase.UnivariateFinite([yes, no], [p, 1 - p])
     end
     yhatm = MLJBase._scale.(p_vec) # predictions for raw LossFunctions measure
     w = rand(N)
@@ -59,6 +62,9 @@ seed!(1234)
     end
 
 end
+
+end
+
 true
 
     
