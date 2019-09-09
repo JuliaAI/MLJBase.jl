@@ -27,8 +27,9 @@ julia = "1"
 [extras]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+LossFunctions = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [targets]
-test = ["CSV", "DataFrames", "Test", "TypedTables"]
+test = ["CSV", "DataFrames", "LossFunctions", "Test", "TypedTables"]

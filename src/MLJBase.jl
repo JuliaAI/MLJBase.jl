@@ -1,6 +1,5 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-__precompile__(false)
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised
@@ -9,12 +8,12 @@ export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
-export load_path, package_url, package_name, package_uuid
-export input_scitype, supports_weights
-export target_scitype, output_scitype
-export is_pure_julia, is_wrapper, prediction_type
 export traits
 
+export load_path, package_url, package_name, package_uuid  # model_traits.jl
+export input_scitype, supports_weights                     # model_traits.jl
+export target_scitype, output_scitype                      # model_traits.jl
+export is_pure_julia, is_wrapper, prediction_type          # model_traits.jl
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
@@ -30,7 +29,11 @@ export info                                          # info.jl
 export @load_boston, @load_ames, @load_iris          # datasets.jl
 export @load_reduced_ames                            # datasets.jl
 export @load_crabs                                   # datasets.jl
-
+export orientation, reports_each_observation         # measures.jl
+export is_feature_dependent                          # measures.jl
+export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
+export misclassification_rate, cross_entropy         # measures.jl
+export default_measure                               # measures.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -174,7 +177,6 @@ traits(object) = traits(object, Val(ScientificTypes.trait(object)))
 
 include("model_traits.jl")
 
-
 # for unpacking the fields of MLJ objects:
 include("parameters.jl")
 
@@ -191,6 +193,7 @@ include("distributions.jl")
 include("info.jl")
 include("datasets.jl") # importing CSV will also load datasets_requires.jl
 include("tasks.jl")
+include("measures.jl")
 
 # __init__() function:
 include("init.jl")

@@ -58,9 +58,28 @@ hyperparameter_types(M::Type) = collect(string.(fieldtypes(M)))
 # end
                     
 
-# declare `trait(object) = trait(typeof(object))`:      
-for trait in MODEL_TRAITS
-    eval(quote
-        $trait(object) = $trait(typeof(object))
-    end)
-end
+# following 5 lines commented out because they dissallow precompilation:
+# for trait in MODEL_TRAITS
+#     eval(quote
+#         $trait(object) = $trait(typeof(object))
+#     end)
+# end
+
+input_scitype(object) = input_scitype(typeof(object))
+output_scitype(object) = output_scitype(typeof(object))
+target_scitype(object) = target_scitype(typeof(object))
+is_pure_julia(object) = is_pure_julia(typeof(object))
+package_name(object) = package_name(typeof(object))
+package_license(object) = package_license(typeof(object))
+load_path(object) = load_path(typeof(object))
+package_uuid(object) = package_uuid(typeof(object))
+package_url(object) = package_url(typeof(object))
+is_wrapper(object) = is_wrapper(typeof(object))
+supports_weights(object) = supports_weights(typeof(object))
+docstring(object) = docstring(typeof(object))
+name(object) = name(typeof(object))
+is_supervised(object) = is_supervised(typeof(object))
+prediction_type(object) = prediction_type(typeof(object))
+implemented_methods(object) = implemented_methods(typeof(object))
+hyperparameters(object) = hyperparameters(typeof(object))
+hyperparameter_types(object) = hyperparameter_types(typeof(object))

@@ -12,12 +12,7 @@ function info(M::Type{<:Model}, traits)
 
     message = "$M has a bad trait declaration.\n"
 
-    load_path(M) == "unknown" &&
-        error(message*"MLJBase.load_path($M) should be defined so that "* 
-              "using MLJ; import MLJ.load_path($M) loads $M into "*
-              "current namespace.")
-
-    is_pure_julia(M) in [true, false, missing] ||
+    ismissing(is_pure_julia(M)) || is_pure_julia(M) isa Bool ||
         error(message*"is_pure_julia($M) must return true, false or missing. ")
 
     :supports_weights in traits &&
