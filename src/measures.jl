@@ -1,7 +1,6 @@
 ## TRAITS FOR MEASURES
 
 is_measure(::Any) = false
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
  
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,

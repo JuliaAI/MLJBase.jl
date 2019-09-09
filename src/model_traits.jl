@@ -1,7 +1,3 @@
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] = x-> x isa Supervised
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] = x-> x isa Unsupervised
-
-
 ## MODEL TRAITS
 
 # model trait names:
