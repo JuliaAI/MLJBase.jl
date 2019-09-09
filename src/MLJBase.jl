@@ -8,7 +8,7 @@ export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
-export info
+export info, info_dict
 
 export load_path, package_url, package_name, package_uuid  # model_traits.jl
 export input_scitype, supports_weights                     # model_traits.jl
