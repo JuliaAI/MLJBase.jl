@@ -42,7 +42,8 @@ prediction_type(::Type{<:Probabilistic}) = :probabilistic
 prediction_type(::Type{<:Interval}) = :interval
 implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
 hyperparameters(M::Type) = collect(fieldnames(M))
-hyperparameter_types(M::Type) = collect(string.(fieldtypes(M)))
+_fieldtypes(M) = [fieldtype(M, fld) for fld in fieldnames(M)]
+hyperparameter_types(M::Type) = string.(_fieldtypes(M))
 # function hyperparmeter_defaults(M::Type)
 #     try
 #         model = M()
