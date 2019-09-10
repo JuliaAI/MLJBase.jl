@@ -38,3 +38,12 @@ end
 @testset "tasks" begin
   @test include("tasks.jl")
 end
+
+@testset "measures" begin
+  @test include("measures.jl")
+end
+
+@testset "interface for LossFunctions" begin
+  @test include("loss_functions_interface.jl")
+end
+

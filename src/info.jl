@@ -1,73 +1,29 @@
-target_quantity(m) =
-    target_scitype(m) <: Tuple ? true : false
-is_probabilistic(::Type{<:Model}) = false
-is_probabilistic(::Type{<:Deterministic}) = false
-is_probabilistic(::Type{<:Probabilistic}) = true
+# `info` returns a dictionary of model trait values suitable, after
+# encoding, to serializing to TOML file. Not intended to be exposed to
+# user. The `traits` function, defined in MLJ, returns the trait
+# values as a named-tuple, more friendly for user-interaction. One can
+# similarly call `traits` on performance measures.
 
-function coretype(M)
-    if isdefined(M, :name)
-        return M.name
-    else
-        return coretype(M.body)
-    end
-end
+info_dict(M::Type{<:Supervised}) = info_dict(M, SUPERVISED_TRAITS)
+info_dict(M::Type{<:Unsupervised}) = info_dict(M, UNSUPERVISED_TRAITS)
+info_dict(model::Model) = info_dict(typeof(model))
+
+function info_dict(M::Type{<:Model}, traits)
+
+    message = "$M has a bad trait declaration.\n"
+
+    ismissing(is_pure_julia(M)) || is_pure_julia(M) isa Bool ||
+        error(message*"is_pure_julia($M) must return true, false or missing. ")
+
+    :supports_weights in traits &&
+        !(supports_weights(M) isa Bool) &&
+        error(message*"supports_weights($M) must return true, false or missing. ")
+
+    :is_wrapper in traits &&
+        !(is_wrapper(M) isa Bool) &&
+        error(message*"is_wrapper($M) must return true, false or missing. ")
     
-name(M::Type{<:Model}) = split(string(coretype(M)), '.')[end] |> String
-
-if VERSION < v"1.0.0"
-    import Base.info
+    return LittleDict{Symbol,Any}(trait => eval(:($trait))(M)
+                                  for trait in traits)
 end
 
-function info(M::Type{<:Supervised})
-
-    message = "$M has a bad trait declaration. "
-
-    load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
-                                    "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
-
-    is_pure_julia(M) in [true, false, :unknown] ||
-        error(message*"is_pure_julia($M) must return true or false. ")
-
-    d = LittleDict{Symbol,Any}()
-    d[:name] = name(M)
-    d[:package_name] = package_name(M)
-    d[:package_url] = package_url(M)
-    d[:package_license] = package_license(M)
-    d[:load_path] = load_path(M)
-    d[:is_wrapper] = is_wrapper(M)
-    d[:is_pure_julia] = is_pure_julia(M)
-    d[:package_uuid] = package_uuid(M)
-    d[:supports_weights] = supports_weights(M)
-    d[:is_supervised] = true
-    d[:is_probabilistic] = is_probabilistic(M)
-    d[:input_scitype] = input_scitype(M)
-    d[:target_scitype] = target_scitype(M)
-    return d
-end
-
-function info(M::Type{<:Unsupervised})
-
-    message = "$M has a bad trait declaration. "
-
-    load_path != "unknown" || error(message*"MLJBase.load_path($M) should be defined so that "* 
-                                    "using MLJ; import MLJ.load_path($M) loads $M into current namespace.")
-
-    is_pure_julia(M) in [true, false, :unknown] ||
-        error(message*"is_pure_julia($M) must return true or false. ")
-
-    d = LittleDict{Symbol,Any}()
-    d[:name] = name(M)
-    d[:package_name] = package_name(M)
-    d[:package_url] = package_url(M)
-    d[:package_uuid] = package_uuid(M)
-    d[:load_path] = load_path(M)
-    d[:is_wrapper] = is_wrapper(M)
-    d[:is_pure_julia] = is_pure_julia(M)
-    d[:is_supervised] = false
-    d[:input_scitype] = input_scitype(M)
-    d[:output_scitype] = output_scitype(M)
-
-    return d
-end
-
-info(model::Model) = info(typeof(model))

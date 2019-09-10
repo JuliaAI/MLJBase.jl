@@ -1,18 +1,19 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-
 module MLJBase
 
-export MLJType, Model, Supervised, Unsupervised, Deterministic, Probabilistic
+export MLJType, Model, Supervised, Unsupervised
+export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
-export load_path, package_url, package_name, package_uuid
-export input_scitype, supports_weights
-export target_scitype, output_scitype
-export is_pure_julia, is_wrapper                                 
+export info, info_dict
 
+export load_path, package_url, package_name, package_uuid  # model_traits.jl
+export input_scitype, supports_weights                     # model_traits.jl
+export target_scitype, output_scitype                      # model_traits.jl
+export is_pure_julia, is_wrapper, prediction_type          # model_traits.jl
 export params                                        # parameters.jl
 export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
@@ -25,6 +26,14 @@ export UnivariateFinite, average                     # distributions.jl
 export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
 export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
 export info                                          # info.jl
+export @load_boston, @load_ames, @load_iris          # datasets.jl
+export @load_reduced_ames                            # datasets.jl
+export @load_crabs                                   # datasets.jl
+export orientation, reports_each_observation         # measures.jl
+export is_feature_dependent                          # measures.jl
+export default_measure, value                        # measures.jl
+export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
+export misclassification_rate, cross_entropy         # measures.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -35,6 +44,10 @@ export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage, Image
 export scitype, scitype_union, coerce, schema
+
+# rexport from Random, Statistics, Distributions, CategoricalArrays:
+export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
+export std
 
 import Base.==
 
@@ -90,6 +103,9 @@ abstract type Probabilistic <: Supervised end
 # supervised models that `predict` point-values are of:
 abstract type Deterministic <: Supervised end
 
+# supervised models that `predict` intervals:
+abstract type Interval <: Supervised end
+
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
@@ -125,39 +141,6 @@ function inverse_transform end
 # fitted parameters (eg, coeficients of linear model):
 fitted_params(::Model, fitresult) = (fitresult=fitresult,)
 
-# operations implemented by some meta-models:
-function se end
-function evaluate end
-function best end
-
-# a model wishing invalid hyperparameters to be corrected with a
-# warning should overload this method (return value is the warning
-# message):
-clean!(model::Model) = ""
-
-# fallback trait declarations:
-input_scitype(::Any) = Unknown
-output_scitype(::Any) = Unknown
-target_scitype(::Any) = Unknown
-is_pure_julia(::Any) = false
-package_name(::Any) = "unknown"
-package_license(::Any) = "unknown"
-load_path(::Any) = "unknown"
-package_uuid(::Any) = "unknown"
-package_url(::Any) = "unknown"
-is_wrapper(::Any) = false
-supports_weights(::Any) = false
-
-input_scitype(model::Model) = input_scitype(typeof(model))
-output_scitype(model::Model) = output_scitype(typeof(model))
-target_scitype(model::Model) = target_scitype(typeof(model))
-is_pure_julia(model::Model) = is_pure_julia(typeof(model))
-package_name(model::Model) = package_name(typeof(model))
-load_path(model::Model) = load_path(typeof(model))
-package_uuid(model::Model) = package_uuid(typeof(model))
-package_url(model::Model) = package_url(typeof(model))
-is_wrapper(m::Model) = is_wrapper(typeof(m))
-
 # probabilistic supervised models may also overload one or more of
 # `predict_mode`, `predict_median` and `predict_mean` defined below.
 
@@ -173,6 +156,31 @@ predict_mean(model::Probabilistic, fitresult, Xnew) =
 predict_median(model::Probabilistic, fitresult, Xnew) =
     median.(predict(model, fitresult, Xnew))
 
+# operations implemented by some meta-models:
+function se end
+function evaluate end
+function best end
+
+# a model wishing invalid hyperparameters to be corrected with a
+# warning should overload this method (return value is the warning
+# message):
+clean!(model::Model) = ""
+
+
+## TRAITS
+
+""" 
+
+    info(object)
+
+List the traits of an object, such as a model or a performance measure.
+
+"""
+info(object) = info(object, Val(ScientificTypes.trait(object))) 
+
+
+include("model_traits.jl")
+
 # for unpacking the fields of MLJ objects:
 include("parameters.jl")
 
@@ -187,7 +195,9 @@ include("data.jl")
 include("distributions.jl")
 
 include("info.jl")
+include("datasets.jl") # importing CSV will also load datasets_requires.jl
 include("tasks.jl")
+include("measures.jl")
 
 # __init__() function:
 include("init.jl")

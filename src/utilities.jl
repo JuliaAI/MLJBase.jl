@@ -1,3 +1,11 @@
+function coretype(M)
+    if isdefined(M, :name)
+        return M.name
+    else
+        return coretype(M.body)
+    end
+end
+
 function finaltypes(T::Type)
     s = InteractiveUtils.subtypes(T)
     if isempty(s)

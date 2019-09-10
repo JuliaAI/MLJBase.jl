@@ -56,9 +56,10 @@ or `false` for each column `name::Symbol` of `table`.
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
 
-Scientific type conversions can be optionally specified:
+Scientific type conversions can be optionally specified (note
+semicolon):
 
-    unpack(table, c...; col1=>scitype1, col2=>scitype2, ... )
+    unpack(table, c...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
 
 ### Example
 
@@ -86,8 +87,7 @@ function unpack(X, conditionals...; wrap_singles=false, pairs...)
     if isempty(pairs)
         Xfixed = X
     else
-        fix_dict = Dict(pairs...)
-        Xfixed = ScientificTypes.coerce(fix_dict, X)
+        Xfixed = ScientificTypes.coerce(X, pairs...)
     end
 
     unpacked = Any[]
@@ -235,56 +235,58 @@ decoder(element::CategoricalElement) =
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
 """
-    MLJBase.matrix(X)
+    MLJBase.matrix(X; transpose=false)
 
-Convert a table source `X` into an `Matrix`; or, if `X` is
-a `AbstractMatrix`, return `X`. Optimized for column-based sources.
-
-If instead X is a sparse table, then a `SparseMatrixCSC` object is
-returned. The integer relabelling of column names follows the
-lexicographic ordering (as indicated by `schema(X).names`).
+Convert a Tables.jl compatible table source `X` into an `Matrix`; or,
+if `X` is a `AbstractMatrix`, return `X`. Optimized for column-based
+sources. Rows of the table or input matrix, correspond to rows of the
+output, unless `transpose=true`.
 
 """
-matrix(X) = matrix(Val(ScientificTypes.trait(X)), X)
-matrix(::Val{:other}, X) = throw(ArgumentError)
-matrix(::Val{:other}, X::AbstractMatrix) = X
+matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
+matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError)
+matrix(::Val{:other}, X::AbstractMatrix; kwargs...) = X
 
-function matrix(::Val{:table}, X)
-    cols = Tables.columns(X) # property-accessible object
-    mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
-    # tightest eltype:
-    return broadcast(identity, mat)
-end
+matrix(::Val{:table}, X; kwargs...) = Tables.matrix(X; kwargs...)
+# matrix(::Val{:table, X)
+#     cols = Tables.columns(X) # property-accessible object
+#     mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])
+#     # tightest eltype:
+#     return broadcast(identity, mat)
+# end
 
-function matrix(::Val{:sparse}, X)
-    K = keys(X)
-    features = schema(X).names
-    index_given_feature = Dict{Symbol,Int}()
-    for j in eachindex(features)
-        index_given_feature[features[j]] = j
-    end
-    I = [k[1] for k in K]
-    J = [index_given_feature[k[2]] for k in K]
-    V = [v[1] for v in values(X)]
-    return sparse(I, J, V)
-end
+# function matrix(::Val{:sparse}, X)
+#     K = keys(X)
+#     features = schema(X).names
+#     index_given_feature = Dict{Symbol,Int}()
+#     for j in eachindex(features)
+#         index_given_feature[features[j]] = j
+#     end
+#     I = [k[1] for k in K]
+#     J = [index_given_feature[k[2]] for k in K]
+#     V = [v[1] for v in values(X)]
+#     return sparse(I, J, V)
+# end
 
 """
-    MLJBase.table(cols; prototype=cols)
+    MLJBase.table(columntable; prototype=nothing)
 
-Convert a named tuple of vectors or tuples `cols`, into a table. The
-table type returned is the "preferred sink type" for `prototype` (see
-the Tables.jl documentation).
+Convert a named tuple of vectors or tuples `columntable`, into a table
+of the "preferred sink type" of `prototype`. This is often the type of
+`prototype` itself, when `prototype` is a sink; see the Tables.jl
+documentation. If `prototype` is not specified, then a named tuple of
+vectors is returned.
 
-    MLJBase.table(X::AbstractMatrix; names=nothing, prototype=nothing)
+    MLJBase.table(A::AbstractMatrix; names=nothing, prototype=nothing)
 
-Convert an abstract matrix `X` into a table with `names` (a tuple of
-symbols) as column names, or with labels `(:x1, :x2, ..., :xn)` where
-`n=size(X, 2)`, if `names` is not specified.  If prototype=nothing,
-then a named tuple of vectors is returned.
+Wrap an abstract matrix `A` as a Tables.jl compatible table with the
+specified column `names` (a tuple of symbols). If `names` are not
+specified, `names=(:x1, :x2, ..., :xn)` is used, where `n=size(A, 2)`.
 
-Equivalent to `table(cols, prototype=prototype)` where `cols` is the
-named tuple of columns of `X`, with `keys(cols) = names`.
+If a `prototype` is specified, then the matrix is materialized as a
+table of the preferred sink type of `prototype`, rather than
+wrapped. Note that if `protottype` is *not* specified, then
+`MLJ.matrix(MLJ.table(A))` is essentially a non-operation.
 
 """
 function table(cols::NamedTuple; prototype=NamedTuple())
@@ -297,15 +299,18 @@ function table(cols::NamedTuple; prototype=NamedTuple())
     end
     return Tables.materializer(prototype)(cols)
 end
-function table(X::AbstractMatrix; names=nothing, prototype=nothing)
+function table(A::AbstractMatrix; names=nothing, prototype=nothing)
     if names == nothing
-        _names = tuple([Symbol(:x, j) for j in 1:size(X, 2)]...)
+        _names = [Symbol(:x, j) for j in 1:size(A, 2)]
     else
-        _names = names
+        _names = collect(names)
     end
-    cols = NamedTuple{_names}(tuple([X[:,j] for j in 1:size(X, 2)]...))
-    _prototype = (prototype == nothing ? cols : prototype)
-    return table(cols; prototype=_prototype)
+    matrix_table = Tables.table(A, header=_names)
+    if prototype === nothing
+        return matrix_table
+    else
+        return Tables.materializer(prototype)(matrix_table)
+    end
 end
 
 
@@ -314,10 +319,9 @@ end
 """
     selectrows(X, r)
 
-Select single or multiple rows from any table, sparse table, or
-abstract vector `X`.  If `X` is tabular, the object returned is a
-table of the preferred sink type of `typeof(X)`, even a single row is
-selected.
+Select single or multiple rows from any table, or abstract vector `X`,
+or matrix.  If `X` is tabular, the object returned is a table of the
+preferred sink type of `typeof(X)`, even if only a single row is selected.
 
 """
 selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
@@ -326,11 +330,10 @@ selectrows(::Val{:other}, X, r) = throw(ArgumentError)
 """
     selectcols(X, c)
 
-Select single or multiple columns from any table or sparse table
-`X`. If `c` is an abstract vector of integers or symbols, then the
-object returned is a table of the preferred sink type of
-`typeof(X)`. If `c` is a *single* integer or column, then a `Vector`
-or `CategoricalVector` is returned.
+Select single or multiple columns from any table or matrix `X`. If `c`
+is an abstract vector of integers or symbols, then the object returned
+is a table of the preferred sink type of `typeof(X)`. If `c` is a
+*single* integer or column, then an `AbstractVector` is returned.
 
 """
 selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
@@ -339,7 +342,7 @@ selectcols(::Val{:other}, X, c) = throw(ArgumentError)
 """
     select(X, r, c)
 
-Select element of a table or sparse table at row `r` and column
+Select element of a table or matrix at row `r` and column
 `c`. In the case of sparse data where the key `(r, c)`, zero or
 `missing` is returned, depending on the value type.
 
@@ -352,12 +355,12 @@ select(::Val{:other}, X, r, c) = throw(ArgumentError)
 """
     nrows(X)
 
-Return the number of rows in a table, sparse table, or abstract vector.
+Return the number of rows in a table, abstract vector or abstract
+matrix.
 
 """
 nrows(X) = nrows(Val(ScientificTypes.trait(X)), X)
 nrows(::Val{:other}, X) = throw(ArgumentError)
-
 
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
@@ -419,8 +422,27 @@ nrows(::Val{:table}, X) = schema(X).nrows
 ## ACCESSORS FOR ABSTRACT VECTORS
 
 selectrows(::Val{:other}, v::AbstractVector, r) = v[r]
-nrows(::Val{:other}, v::AbstractVector) = length(v)
 selectrows(::Val{:other}, v::CategoricalVector, r) = @inbounds v[r]
+
+# single row selection must return a matrix!
+selectrows(::Val{:other}, v::AbstractVector, r::Integer) = v[r:r]
+selectrows(::Val{:other}, v::CategoricalVector, r::Integer) = @inbounds v[r:r]
+
+nrows(::Val{:other}, v::AbstractVector) = length(v)
+
+
+## ACCESSORS FOR ABSTRACT MATRICES
+
+selectrows(::Val{:other}, A::AbstractMatrix, r) = A[r, :] 
+selectrows(::Val{:other}, A::CategoricalMatrix, r) = @inbounds A[r, :]
+
+# single row selection must return a matrix!
+selectrows(::Val{:other}, A::AbstractMatrix, r::Integer) = A[r:r, :] 
+selectrows(::Val{:other}, A::CategoricalMatrix, r::Integer) =
+    @inbounds A[r:r, :]
+
+nrows(::Val{:other}, A::AbstractMatrix) = size(A, 1)
+
 
 ## to be replaced (not used anywhere):
 ## ACCESSORS FOR JULIA NDSPARSE ARRAYS (N=2)
