@@ -45,12 +45,12 @@ function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false,
 end
 
 """
-    t1, t2, ...., tk = unnpack(table, c1, c2, ... ck; wrap_singles=false)
+    t1, t2, ...., tk = unnpack(table, t1, t2, ... tk; wrap_singles=false)
 
 Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
-from the column names defined by the conditionals `c1`, `c2`, ...,
-`ck`. A *conditional* is any object `c` such that `c(name)` is `true`
+from the column names defined by the tests `t1`, `t2`, ...,
+`tk`. A *test* is any object `t` such that `t(name)` is `true`
 or `false` for each column `name::Symbol` of `table`. 
 
 Whenever a returned table contains a single column, it is converted to
@@ -59,7 +59,7 @@ a vector unless `wrap_singles=true`.
 Scientific type conversions can be optionally specified (note
 semicolon):
 
-    unpack(table, c...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
+    unpack(table, t...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
 
 ### Example
 
@@ -82,7 +82,7 @@ julia> Z
 ```
  
 """
-function unpack(X, conditionals...; wrap_singles=false, pairs...)
+function unpack(X, tests...; wrap_singles=false, pairs...)
 
     if isempty(pairs)
         Xfixed = X
@@ -94,7 +94,7 @@ function unpack(X, conditionals...; wrap_singles=false, pairs...)
     names_left = schema(Xfixed).names |> collect
     history = ""
     counter = 1
-    for c in conditionals
+    for c in tests
         names = filter(c, names_left)
         filter!(!in(names), names_left)
         history *= "selection $counter: $names\n remaining: $names_left\n"
