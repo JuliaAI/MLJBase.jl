@@ -108,8 +108,10 @@ end
 
 function UnivariateFinite(classes::AbstractVector{L},
                           p::AbstractVector{<:Real}) where L
-    L <: CategoricalElement || error("classes must have CategoricalValue or "*
-                                     "CategoricalString type.")
+    L <: CategoricalElement ||
+        error("`classes` must have type `AbstractVector{T}` where "*
+              "`T <: Union{CategoricalValue,CategoricalString}. "*
+              "Perhaps you have `T=Any`? ")
     Dist.@check_args(UnivariateFinite, length(classes)==length(p))
     prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
     return  UnivariateFinite(prob_given_class)
