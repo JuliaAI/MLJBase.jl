@@ -48,3 +48,7 @@ end
 @testset "@mlj_model" begin
   @test include("mlj_model_macro.jl")
 end
+
+@testset "metadatautils" begin
+  @test include("metadata_utilities.jl")
+end

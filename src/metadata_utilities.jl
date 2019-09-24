@@ -4,9 +4,9 @@ docstring_ext
 Helper function to generate the docstring for a package.
 """
 function docstring_ext(T; descr::String="")
-    package_name = package_name(T)
-    package_url  = package_url(T)
-    model_name   = name(T)
+    package_name = MLJBase.package_name(T)
+    package_url  = MLJBase.package_url(T)
+    model_name   = MLJBase.name(T)
     # the message to return
     message      = "$descr"
     message     *= "\n→ based on [$package_name]($package_url)"
