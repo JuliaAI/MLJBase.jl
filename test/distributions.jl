@@ -10,7 +10,7 @@ import Random.seed!
 seed!(1234)
 
 
-## UNIVARIATE NOMINAL
+## UNIVARIATE FINITE
 
 v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
 a, s, q, f = v[1], v[2], v[3], v[4]
@@ -67,6 +67,17 @@ d = Distributions.fit(UnivariateFinite, v)
 @test pdf(d, f) == 0
 @test_throws ArgumentError pdf(d, 'j')
 @test_throws ArgumentError pdf(d, j)
+
+@testset "approx for UnivariateFinite" begin
+    y = categorical(["yes", "no", "maybe"])
+    yes = y[1]
+    no = y[2]
+    maybe = y[3]
+    @test(UnivariateFinite([yes, no, maybe], [0.1, 0.2, 0.7]) ≈
+          UnivariateFinite([maybe, yes, no], [0.7, 0.1, 0.2]))
+    @test(!(UnivariateFinite([yes, no, maybe], [0.1, 0.2, 0.7]) ≈
+          UnivariateFinite([maybe, yes, no], [0.7, 0.2, 0.1])))
+end
 
 # arithmetic
 v = categorical(collect("abc"))
