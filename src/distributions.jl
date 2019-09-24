@@ -2,8 +2,10 @@
 
 const Dist = Distributions
 
-
 ## EQUALITY OF DISTRIBUTIONS (minor type piracy)
+
+# TODO: We should get rid of this. I think it is used only in
+# MLJModels/test. 
 
 function ==(d1::D, d2::D) where D<:Dist.Sampleable
     ret = true
@@ -138,6 +140,28 @@ function Base.show(stream::IO, d::UnivariateFinite)
     end
     str *= ")"
     print(stream, str)
+end
+
+"""
+    isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
+
+Returns `true` if and only if `Set(classes(d1) == Set(classes(d2))`
+and the corresponding probabilities are approximately equal. The
+key-word arguments `kwargs` are passed through to each call of
+`isapprox` on probabiliity pairs. Returns `false` otherwise.
+
+"""
+function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
+
+    classes1 = classes(d1)
+    classes2 = classes(d2)
+
+    for c in classes1
+        c in classes2 || return false
+        approx(pdf(d1, c), pdf(d2, c); kwargs...) ||
+            return false # pdf defined below
+    end
+    return true
 end
 
 function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
