@@ -20,6 +20,7 @@ export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, unpack                             # data.jl
 export @set_defaults                                 # utilities.jl
+export @mlj_model                                    # mlj_model_macro.jl
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
 export UnivariateFinite, average                     # distributions.jl
@@ -50,6 +51,7 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
 export std
 
 import Base.==
+import Base: @__doc__
 
 using Tables
 using OrderedCollections # already a dependency of StatsBase
@@ -83,7 +85,7 @@ const DEFAULT_SHOW_DEPTH = 0
 include("utilities.jl")
 
 
-## BASE TYPES 
+## BASE TYPES
 
 abstract type MLJType end
 include("equality.jl") # equality for MLJType objects
@@ -116,7 +118,7 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 ## THE MODEL INTERFACE
 
 # every model interface must implement a `fit` method of the form
-# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report` 
+# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
 # or, one the simplified versions
 # `fit(model, training_args...) -> fitresult`
 # `fit(model, X, ys...) -> fitresult`
@@ -169,14 +171,14 @@ clean!(model::Model) = ""
 
 ## TRAITS
 
-""" 
+"""
 
     info(object)
 
 List the traits of an object, such as a model or a performance measure.
 
 """
-info(object) = info(object, Val(ScientificTypes.trait(object))) 
+info(object) = info(object, Val(ScientificTypes.trait(object)))
 
 
 include("model_traits.jl")
@@ -198,6 +200,12 @@ include("info.jl")
 include("datasets.jl") # importing CSV will also load datasets_requires.jl
 include("tasks.jl")
 include("measures.jl")
+
+# mlj model macro to help define models
+include("mlj_model_macro.jl")
+
+# metadata utils
+include("metadata_utilities.jl")
 
 # __init__() function:
 include("init.jl")
