@@ -21,6 +21,7 @@ export table, levels_seen, matrix, container_type    # data.jl
 export partition, unpack                             # data.jl
 export @set_defaults                                 # utilities.jl
 export @mlj_model                                    # mlj_model_macro.jl
+export metadata_model, metadata_pkg                  # metadata_utilities
 export HANDLE_GIVEN_ID, @more, @constant             # show.jl
 export color_on, color_off                           # show.jl
 export UnivariateFinite, average                     # distributions.jl
