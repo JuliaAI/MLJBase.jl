@@ -3,9 +3,7 @@
 # this test code be wrapped in a module. Any new module name will do -
 # eg, `module TestDatasets` for code testing `datasets.jl`.
 
-# using Revise
-using MLJBase
-using Test
+using MLJBase, Test
 
 @testset "equality" begin
   @test include("equality.jl")
@@ -47,3 +45,10 @@ end
   @test include("loss_functions_interface.jl")
 end
 
+@testset "@mlj_model" begin
+  @test include("mlj_model_macro.jl")
+end
+
+@testset "metadatautils" begin
+  @test include("metadata_utilities.jl")
+end
