@@ -158,7 +158,7 @@ function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
 
     for c in classes1
         c in classes2 || return false
-        approx(pdf(d1, c), pdf(d2, c); kwargs...) ||
+        isapprox(pdf(d1, c), pdf(d2, c); kwargs...) ||
             return false # pdf defined below
     end
     return true
