@@ -14,11 +14,14 @@ seed!(1234)
 
 v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
 a, s, q, f = v[1], v[2], v[3], v[4]
-p = a.pool
-@test MLJBase.class(a.level, p) == a
-levels!(v, reverse(levels(v)))
-@test MLJBase.class(a.level, p) == a
-levels!(v, reverse(levels(v)))
+
+@testset "classes" begin
+    p = a.pool
+    @test classes(p) == [a, f, q, s]
+    levels!(v, reverse(levels(v)))
+    @test classes(p) == reverse([a, f, q, s])
+    levels!(v, reverse(levels(v)))
+end
 
 dic=Dict(s=>0.1, q=> 0.2, f=> 0.7)
 d = UnivariateFinite(dic)
@@ -29,6 +32,7 @@ levels!(v, reverse(levels(v)))
 @test support(d) == [s, q, f]
 
 @test pdf(d, s) ≈ 0.1
+@test pdf(d, 's') ≈ 0.1
 @test mode(d) == f
 @test rand(d, 5) == [f, q, f, f, q]
 

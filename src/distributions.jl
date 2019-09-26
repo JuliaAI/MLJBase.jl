@@ -34,7 +34,6 @@ abstract type NonEuclidean <: Distributions.ValueSupport end
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
-class(ref, pool) = pool.valindex[ref]
 
 """
     UnivariateFinite(classes, p)
@@ -83,58 +82,57 @@ See also `classes`, `support`.
 
 """
 struct UnivariateFinite{L,U,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuclidean}
-    pool::CategoricalPool{L,U}
+    decoder::CategoricalDecoder{L,U}
     prob_given_class::LittleDict{U,T}
 end
 
-function UnivariateFinite(prob_given_cSlass::AbstractDict{L}) where L
-    L <: CategoricalElement ||
-        error("The support of a UnivariateFinite can consist only of "*
-              "CategoricalString or CategoricalValue elements. ")
-end
+UnivariateFinite(prob_given_class::AbstractDict) =
+    error("The support of a UnivariateFinite can consist only of "*
+          "`CategoricalString` or `CategoricalValue` elements, and "*
+          "probabilities must be `AbstractFloat`. ")
 
 function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
-    
+
     an_element = first(keys(prob_given_class))
-    pool = an_element.pool
-    
+    decoder_ = decoder(an_element)
+
     p = values(prob_given_class) |> collect
     Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
-    
+
     d = LittleDict{U,T}()
     for key in classes(an_element)
-        haskey(prob_given_class, key) && (d[key.level] = prob_given_class[key] )
+        haskey(prob_given_class, key) && (d[int(key)] = prob_given_class[key] )
     end
-    return UnivariateFinite(pool, d)
+    return UnivariateFinite(decoder_, d)
 end
 
-function UnivariateFinite(classes::AbstractVector{L},
-                          p::AbstractVector{<:Real}) where L
-    L <: CategoricalElement ||
-        error("`classes` must have type `AbstractVector{T}` where "*
-              "`T <: Union{CategoricalValue,CategoricalString}. "*
-              "Perhaps you have `T=Any`? ")
+function UnivariateFinite(classes::AbstractVector{<:CategoricalElement},
+                          p::AbstractVector{<:Real})
     Dist.@check_args(UnivariateFinite, length(classes)==length(p))
     prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
     return  UnivariateFinite(prob_given_class)
 end
+UnivariateFinite(classes::AbstractVector, p) = 
+    error("`classes` must have type `AbstractVector{T}` where "*
+          "`T <: Union{CategoricalValue,CategoricalString}. "*
+          "Perhaps you have `T=Any`? ")
 
-function classes(d::UnivariateFinite)
-    p = d.pool
-    return [p.valindex[p.invindex[v]] for v in p.levels]
-end
+classes(d::UnivariateFinite) = classes(d.decoder.pool)
 
-function Distributions.support(d::UnivariateFinite)
-    refs = collect(keys(d.prob_given_class)) 
-    return sort!(map(r->class(r, d.pool), refs))
-end
+# get the internal integer representations of the support 
+raw_support(d::UnivariateFinite) =
+    collect(keys(d.prob_given_class))
+
+Distributions.support(d::UnivariateFinite) =
+    sort!(map(d.decoder, raw_support(d)))
 
 function Base.show(stream::IO, d::UnivariateFinite)
-    support = Dist.support(d)
-    x1 = first(support)
-    p1 = d.prob_given_class[x1.level]
+    raw = sort!(raw_support(d)) # reflects order of pool at
+                                # instantiation of d
+    x1 = d.decoder(first(raw))
+    p1 = d.prob_given_class[first(raw)]
     str = "UnivariateFinite($x1=>$p1"
-    pairs = (x=>d.prob_given_class[x.level] for x in support[2:end])
+    pairs = (d.decoder(r)=>d.prob_given_class[r] for r in raw[2:end])
     for pair in pairs
         str *= ", $(pair[1])=>$(pair[2])"
     end
@@ -172,9 +170,9 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     Dist.@check_args(UnivariateFinite, weights == nothing || n==length(weights))
 
     # check all distributions have consistent pool:
-    first_index = first(dvec).pool.index
+    first_index = first(dvec).decoder.pool.index
     for d in dvec
-        d.pool.index == first_index ||
+        d.decoder.pool.index == first_index ||
             error("Averaging UnivariateFinite distributions with incompatible"*
                   " pools. ")
     end
@@ -193,7 +191,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     for x in refs
         prob_given_class[x] = zero(T)
     end
-    
+
     # sum up:
     if weights == nothing
         scale = 1/n
@@ -212,9 +210,31 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
         end
     end
 
-    return UnivariateFinite(first(dvec).pool, prob_given_class)
-    
-end        
+    return UnivariateFinite(first(dvec).decoder.pool, prob_given_class)
+
+end
+
+function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
+    if haskey(d.prob_given_class, ref)
+        return d.prob_given_class[ref]
+    else
+        return zero(T)
+    end
+end
+
+Distributions.pdf(d::UnivariateFinite{L,U,T},
+                  x::CategoricalElement) where {L,U,T} = _pdf(d, int(x))
+
+function Distributions.pdf(d::UnivariateFinite{L,U,T},
+                           level::L) where {L,U,T}
+    p = d.decoder.pool
+    if level in p.levels
+        return _pdf(d, int(p, level))
+    else
+        throw(ArgumentError(""))
+    end
+end
+
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_class
@@ -227,32 +247,8 @@ function Distributions.mode(d::UnivariateFinite)
             break
         end
     end
-    return d.pool.valindex[m]
+    return d.decoder.pool.valindex[m]
 end
-
-function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
-    if haskey(d.prob_given_class, ref)
-        return d.prob_given_class[ref]
-    else
-        return zero(T)
-    end
-end
-
-function Distributions.pdf(d::UnivariateFinite{L,U,T},
-                           x::CategoricalElement) where {L,U,T}
-    x in classes(d) || throw(ArgumentError(""))
-    return _pdf(d, x.level)
-end
-
-function Distributions.pdf(d::UnivariateFinite{L,U,T},
-                           level::L) where {L,U,T}
-    if haskey(d.pool.invindex, level)
-        return _pdf(d, d.pool.invindex[level])
-    else
-        throw(ArgumentError(""))
-    end
-end
-
 
 """
     _cummulative(d::UnivariateFinite)
@@ -300,13 +296,13 @@ end
 
 function Base.rand(d::UnivariateFinite)
     p_cummulative = _cummulative(d)
-    classes = d.pool.valindex[collect(keys(d.prob_given_class))]
+    classes = d.decoder.pool.valindex[collect(keys(d.prob_given_class))]
     return classes[_rand(p_cummulative)]
 end
 
 function Base.rand(d::UnivariateFinite, n::Int)
     p_cummulative = _cummulative(d)
-    classes = d.pool.valindex[collect(keys(d.prob_given_class))]
+    classes = d.decoder.pool.valindex[collect(keys(d.prob_given_class))]
     return [classes[_rand(p_cummulative)] for i in 1:n]
 end
 
@@ -336,4 +332,3 @@ end
 # hack for issue #809 in Dist.jl:
 Distributions.fit(::Type{Dist.Normal{T}}, args...) where T =
     Dist.fit(Dist.Normal, args...)
-

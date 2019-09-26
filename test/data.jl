@@ -88,24 +88,35 @@ end
     
     Xraw = broadcast(x->mod(x,N), rand(Int, 2N, 3N))
     Yraw = string.(Xraw)
+
+    # to turn a categ matrix into a ordinary array with categorical
+    # elements. Need because broacasting the identity gives a
+    # categorical array in CategoricalArrays >0.5.2
+    function matrix_(X)
+        ret = Array{Any}(undef, size(X))
+        for i in eachindex(X)
+            ret[i] = X[i]
+        end
+        return ret
+    end
     
     X = categorical(Xraw)
     x = X[1]
     Y = categorical(Yraw)
     y = Y[1]
-    V = broadcast(identity, X)
-    W = broadcast(identity, Y)
+    V = matrix_(X)
+    W = matrix_(Y)
     Xo = levels!(deepcopy(X), mix)
     xo = Xo[1]
     Yo = levels!(deepcopy(Y), string.(mix))
     yo = Yo[1]
-    Vo = broadcast(identity, Xo)
-    Wo = broadcast(identity, Yo)
+    Vo = matrix_(Xo)
+    Wo = matrix_(Yo)
 
     raw(x::CategoricalElement) = x.pool.index[x.level]
     @test raw.(classes(xo)) == xo.pool.levels
     @test raw.(classes(yo)) == yo.pool.levels
-    
+
     # getting all possible elements from one:
     @test raw.(X) == Xraw
     @test raw.(Y) == Yraw
@@ -116,14 +127,14 @@ end
     @test int(X) == int(V)
     @test int(Y) == int(W)
     
-    # encoding and decoding are inverses:
+    # encoding is right-inverse to decoding:
     d = decoder(xo)
-    @test d(int(Vo)) == Vo
+    @test d(int(Vo)) == Vo # ie have the same elements
     e = decoder(yo)
     @test e(int(Wo)) == Wo
-    A = sample(xo.pool.order, 100)
-    @test int(d(A)) == A
-    @test int(e(A)) == A
+#    levels!(Yo, reverse(levels(Yo)))
+#    e = decoder(yo)
+#    @test e(int(Wo)) == Wo
     
     # int is based on ordering not index
     v = categorical(['a', 'b', 'c'], ordered=true)
@@ -131,6 +142,11 @@ end
     levels!(v, ['c', 'a', 'b'])
     @test int(v) == [2, 3, 1]
 
+    # special private int(pool, level) method:
+    @test broadcast(int, [d.pool], levels(Xo)) == int.(classes(xo))
+    levels!(Xo, reverse(levels(Xo)))
+    @test broadcast(int, [d.pool], levels(Xo)) == int.(classes(xo))
+    
 end
 
 @testset "table to matrix to table" begin
