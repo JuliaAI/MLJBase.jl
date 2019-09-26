@@ -22,7 +22,7 @@ end
     @set_defaults ModelType(args...)
     @set_defaults ModelType args
 
-Create a keyword constructor for any type `ModelType<::MLJBase.Model`,
+Create a keyword constructor for any type `ModelType<:MLJBase.Model`,
 using as default values those listed in `args`. These must include a
 value for every field, and in the order appearing in
 `fieldnames(ModelType)`.
