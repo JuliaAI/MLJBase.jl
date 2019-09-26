@@ -66,6 +66,8 @@ import ScientificTypes: trait
 
 # to be extended:
 import StatsBase: fit, predict, fit!
+import Missings.levels
+
 
 # from Standard Library:
 using Statistics

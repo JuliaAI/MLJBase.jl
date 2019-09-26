@@ -5,7 +5,7 @@ const Dist = Distributions
 ## EQUALITY OF DISTRIBUTIONS (minor type piracy)
 
 # TODO: We should get rid of this. I think it is used only in
-# MLJModels/test. 
+# MLJModels/test.
 
 function ==(d1::D, d2::D) where D<:Dist.Sampleable
     ret = true
@@ -58,7 +58,12 @@ values specify the corresponding probabilities.
     classes(d::UnivariateFinite)
 
 A list of categorial elements in the common pool of classes used to
-construct `d`. 
+construct `d`.
+
+    levels(d::UnivariateFinite)
+
+A list of the raw levels in the common pool of classes used to
+construct `d`, equal to `get.(classes(d))`.
 
     Distributions.support(d::UnivariateFinite)
 
@@ -71,13 +76,19 @@ pdf(d, "yes")     # 0.3
 pdf(d, v[1])      # 0.3
 pdf(d, "no")      # 0.0
 pdf(d, "house")   # throws error
-classes(d) # Array{CategoricalString{UInt32}, 1}["maybe", "no", "yes"]
-support(d) # Array{CategoricalString{UInt32}, 1}["maybe", "no"]
+classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "yes"]
+levels(d) # Array{String, 1}["maybe", "no", "yes"]
+support(d) # CategoricalArray{String,1,UInt32}["maybe", "no"]
 mode(d)    # CategoricalString{UInt32} "maybe"
-rand(d, 5) # Array{CategoricalString{UInt32}, 1}["maybe", "no", "maybe", "maybe", "no"] or similar
+rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
 d = fit(UnivariateFinite, v)
-pdf(d, "maybe") # 0.25 
+pdf(d, "maybe") # 0.25
 ````
+
+*Warning:* The `pdf` function will give wrong answers if the order of
+ levels of any categorical element passed to the UnivariateFinite
+ constructor is changed.
+
 See also `classes`, `support`.
 
 """
@@ -87,9 +98,10 @@ struct UnivariateFinite{L,U,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuc
 end
 
 UnivariateFinite(prob_given_class::AbstractDict) =
-    error("The support of a UnivariateFinite can consist only of "*
-          "`CategoricalString` or `CategoricalValue` elements, and "*
-          "probabilities must be `AbstractFloat`. ")
+    throw(ArgumentError("The support of a UnivariateFinite "*
+                        "can consist only of `CategoricalString` "*
+                        "or `CategoricalValue` elements, and "*
+                        "probabilities must be `AbstractFloat`. "))
 
 function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
 
@@ -112,19 +124,21 @@ function UnivariateFinite(classes::AbstractVector{<:CategoricalElement},
     prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
     return  UnivariateFinite(prob_given_class)
 end
-UnivariateFinite(classes::AbstractVector, p) = 
-    error("`classes` must have type `AbstractVector{T}` where "*
-          "`T <: Union{CategoricalValue,CategoricalString}. "*
-          "Perhaps you have `T=Any`? ")
+UnivariateFinite(classes::AbstractVector, p) =
+    throw(ArgumentError("`classes` must have type `AbstractVector{T}` where "*
+                        "`T <: Union{CategoricalValue,CategoricalString}. "*
+                        "Perhaps you have `T=Any`? "))
 
 classes(d::UnivariateFinite) = classes(d.decoder.pool)
+levels(d::UnivariateFinite)  = d.decoder.pool.levels
 
-# get the internal integer representations of the support 
+
+# get the internal integer representations of the support
 raw_support(d::UnivariateFinite) =
-    collect(keys(d.prob_given_class))
+    sort!(collect(keys(d.prob_given_class)))
 
 Distributions.support(d::UnivariateFinite) =
-    sort!(map(d.decoder, raw_support(d)))
+    map(d.decoder, raw_support(d))
 
 function Base.show(stream::IO, d::UnivariateFinite)
     raw = sort!(raw_support(d)) # reflects order of pool at
@@ -166,7 +180,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
                  weights=nothing) where {L,U,T}
 
     n = length(dvec)
-    
+
     Dist.@check_args(UnivariateFinite, weights == nothing || n==length(weights))
 
     # check all distributions have consistent pool:
@@ -181,7 +195,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     refs = reduce(union, [keys(d.prob_given_class) for d in dvec])
 
     # pad each individual dicts so they have common keys:
-    z = LittleDict{U,T}([x => zero(T) for x in refs]...)    
+    z = LittleDict{U,T}([x => zero(T) for x in refs]...)
     prob_given_class_vec = map(dvec) do d
         merge(z, d.prob_given_class)
     end
@@ -210,7 +224,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
         end
     end
 
-    return UnivariateFinite(first(dvec).decoder.pool, prob_given_class)
+    return UnivariateFinite(first(dvec).decoder, prob_given_class)
 
 end
 
@@ -247,7 +261,7 @@ function Distributions.mode(d::UnivariateFinite)
             break
         end
     end
-    return d.decoder.pool.valindex[m]
+    return d.decoder(m)
 end
 
 """
@@ -278,7 +292,7 @@ _rand(p_cummulative)
 Randomly sample the distribution with discrete support `1:n` which has
 cummulative probability vector `p_cummulative=[0, ..., 1]` (of length
 `n+1`). Does not check the first and last elements of `p_cummulative`
-but does not use them either. 
+but does not use them either.
 
 """
 function _rand(p_cummulative)
@@ -318,8 +332,8 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     prob_given_class = LittleDict([x=>c/N for (x, c) in count_given_class])
     return UnivariateFinite(prob_given_class)
 end
-    
-    
+
+
 ## NORMAL DISTRIBUTION ARITHMETIC
 
 # *(lambda::Number, d::Dist.Normal) = Dist.Normal(lambda*d.μ, lambda*d.σ)

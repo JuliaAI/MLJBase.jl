@@ -72,9 +72,9 @@ function check_dimensions(ŷ::AbstractVector, y::AbstractVector)
 end
 
 function check_pools(ŷ, y)
-              y[1].pool.index == classes(ŷ[1])[1].pool.index ||
-              error("Conflicting categorical pools found "*
-                    "in observations and predictions. ")
+    levels(y) == levels(ŷ[1]) ||
+        error("Conflicting categorical pools found "*
+              "in observations and predictions. ")
     return nothing
 end
 
