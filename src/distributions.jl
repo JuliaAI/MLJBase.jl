@@ -16,7 +16,7 @@ function ==(d1::D, d2::D) where D<:Dist.Sampleable
 end
 
 
-# DISTRIBUTION AS TRAIT (needed?)
+## DISTRIBUTION AS TRAIT (needed?)
 
 # fallback:
 isdistribution(d) = isdistribution(typeof(d))
@@ -26,14 +26,19 @@ isdistribution(::Type{<:Any}) = false
 isdistribution(::Type{<:Dist.Sampleable}) = true
 
 
-# ADD TO distributions.jl TYPE HIERARCHY TO ACCOUNT FOR NON-EUCLIDEAN
-# SUPPORTS
+## ADD TO distributions.jl TYPE HIERARCHY TO ACCOUNT FOR NON-EUCLIDEAN
+## SUPPORTS
 
 abstract type NonEuclidean <: Distributions.ValueSupport end
 
 
-## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
+## A NEW TRAIT FOR DISTRIBUTIONS
 
+support_scitype(::Type) = Unknown
+support_scitype(d) = support_scitype(typeof(d))
+
+
+## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
 """
     UnivariateFinite(classes, p)
@@ -153,6 +158,8 @@ function Base.show(stream::IO, d::UnivariateFinite)
     str *= ")"
     print(stream, str)
 end
+
+support_scitype(::Type{<:UnivariateFinite}) = Finite
 
 """
     isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)

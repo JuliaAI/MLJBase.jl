@@ -1,7 +1,7 @@
 ## TRAITS FOR MEASURES
 
 is_measure(::Any) = false
- 
+
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
      :reports_each_observation, :is_feature_dependent]
@@ -78,7 +78,7 @@ function check_pools(ŷ, y)
     return nothing
 end
 
-              
+
 ## FOR BUILT-IN MEASURES
 
 abstract type Measure <: MLJType end
@@ -88,7 +88,7 @@ is_measure(::Measure) = true
 Base.show(stream::IO, ::MIME"text/plain", m::Measure) = print(stream, "$(name(m)) (callable Measure)")
 Base.show(stream::IO, m::Measure) = print(stream, name(m))
 
-MLJBase.info(measure, ::Val{:measure}) = 
+MLJBase.info(measure, ::Val{:measure}) =
     (name=name(measure),
      target_scitype=target_scitype(measure),
      prediction_type=prediction_type(measure),
@@ -109,7 +109,7 @@ Mean absolute error (also known as MAE).
 
 ``\\text{MAV} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or ``\\text{MAV} =  ∑ᵢwᵢ|yᵢ-ŷᵢ|/∑ᵢwᵢ``
 
-For more information, run `MLJBase.info_dict(mav)`.
+For more information, run `info(mav)`.
 
 """
 mav = MAV()
@@ -161,7 +161,7 @@ Root mean squared error:
 
 ``\\text{RMS} = \\sqrt{n^{-1}∑ᵢ|yᵢ-ŷᵢ|^2}`` or ``\\text{RMS} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 
-For more information, run `MLJBase.info_dict(rms)`.
+For more information, run `info(rms)`.
 
 """
 rms = RMS()
@@ -200,7 +200,7 @@ struct L2 <: Measure end
 
 L2 per-observation loss.
 
-For more information, run `MLJBase.info_dict(l2)`.
+For more information, run `info(l2)`.
 
 """
 l2 = L2()
@@ -219,7 +219,7 @@ end
 function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real}, w::AbstractVector{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
-    return (y - ŷ).^2 .* w ./ (sum(w)/length(y)) 
+    return (y - ŷ).^2 .* w ./ (sum(w)/length(y))
 end
 
 struct L1 <: Measure end
@@ -229,7 +229,7 @@ struct L1 <: Measure end
 
 L1 per-observation loss.
 
-For more information, run `MLJBase.info_dict(l1)`.
+For more information, run `info(l1)`.
 
 """
 l1 = L1()
@@ -259,7 +259,7 @@ Root mean squared logarithmic error:
 
 ``\\text{RMSL} = n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 
-For more information, run `MLJBase.info_dict(rmsl)`.
+For more information, run `info(rmsl)`.
 
 See also [`rmslp1`](@ref).
 
@@ -292,7 +292,7 @@ Root mean squared logarithmic error with an offset of 1:
 
 ``\\text{RMSLP1} = n^{-1}∑ᵢ\\log\\left({yᵢ + 1 \\over ŷᵢ + 1}\\right)``
 
-For more information, run `MLJBase.info_dict(rmslp1)`.
+For more information, run `info(rmslp1)`.
 
 See also [`rmsl`](@ref).
 """
@@ -326,7 +326,7 @@ Root mean squared percentage loss:
 where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
 of such indices.
 
-For more information, run `MLJBase.info_dict(rmsp)`.
+For more information, run `info(rmsp)`.
 
 """
 rmsp = RMSP()
@@ -365,7 +365,7 @@ Returns the rate of misclassification of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
 
-For more information, run `MLJBase.info_dict(misclassification_rate)`.
+For more information, run `info(misclassification_rate)`.
 
 """
 misclassification_rate = MisclassificationRate()
@@ -393,12 +393,12 @@ struct CrossEntropy <: Measure end
 """
     cross_entropy(ŷ, y::AbstractVector{<:Finite})
 
-Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie, of 
+Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie,
 probabilistic predictions) and an abstract vector of true observations
 `y`, return the negative log-probability that each observation would
 occur, according to the corresponding probabilistic prediction.
 
-For more information, run `MLJBase.info_dict(cross_entropy)`.
+For more information, run `info(cross_entropy)`.
 
 """
 cross_entropy = CrossEntropy()
@@ -416,8 +416,71 @@ _cross_entropy(d, y) = -log(pdf(d, y))
 function (::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
                           y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
-    check_pools(ŷ, y)          
+    check_pools(ŷ, y)
     return broadcast(_cross_entropy, Any[ŷ...], y)
+end
+
+# TODO: support many distributions/samplers D below:
+struct BrierScore{D} <: Measure end
+
+"""
+    brier = BrierScore(; distribution=UnivariateFinite)
+    brier(ŷ, y)
+
+Given an abstract vector of distributions `ŷ` and an abstract vector
+of true observations `y`, return the corresponding Brier (aka
+quadratic) scores.
+
+Currently only `distribution=UnivariateFinite` is supported, which is
+applicable to superivised models with `Finite` target scitype. In this
+case, if `p(y)` is the predicted probability for a *single*
+observation `y`, and `C` all possible classes, then the corresponding
+Brier score for that observation is given by
+
+``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
+
+For more information, run `info(brier_score)`.
+
+"""
+function BrierScore(; distribution=UnivariateFinite)
+    distribution == UnivariateFinite ||
+        error("Only `UnivariateFinite` Brier scores currently supported. ")
+    return BrierScore{distribution}()
+end
+
+name(::Type{<:BrierScore{D}}) where D = "BrierScore{$(string(D))}"
+target_scitype(::Type{<:BrierScore{D}}) where D = AbstractVector{<:Finite}
+prediction_type(::Type{<:BrierScore}) = :probabilistic
+orientation(::Type{<:BrierScore}) = :score
+reports_each_observation(::Type{<:BrierScore}) = true
+is_feature_dependent(::Type{<:BrierScore}) = false
+supports_weights(::Type{<:BrierScore}) = true
+
+# For single observations (no checks):
+
+# UnivariateFinite:
+function brier_score(d::UnivariateFinite, y)
+    levels = classes(d)
+    pvec = broadcast(pdf, d, levels)
+    offset = 1 + sum(pvec.^2)
+    return 2*pdf(d, y) - offset
+end
+
+# For multiple observations:
+
+# UnivariateFinite:
+function (::BrierScore{<:UnivariateFinite})(
+    ŷ::AbstractVector{<:UnivariateFinite},
+    y::AbstractVector{<:CategoricalElement})
+    check_dimensions(ŷ, y)
+    check_pools(ŷ, y)
+    return broadcast(brier_score, Any[ŷ...], y)
+end
+
+function (score::BrierScore{<:UnivariateFinite})(
+    ŷ, y, w::AbstractVector{<:Real})
+    check_dimensions(y, w)
+    return w .* score(ŷ, y) ./ (sum(w)/length(y))
 end
 
 
@@ -438,5 +501,3 @@ default_measure(model::Deterministic,
 default_measure(model::Probabilistic,
                 ::Type{<:AbstractVector{<:Finite}}) =
                     cross_entropy
-
-
