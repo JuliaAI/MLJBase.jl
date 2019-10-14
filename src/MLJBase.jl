@@ -36,6 +36,7 @@ export is_feature_dependent                          # measures.jl
 export default_measure, value                        # measures.jl
 export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
 export misclassification_rate, cross_entropy         # measures.jl
+export BrierScore                                    # measures.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -66,6 +67,8 @@ import ScientificTypes: trait
 
 # to be extended:
 import StatsBase: fit, predict, fit!
+import Missings.levels
+
 
 # from Standard Library:
 using Statistics
