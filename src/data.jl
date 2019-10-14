@@ -117,7 +117,7 @@ CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 """
     classes(x)
 
-All the categorical elements with the same pool as `x` (including `x`),
+All the categorical elements with in the same pool as `x` (including `x`),
 returned as a list, with an ordering consistent with the pool. Here
 `x` has `CategoricalValue` or `CategoricalString` type, and
 `classes(x)` is a vector of the same eltype.
@@ -139,10 +139,8 @@ true, `x in x.pool.levels` is not true.
      :c
 
 """
-function classes(x::CategoricalElement)
-    p = x.pool
-    return [p.valindex[p.invindex[v]] for v in p.levels]
-end
+classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
+classes(x::CategoricalElement) = classes(x.pool)
 
 """
    int(x)
@@ -176,11 +174,11 @@ Broadcasted versions of `int`.
 See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
-int(A::AbstractArray{<:CategoricalElement}) = broadcast(int, A)
-# workaround for CategoricalArrays issue
-# https://github.com/JuliaData/CategoricalArrays.jl/issues/199:
-# function int(X::CategoricalArray)
-    
+int(A::AbstractArray) = broadcast(int, A)
+
+# get the integer representation of a level given pool (private
+# method):
+int(pool::CategoricalPool, level) =  pool.order[pool.invindex[level]] 
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
@@ -207,17 +205,13 @@ integer arrays, in which case `d` is broadcast over all elements.
     julia> d(int(v)) == v
     true
 
+*Warning:* It is *not* true that `int(d(u)) == u` always holds. 
+
 See also: [`int`](@ref), [`classes`](@ref).
 
 """
 decoder(element::CategoricalElement) =
     CategoricalDecoder(element.pool, sortperm(element.pool.order))
-## in the next lot need to skip the missing one
-# decoder(X::CategoricalArray) = CategoricalDecoder(X.pool)
-# function decoder(V::Array{<:CategoricalElement})
-#     isempty(V) && error("Unable to extract decoder from empty array. ")
-#     return X[1]
-# end
 
 (decoder::CategoricalDecoder{T,R})(i::Integer) where {T,R} =
     CategoricalValue{T,R}(decoder.invorder[i], decoder.pool)

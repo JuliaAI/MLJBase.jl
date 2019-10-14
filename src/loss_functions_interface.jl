@@ -1,4 +1,4 @@
-# implementation of MLJ measure interface for LossFunctions.jl 
+# implementation of MLJ measure interface for LossFunctions.jl
 
 import .LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
 # import LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
@@ -6,7 +6,7 @@ import .LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
 
 is_measure(::SupervisedLoss) = true
 
-orientation(::Type{<:SupervisedLoss}) = :loss 
+orientation(::Type{<:SupervisedLoss}) = :loss
 reports_each_observation(::Type{<:SupervisedLoss}) = true
 is_feature_dependent(::Type{<:SupervisedLoss}) = false
 supports_weights(::Type{<:SupervisedLoss}) = true
@@ -46,12 +46,3 @@ end
 
 value(measure::MarginLoss, yhat, X, y, w, ::Val{false}, ::Val{true}) =
     w .* value(measure, yhat, X, y, nothing) ./ (sum(w)/length(y))
-
-
-
-
-
-
-
-
-
