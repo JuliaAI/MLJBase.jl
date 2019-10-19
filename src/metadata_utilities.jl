@@ -9,8 +9,8 @@ function docstring_ext(T; descr::String="")
     model_name   = MLJBase.name(T)
     # the message to return
     message      = "$descr"
-    message     *= "\n→ based on [$package_name]($package_url)"
-    message     *= "\n→ do `@load $model_name` to use the model"
+    message     *= "\n→ based on [$package_name]($package_url)."
+    message     *= "\n→ do `@load $model_name pkg=\"$package_name\"` to use the model."
     message     *= "\n→ do `?$model_name` for documentation."
 end
 
@@ -23,14 +23,14 @@ function metadata_pkg(T; name::String="unknown", uuid::String="unknown", url::St
                          julia::Union{Missing,Bool}=missing, license::String="unknown",
                          is_wrapper::Bool=false)
     ex = quote
-        package_name(::Type{<:$T})    = $name
-        package_uuid(::Type{<:$T})    = $uuid
-        package_url(::Type{<:$T})     = $url
-        is_pure_julia(::Type{<:$T})   = $julia
-        package_license(::Type{<:$T}) = $license
-        is_wrapper(::Type{<:$T})      = $is_wrapper
+        MLJBase.package_name(::Type{<:$T}) = $name
+        MLJBase.package_uuid(::Type{<:$T}) = $uuid
+        MLJBase.package_url(::Type{<:$T}) = $url
+        MLJBase.is_pure_julia(::Type{<:$T}) = $julia
+        MLJBase.package_license(::Type{<:$T}) = $license
+        MLJBase.is_wrapper(::Type{<:$T}) = $is_wrapper
     end
-    eval(ex)
+    parentmodule(T).eval(ex)
 end
 
 """
@@ -43,15 +43,15 @@ function metadata_model(T; input=Unknown, target=Unknown,
                          output=Unknown, weights::Bool=false,
                          descr::String="", path::String="")
     if isempty(path)
-        path = "MLJModels.$(package_name(T))_.$(name(T))"
+        path = "MLJModels.$(MLJBase.package_name(T))_.$(MLJBase.name(T))"
     end
     ex = quote
-        input_scitype(::Type{<:$T})    = $input
-        output_scitype(::Type{<:$T})   = $output
-        target_scitype(::Type{<:$T})   = $target
-        supports_weights(::Type{<:$T}) = $weights
-        docstring(::Type{<:$T})        = docstring_ext($T, descr=$descr)
-        load_path(::Type{<:$T})        = $path
+        MLJBase.input_scitype(::Type{<:$T}) = $input
+        MLJBase.output_scitype(::Type{<:$T}) = $output
+        MLJBase.target_scitype(::Type{<:$T}) = $target
+        MLJBase.supports_weights(::Type{<:$T}) = $weights
+        MLJBase.docstring(::Type{<:$T}) = MLJBase.docstring_ext($T; descr=$descr)
+        MLJBase.load_path(::Type{<:$T}) = $path
     end
-    eval(ex)
+    parentmodule(T).eval(ex)
 end
