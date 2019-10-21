@@ -26,8 +26,8 @@ infos = info_dict(FooRegressor)
 @test infos[:is_pure_julia]
 @test !infos[:is_wrapper]
 @test infos[:docstring] == raw"""La di da
-    → based on [FooRegressor](http://existentialcomics.com/)
-    → do `@load FooRegressor` to use the model
+    → based on [FooRegressor](http://existentialcomics.com/).
+    → do `@load FooRegressor pkg="FooRegressor"` to use the model.
     → do `?FooRegressor` for documentation."""
 @test infos[:name] == "FooRegressor"
 
