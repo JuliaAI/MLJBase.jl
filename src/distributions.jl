@@ -150,10 +150,10 @@ function Base.show(stream::IO, d::UnivariateFinite)
                                 # instantiation of d
     x1 = d.decoder(first(raw))
     p1 = d.prob_given_class[first(raw)]
-    str = "UnivariateFinite($x1=>$p1"
+    str = "UnivariateFinite($x1=>$(round(p1, sigdigits=3))"
     pairs = (d.decoder(r)=>d.prob_given_class[r] for r in raw[2:end])
     for pair in pairs
-        str *= ", $(pair[1])=>$(pair[2])"
+        str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
     end
     str *= ")"
     print(stream, str)
