@@ -202,7 +202,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     refs = reduce(union, [keys(d.prob_given_class) for d in dvec])
 
     # pad each individual dicts so they have common keys:
-    z = LittleDict{U,T}([x => zero(T) for x in refs]...)
+    z = LittleDict{U,T}([x => zero(T) for x in refs])
     prob_given_class_vec = map(dvec) do d
         merge(z, d.prob_given_class)
     end
