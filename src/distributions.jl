@@ -199,18 +199,14 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     end
 
     # get all refs:
-    refs = reduce(union, [keys(d.prob_given_class) for d in dvec])
-
-    # pad each individual dicts so they have common keys:
-    z = LittleDict{U,T}([x => zero(T) for x in refs])
-    prob_given_class_vec = map(dvec) do d
-        merge(z, d.prob_given_class)
-    end
+    refs = Tuple(reduce(union, [keys(d.prob_given_class) for d in dvec]))
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_class = LittleDict{U,T}()
-    for x in refs
-        prob_given_class[x] = zero(T)
+    prob_given_class = LittleDict{U,T}(refs, zeros(T, length(refs)))
+
+    # make vector of all the distributions dicts padded to have same common keys:
+    prob_given_class_vec = map(dvec) do d
+        merge(prob_given_class, d.prob_given_class)
     end
 
     # sum up:
@@ -232,15 +228,10 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     end
 
     return UnivariateFinite(first(dvec).decoder, prob_given_class)
-
 end
 
 function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
-    if haskey(d.prob_given_class, ref)
-        return d.prob_given_class[ref]
-    else
-        return zero(T)
-    end
+    return get(d.prob_given_class, ref, zero(T))
 end
 
 Distributions.pdf(d::UnivariateFinite{L,U,T},
@@ -336,7 +327,9 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     isempty(vpure) && error("No non-missing data to fit. ")
     N = length(vpure)
     count_given_class = Dist.countmap(vpure)
-    prob_given_class = LittleDict([x=>c/N for (x, c) in count_given_class])
+    classes = Tuple(keys(count_given_class))
+    probs = values(count_given_class)./N
+    prob_given_class = LittleDict(classes, probs)
     return UnivariateFinite(prob_given_class)
 end
 
