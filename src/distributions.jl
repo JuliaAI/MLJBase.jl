@@ -202,7 +202,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     refs = Tuple(reduce(union, [keys(d.prob_given_class) for d in dvec]))
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_class = LittleDict{U,T}(ref, zeros(T, length(refs)))
+    prob_given_class = LittleDict{U,T}(refs, zeros(T, length(refs)))
 
     # make vector of all the distributions dicts padded to have same common keys:
     prob_given_class_vec = map(dvec) do d
