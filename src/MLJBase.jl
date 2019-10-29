@@ -125,16 +125,22 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 # `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
 # or, one the simplified versions
 # `fit(model, training_args...) -> fitresult`
-# `fit(model, X, ys...) -> fitresult`
-fit(model::Model, verbosity::Integer, args...) = fit(model, args...), nothing, nothing
+fit(model::Model, verbosity::Integer, args...) =
+    fit(model, args...), nothing, nothing
 
 # each model interface may optionally overload the following refitting
 # method:
 update(model::Model, verbosity, fitresult, cache, args...) =
     fit(model, verbosity, args...)
 
+# fallbacks for supervised models that don't support sample weights:
+fit(model::Supervised, verbosity::Integer, X, y, w) =
+    fit(model, verbosity, X, y)
+update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
+    update(model, verbosity, fitresult, cache, X, y)
+
 # methods dispatched on a model and fit-result are called
-# *operations*.  supervised models must implement a `predict`
+# *operations*.  Supervised models must implement a `predict`
 # operation (extending the `predict` method of StatsBase).
 
 # unsupervised methods must implement this operation:
