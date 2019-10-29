@@ -4,7 +4,7 @@ module TestData
 using Test
 using DataFrames
 import TypedTables
-using StatsBase
+# using StatsBase
 # using JuliaDB
 using SparseArrays
 using CategoricalArrays
@@ -171,6 +171,9 @@ end
     A = hcat(v, v)
     tab = table(A)
     selectcols(tab, 1) == v
+
+    @test matrix(B) == B
+    @test matrix(B, transpose=true) == permutedims(B)
 
 end
 
