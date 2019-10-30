@@ -28,4 +28,20 @@ f1.y = 20
 @test f1 != f2
 @test is_same_except(f1, f2, :x, :y)
 
+# test for nested fields
+
+mutable struct Super <: MLJType
+    sub::Foo
+    z::Int
+end
+
+f1 = Foo(MersenneTwister(7), 1, 2)
+f2 = Foo(MersenneTwister(8), 1, 2)
+s1 = Super(f1, 20)
+s2 = Super(f2, 20)
+@test s1 == s2
+s2.sub.x = 10
+@test f1 != f2
+
+
 true
