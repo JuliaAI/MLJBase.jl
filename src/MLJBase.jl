@@ -75,7 +75,6 @@ import Missings.levels
 using Statistics
 using Random
 using InteractiveUtils
-using SparseArrays
 
 
 ## CONSTANTS
