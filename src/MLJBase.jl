@@ -1,6 +1,6 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-module MLJBase
+module MLJBase 
 
 export MLJType, Model, Supervised, Unsupervised
 export Deterministic, Probabilistic, Interval
