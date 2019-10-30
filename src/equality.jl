@@ -14,6 +14,7 @@ Note that Base.== is overloaded such that `m1 == m2` if and only if
 `is_same_except(m1, m2)`.
 
 """
+is_same_except(x1, x2) = ==(x1, x2)
 function is_same_except(m1::M1, m2::M2,
             exceptions::Symbol...) where {M1<:MLJType,M2<:MLJType}
     if typeof(m1) != typeof(m2)
@@ -31,9 +32,9 @@ function is_same_except(m1::M1, m2::M2,
     same_values = true
     for fld in defined1
         same_values = same_values &&
-            (getfield(m1, fld) == getfield(m2, fld) ||
-             getfield(m1, fld) isa AbstractRNG) ||
-             getfield(m2, fld) isa AbstractRNG
+            (is_same_except(getfield(m1, fld), getfield(m2, fld)) ||
+             getfield(m1, fld) isa AbstractRNG ||
+             getfield(m2, fld) isa AbstractRNG)
     end
     return same_values
 end
