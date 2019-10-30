@@ -5,20 +5,27 @@ using Test
 mutable struct Foo <: MLJType
     rng::AbstractRNG
     x::Int
+    y::Int
 end
 
 mutable struct Bar <: MLJType
     rng::AbstractRNG
     x::Int
+    y::Int
 end
 
-f1 = Foo(MersenneTwister(7), 1)
-f2 = Foo(MersenneTwister(8), 1)
+f1 = Foo(MersenneTwister(7), 1, 2)
+f2 = Foo(MersenneTwister(8), 1, 2)
 @test f1.rng != f2.rng
 @test f1 == f2
-f1.x = 2
+f1.x = 10
 @test f1 != f2
-b = Bar(MersenneTwister(7), 1)
-@test f1 != b
+b = Bar(MersenneTwister(7), 1, 2)
+@test f2 != b
+
+@test is_same_except(f1, f2, :x)
+f1.y = 20
+@test f1 != f2
+@test is_same_except(f1, f2, :x, :y)
 
 true
