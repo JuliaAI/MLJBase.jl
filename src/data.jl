@@ -205,7 +205,7 @@ integer arrays, in which case `d` is broadcast over all elements.
     julia> d(int(v)) == v
     true
 
-*Warning:* It is *not* true that `int(d(u)) == u` always holds. 
+*Warning:* It is *not* true that `int(d(u)) == u` always holds.
 
 See also: [`int`](@ref), [`classes`](@ref).
 
@@ -239,9 +239,11 @@ output, unless `transpose=true`.
 """
 matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
 matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError)
-matrix(::Val{:other}, X::AbstractMatrix; kwargs...) = X
+matrix(::Val{:other}, X::AbstractMatrix; transpose=false) =
+    transpose ? permutedims(X) : X
 
 matrix(::Val{:table}, X; kwargs...) = Tables.matrix(X; kwargs...)
+
 # matrix(::Val{:table, X)
 #     cols = Tables.columns(X) # property-accessible object
 #     mat = reduce(hcat, [getproperty(cols, ftr) for ftr in propertynames(cols)])

@@ -1,6 +1,5 @@
 module TestDistributions
 
-# using Revise
 using Test
 using MLJBase
 using CategoricalArrays
