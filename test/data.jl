@@ -6,7 +6,7 @@ using DataFrames
 import TypedTables
 # using StatsBase
 # using JuliaDB
-using SparseArrays
+# using SparseArrays
 using CategoricalArrays
 import Tables
 using ScientificTypes
