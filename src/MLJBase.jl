@@ -133,6 +133,9 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 fit(model::Model, verbosity::Integer, args...) =
     fit(model, args...), nothing, nothing
 
+# fallback for static transformations:
+fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
+
 # each model interface may optionally overload the following refitting
 # method:
 update(model::Model, verbosity, fitresult, cache, args...) =
