@@ -1,6 +1,6 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-module MLJBase 
+module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised
 export Deterministic, Probabilistic, Interval
@@ -58,24 +58,23 @@ import Base: @__doc__
 
 using Tables
 using OrderedCollections # already a dependency of StatsBase
-import Distributions
-import Distributions: pdf, mode
 using CategoricalArrays
-using OrderedCollections
-import CategoricalArrays
-using ScientificTypes
-import ScientificTypes: trait
 
 # to be extended:
 import StatsBase: fit, predict, fit!
 import Missings.levels
 
+import Distributions
+import Distributions: pdf, mode
+
+using ScientificTypes
 
 # from Standard Library:
+
 using Statistics
 using Random
 using InteractiveUtils
-
+using LossFunctions
 
 ## CONSTANTS
 
@@ -88,12 +87,10 @@ const DEFAULT_SHOW_DEPTH = 0
 
 include("utilities.jl")
 
-
 ## BASE TYPES
 
 abstract type MLJType end
 include("equality.jl") # equality for MLJType objects
-
 
 ## ABSTRACT MODEL TYPES
 
@@ -178,7 +175,6 @@ function best end
 # message):
 clean!(model::Model) = ""
 
-
 ## TRAITS
 
 """
@@ -218,6 +214,14 @@ include("mlj_model_macro.jl")
 include("metadata_utilities.jl")
 
 # __init__() function:
-include("init.jl")
+# include("init.jl")
+
+ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
+    x-> x isa Supervised
+ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
+    x-> x isa Unsupervised
+ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
+
+include("loss_functions_interface.jl")
 
 end # module
