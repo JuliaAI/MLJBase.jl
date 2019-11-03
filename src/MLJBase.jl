@@ -158,7 +158,8 @@ function transform end
 function inverse_transform end
 
 # fallbacks for static transformers:
-transform(callable::Static, args...) = callable(args...)
+transform(callable::Static, fitresult, args...) = callable(args...)
+inverse_transform(callable::Static, fitresult, args...) = inv(callable, args...)
 
 # this operation can be optionally overloaded to provide access to
 # fitted parameters (eg, coeficients of linear model):
