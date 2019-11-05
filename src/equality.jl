@@ -10,6 +10,10 @@ Returns `true` only the following conditions all hold:
 - Corresponding fields agree, or are listed as
   `exceptions`, or have `AbstractRNG` as values (one or both)
 
+Here "agree" is in the sense of "==", unless the objects are
+themselves of `MLJType`, in which case agreement is in the sense of
+`is_same_except` with no exceptions allowed.
+
 Note that Base.== is overloaded such that `m1 == m2` if and only if
 `is_same_except(m1, m2)`.
 
@@ -49,7 +53,10 @@ import Base.==
 MLJBase.isequal(m1::MLJType, m2::MLJType) = (m1 === m2)
 
 ## TODO: Do we need to overload hash here?
-function Base.in(x::MLJType, itr::Set)
+
+# Note: To prevent julia crash, it seems we mysteriously need to
+# annotate the type of itr:
+function special_in(x, itr)
     anymissing = false
     for y in itr
         v = (y === x)
@@ -61,3 +68,7 @@ function Base.in(x::MLJType, itr::Set)
     end
     return anymissing ? missing : false
 end
+Base.in(x::MLJType, itr::Set) = special_in(x, itr)
+Base.in(x::MLJType, itr::AbstractVector) = special_in(x, itr)
+Base.in(x::MLJType, itr::NTuple) = special_in(x, itr)
+
