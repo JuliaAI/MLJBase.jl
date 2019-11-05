@@ -323,14 +323,46 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     L <: CategoricalElement ||
         error("Can only fit a UnivariateFinite distribution to samples of "*
               "CategoricalValue or CategoricalString type. ")
-    vpure = skipmissing(v) |> collect
-    isempty(vpure) && error("No non-missing data to fit. ")
-    N = length(vpure)
-    count_given_class = Dist.countmap(vpure)
+    y = skipmissing(v) |> collect
+    isempty(y) && error("No non-missing data to fit. ")
+    N = length(y)
+    count_given_class = Dist.countmap(y)
     classes = Tuple(keys(count_given_class))
     probs = values(count_given_class)./N
     prob_given_class = LittleDict(classes, probs)
     return UnivariateFinite(prob_given_class)
+end
+
+function Distributions.fit(d::Type{<:UnivariateFinite},
+                           v::AbstractVector{L},
+                           weights::AbstractVector{<:Real}) where L
+    L <: CategoricalElement ||
+        error("Can only fit a UnivariateFinite distribution to samples of "*
+              "CategoricalValue or CategoricalString type. ")
+    y = broadcast(identity, skipmissing(v))
+    isempty(y) && error("No non-missing data to fit. ")
+    classes_seen = filter(in(unique(y)), classes(y[1]))
+
+    # instantiate and initialize prob dictionary:
+    prob_given_class = LittleDict{L,Float64}()
+    for c in classes_seen
+        prob_given_class[c] = 0
+    end
+
+    # compute unnormalized  probablilities:
+    for i in eachindex(y)
+        prob_given_class[y[i]] += weights[i]
+    end
+
+    # normalize the probabilities:
+    S = sum(values(prob_given_class))
+    for c in keys(prob_given_class)
+        prob_given_class[c] /=S
+    end
+
+    @show typeof(classes_seen) typeof(prob_given_class)
+    return UnivariateFinite(prob_given_class)
+
 end
 
 
