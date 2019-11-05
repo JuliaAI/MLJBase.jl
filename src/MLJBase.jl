@@ -56,7 +56,7 @@ export std
 import Base.==
 import Base: @__doc__
 
-using Tables
+using Tables, DelimitedFiles
 using OrderedCollections # already a dependency of StatsBase
 using CategoricalArrays
 
