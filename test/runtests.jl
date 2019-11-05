@@ -29,9 +29,9 @@ end
   @test include("info.jl")
 end
 
-# @testset "datasets" begin
-#   @test include("datasets.jl")
-# end
+@testset "datasets" begin
+  @test include("datasets.jl")
+end
 
 @testset "tasks" begin
   @test include("tasks.jl")
