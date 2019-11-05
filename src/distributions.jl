@@ -88,6 +88,14 @@ mode(d)    # CategoricalString{UInt32} "maybe"
 rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
 d = fit(UnivariateFinite, v)
 pdf(d, "maybe") # 0.25
+```
+
+One can also do weighted fits:
+
+```julia
+w = [1, 4, 5, 1] # some weights
+d = fit(UnivariateFinite, v, w)
+pdf(d, "maybe") ≈ 4/11 # true
 ````
 
 *Warning:* The `pdf` function will give wrong answers if the order of
