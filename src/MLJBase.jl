@@ -1,6 +1,6 @@
 # Users of this module should first read the document
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
-module MLJBase 
+module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised
 export Static
@@ -9,6 +9,7 @@ export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
+export apply
 export info, info_dict
 export is_same_except
 
@@ -156,10 +157,6 @@ function transform end
 
 # unsupervised methods may implement this operation:
 function inverse_transform end
-
-# fallbacks for static transformers:
-transform(callable::Static, fitresult, args...) = callable(args...)
-inverse_transform(callable::Static, fitresult, args...) = inv(callable, args...)
 
 # this operation can be optionally overloaded to provide access to
 # fitted parameters (eg, coeficients of linear model):
