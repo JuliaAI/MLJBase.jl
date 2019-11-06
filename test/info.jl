@@ -5,6 +5,7 @@ using MLJBase
 import MLJBase.info_dict
 using Test
 using OrderedCollections
+using LossFunctions
 
 mutable struct DummyProb <: Probabilistic
     an_int::Int
@@ -172,6 +173,11 @@ end
     #     println(string(k, " ",  info_dict(DummyUnsup)[k] == d[k]))
     # end
 
+end
+
+@testset "info for measures" begin
+    @test info(rms).name == "rms"
+    info(L2DistLoss()).name == "LPDistLoss{2}"
 end
 
 end

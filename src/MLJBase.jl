@@ -214,15 +214,19 @@ include("mlj_model_macro.jl")
 # metadata utils
 include("metadata_utilities.jl")
 
-# __init__() function:
+include("loss_functions_interface.jl")
+
+
 # include("init.jl")
 
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
-    x-> x isa Supervised
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
-    x-> x isa Unsupervised
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
+function __init__()
 
-include("loss_functions_interface.jl")
+    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
+        x-> x isa Supervised
+    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
+        x-> x isa Unsupervised
+    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
+
+end
 
 end # module

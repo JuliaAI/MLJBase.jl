@@ -5,6 +5,10 @@
 
 using MLJBase, Test
 
+@testset "scientific trait" begin
+    @test include("scientific_trait.jl")
+end
+
 @testset "equality" begin
   @test include("equality.jl")
 end
