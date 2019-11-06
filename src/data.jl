@@ -44,6 +44,7 @@ function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false,
     return tuple(rowss...)
 end
 
+
 """
     t1, t2, ...., tk = unnpack(table, t1, t2, ... tk; wrap_singles=false)
 
@@ -51,7 +52,7 @@ Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
 from the column names defined by the tests `t1`, `t2`, ...,
 `tk`. A *test* is any object `t` such that `t(name)` is `true`
-or `false` for each column `name::Symbol` of `table`. 
+or `false` for each column `name::Symbol` of `table`.
 
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
@@ -66,7 +67,7 @@ semicolon):
 ```
 julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=[:A, :B])
 julia> Z, XY = unpack(table, ==(:z), !=(:w);
-               :x=>Continuous, :y=>Multiclass) 
+               :x=>Continuous, :y=>Multiclass)
 julia> XY
 2×2 DataFrame
 │ Row │ x       │ y            │
@@ -80,7 +81,6 @@ julia> Z
  10.0
  20.0
 ```
- 
 """
 function unpack(X, tests...; wrap_singles=false, pairs...)
 
@@ -106,13 +106,13 @@ function unpack(X, tests...; wrap_singles=false, pairs...)
         counter += 1
     end
     return Tuple(unpacked)
-    
 end
 
 
 ## DEALING WITH CATEGORICAL ELEMENTS
 
-CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
+const CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
+
 
 """
     classes(x)
@@ -178,12 +178,13 @@ int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
 # method):
-int(pool::CategoricalPool, level) =  pool.order[pool.invindex[level]] 
+int(pool::CategoricalPool, level) =  pool.order[pool.invindex[level]]
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
     invorder::Vector{Int}
 end
+
 
 """
     d = decoder(x)
@@ -208,7 +209,6 @@ integer arrays, in which case `d` is broadcast over all elements.
 *Warning:* It is *not* true that `int(d(u)) == u` always holds.
 
 See also: [`int`](@ref), [`classes`](@ref).
-
 """
 decoder(element::CategoricalElement) =
     CategoricalDecoder(element.pool, sortperm(element.pool.order))
@@ -235,7 +235,6 @@ Convert a Tables.jl compatible table source `X` into an `Matrix`; or,
 if `X` is a `AbstractMatrix`, return `X`. Optimized for column-based
 sources. Rows of the table or input matrix, correspond to rows of the
 output, unless `transpose=true`.
-
 """
 matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
 matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError)
@@ -283,7 +282,6 @@ If a `prototype` is specified, then the matrix is materialized as a
 table of the preferred sink type of `prototype`, rather than
 wrapped. Note that if `protottype` is *not* specified, then
 `MLJ.matrix(MLJ.table(A))` is essentially a non-operation.
-
 """
 function table(cols::NamedTuple; prototype=NamedTuple())
     Tables.istable(prototype) || error("`prototype` is not a table. ")
@@ -429,11 +427,11 @@ nrows(::Val{:other}, v::AbstractVector) = length(v)
 
 ## ACCESSORS FOR ABSTRACT MATRICES
 
-selectrows(::Val{:other}, A::AbstractMatrix, r) = A[r, :] 
+selectrows(::Val{:other}, A::AbstractMatrix, r) = A[r, :]
 selectrows(::Val{:other}, A::CategoricalMatrix, r) = @inbounds A[r, :]
 
 # single row selection must return a matrix!
-selectrows(::Val{:other}, A::AbstractMatrix, r::Integer) = A[r:r, :] 
+selectrows(::Val{:other}, A::AbstractMatrix, r::Integer) = A[r:r, :]
 selectrows(::Val{:other}, A::CategoricalMatrix, r::Integer) =
     @inbounds A[r:r, :]
 
@@ -462,4 +460,3 @@ nrows(::Val{:other}, A::AbstractMatrix) = size(A, 1)
 # select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
 # select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
 # select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
-
