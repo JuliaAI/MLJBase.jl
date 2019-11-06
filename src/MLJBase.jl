@@ -39,6 +39,14 @@ export default_measure, value                        # measures.jl
 export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
 export misclassification_rate, cross_entropy         # measures.jl
 export BrierScore                                    # measures.jl
+export confusion_matrix, confmat,                    # measures.jl/finite
+       accuracy,
+       recall, sensitivity,
+       specificity, selectivity,
+       f1score, FScore,
+       truepositive, truenegative, falsepositive, falsenegative,
+       truepositive_rate, truenegative_rate, falsediscovery_rate,
+       auc
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -55,6 +63,7 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
 export std
 
 import Base.==
+import Base.precision
 import Base: @__doc__
 
 using Tables, DelimitedFiles
@@ -69,13 +78,11 @@ import Distributions
 import Distributions: pdf, mode
 
 using ScientificTypes
+using LossFunctions
 
 # from Standard Library:
 
-using Statistics
-using Random
-using InteractiveUtils
-using LossFunctions
+using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 ## CONSTANTS
 
@@ -206,7 +213,7 @@ include("distributions.jl")
 include("info.jl")
 include("datasets.jl")
 include("tasks.jl")
-include("measures.jl")
+include("measures/measures.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
@@ -214,15 +221,10 @@ include("mlj_model_macro.jl")
 # metadata utils
 include("metadata_utilities.jl")
 
-# __init__() function:
-# include("init.jl")
-
 ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
     x-> x isa Supervised
 ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
     x-> x isa Unsupervised
 ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
-
-include("loss_functions_interface.jl")
 
 end # module

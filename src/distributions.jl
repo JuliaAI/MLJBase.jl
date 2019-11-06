@@ -368,9 +368,7 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
         prob_given_class[c] /=S
     end
 
-    @show typeof(classes_seen) typeof(prob_given_class)
     return UnivariateFinite(prob_given_class)
-
 end
 
 

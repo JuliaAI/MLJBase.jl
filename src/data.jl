@@ -113,7 +113,6 @@ end
 
 const CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
-
 """
     classes(x)
 
