@@ -115,6 +115,17 @@ end
     @test pdf(d, f) == 0
     @test_throws ArgumentError pdf(d, 'j')
 
+    # with weights:
+    w = [2, 3, 2, 3, 5, 3, 2, 2]
+    d = Distributions.fit(UnivariateFinite, v, w)
+    @test pdf(d, a) ≈ 8/22
+    @test pdf(d, 'a') ≈ 8/22
+    @test pdf(d, 'b') ≈ 9/22
+    @test pdf(d, 'c') ≈ 5/22
+    @test pdf(d, 'f') == 0
+    @test pdf(d, f) == 0
+    @test_throws ArgumentError pdf(d, 'j')
+
 end
 
 @testset "approx for UnivariateFinite" begin
