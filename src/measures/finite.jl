@@ -202,7 +202,7 @@ const TPrecision = Type{<:Precision}
 const TSpecificity = Type{<:Specificity}
 const TFScore = Type{<:FScore}
 const TAUC = Type{<:AUC}
-const TScoreCM = Union{TRecall,TPrecision,TSpecificity,TFScore,TAUC}
+const TScoreCM = Union{TRecall,TPrecision,TSpecificity,TFScore}
 
 const recall = Recall()
 const sensitivity = recall
@@ -228,6 +228,13 @@ orientation(::TScoreCM) = :score
 reports_each_observation(::TScoreCM) = true
 is_feature_dependent(::TScoreCM) = false
 supports_weights(::TScoreCM) = false
+
+target_scitype(::TAUC) = AbstractVector{<:Finite}
+prediction_type(::TAUC) = :probabilistic
+orientation(::TAUC) = :score
+reports_each_observation(::TAUC) = true
+is_feature_dependent(::TAUC) = false
+supports_weights(::TAUC) = false
 
 truepositive(m::ConfusionMatrix{2}, fcp=true; first_class_positive::Bool=fcp) =
     ifelse(first_class_positive, m.mat[1,1], m.mat[2,2])
