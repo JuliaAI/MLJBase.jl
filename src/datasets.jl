@@ -163,7 +163,6 @@ load_ames()         = load_dataset("ames.csv", COERCE_AMES)
 load_iris()         = load_dataset("iris.csv", COERCE_IRIS)
 load_crabs()        = load_dataset("crabs.csv", COERCE_CRABS)
 
-load_crabs()
 
 """Load a well-known public regression dataset with `Continuous` features."""
 macro load_boston()
