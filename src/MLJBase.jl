@@ -40,7 +40,8 @@ export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
 export misclassification_rate, cross_entropy         # measures.jl
 export BrierScore                                    # measures.jl
 export confusion_matrix, confmat,                    # measures.jl/finite
-       accuracy,
+       Recall, Precision, Specificity, FScore, AUC,
+       accuracy, positive_label, negative_label,
        recall, sensitivity,
        specificity, selectivity,
        f1score, FScore,
@@ -62,8 +63,7 @@ export scitype, scitype_union, coerce, schema
 export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
 export std
 
-import Base.==
-import Base.precision
+import Base.==, Base.precision, Base.getindex
 import Base: @__doc__
 
 using Tables, DelimitedFiles
@@ -79,6 +79,7 @@ import Distributions: pdf, mode
 
 using ScientificTypes
 using LossFunctions
+using Parameters
 
 # from Standard Library:
 
@@ -206,6 +207,9 @@ include("show.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
+# metadata utils
+include("metadata_utilities.jl")
+
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
@@ -218,9 +222,6 @@ include("measures/measures.jl")
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
 
-# metadata utils
-include("metadata_utilities.jl")
-
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
         x-> x isa Supervised
@@ -230,4 +231,3 @@ function __init__()
 end
 
 end # module
- 

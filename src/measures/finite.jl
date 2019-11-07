@@ -140,6 +140,7 @@ end
 
 Base.show(s::IO, m::MIME"text/plain", cm::ConfusionMatrix) = show(s, m, cm.mat)
 
+Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
 
 """
 ConfusionMatrix(m)
@@ -156,17 +157,32 @@ function ConfusionMatrix(m::Matrix{Int})
 end
 
 """
-confusion_matrix(ŷ, y)
+confusion_matrix(ŷ, y; rev=false)
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements and the actual `y`.
 Rows are the predicted class, columns the 'true' class.
+The ordering follows that of `levels(y)`.
+In the binary case, the first class is by default the "negative" and the second the "positive";
+this can be reversed using `rev=true`.
 """
-function confusion_matrix(ŷ::VC, y::VC) where VC <: AbstractVector{<:CategoricalElement}
+function confusion_matrix(ŷ::VC, y::VC;
+                          rev::Bool=false) where VC <: AbstractVector{<:CategoricalElement}
     check_dimensions(ŷ, y)
     nc   = length(levels(y))
+    if rev && nc > 2
+        throw(ArgumentError("Keyword `rev` can only be used in binary case."))
+    end
     cmat = zeros(Int, nc, nc)
     @inbounds for i in eachindex(y)
         cmat[int(ŷ[i]), int(y[i])] += 1
+    end
+    if rev
+        cm2 = zeros(Int, 2, 2)
+        cm2[1, 1] = cmat[2, 2]
+        cm2[1, 2] = cmat[2, 1]
+        cm2[2, 1] = cmat[1, 2]
+        cm2[2, 2] = cmat[1, 1]
+        cmat = cm2
     end
     return ConfusionMatrix(cmat)
 end
@@ -175,34 +191,29 @@ confmat = confusion_matrix
 
 # ============================
 struct Accuracy <: Measure end
-const TAccuracy = Type{<:Accuracy}
 
 const accuracy = Accuracy()
-
-name(::TAccuracy) = "accuracy"
-target_scitype(::TAccuracy) = AbstractVector{<:Finite}
-prediction_type(::TAccuracy) = :deterministic
-orientation(::TAccuracy) = :score
-reports_each_observation(::TAccuracy) = true
-is_feature_dependent(::TAccuracy) = false
-supports_weights(::TAccuracy) = true
 
 (::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
 (::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
 
-# ==========================
-struct Recall <: Measure end
-struct Precision <: Measure end
-struct Specificity <: Measure end
-struct FScore{β} <: Measure end
-struct AUC <: Measure end
+metadata_measure(Accuracy;
+    name="accuracy",
+    target=AbstractVector{<:Finite},
+    pred=:deterministic,
+    orientation=:score,
+    reports_each=false,
+    feat_dep=false,
+    weights=true)
 
-const TRecall = Type{<:Recall}
-const TPrecision = Type{<:Precision}
-const TSpecificity = Type{<:Specificity}
-const TFScore = Type{<:FScore}
-const TAUC = Type{<:AUC}
-const TScoreCM = Union{TRecall,TPrecision,TSpecificity,TFScore}
+# === Binary specific conf-mat related metrics
+# NOTE: rev keyword allows to swap considered ordering positive <> negative
+
+@with_kw_noshow struct Recall <: Measure;      rev::Bool=false; end
+@with_kw_noshow struct Precision <: Measure;   rev::Bool=false; end
+@with_kw_noshow struct Specificity <: Measure; rev::Bool=false; end
+@with_kw_noshow struct FScore{β} <: Measure;   rev::Bool=false; end
+@with_kw_noshow struct AUC <: Measure;         rev::Bool=false; end
 
 const recall = Recall()
 const sensitivity = recall
@@ -210,112 +221,123 @@ const sensitivity = recall
 const specificity = Specificity()
 const selectivity = specificity
 
-# nothing for precision as there is a Base.precision
+# nothing for precision as there is Base.precision
 
 const f1score = FScore{1}()
 
 const auc = AUC()
 
-name(::TRecall) = "recall"
-name(::TPrecision) = "precision"
-name(::TSpecificity) = "specificity"
+metadata_measure.((Recall, Precision, Specificity, FScore);
+    target=AbstractVector{<:Finite},
+    pred=:deterministic,
+    orientation=:score,
+    reports_each=false,
+    feat_dep=false,
+    weights=false)
+
+# adjustments
+name(::Type{<:Recall}) = "recall"
+name(::Type{<:Precision}) = "precision"
+name(::Type{<:Specificity}) = "specificity"
 name(::Type{<:FScore{β}}) where β = "F$β-score"
-name(::Type{<:AUC}) where β = "AUC"
 
-target_scitype(::TScoreCM) = AbstractVector{<:Finite}
-prediction_type(::TScoreCM) = :deterministic
-orientation(::TScoreCM) = :score
-reports_each_observation(::TScoreCM) = true
-is_feature_dependent(::TScoreCM) = false
-supports_weights(::TScoreCM) = false
+metadata_measure(AUC;
+    target=AbstractVector{<:Finite},
+    pred=:probabilistic,
+    orientation=:score,
+    reports_each=false,
+    feat_dep=false,
+    weights=false)
 
-target_scitype(::TAUC) = AbstractVector{<:Finite}
-prediction_type(::TAUC) = :probabilistic
-orientation(::TAUC) = :score
-reports_each_observation(::TAUC) = true
-is_feature_dependent(::TAUC) = false
-supports_weights(::TAUC) = false
+name(::Type{<:AUC}) = "auc"
 
-truepositive(m::ConfusionMatrix{2}, fcp=true; first_class_positive::Bool=fcp) =
-    ifelse(first_class_positive, m.mat[1,1], m.mat[2,2])
-truenegative(m::ConfusionMatrix{2}, fcp=true; first_class_positive::Bool=fcp) =
-    ifelse(first_class_positive, m.mat[2,2], m.mat[1,1])
-falsepositive(m::ConfusionMatrix{2}, fcp=true; first_class_positive::Bool=fcp) =
-    ifelse(first_class_positive, m.mat[1,2], m.mat[2,1])
-falsenegative(m::ConfusionMatrix{2}, fcp=true; first_class_positive::Bool=fcp) =
-    ifelse(first_class_positive, m.mat[2,1], m.mat[1,2])
+###
 
-function truepositive_rate(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp)
-    tp = truepositive(m, first_class_positive)
-    fn = falsenegative(m, first_class_positive)
+function positive_label(y::VC; rev::Bool=false) where VC <: AbstractVector{<:CategoricalElement}
+    lvls = levels(y)
+    length(lvls) == 2 || throw(ArgumentError("Expected a 2-class vector."))
+    rev && return lvls[1]
+    return lvls[2]
+end
+
+negative_label(y; rev::Bool=false) = positive_label(y; rev=!rev)
+
+truepositive(m::ConfusionMatrix{2},  r=false; rev::Bool=r) = ifelse(rev, m[1,1], m[2,2])
+truenegative(m::ConfusionMatrix{2},  r=false; rev::Bool=r) = ifelse(rev, m[2,2], m[1,1])
+falsepositive(m::ConfusionMatrix{2}, r=false; rev::Bool=r) = ifelse(rev, m[1,2], m[2,1])
+falsenegative(m::ConfusionMatrix{2}, r=false; rev::Bool=r) = ifelse(rev, m[2,1], m[1,2])
+
+function truepositive_rate(m::ConfusionMatrix{2}, r=false; rev=r)
+    tp = truepositive(m, rev)
+    fn = falsenegative(m, rev)
     return tp / (tp + fn)
 end
 
-function truenegative_rate(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp)
-    tn = truenegative(m, first_class_positive)
-    fp = falsepositive(m, first_class_positive)
+function truenegative_rate(m::ConfusionMatrix{2}, r=false; rev=r)
+    tn = truenegative(m, rev)
+    fp = falsepositive(m, rev)
     return tn / (tn + fp)
 end
 
-function falsediscovery_rate(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp)
-    fp = falsepositive(m, first_class_positive)
-    tp = truepositive(m, first_class_positive)
+function falsediscovery_rate(m::ConfusionMatrix{2}, r=false; rev=r)
+    fp = falsepositive(m, rev)
+    tp = truepositive(m, rev)
     return fp / (tp + fp)
 end
 
-(::Recall)(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp) =
-    truepositive_rate(m, first_class_positive)
+(r::Recall)(m::ConfusionMatrix{2})      = truepositive_rate(m, r.rev)
+(s::Specificity)(m::ConfusionMatrix{2}) = truenegative_rate(m, s.rev)
+(p::Precision)(m::ConfusionMatrix{2})   = 1.0 - falsediscovery_rate(m, p.rev)
 
-(::Specificity)(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp) =
-    truenegative_rate(m, first_class_positive)
+Base.precision(m::ConfusionMatrix{2}) = m |> Precision()
 
-Base.precision(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp) =
-    1.0 - falsediscovery_rate(m, first_class_positive)
-
-function (::FScore{β})(m::ConfusionMatrix{2}, fcp=true; first_class_positive=fcp) where β
+function (f::FScore{β})(m::ConfusionMatrix{2}) where β
     β2 = β^2
-    prec = precision(m, first_class_positive)
-    rec  = recall(m, first_class_positive)
+    if f.rev
+        prec = m |> Precision(rev=true)
+        rec  = m |> Recall(rev=true)
+    else
+        prec = precision(m)
+        rec  = recall(m)
+    end
     return (1 + β2) * (prec * rec) / (β2 * prec + rec)
 end
 
-truepositive(ŷ, y; args...)  = truepositive(confmat(ŷ, y); args...)
-truenegative(ŷ, y; args...)  = truenegative(confmat(ŷ, y); args...)
-falsepositive(ŷ, y; args...) = falsepositive(confmat(ŷ, y); args...)
-falsenegative(ŷ, y; args...) = falsenegative(confmat(ŷ, y); args...)
+truepositive(ŷ, y; rev=false)  = truepositive(confmat(ŷ, y),  rev)
+truenegative(ŷ, y; rev=false)  = truenegative(confmat(ŷ, y),  rev)
+falsepositive(ŷ, y; rev=false) = falsepositive(confmat(ŷ, y), rev)
+falsenegative(ŷ, y; rev=false) = falsenegative(confmat(ŷ, y), rev)
 
-truepositive_rate(ŷ, y; args...)   = truepositive_rate(confmat(ŷ, y); args...)
-truenegative_rate(ŷ, y; args...)   = truenegative_rate(confmat(ŷ, y); args...)
-falsediscovery_rate(ŷ, y; args...) = falsediscovery_rate(confmat(ŷ, y); args...)
+truepositive_rate(ŷ, y; rev=false)   = truepositive_rate(confmat(ŷ, y),   rev)
+truenegative_rate(ŷ, y; rev=false)   = truenegative_rate(confmat(ŷ, y),   rev)
+falsediscovery_rate(ŷ, y; rev=false) = falsediscovery_rate(confmat(ŷ, y), rev)
 
-(r::Recall)(ŷ, y; args...) = r(confmat(ŷ, y); args...)
-(s::Specificity)(ŷ, y; args...) = s(confmat(ŷ, y); args...)
-Base.precision(ŷ, y; args...) = precision(confmat(ŷ, y); args...)
-(f::FScore)(ŷ, y; args...) = f(confmat(ŷ, y); args...)
+(m::Union{Recall,Specificity,Precision,FScore})(ŷ, y) = confmat(ŷ, y) |> m
 
-# implementation drawn from the ranked comparison in
-# https://blog.revolutionanalytics.com/2016/11/calculating-auc.html
-function (::AUC)(ŷ, y; first_class_positive=true)
-    pos_label = levels(y)[1]
-    scores    = pdf.(ŷ, pos_label)
-    ranking   = sortperm(scores, rev=true)
+Base.precision(ŷ, y) = confmat(ŷ, y) |> Precision()
+
+function (a::AUC)(ŷ, y)
+    # implementation drawn from the ranked comparison in
+    # https://blog.revolutionanalytics.com/2016/11/calculating-auc.html
+    label_1 = levels(y)[1]
+    scores  = pdf.(ŷ, label_1)
+    ranking = sortperm(scores, rev=true)
+
     # sorted scores
-    scores   = scores[ranking]
-    pos_mask = (y[ranking] .== pos_label)
+    scores = scores[ranking]
+    mask_1 = (y[ranking] .== label_1)
 
-    pos_scores = scores[pos_mask]
-    neg_scores = scores[.!pos_mask]
+    scores_1 = scores[mask_1]
+    scores_2 = scores[.!mask_1]
 
-    n_pos = length(pos_scores)
-    n_neg = length(neg_scores)
+    n_1 = length(scores_1)
+    n_2 = length(scores_2)
 
     M = 0.0
-    for i in n_pos:-1:1, j in 1:n_neg
-        M += (1 + sign(pos_scores[i] - neg_scores[j]))/2
+    for i in n_1:-1:1, j in 1:n_2
+        M += (1 + sign(scores_1[i] - scores_2[j]))/2
     end
-
-    auc = M / (n_pos * n_neg)
-
-    first_class_positive && return auc
-    return 1.0 - auc
+    auc = M / (n_1 * n_2)
+    a.rev || return  1.0 - auc
+    return auc
 end
