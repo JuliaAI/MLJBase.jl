@@ -62,20 +62,23 @@ metadata_measure
 
 Helper function to write the metadata for a single measure.
 """
-function metadata_measure(T; name::String="", target=Unknown,
-                          pred::Symbol=:unknown, orientation::Symbol=:unknown,
-                          reports_each::Bool=true, feat_dep::Bool=false,
-                          weights::Bool=false)
-    pred_str = "$pred"
+function metadata_measure(T; name::String="",
+                          target_scitype=Unknown,
+                          prediction_type::Symbol=:unknown,
+                          orientation::Symbol=:unknown,
+                          reports_each_observation::Bool=true,
+                          is_feature_dependent::Bool=false,
+                          supports_weights::Bool=false)
+    pred_str = "$prediction_type"
     orientation_str = "$orientation"
     ex = quote
         isempty($name) || (MLJBase.name(::Type{<:$T}) = $name)
-        MLJBase.target_scitype(::Type{<:$T}) = $target
+        MLJBase.target_scitype(::Type{<:$T}) = $target_scitype
         MLJBase.prediction_type(::Type{<:$T}) = Symbol($pred_str)
         MLJBase.orientation(::Type{<:$T}) = Symbol($orientation_str)
-        MLJBase.reports_each_observation(::Type{<:$T}) = $reports_each
-        MLJBase.is_feature_dependent(::Type{<:$T}) = $feat_dep
-        MLJBase.supports_weights(::Type{<:$T}) = $weights
+        MLJBase.reports_each_observation(::Type{<:$T}) = $reports_each_observation
+        MLJBase.is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
+        MLJBase.supports_weights(::Type{<:$T}) = $supports_weights
     end
     parentmodule(T).eval(ex)
 end

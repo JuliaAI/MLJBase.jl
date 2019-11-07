@@ -199,12 +199,12 @@ const accuracy = Accuracy()
 
 metadata_measure(Accuracy;
     name="accuracy",
-    target=AbstractVector{<:Finite},
-    pred=:deterministic,
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
     orientation=:score,
-    reports_each=false,
-    feat_dep=false,
-    weights=true)
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=true)
 
 # === Binary specific conf-mat related metrics
 # NOTE: rev keyword allows to swap considered ordering positive <> negative
@@ -228,12 +228,12 @@ const f1score = FScore{1}()
 const auc = AUC()
 
 metadata_measure.((Recall, Precision, Specificity, FScore);
-    target=AbstractVector{<:Finite},
-    pred=:deterministic,
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
     orientation=:score,
-    reports_each=false,
-    feat_dep=false,
-    weights=false)
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
 
 # adjustments
 name(::Type{<:Recall}) = "recall"
@@ -242,12 +242,12 @@ name(::Type{<:Specificity}) = "specificity"
 name(::Type{<:FScore{β}}) where β = "F$β-score"
 
 metadata_measure(AUC;
-    target=AbstractVector{<:Finite},
-    pred=:probabilistic,
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:probabilistic,
     orientation=:score,
-    reports_each=false,
-    feat_dep=false,
-    weights=false)
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
 
 name(::Type{<:AUC}) = "auc"
 
