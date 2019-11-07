@@ -312,7 +312,9 @@ truepositive_rate(ŷ, y; rev=false)   = truepositive_rate(confmat(ŷ, y),   re
 truenegative_rate(ŷ, y; rev=false)   = truenegative_rate(confmat(ŷ, y),   rev)
 falsediscovery_rate(ŷ, y; rev=false) = falsediscovery_rate(confmat(ŷ, y), rev)
 
-(m::Union{Recall,Specificity,Precision,FScore})(ŷ, y) = confmat(ŷ, y) |> m
+for M in (Recall, Specificity, Precision, FScore)
+    (m::M)(ŷ, y) = confmat(ŷ, y) |> m
+end
 
 Base.precision(ŷ, y) = confmat(ŷ, y) |> Precision()
 
