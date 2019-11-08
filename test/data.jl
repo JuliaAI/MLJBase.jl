@@ -1,6 +1,5 @@
 module TestData
 
-# using Revise
 using Test
 using DataFrames
 import TypedTables
@@ -268,6 +267,18 @@ tt = TypedTables.Table(df)
 # sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
 #                      ["big", "small", 17, 34, 4, "small"])
 # @test matrix(nd) == sparsearray
+
+# see issue MLJModels#126
+@testset "classes-Any" begin
+    a = categorical(Any[collect("asdfjlksjfsldkfjasldkjf")])
+    c = classes(a[1])
+    @test c isa Vector{CategoricalValue{Any,UInt32}}
+    # order is preserved
+    lvs = levels(a)
+    for i in eachindex(lvs)
+        @test c[i] == lvs[i]
+    end
+end
 
 end # module
 

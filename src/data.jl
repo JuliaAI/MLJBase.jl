@@ -139,7 +139,20 @@ true, `x in x.pool.levels` is not true.
      :c
 
 """
-classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
+function classes(p::CategoricalPool)
+    ls = p.levels
+    # Standard approach is the list comprehension
+    eltype(ls) !== Any && return [p.valindex[p.invindex[l]] for l in ls]
+    # If the eltype is Any, we need  to be careful otherwise Julia
+    # stackoverflows; there is potentially a bug in CategoricalArrays
+    # see also issue MLJModels#126. The approach below, as weird as it may
+    # look, is the only way I could find to make it work.
+    classes_ = copy(p.valindex)
+    @inbounds for i in eachindex(ls)
+        classes_[i] = p.valindex[p.invindex[ls[i]]]
+    end
+    return classes_
+end
 classes(x::CategoricalElement) = classes(x.pool)
 
 """
