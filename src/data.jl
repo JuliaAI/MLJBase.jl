@@ -139,20 +139,7 @@ true, `x in x.pool.levels` is not true.
      :c
 
 """
-function classes(p::CategoricalPool)
-    ls = p.levels
-    # Standard approach is the list comprehension
-    eltype(ls) !== Any && return [p.valindex[p.invindex[l]] for l in ls]
-    # If the eltype is Any, we need  to be careful otherwise Julia
-    # stackoverflows; there is potentially a bug in CategoricalArrays
-    # see also issue MLJModels#126. The approach below, as weird as it may
-    # look, is the only way I could find to make it work.
-    classes_ = copy(p.valindex)
-    @inbounds for i in eachindex(ls)
-        classes_[i] = p.valindex[p.invindex[ls[i]]]
-    end
-    return classes_
-end
+classes(p::CategoricalPool) = [p[i] for i in CategoricalArrays.order(p)]
 classes(x::CategoricalElement) = classes(x.pool)
 
 """
@@ -186,12 +173,12 @@ Broadcasted versions of `int`.
 
 See also: [`decoder`](@ref).
 """
-int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
 # method):
-int(pool::CategoricalPool, level) =  pool.order[pool.invindex[level]]
+int(pool::CategoricalPool, level) = CategoricalArrays.order(pool)[level]
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
