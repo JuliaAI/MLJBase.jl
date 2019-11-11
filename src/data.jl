@@ -140,7 +140,9 @@ only `CategoricalValue` or `CategoricalString` in perverse cases.
      :c
 
 """
-classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
+classes(p) = [p[i] for i in invperm(CategoricalArrays.order(p))]
+# older method that avoids inverting a permutation but has dict lookup:
+# classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
 classes(x::CategoricalElement) = classes(x.pool)
 
 """
