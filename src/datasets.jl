@@ -42,9 +42,9 @@ const COERCE_REDUCED_AMES = (
     :LotArea      => Continuous,
     :GarageCars   => Count,
     :MSSubClass   => Multiclass,
-    :GarageArea   => Count,
-    :YearRemodAdd => Continuous,
-    :YearBuilt    => Continuous)
+    :GarageArea   => Continuous,
+    :YearRemodAdd => Count,
+    :YearBuilt    => Count)
 
 const COERCE_AMES = (
     :Id             => Count,
