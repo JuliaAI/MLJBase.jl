@@ -111,20 +111,21 @@ end
 
 ## DEALING WITH CATEGORICAL ELEMENTS
 
-const CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
+const CategoricalElement{U} =
+    Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 
 """
     classes(x)
 
-All the categorical elements with in the same pool as `x` (including `x`),
-returned as a list, with an ordering consistent with the pool. Here
-`x` has `CategoricalValue` or `CategoricalString` type, and
-`classes(x)` is a vector of the same eltype.
+All the categorical elements with in the same pool as `x` (including
+`x`), returned as a list, with an ordering consistent with the
+pool. Here `x` has `CategoricalValue` or `CategoricalString` type, and
+`classes(x)` is a vector of the same eltype. Note that `x in
+classes(x)` is always true.
 
-Not to be confused with the levels of `x.pool` which have a
-different type. In particular, while `x in classes(x)` is always
-true, `x in x.pool.levels` is not true.
+Not to be confused with `x.pool.levels` whose eltype is
+only `CategoricalValue` or `CategoricalString` in perverse cases.
 
     julia> v = categorical([:c, :b, :c, :a])
     julia> levels(v)
