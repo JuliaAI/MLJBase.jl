@@ -98,7 +98,9 @@ MLJBase.info(measure, ::Val{:measure}) =
      supports_weights=supports_weights(measure))
 
 
+# INCLUDE SPECIFIC MEASURES AND TOOLS
 include("continuous.jl")
+include("confusion_matrix.jl")
 include("finite.jl")
 include("loss_functions_interface.jl")
 

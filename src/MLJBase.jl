@@ -33,21 +33,26 @@ export load_boston, load_ames, load_iris,
        load_reduced_ames, load_crabs,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs               # datasets.jl
-export orientation, reports_each_observation         # measures.jl
-export is_feature_dependent                          # measures.jl
-export default_measure, value                        # measures.jl
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
-export misclassification_rate, cross_entropy         # measures.jl
-export BrierScore                                    # measures.jl
-export confusion_matrix, confmat,                    # measures.jl/finite
-       Recall, Precision, Specificity, FScore, AUC,
-       accuracy, positive_label, negative_label,
-       recall, sensitivity,
-       specificity, selectivity,
-       f1score, FScore,
+
+# MEASURES
+export orientation, reports_each_observation
+export is_feature_dependent
+export default_measure, value
+# -- continuous
+export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
+# -- confmat (measures/confusion_matrix)
+export confusion_matrix, confmat
+# -- finite (measures/finite)
+export cross_entropy, BrierScore,
+       misclassification_rate, mcr, accuracy
+# -- -- binary // order independent
+export AUC, auc
+# -- -- binary // order dependent
+export Recall, Precision, Specificity, FScore,
+       positive_label, negative_label,
+       recall, sensitivity, specificity, selectivity, f1score,
        truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsediscovery_rate,
-       auc
+       truepositive_rate, truenegative_rate, falsediscovery_rate
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -79,7 +84,6 @@ import Distributions: pdf, mode
 
 using ScientificTypes
 using LossFunctions
-using Parameters
 
 # from Standard Library:
 

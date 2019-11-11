@@ -1,37 +1,8 @@
-## CLASSIFICATION METRICS (FOR DETERMINISTIC PREDICTIONS)
-
-struct MisclassificationRate <: Measure end
-
-"""
-    misclassification_rate(ŷ, y)
-    misclassification_rate(ŷ, y, w)
-
-Returns the rate of misclassification of the (point) predictions `ŷ`,
-given true observations `y`, optionally weighted by the weights
-`w`. All three arguments must be abstract vectors of the same length.
-
-For more information, run `info(misclassification_rate)`.
-
-"""
-misclassification_rate = MisclassificationRate()
-name(::Type{<:MisclassificationRate}) = "misclassification_rate"
-target_scitype(::Type{<:MisclassificationRate}) = AbstractVector{<:Finite}
-prediction_type(::Type{<:MisclassificationRate}) = :deterministic
-orientation(::Type{<:MisclassificationRate}) = :loss
-reports_each_observation(::Type{<:MisclassificationRate}) = false
-is_feature_dependent(::Type{<:MisclassificationRate}) = false
-supports_weights(::Type{<:MisclassificationRate}) = true
-
-(::MisclassificationRate)(ŷ::AbstractVector{<:CategoricalElement},
-                          y::AbstractVector{<:CategoricalElement}) =
-                              mean(y .!= ŷ)
-(::MisclassificationRate)(ŷ::AbstractVector{<:CategoricalElement},
-                          y::AbstractVector{<:CategoricalElement},
-                          w::AbstractVector{<:Real}) =
-                              sum((y .!= ŷ) .* w) / sum(w)
-
-
-## CLASSIFICATION METRICS (FOR PROBABILISTIC PREDICTIONS)
+# ---------------------------------------------------
+## CLASSIFICATION METRICS (PROBABILISTIC PREDICTIONS)
+# >> CrossEntropy
+# >> BriersScore
+# ---------------------------------------------------
 
 struct CrossEntropy <: Measure end
 
@@ -129,69 +100,69 @@ function (score::BrierScore{<:UnivariateFinite})(
 end
 
 
-"""
-ConfusionMatrix{C}
+# ---------------------------------------------------
+## CLASSIFICATION METRICS (DETERMINISTIC PREDICTIONS)
+# ==> MisclassificationRate / MCR
+# ==> Accuracy
+# Binary only
+# = order independent
+# ==> AUC
+# = order dependent
+# ==> Recall
+# ==> Precision
+# ---------------------------------------------------
 
-Confusion matrix with `C ≥ 2` classes.
-"""
-struct ConfusionMatrix{C}
-    mat::Matrix
-end
-
-Base.show(s::IO, m::MIME"text/plain", cm::ConfusionMatrix) = show(s, m, cm.mat)
-
-Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
-
-"""
-ConfusionMatrix(m)
-
-Instantiates a confusion matrix out of a square integer matrix `m`.
-Rows are the predicted class, columns the 'true' class. See also
-the [wikipedia article](https://en.wikipedia.org/wiki/Confusion_matrix).
-"""
-function ConfusionMatrix(m::Matrix{Int})
-    s = size(m)
-    s[1] == s[2] || throw(ArgumentError("Expected a square matrix."))
-    s[1] > 1 || throw(ArgumentError("Expected a matrix of size ≥ 2x2."))
-    ConfusionMatrix{s[1]}(m)
-end
+struct MisclassificationRate <: Measure end
 
 """
-confusion_matrix(ŷ, y; rev=false)
+misclassification_rate(ŷ, y)
+misclassification_rate(ŷ, y, w)
+misclassification_rate(conf_mat)
 
-Computes the confusion matrix given a predicted `ŷ` with categorical elements and the actual `y`.
-Rows are the predicted class, columns the 'true' class.
-The ordering follows that of `levels(y)`.
-In the binary case, the first class is by default the "negative" and the second the "positive";
-this can be reversed using `rev=true`.
+Returns the rate of misclassification of the (point) predictions `ŷ`,
+given true observations `y`, optionally weighted by the weights
+`w`. All three arguments must be abstract vectors of the same length.
+A confusion matrix can also be passed as argument.
+
+For more information, run `info(misclassification_rate)`.
+You can also equivalently use `mcr`.
 """
-function confusion_matrix(ŷ::VC, y::VC;
-                          rev::Bool=false) where VC <: AbstractVector{<:CategoricalElement}
-    check_dimensions(ŷ, y)
-    nc   = length(levels(y))
-    if rev && nc > 2
-        throw(ArgumentError("Keyword `rev` can only be used in binary case."))
-    end
-    cmat = zeros(Int, nc, nc)
-    @inbounds for i in eachindex(y)
-        cmat[int(ŷ[i]), int(y[i])] += 1
-    end
-    if rev
-        cm2 = zeros(Int, 2, 2)
-        cm2[1, 1] = cmat[2, 2]
-        cm2[1, 2] = cmat[2, 1]
-        cm2[2, 1] = cmat[1, 2]
-        cm2[2, 2] = cmat[1, 1]
-        cmat = cm2
-    end
-    return ConfusionMatrix(cmat)
-end
+const misclassification_rate = MisclassificationRate()
+const mcr = misclassification_rate
 
-confmat = confusion_matrix
+name(::Type{<:MisclassificationRate}) = "misclassification_rate"
+target_scitype(::Type{<:MisclassificationRate}) = AbstractVector{<:Finite}
+prediction_type(::Type{<:MisclassificationRate}) = :deterministic
+orientation(::Type{<:MisclassificationRate}) = :loss
+reports_each_observation(::Type{<:MisclassificationRate}) = false
+is_feature_dependent(::Type{<:MisclassificationRate}) = false
+supports_weights(::Type{<:MisclassificationRate}) = true
 
-# ============================
+const MCR = MisclassificationRate
+
+(::MCR)(ŷ::AbstractVector{<:CategoricalElement},
+        y::AbstractVector{<:CategoricalElement}) = mean(y .!= ŷ)
+
+(::MCR)(ŷ::AbstractVector{<:CategoricalElement},
+        y::AbstractVector{<:CategoricalElement},
+        w::AbstractVector{<:Real}) = sum((y .!= ŷ) .* w) / sum(w)
+
+(::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
+
+
 struct Accuracy <: Measure end
 
+"""
+accuracy(ŷ, y)
+accuracy(ŷ, y, w)
+accuracy(conf_mat)
+
+Returns the accuracy of the (point) predictions `ŷ`,
+given true observations `y`, optionally weighted by the weights
+`w`. All three arguments must be abstract vectors of the same length.
+
+For more information, run `info(accuracy)`.
+"""
 const accuracy = Accuracy()
 
 (::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
@@ -206,121 +177,15 @@ metadata_measure(Accuracy;
     is_feature_dependent=false,
     supports_weights=true)
 
-# === Binary specific conf-mat related metrics
-# NOTE: rev keyword allows to swap considered ordering positive <> negative
+## Binary but order independent
 
-@with_kw_noshow struct Recall <: Measure;      rev::Bool=false; end
-@with_kw_noshow struct Precision <: Measure;   rev::Bool=false; end
-@with_kw_noshow struct Specificity <: Measure; rev::Bool=false; end
-@with_kw_noshow struct FScore{β} <: Measure;   rev::Bool=false; end
-@with_kw_noshow struct AUC <: Measure;         rev::Bool=false; end
-
-const recall = Recall()
-const sensitivity = recall
-
-const specificity = Specificity()
-const selectivity = specificity
-
-# nothing for precision as there is Base.precision
-
-const f1score = FScore{1}()
-
+struct AUC <: Measure end
 const auc = AUC()
 
-metadata_measure.((Recall, Precision, Specificity, FScore);
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false)
-
-# adjustments
-name(::Type{<:Recall}) = "recall"
-name(::Type{<:Precision}) = "precision"
-name(::Type{<:Specificity}) = "specificity"
-name(::Type{<:FScore{β}}) where β = "F$β-score"
-
-metadata_measure(AUC;
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:probabilistic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false)
-
-name(::Type{<:AUC}) = "auc"
-
-###
-
-function positive_label(y::VC; rev::Bool=false) where VC <: AbstractVector{<:CategoricalElement}
-    lvls = levels(y)
-    length(lvls) == 2 || throw(ArgumentError("Expected a 2-class vector."))
-    rev && return lvls[1]
-    return lvls[2]
-end
-
-negative_label(y; rev::Bool=false) = positive_label(y; rev=!rev)
-
-truepositive(m::ConfusionMatrix{2},  r=false; rev::Bool=r) = ifelse(rev, m[1,1], m[2,2])
-truenegative(m::ConfusionMatrix{2},  r=false; rev::Bool=r) = ifelse(rev, m[2,2], m[1,1])
-falsepositive(m::ConfusionMatrix{2}, r=false; rev::Bool=r) = ifelse(rev, m[1,2], m[2,1])
-falsenegative(m::ConfusionMatrix{2}, r=false; rev::Bool=r) = ifelse(rev, m[2,1], m[1,2])
-
-function truepositive_rate(m::ConfusionMatrix{2}, r=false; rev=r)
-    tp = truepositive(m, rev)
-    fn = falsenegative(m, rev)
-    return tp / (tp + fn)
-end
-
-function truenegative_rate(m::ConfusionMatrix{2}, r=false; rev=r)
-    tn = truenegative(m, rev)
-    fp = falsepositive(m, rev)
-    return tn / (tn + fp)
-end
-
-function falsediscovery_rate(m::ConfusionMatrix{2}, r=false; rev=r)
-    fp = falsepositive(m, rev)
-    tp = truepositive(m, rev)
-    return fp / (tp + fp)
-end
-
-(r::Recall)(m::ConfusionMatrix{2})      = truepositive_rate(m, r.rev)
-(s::Specificity)(m::ConfusionMatrix{2}) = truenegative_rate(m, s.rev)
-(p::Precision)(m::ConfusionMatrix{2})   = 1.0 - falsediscovery_rate(m, p.rev)
-
-Base.precision(m::ConfusionMatrix{2}) = m |> Precision()
-
-function (f::FScore{β})(m::ConfusionMatrix{2}) where β
-    β2 = β^2
-    if f.rev
-        prec = m |> Precision(rev=true)
-        rec  = m |> Recall(rev=true)
-    else
-        prec = precision(m)
-        rec  = recall(m)
-    end
-    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
-end
-
-truepositive(ŷ, y; rev=false)  = truepositive(confmat(ŷ, y),  rev)
-truenegative(ŷ, y; rev=false)  = truenegative(confmat(ŷ, y),  rev)
-falsepositive(ŷ, y; rev=false) = falsepositive(confmat(ŷ, y), rev)
-falsenegative(ŷ, y; rev=false) = falsenegative(confmat(ŷ, y), rev)
-
-truepositive_rate(ŷ, y; rev=false)   = truepositive_rate(confmat(ŷ, y),   rev)
-truenegative_rate(ŷ, y; rev=false)   = truenegative_rate(confmat(ŷ, y),   rev)
-falsediscovery_rate(ŷ, y; rev=false) = falsediscovery_rate(confmat(ŷ, y), rev)
-
-for M in (Recall, Specificity, Precision, FScore)
-    (m::M)(ŷ, y) = confmat(ŷ, y) |> m
-end
-
-Base.precision(ŷ, y) = confmat(ŷ, y) |> Precision()
-
-function (a::AUC)(ŷ, y)
+function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
+                 y::AbstractVector{<:CategoricalElement})
     # implementation drawn from the ranked comparison in
-    # https://blog.revolutionanalytics.com/2016/11/calculating-auc.html
+    # ht_tps://blog.revolutionanalytics.com/2016/11/calculating-auc.html
     label_1 = levels(y)[1]
     scores  = pdf.(ŷ, label_1)
     ranking = sortperm(scores, rev=true)
@@ -339,7 +204,85 @@ function (a::AUC)(ŷ, y)
     for i in n_1:-1:1, j in 1:n_2
         M += (1 + sign(scores_1[i] - scores_2[j]))/2
     end
-    auc = M / (n_1 * n_2)
-    a.rev || return  1.0 - auc
+    auc = 1 - M / (n_1 * n_2)
     return auc
 end
+
+metadata_measure(AUC;
+    name="auc",
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:probabilistic,
+    orientation=:score,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
+
+## Binary and order dependent
+
+const CM2 = ConfusionMatrix{2}
+
+struct Recall <: Measure;      rev::Union{Nothing,Bool}; end
+struct Precision <: Measure;   rev::Union{Nothing,Bool}; end
+struct Specificity <: Measure; rev::Union{Nothing,Bool}; end
+struct FScore{β} <: Measure;   rev::Union{Nothing,Bool}; end
+
+Recall(;     rev=nothing)         = Recall(rev)
+Precision(;  rev=nothing)         = Precision(rev)
+Specificity(;rev=nothing)         = Specificity(rev)
+FScore{β}(;  rev=nothing) where β = FScore{β}(rev)
+
+const recall      = Recall()
+const sensitivity = recall
+
+const specificity = Specificity()
+const selectivity = specificity
+
+# nothing for precision as there is Base.precision
+
+const f1score = FScore{1}()
+
+metadata_measure.((Recall, Precision, Specificity, FScore);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
+
+# adjustments
+name(::Type{<:Recall})            = "recall"
+name(::Type{<:Precision})         = "precision"
+name(::Type{<:Specificity})       = "specificity"
+name(::Type{<:FScore{β}}) where β = "F$β-score"
+
+### auxilliary functions
+# they are exported for convenience but ONLY apply to confusion matrix
+# to avoi ambiguities with the label ordering
+
+tp(m::CM2) = m[2,2]
+tn(m::CM2) = m[1,1]
+fp(m::CM2) = m[2,1]
+fn(m::CM2) = m[1,2]
+
+tpr(m::CM2) = tp(m) / (tp(m) + fn(m))
+tnr(m::CM2) = tn(m) / (tn(m) + fp(m))
+
+fdr(m::CM2) = fp(m) / (tp(m) + fp(m))
+
+(r::Recall)(m::CM2)      = tpr(m)
+(s::Specificity)(m::CM2) = tnr(m)
+(p::Precision)(m::CM2)   = 1.0 - fdr(m)
+Base.precision(m::CM2)   = m |> Precision()
+
+function (f::FScore{β})(m::CM2) where β
+    β2   = β^2
+    prec = precision(m)
+    rec  = recall(m)
+    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+end
+
+for M in (Recall, Specificity, Precision, FScore)
+    (m::M)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
+end
+
+Base.precision(ŷ, y) = confmat(ŷ, y) |> Precision()
