@@ -49,10 +49,8 @@ export cross_entropy, BrierScore,
 export AUC, auc
 # -- -- binary // order dependent
 export Recall, Precision, Specificity, FScore,
-       positive_label, negative_label,
        recall, sensitivity, specificity, selectivity, f1score,
-       truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsediscovery_rate
+       tp, tn, fp, fn, tpr, tnr, fdr
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
