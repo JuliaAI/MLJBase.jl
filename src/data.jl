@@ -174,7 +174,8 @@ Broadcasted versions of `int`.
 
 See also: [`decoder`](@ref).
 """
-int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+#int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
