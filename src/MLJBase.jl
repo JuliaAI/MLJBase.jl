@@ -44,13 +44,26 @@ export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
 export confusion_matrix, confmat
 # -- finite (measures/finite)
 export cross_entropy, BrierScore,
-       misclassification_rate, mcr, accuracy
+       misclassification_rate, mcr, accuracy,
+       balanced_accuracy, bacc, bac,
+       matthews_correlation, mcc
 # -- -- binary // order independent
-export AUC, auc
+export auc
 # -- -- binary // order dependent
-export Recall, Precision, Specificity, FScore,
-       recall, sensitivity, specificity, selectivity, f1score,
-       tp, tn, fp, fn, tpr, tnr, fdr
+export TruePositive, TrueNegative, FalsePositive, FalseNegative,
+       TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
+       FalseDiscoveryRate, Precision, NPV, FScore,
+       # standard synonyms
+       TPR, TNR, FPR, FNR,
+       FDR, PPV,
+       Recall, Specificity, BACC,
+       # defaults and their synonyms
+       truepositive, truenegative, falsepositive, falsenegative,
+       truepositive_rate, truenegative_rate, falsepositive_rate, falsenegative_rate,
+       tp, tn, fp, fn, tpr, tnr, fpr, fnr,
+       falsediscovery_rate, fdr, npv, ppv,
+       recall, sensitivity, hit_rate, miss_rate,
+       specificity, selectivity, f1score, f1, fallout
 
 # methods from other packages to be rexported:
 export pdf, mean, mode

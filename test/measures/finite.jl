@@ -51,13 +51,43 @@ end
     @test_logs (:warn, "The classes are un-ordered,\nusing: negative='a' and positive='b'.\nTo suppress this warning, consider coercing to OrderedFactor.") confmat(ŷ, y)
 end
 
-@testset "mcr-accuracy" begin
+@testset "mcr, acc, bacc, mcc" begin
     y = categorical(['m', 'f', 'n', 'f', 'm', 'n', 'n', 'm', 'f'])
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
             accuracy(confmat(ŷ, y, warn=false))  == 1-mcr(confmat(ŷ, y, warn=false))
     w = randn(length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
+
+    ## balanced accuracy
+    y = categorical([3, 4, 1, 1, 1, 4, 1, 3, 3, 1, 2, 3, 1, 3, 3, 3, 2, 4, 3, 2, 1, 3,
+       3, 1, 1, 1, 2, 4, 1, 4, 4, 4, 1, 1, 4, 4, 3, 1, 2, 2, 3, 4, 2, 1,
+       2, 2, 3, 2, 2, 3, 1, 2, 3, 4, 1, 2, 4, 2, 1, 4, 3, 2, 3, 3, 3, 1,
+       3, 1, 4, 3, 1, 2, 3, 1, 2, 2, 4, 4, 1, 3, 2, 1, 4, 3, 3, 1, 3, 1,
+       2, 2, 2, 2, 2, 3, 2, 1, 1, 4, 2, 2])
+    ŷ = categorical([2, 3, 2, 1, 2, 2, 3, 3, 2, 4, 2, 3, 2, 4, 3, 4, 4, 2, 1, 3, 3, 3,
+       3, 3, 2, 4, 4, 3, 4, 4, 1, 2, 3, 2, 4, 1, 2, 3, 1, 4, 2, 2, 1, 2,
+       3, 2, 2, 4, 3, 2, 2, 2, 1, 2, 2, 1, 3, 1, 4, 1, 2, 1, 2, 4, 3, 2,
+       4, 3, 2, 4, 4, 2, 4, 3, 2, 3, 1, 2, 1, 2, 1, 2, 3, 1, 1, 3, 4, 2,
+       4, 4, 2, 1, 3, 2, 2, 4, 1, 1, 4, 1])
+    sk_bacc = 0.17493386243386244
+    @test bacc(ŷ, y) ≈ sk_bacc
+    w = [0.5, 1.4, 0.6, 1. , 0.1, 0.5, 1.2, 0.2, 1.8, 0.3, 0.6, 2.2, 0.1,
+       1.4, 0.2, 0.4, 0.6, 2.1, 0.7, 0.2, 0.9, 0.4, 0.7, 0.3, 0.1, 1.7,
+       0.2, 0.7, 1.2, 1. , 0.9, 0.4, 0.5, 0.5, 0.5, 1. , 0.3, 0.1, 0.2,
+       0. , 2.2, 0.8, 0.9, 0.8, 1.3, 0.2, 0.4, 0.7, 1. , 0.7, 1.7, 0.7,
+       1.1, 1.8, 0.1, 1.2, 1.8, 1. , 0.1, 0.5, 0.6, 0.7, 0.6, 1.2, 0.6,
+       1.2, 0.5, 0.5, 0.8, 0.2, 0.6, 1. , 0.3, 1. , 0.2, 1.1, 1.1, 1.1,
+       0.6, 1.4, 1.2, 0.3, 1.1, 0.2, 0.5, 1.6, 0.3, 1. , 0.3, 0.9, 0.9,
+       0. , 0.6, 0.6, 0.4, 0.5, 0.4, 0.2, 0.9, 0.4]
+    sk_bacc_w = 0.1581913163016446
+    @test bacc(ŷ, y, w) ≈ sk_bacc_w
+
+    sk_mcc = -0.09759509982785947
+    @test mcc(ŷ, y) == matthews_correlation(ŷ, y) ≈ sk_mcc
+    # invariance with respect to permutation ?
+    cm = confmat(ŷ, y, perm=[3, 1, 2, 4])
+    @test mcc(cm) ≈ sk_mcc
 end
 
 @testset "AUC" begin
@@ -148,10 +178,10 @@ end
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
         m == accuracy    && (@test e.name == "accuracy")
-        m == recall      && (@test e.name == "recall")
-        m isa Precision  && (@test e.name == "precision")
+        m == recall      && (@test e.name == "true positive rate (sensitivity, recall, hit rate)")
+        m isa Precision  && (@test e.name == "precision (positive predictive value)")
         m == f1score     && (@test e.name == "F1-score")
-        m == specificity && (@test e.name == "specificity")
+        m == specificity && (@test e.name == "true negative rate (specificity, selectivity)")
         @test e.target_scitype == AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
@@ -170,6 +200,79 @@ end
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false
     @test e.supports_weights == false
+end
+
+@testset "More binary metrics" begin
+    y = coerce(categorical([1, 2, 1, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2,
+                            2, 1, 2, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
+                            2, 2, 2]), OrderedFactor)
+    ŷ = coerce(categorical([1, 2, 2, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2,
+                            1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2,
+                            1, 2, 2]), OrderedFactor)
+    # check all constructors
+    m = TruePositive()
+    @test m(ŷ, y) == tp(ŷ, y) == truepositive(ŷ, y)
+    m = TruePositive(rev=true)
+    @test m(ŷ, y) == tn(ŷ, y)
+    m = TrueNegative()
+    @test m(ŷ, y) == tn(ŷ, y) == truenegative(ŷ, y)
+    m = FalsePositive()
+    @test m(ŷ, y) == fp(ŷ, y) == falsepositive(ŷ, y)
+    m = FalseNegative()
+    @test m(ŷ, y) == fn(ŷ, y) == falsenegative(ŷ, y)
+    m = TruePositiveRate()
+    @test m(ŷ, y) == tpr(ŷ, y) == truepositive_rate(ŷ, y)
+    m = TrueNegativeRate()
+    @test m(ŷ, y) == tnr(ŷ, y) == truenegative_rate(ŷ, y)
+    m = FalsePositiveRate()
+    @test m(ŷ, y) == fpr(ŷ, y) == falsepositive_rate(ŷ, y)
+    m = FalseNegativeRate()
+    @test m(ŷ, y) == fnr(ŷ, y) == falsenegative_rate(ŷ, y)
+    m = FalseDiscoveryRate()
+    @test m(ŷ, y) == fdr(ŷ, y) == falsediscovery_rate(ŷ, y)
+    m = Precision()
+    @test m(ŷ, y) == precision(ŷ, y)
+    m = NPV()
+    @test m(ŷ, y) == npv(ŷ, y)
+    m = FScore{1}()
+    @test m(ŷ, y) == f1(ŷ, y) == f1score(ŷ, y)
+    # check synonyms
+    m = TPR()
+    @test m(ŷ, y) == tpr(ŷ, y)
+    m = TNR()
+    @test m(ŷ, y) == tnr(ŷ, y)
+    m = FPR()
+    @test m(ŷ, y) == fpr(ŷ, y) == fallout(ŷ, y)
+    m = FNR()
+    @test m(ŷ, y) == fnr(ŷ, y) == miss_rate(ŷ, y)
+    m = FDR()
+    @test m(ŷ, y) == fdr(ŷ, y)
+    m = PPV()
+    @test m(ŷ, y) == precision(ŷ, y) == ppv(ŷ, y)
+    m = Recall()
+    @test m(ŷ, y) == tpr(ŷ, y) == recall(ŷ, y) == sensitivity(ŷ, y) == hit_rate(ŷ, y)
+    m = Specificity()
+    @test m(ŷ, y) == tnr(ŷ, y) == specificity(ŷ, y) == selectivity(ŷ, y)
+    # 'higher order'
+    m = BACC()
+    @test m(ŷ, y) == bacc(ŷ, y) == (tpr(ŷ, y) + tnr(ŷ, y))/2
+
+    ### External comparisons
+    sk_prec = 0.6111111111111112 # m.precision_score(y, yhat, pos_label=2)
+    @test precision(ŷ, y) ≈ sk_prec
+    sk_rec = 0.6875
+    @test recall(ŷ, y) == sk_rec # m.recall_score(y, yhat, pos_label=2)
+    sk_f05 = 0.625
+    f05 = FScore{0.5}()
+    @test f05(ŷ, y) == sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
+
+    # reversion mechanism
+    sk_prec_rev = 0.5454545454545454
+    prec_rev = Precision(rev=true)
+    @test prec_rev(ŷ, y) ≈ sk_prec_rev
+    sk_rec_rev = 0.46153846153846156
+    rec_rev = Recall(rev=true)
+    @test rec_rev(ŷ, y) ≈ sk_rec_rev
 end
 
 end

@@ -177,6 +177,76 @@ metadata_measure(Accuracy;
     is_feature_dependent=false,
     supports_weights=true)
 
+
+struct BalancedAccuracy <: Measure end
+
+const BACC = BalancedAccuracy
+
+const balanced_accuracy = BACC()
+const bacc = balanced_accuracy
+const bac = bacc
+
+function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
+                  y::AbstractVector{<:CategoricalElement})
+    class_count = Dist.countmap(y)
+    ŵ = 1.0 ./ [class_count[yi] for yi in y]
+    return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
+end
+
+function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
+                  y::AbstractVector{<:CategoricalElement},
+                  w::AbstractVector{<:Real})
+    levels_ = levels(y)
+    ŵ = similar(w)
+    @inbounds for i in eachindex(w)
+        ŵ[i] = w[i] / sum(w .* (y .== y[i]))
+    end
+    return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
+end
+
+metadata_measure(BACC;
+    name="balanced accuracy",
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=true)
+
+
+struct MatthewsCorrelation <: Measure end
+
+const MCC = MatthewsCorrelation
+
+const matthews_correlation = MCC()
+const mcc = matthews_correlation
+
+# http://rk.kvl.dk/introduction/index.html
+function (::MCC)(cm::ConfusionMatrix{C}) where C
+    # NOTE: this is O(C^3), there may be a clever way to adjust this
+    num = 0
+    @inbounds for k in 1:C, l in 1:C, m in 1:C
+        num += cm[k,k] * cm[l,m] - cm[k,l] * cm[m,k]
+    end
+    den1 = 0
+    den2 = 0
+    @inbounds for k in 1:C
+        a = sum(cm[k, :])
+        b = sum(cm[setdiff(1:C, k), :])
+        den1 += a * b
+        a = sum(cm[:, k])
+        b = sum(cm[:, setdiff(1:C, k)])
+        den2 += a * b
+    end
+    mcc = num / sqrt(den1 * den2)
+
+    isnan(mcc) && return 0
+    return mcc
+end
+
+(m::MCC)(ŷ::AbstractVector{<:CategoricalElement},
+         y::AbstractVector{<:CategoricalElement}) = confmat(ŷ, y, warn=false) |> m
+
 ## Binary but order independent
 
 struct AUC <: Measure end
@@ -221,27 +291,82 @@ metadata_measure(AUC;
 
 const CM2 = ConfusionMatrix{2}
 
-struct Recall <: Measure;      rev::Union{Nothing,Bool}; end
-struct Precision <: Measure;   rev::Union{Nothing,Bool}; end
-struct Specificity <: Measure; rev::Union{Nothing,Bool}; end
-struct FScore{β} <: Measure;   rev::Union{Nothing,Bool}; end
+for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
+          :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate, :FalseNegativeRate, :FalseDiscoveryRate, :Precision, :NPV)
+    ex = quote
+        struct $M <: Measure rev::Union{Nothing,Bool} end
+        $M(; rev=nothing) = $M(rev)
+    end
+    eval(ex)
+end
 
-Recall(;     rev=nothing)         = Recall(rev)
-Precision(;  rev=nothing)         = Precision(rev)
-Specificity(;rev=nothing)         = Specificity(rev)
-FScore{β}(;  rev=nothing) where β = FScore{β}(rev)
+# synonyms
+const TPR = TruePositiveRate
+const TNR = TrueNegativeRate
+const FPR = FalsePositiveRate
+const FNR = FalseNegativeRate
 
-const recall      = Recall()
-const sensitivity = recall
+const FDR = FalseDiscoveryRate
+const PPV = Precision
 
-const specificity = Specificity()
-const selectivity = specificity
+const Recall      = TPR
+const Specificity = TNR
 
-# nothing for precision as there is Base.precision
+struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
 
-const f1score = FScore{1}()
+FScore{β}(; rev=nothing) where β = FScore{β}(rev)
 
-metadata_measure.((Recall, Precision, Specificity, FScore);
+## Names and synonyms
+# NOTE: nothing for precision as there is Base.precision
+
+const truepositive  = TruePositive()
+const truenegative  = TrueNegative()
+const falsepositive = FalsePositive()
+const falsenegative = FalseNegative()
+
+const tp = truepositive
+const tn = truenegative
+const fp = falsepositive
+const fn = falsenegative
+
+const truepositive_rate  = TPR()
+const truenegative_rate  = TNR()
+const falsepositive_rate = FPR()
+const falsenegative_rate = FNR()
+
+const tpr = truepositive_rate
+const tnr = truenegative_rate
+const fpr = falsepositive_rate
+const fnr = falsenegative_rate
+
+const falsediscovery_rate = FDR()
+
+const fdr = falsediscovery_rate
+const npv = NPV()
+const ppv = precision
+
+const recall       = truepositive_rate
+const sensitivity  = recall
+const hit_rate     = recall
+const miss_rate    = falsenegative_rate
+const fallout      = falsepositive_rate
+const specificity  = truenegative_rate
+const selectivity  = specificity
+const f1score      = FScore{1}()
+const f1           = f1score
+
+const balanced_accuracy = BACC()
+const bacc = balanced_accuracy
+
+metadata_measure.((FalsePositive, FalseNegative, FPR, FNR, FDR);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:loss,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
+
+metadata_measure.((TruePositive, TrueNegative, TPR, TNR, Precision, FScore, NPV);
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:score,
@@ -250,39 +375,72 @@ metadata_measure.((Recall, Precision, Specificity, FScore);
     supports_weights=false)
 
 # adjustments
-name(::Type{<:Recall})            = "recall"
-name(::Type{<:Precision})         = "precision"
-name(::Type{<:Specificity})       = "specificity"
+name(::Type{<:TruePositive})  = "true positive"
+name(::Type{<:TrueNegative})  = "true negative"
+name(::Type{<:FalsePositive}) = "false positive"
+name(::Type{<:FalseNegative}) = "false negative"
+
+name(::Type{<:TPR}) = "true positive rate (sensitivity, recall, hit rate)"
+name(::Type{<:TNR}) = "true negative rate (specificity, selectivity)"
+name(::Type{<:FPR}) = "false positive rate (fallout)"
+name(::Type{<:FNR}) = "false negative rate (miss rate)"
+
+name(::Type{<:FDR}) = "false discovery rate"
+name(::Type{<:NPV}) = "negative predictive value"
+
+name(::Type{<:Precision}) = "precision (positive predictive value)"
+
 name(::Type{<:FScore{β}}) where β = "F$β-score"
 
-### auxilliary functions
-# they are exported for convenience but ONLY apply to confusion matrix
-# to avoi ambiguities with the label ordering
+## Internal functions on Confusion Matrix
 
-tp(m::CM2) = m[2,2]
-tn(m::CM2) = m[1,1]
-fp(m::CM2) = m[2,1]
-fn(m::CM2) = m[1,2]
+_tp(m::CM2) = m[2,2]
+_tn(m::CM2) = m[1,1]
+_fp(m::CM2) = m[2,1]
+_fn(m::CM2) = m[1,2]
 
-tpr(m::CM2) = tp(m) / (tp(m) + fn(m))
-tnr(m::CM2) = tn(m) / (tn(m) + fp(m))
+_tpr(m::CM2) = tp(m) / (tp(m) + fn(m))
+_tnr(m::CM2) = tn(m) / (tn(m) + fp(m))
+_fpr(m::CM2) = 1 - _tnr(m)
+_fnr(m::CM2) = 1 - _tpr(m)
 
-fdr(m::CM2) = fp(m) / (tp(m) + fp(m))
+_fdr(m::CM2) = fp(m) / (tp(m) + fp(m))
+_npv(m::CM2) = tn(m) / (tn(m) + fn(m))
 
-(r::Recall)(m::CM2)      = tpr(m)
-(s::Specificity)(m::CM2) = tnr(m)
-(p::Precision)(m::CM2)   = 1.0 - fdr(m)
-Base.precision(m::CM2)   = m |> Precision()
+## Callables on CM2
+# NOTE: here we assume the CM was constructed a priori with the
+# proper ordering so the field `rev` in the measure is ignored
 
-function (f::FScore{β})(m::CM2) where β
+(::TruePositive)(m::CM2)  = _tp(m)
+(::TrueNegative)(m::CM2)  = _tn(m)
+(::FalsePositive)(m::CM2) = _fp(m)
+(::FalseNegative)(m::CM2) = _fn(m)
+
+(::TPR)(m::CM2) = _tpr(m)
+(::TNR)(m::CM2) = _tnr(m)
+(::FPR)(m::CM2) = _fpr(m)
+(::FNR)(m::CM2) = _fnr(m)
+
+(::FDR)(m::CM2) = _fdr(m)
+(::NPV)(m::CM2) = _npv(m)
+
+(::Precision)(m::CM2) = 1.0 - _fdr(m)
+
+function (::FScore{β})(m::CM2) where β
     β2   = β^2
     prec = precision(m)
     rec  = recall(m)
     return (1 + β2) * (prec * rec) / (β2 * prec + rec)
 end
 
-for M in (Recall, Specificity, Precision, FScore)
+## Callables on vectors
+
+for M in (TruePositive, TrueNegative, FalsePositive, FalseNegative,
+          TPR, TNR, FPR, FNR,
+          FDR, Precision, NPV, FScore)
     (m::M)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
 end
 
-Base.precision(ŷ, y) = confmat(ŷ, y) |> Precision()
+# specify this as `precision` is in Base and so is ambiguous
+Base.precision(m::CM2) = m |> Precision()
+Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()

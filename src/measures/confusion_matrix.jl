@@ -27,7 +27,6 @@ end
 # allow to access cm[i,j] but not set (it's immutable)
 Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
 
-
 """
 confusion_matrix(ŷ, y; rev=false)
 
