@@ -7,7 +7,7 @@
 struct CrossEntropy <: Measure end
 
 """
-    cross_entropy(ŷ, y::AbstractVector{<:Finite})
+cross_entropy(ŷ, y::AbstractVector{<:Finite})
 
 Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie,
 probabilistic predictions) and an abstract vector of true observations
@@ -15,7 +15,6 @@ probabilistic predictions) and an abstract vector of true observations
 occur, according to the corresponding probabilistic prediction.
 
 For more information, run `info(cross_entropy)`.
-
 """
 cross_entropy = CrossEntropy()
 name(::Type{<:CrossEntropy}) = "cross_entropy"
@@ -112,6 +111,10 @@ end
 # ==> Precision
 # ---------------------------------------------------
 
+const INVARIANT_LABEL_MULTICLASS = "This metric is invariant to class labelling and can be used for multiclass classification."
+const INVARIANT_LABEL_BINARY = "This metric is invariant to class labelling and can be used only for binary classification."
+const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be used for binary classification."
+
 struct MisclassificationRate <: Measure end
 
 """
@@ -123,6 +126,7 @@ Returns the rate of misclassification of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
 A confusion matrix can also be passed as argument.
+$INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(misclassification_rate)`.
 You can also equivalently use `mcr`.
@@ -160,6 +164,7 @@ accuracy(conf_mat)
 Returns the accuracy of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
+$INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(accuracy)`.
 """
@@ -182,9 +187,23 @@ struct BalancedAccuracy <: Measure end
 
 const BACC = BalancedAccuracy
 
+"""
+balanced_accuracy(ŷ, y [, w])
+bacc(ŷ, y [, w])
+bac(ŷ, y [, w])
+balanced_accuracy(conf_mat)
+
+Return the balanced accuracy of the point prediction `ŷ`, given true
+observations `y`, optionally weighted by `w`. The balanced accuracy takes
+into consideration class imbalance.
+All  three arguments must have the same length.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(balanced_accuracy)`.
+"""
 const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
-const bac = bacc
+const bac  = bacc
 
 function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
                   y::AbstractVector{<:CategoricalElement})
@@ -218,12 +237,24 @@ struct MatthewsCorrelation <: Measure end
 
 const MCC = MatthewsCorrelation
 
+"""
+matthews_correlation(ŷ, y)
+mcc(ŷ, y)
+matthews_correlation(conf_mat)
+
+Return Matthews' correlation coefficient corresponding to the point
+prediction `ŷ`, given true observations `y`.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(matthews_correlation)`.
+"""
 const matthews_correlation = MCC()
 const mcc = matthews_correlation
 
-# http://rk.kvl.dk/introduction/index.html
 function (::MCC)(cm::ConfusionMatrix{C}) where C
-    # NOTE: this is O(C^3), there may be a clever way to adjust this
+    # http://rk.kvl.dk/introduction/index.html
+    # NOTE: this is O(C^3), there may be a clever way to
+    # speed this up though in general this is only used for low  C
     num = 0
     @inbounds for k in 1:C, l in 1:C, m in 1:C
         num += cm[k,k] * cm[l,m] - cm[k,l] * cm[m,k]
@@ -250,33 +281,35 @@ end
 ## Binary but order independent
 
 struct AUC <: Measure end
+
+"""
+auc(ŷ, y)
+
+Return the Area Under the (ROC) Curve for probabilistic prediction `ŷ` given true
+observations `y`.
+$INVARIANT_LABEL_BINARY
+
+For more information, run `info(auc)`.
+"""
 const auc = AUC()
 
 function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
                  y::AbstractVector{<:CategoricalElement})
-    # implementation drawn from the ranked comparison in
-    # ht_tps://blog.revolutionanalytics.com/2016/11/calculating-auc.html
-    label_1 = levels(y)[1]
-    scores  = pdf.(ŷ, label_1)
-    ranking = sortperm(scores, rev=true)
-
-    # sorted scores
-    scores = scores[ranking]
-    mask_1 = (y[ranking] .== label_1)
-
-    scores_1 = scores[mask_1]
-    scores_2 = scores[.!mask_1]
-
-    n_1 = length(scores_1)
-    n_2 = length(scores_2)
-
-    M = 0.0
-    for i in n_1:-1:1, j in 1:n_2
-        M += (1 + sign(scores_1[i] - scores_2[j]))/2
+    # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+    lab_2  = levels(y)[2]
+    scores = pdf.(ŷ, lab_2)
+    y_sort = y[sortperm(scores)]
+    n   = length(y)
+    n_1 = 0
+    auc = 0
+    @inbounds for i in 1:n
+        δ_auc, δ_1 = ifelse(y_sort[i] == lab_2, (n_1, 0), (0, 1))
+        auc += δ_auc
+        n_1 += δ_1
     end
-    auc = 1 - M / (n_1 * n_2)
-    return auc
+    return 1 - auc / (n_1 * (length(y) - n_1))
 end
+
 
 metadata_measure(AUC;
     name="auc",
@@ -444,3 +477,48 @@ end
 # specify this as `precision` is in Base and so is ambiguous
 Base.precision(m::CM2) = m |> Precision()
 Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
+
+
+## ROC computation
+
+"""
+_idx_sorted_unique(v)
+
+Internal function to return the index of unique elements in `v` under the assumption
+that the vector `v` is sorted in increasing order.
+"""
+function _idx_sorted_unique(v::AbstractVector{<:Real})
+    n    = length(v)
+    idx  = ones(Int, n)
+    p, h = 1, 1
+    cur  = v[1]
+    @inbounds while h < n
+        h     += 1                  # head position
+        cand   = v[head]            # candidate value
+        cand   > cur || continue    # is it new? otherwise skip
+        p     += 1                  # if new store it
+        idx[p] = h
+        cur    = cand               # and update the last seen value
+    end
+    p < n && deleteat!(idx, p+1:n)
+    return idx
+end
+
+function _roc_curve(ŷ::AbstractVector{<:UnivariateFinite},
+                    y::AbstractVector{<:CategoricalElement},
+                    w::AbstractVector{<:Real}=Int[])
+    lab_2   = levels(y)[2]
+    scores  = pdf.(ŷ, lab_2)
+    ranking = sortperm(scores)
+
+    scores_sort = scores[ranking]
+    y_sort      = y[ranking]
+
+    w_sort = w
+    if !isempty(w)
+        w_sort .= w[ranking]
+    end
+
+    unique_scores = _sorted_unique(scores_sort)
+
+end
