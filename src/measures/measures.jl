@@ -4,7 +4,7 @@ is_measure(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
-     :reports_each_observation, :is_feature_dependent]
+     :reports_each_observation, :aggregation, :is_feature_dependent]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -16,6 +16,7 @@ const MEASURE_TRAITS =
 # specfic to measures:
 orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
+aggregation(::Type) = :mean  # other option is :sum
 is_feature_dependent(::Type) = false
 
 # extend to instances:
