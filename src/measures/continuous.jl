@@ -70,6 +70,7 @@ target_scitype(::Type{<:RMS}) = Union{AbstractVector{Continuous},AbstractVector{
 prediction_type(::Type{<:RMS}) = :deterministic
 orientation(::Type{<:RMS}) = :loss
 reports_each_observation(::Type{<:RMS}) = false
+aggregation(::Type{<:RMS}) = RootMeanSquare()
 is_feature_dependent(::Type{<:RMS}) = false
 supports_weights(::Type{<:RMS}) = true
 
@@ -170,6 +171,7 @@ target_scitype(::Type{<:RMSL}) = Union{AbstractVector{Continuous},AbstractVector
 prediction_type(::Type{<:RMSL}) = :deterministic
 orientation(::Type{<:RMSL}) = :loss
 reports_each_observation(::Type{<:RMSL}) = false
+aggregation(::Type{<:RMS}) = RootMeanSquare()
 is_feature_dependent(::Type{<:RMSL}) = false
 supports_weights(::Type{<:RMSL}) = false
 
@@ -202,6 +204,7 @@ target_scitype(::Type{<:RMSLP1}) = Union{AbstractVector{Continuous},AbstractVect
 prediction_type(::Type{<:RMSLP1}) = :deterministic
 orientation(::Type{<:RMSLP1}) = :loss
 reports_each_observation(::Type{<:RMSLP1}) = false
+aggregation(::Type{<:RMS}) = RootMeanSquare()
 is_feature_dependent(::Type{<:RMSLP1}) = false
 supports_weights(::Type{<:RMSLP1}) = false
 
@@ -235,6 +238,7 @@ target_scitype(::Type{<:RMSP}) = Union{AbstractVector{Continuous},AbstractVector
 prediction_type(::Type{<:RMSP}) = :deterministic
 orientation(::Type{<:RMSP}) = :loss
 reports_each_observation(::Type{<:RMSP}) = false
+aggregation(::Type{<:RMS}) = RootMeanSquare()
 is_feature_dependent(::Type{<:RMSP}) = false
 supports_weights(::Type{<:RMSP}) = false
 

@@ -358,7 +358,16 @@ const f1           = f1score
 const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
 
-metadata_measure.((FalsePositive, FalseNegative, FPR, FNR, FDR);
+metadata_measure.((FalsePositive, FalseNegative);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:loss,
+    reports_each_observation=false,
+    aggregation=Sum(),
+    is_feature_dependent=false,
+    supports_weights=false)
+
+metadata_measure.((FPR, FNR, FDR);
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:loss,
@@ -366,7 +375,16 @@ metadata_measure.((FalsePositive, FalseNegative, FPR, FNR, FDR);
     is_feature_dependent=false,
     supports_weights=false)
 
-metadata_measure.((TruePositive, TrueNegative, TPR, TNR, Precision, FScore, NPV);
+metadata_measure.((TruePositive, TrueNegative);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    aggregation=Sum(),
+    is_feature_dependent=false,
+    supports_weights=false)
+
+metadata_measure.((TPR, TNR, Precision, FScore, NPV);
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:score,
@@ -392,10 +410,6 @@ name(::Type{<:Precision}) = "precision (positive predictive value)"
 
 name(::Type{<:FScore{β}}) where β = "F$β-score"
 
-aggregation(::Type{<:TruePositive}) = Sum()
-aggregation(::Type{<:TrueNegative})  = Sum()
-aggregation(::Type{<:FalsePositive}) = Sum()
-aggregation(::Type{<:FalseNegative}) = Sum()
 
 ## Internal functions on Confusion Matrix
 

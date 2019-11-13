@@ -39,8 +39,11 @@ struct Sum <: AggregationMode end
 struct Mean <: AggregationMode end
 (::Mean)(v) = mean(v)
 
-aggregate(v, measure) = aggregation(measure)(v)
+# for rms and it's cousins:
+struct RootMeanSquare <: AggregationMode end
+(::RootMeanSquare)(v) = sqrt(mean(v.^2))
 
+aggregate(v, measure) = aggregation(measure)(v)
 
 
 ## DISPATCH FOR EVALUATION
