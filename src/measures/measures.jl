@@ -22,10 +22,18 @@ is_feature_dependent(::Type) = false
 # extend to instances:
 orientation(m) = orientation(typeof(m))
 reports_each_observation(m) = reports_each_observation(typeof(m))
+aggregation(m) = aggregation(typeof(m))
 is_feature_dependent(m) = is_feature_dependent(typeof(m))
 
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
+
+
+## AGGREGATION METHODS
+
+aggregate(v, measure) = aggregate(v, Val(aggregation(measure))
+aggregate(v, ::Val{:sum}) = sum(v)
+aggregate(v, ::Val{:mean}) = mean(v)
 
 
 ## DISPATCH FOR EVALUATION

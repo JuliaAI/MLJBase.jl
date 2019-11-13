@@ -36,7 +36,8 @@ export load_boston, load_ames, load_iris,
 
 # MEASURES
 export orientation, reports_each_observation
-export is_feature_dependent
+export is_feature_dependent, aggregation
+export aggregate
 export default_measure, value
 # -- continuous
 export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
