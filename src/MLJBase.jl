@@ -57,6 +57,7 @@ export std
 
 import Base.==
 import Base: @__doc__
+import Base.@static
 
 using Tables
 using OrderedCollections # already a dependency of StatsBase
@@ -222,6 +223,9 @@ include("measures.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
+
+# macro for static models
+include("static_macro.jl")
 
 # metadata utils
 include("metadata_utilities.jl")
