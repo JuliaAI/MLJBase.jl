@@ -16,7 +16,7 @@ const MEASURE_TRAITS =
 # specfic to measures:
 orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
-aggregation(::Type) = :mean  # other option is :sum
+aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
 
 # extend to instances:
@@ -29,11 +29,18 @@ is_feature_dependent(m) = is_feature_dependent(typeof(m))
 distribution_type(::Type) = missing
 
 
-## AGGREGATION METHODS
+## AGGREGATION
 
-aggregate(v, measure) = aggregate(v, Val(aggregation(measure))
-aggregate(v, ::Val{:sum}) = sum(v)
-aggregate(v, ::Val{:mean}) = mean(v)
+abstract type AggregationMode end
+
+struct Sum <: AggregationMode end
+(::Sum)(v) = sum(v)
+
+struct Mean <: AggregationMode end
+(::Mean)(v) = mean(v)
+
+aggregate(v, measure) = aggregation(measure)(v)
+
 
 
 ## DISPATCH FOR EVALUATION
