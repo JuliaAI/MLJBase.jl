@@ -4,3 +4,4 @@
     aggregate(v, TruePositive()) ≈ sum(v)
     aggregate(v, rms) ≈ sqrt(mean(v.^2))
 end
+true
