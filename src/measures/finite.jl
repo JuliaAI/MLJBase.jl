@@ -392,6 +392,11 @@ name(::Type{<:Precision}) = "precision (positive predictive value)"
 
 name(::Type{<:FScore{β}}) where β = "F$β-score"
 
+aggregation(::Type{<:TruePositive}) = :sum
+aggregation(::Type{<:TrueNegative})  = :sum
+aggregation(::Type{<:FalsePositive}) = :sum
+aggregation(::Type{<:FalseNegative}) = :sum
+
 ## Internal functions on Confusion Matrix
 
 _tp(m::CM2) = m[2,2]
