@@ -18,6 +18,8 @@ For more information, run `info(cross_entropy)`.
 """
 cross_entropy = CrossEntropy()
 name(::Type{<:CrossEntropy}) = "cross_entropy"
+docstring(::Type{<:CrossEntropy}) =
+    "Cross entropy loss; aliases: `cross_entropy`"
 target_scitype(::Type{<:CrossEntropy}) = AbstractVector{<:Finite}
 prediction_type(::Type{<:CrossEntropy}) = :probabilistic
 orientation(::Type{<:CrossEntropy}) = :loss
@@ -63,7 +65,13 @@ function BrierScore(; distribution=UnivariateFinite)
     return BrierScore{distribution}()
 end
 
-name(::Type{<:BrierScore{D}}) where D = "BrierScore{$(string(D))}"
+name(::Type{<:BrierScore{D}}) where D = "BrierScore($(string(D)))"
+docstring(::Type{<:BrierScore{D}}) where D =
+    "Brier proper scoring rule for distributions of type $D; "*
+    "aliases: `BrierScore($D)`"
+docstring(::Type{<:BrierScore{<:UnivariateFinite}}) =
+    "Brier proper scoring rule for `MultiClass` data; "*
+    "aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
 target_scitype(::Type{<:BrierScore{D}}) where D = AbstractVector{<:Finite}
 prediction_type(::Type{<:BrierScore}) = :probabilistic
 orientation(::Type{<:BrierScore}) = :score
@@ -135,6 +143,8 @@ const misclassification_rate = MisclassificationRate()
 const mcr = misclassification_rate
 
 name(::Type{<:MisclassificationRate}) = "misclassification_rate"
+docstring(::Type{<:MisclassificationRate}) =
+    "misclassification rate; aliases: `misclassification_rate`, `mcr`"
 target_scitype(::Type{<:MisclassificationRate}) = AbstractVector{<:Finite}
 prediction_type(::Type{<:MisclassificationRate}) = :deterministic
 orientation(::Type{<:MisclassificationRate}) = :loss
@@ -180,7 +190,8 @@ metadata_measure(Accuracy;
     orientation=:score,
     reports_each_observation=false,
     is_feature_dependent=false,
-    supports_weights=true)
+    supports_weights=true,
+    docstring="accuracy; aliases: `accuracy`")
 
 
 struct BalancedAccuracy <: Measure end
@@ -230,7 +241,9 @@ metadata_measure(BACC;
     orientation=:score,
     reports_each_observation=false,
     is_feature_dependent=false,
-    supports_weights=true)
+    supports_weights=true,
+    docstring="balanced accuracy; aliases: "*
+              "`balanced_accuracy`, `bacc`, `bac`")
 
 
 ## Binary but order independent
@@ -288,7 +301,8 @@ metadata_measure(MatthewsCorrelation;
     orientation=:score,
     reports_each_observation=false,
     is_feature_dependent=false,
-    supports_weights=false)
+    supports_weights=false,
+    docstring="Matthew's correlation; aliases: `matthews_correlation`, `mcc`")
 
 
 struct AUC <: Measure end
@@ -333,7 +347,8 @@ metadata_measure(AUC;
     orientation=:score,
     reports_each_observation=false,
     is_feature_dependent=false,
-    supports_weights=false)
+    supports_weights=false,
+    docstring = "area under the curve; aliases: `auc`")
 
 ## Binary and order dependent
 
@@ -391,6 +406,7 @@ const falsediscovery_rate = FDR()
 
 const fdr = falsediscovery_rate
 const negativepredictive_value = NPV()
+const positivepredictive_value = Precision()
 const npv = NPV()
 const ppv = precision
 
@@ -443,20 +459,45 @@ metadata_measure.((TPR, TNR, Precision, FScore, NPV);
 
 # adjustments
 name(::Type{<:TruePositive})  = "tp"
+docstring(::Type{<:TruePositive})  = "number of true positives; aliases: "*
+    "`truepositive`, `tp`"
 name(::Type{<:TrueNegative})  = "tn"
+docstring(::Type{<:TrueNegative})  = "number of true negatives; aliases: "*
+    "`truenegative`, `tn`"
 name(::Type{<:FalsePositive}) = "fp"
+docstring(::Type{<:FalsePositive}) = "number of false positives; aliases: "*
+    "`falsepositive`, `fp`"
 name(::Type{<:FalseNegative}) = "fn"
+docstring(::Type{<:FalseNegative}) = "number of false negatives; aliases: "*
+    "`falsenegative`, `fn`"
 
 name(::Type{<:TPR}) = "tpr"
+docstring(::Type{<:TPR}) = "true postive rate; aliases: "*
+    "`truepositive_rate`, `tpr`, `sensitivity`, `recall`, `hit_rate`"
 name(::Type{<:TNR}) = "tnr"
+docstring(::Type{<:TNR}) = "true negative rate; aliases: "*
+    "`truenegative_rate`, `tnr`, `specificity`, `selectivity`"
 name(::Type{<:FPR}) = "fpr"
+docstring(::Type{<:FPR}) = "false positive rate; aliases: "*
+    "`falsepositive_rate`, `fpr`, `fallout`"
 name(::Type{<:FNR}) = "fnr"
+docstring(::Type{<:FNR}) = "false negative rate; aliases: "*
+    "`falsenegative_rate`, `fnr`, `miss_rate`"
 
 name(::Type{<:FDR}) = "fdr"
+docstring(::Type{<:FDR}) = "false discovery rate; aliases: "*
+    "`falsediscovery_rate`, `fdr`"
 name(::Type{<:NPV}) = "npv"
+docstring(::Type{<:NPV}) = "negative predictive value; aliases: "*
+    "`negativepredictive_value`, `npv`"
 
 name(::Type{<:Precision}) = "ppv"
-name(::Type{<:FScore{β}}) where β = "FScore{$β}()"
+docstring(::Type{<:Precision}) = "precision; aliases: "*
+    "`precision`, `positivepredictive_value`, `ppv`"
+name(::Type{<:FScore{β}}) where β = "FScore($β)"
+name(::Type{<:FScore}) = "FScore(β)" # for registry
+docstring(::Type{<:FScore}) = "F_β score; aliases: "*
+    "`FScore(β)`, `f1=f1score=FScore(1)`"
 
 
 ## Internal functions on Confusion Matrix

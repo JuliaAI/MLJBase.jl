@@ -14,8 +14,9 @@ For more information, run `info(mav)`.
 """
 mav = MAV()
 name(::Type{<:MAV}) = "mav"
-
-target_scitype(::Type{<:MAV}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:MAV}) = "mean absolute value; aliases: `mav`"
+target_scitype(::Type{<:MAV}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:MAV}) = :deterministic
 orientation(::Type{<:MAV}) = :loss
 reports_each_observation(::Type{<:MAV}) = false
@@ -32,7 +33,8 @@ function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     return ret / length(y)
 end
 
-function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real}, w::AbstractVector{<:Real})
+function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                 w::AbstractVector{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(y, w)
     ret = 0.0
@@ -66,7 +68,9 @@ For more information, run `info(rms)`.
 """
 rms = RMS()
 name(::Type{<:RMS}) = "rms"
-target_scitype(::Type{<:RMS}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:RMS}) = "root mean squared; aliases: `rms`"
+target_scitype(::Type{<:RMS}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:RMS}) = :deterministic
 orientation(::Type{<:RMS}) = :loss
 reports_each_observation(::Type{<:RMS}) = false
@@ -84,7 +88,8 @@ function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     return sqrt(ret / length(y))
 end
 
-function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real}, w::AbstractVector{<:Real})
+function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                 w::AbstractVector{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -106,7 +111,9 @@ For more information, run `info(l2)`.
 """
 l2 = L2()
 name(::Type{<:L2}) = "l2"
-target_scitype(::Type{<:L2}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:L2}) = "squared deviations; aliases: `l2`"
+target_scitype(::Type{<:L2}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:L2}) = :deterministic
 orientation(::Type{<:L2}) = :loss
 reports_each_observation(::Type{<:L2}) = true
@@ -117,7 +124,8 @@ function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     (check_dimensions(ŷ, y); (y - ŷ).^2)
 end
 
-function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real}, w::AbstractVector{<:Real})
+function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                w::AbstractVector{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
     return (y - ŷ).^2 .* w ./ (sum(w)/length(y))
@@ -135,7 +143,9 @@ For more information, run `info(l1)`.
 """
 l1 = L1()
 name(::Type{<:L1}) = "l1"
-target_scitype(::Type{<:L1}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:L1}) = "absolute deviations; aliases: `l1`"
+target_scitype(::Type{<:L1}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:L1}) = :deterministic
 orientation(::Type{<:L1}) = :loss
 reports_each_observation(::Type{<:L1}) = true
@@ -146,7 +156,8 @@ function (::L1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     (check_dimensions(ŷ, y); abs.(y - ŷ))
 end
 
-function (::L1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real}, w::AbstractVector{<:Real})
+function (::L1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
+                w::AbstractVector{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
     return abs.(y - ŷ) .* w ./ (sum(w)/length(y))
@@ -167,7 +178,9 @@ See also [`rmslp1`](@ref).
 """
 rmsl = RMSL()
 name(::Type{<:RMSL}) = "rmsl"
-target_scitype(::Type{<:RMSL}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:RMSL}) = "root mean square logarithm; aliases: `rmsl`"
+target_scitype(::Type{<:RMSL}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:RMSL}) = :deterministic
 orientation(::Type{<:RMSL}) = :loss
 reports_each_observation(::Type{<:RMSL}) = false
@@ -200,7 +213,10 @@ See also [`rmsl`](@ref).
 """
 rmslp1 = RMSLP1()
 name(::Type{<:RMSLP1}) = "rmslp1"
-target_scitype(::Type{<:RMSLP1}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:RMSLP1}) = "root mean squared logarithm plus one; "*
+    "aliases: `rmslp1`"
+target_scitype(::Type{<:RMSLP1}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:RMSLP1}) = :deterministic
 orientation(::Type{<:RMSLP1}) = :loss
 reports_each_observation(::Type{<:RMSLP1}) = false
@@ -234,7 +250,9 @@ For more information, run `info(rmsp)`.
 """
 rmsp = RMSP()
 name(::Type{<:RMSP}) = "rmsp"
-target_scitype(::Type{<:RMSP}) = Union{AbstractVector{Continuous},AbstractVector{Count}}
+docstring(::Type{<:RMSP}) = "root mean square proportions; aliases: `rmsp`"
+target_scitype(::Type{<:RMSP}) =
+    Union{AbstractVector{Continuous},AbstractVector{Count}}
 prediction_type(::Type{<:RMSP}) = :deterministic
 orientation(::Type{<:RMSP}) = :loss
 reports_each_observation(::Type{<:RMSP}) = false

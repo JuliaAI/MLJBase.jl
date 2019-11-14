@@ -180,7 +180,7 @@ end
         m == accuracy    && (@test e.name == "accuracy")
         m == recall      && (@test e.name == "tpr")
         m isa Precision  && (@test e.name == "ppv")
-        m == f1score     && (@test e.name == "FScore{1}()")
+        m == f1score     && (@test e.name == "FScore(1)")
         m == specificity && (@test e.name == "tnr")
         @test e.target_scitype == AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
