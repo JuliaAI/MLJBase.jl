@@ -54,6 +54,10 @@ export scitype, scitype_union, coerce, schema
 export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
 export std
 
+# stub for macro defined in MLJModels:
+macro load end
+export @load
+
 import Base.==
 import Base: @__doc__
 
