@@ -205,7 +205,7 @@ function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
 end
 
 metadata_measure(BACC;
-    name="balanced accuracy",
+    name="balanced_accuracy",
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:score,
@@ -353,6 +353,7 @@ const fnr = falsenegative_rate
 const falsediscovery_rate = FDR()
 
 const fdr = falsediscovery_rate
+const negativepredictive_value = NPV()
 const npv = NPV()
 const ppv = precision
 
@@ -404,22 +405,21 @@ metadata_measure.((TPR, TNR, Precision, FScore, NPV);
     supports_weights=false)
 
 # adjustments
-name(::Type{<:TruePositive})  = "true positive"
-name(::Type{<:TrueNegative})  = "true negative"
-name(::Type{<:FalsePositive}) = "false positive"
-name(::Type{<:FalseNegative}) = "false negative"
+name(::Type{<:TruePositive})  = "tp"
+name(::Type{<:TrueNegative})  = "tn"
+name(::Type{<:FalsePositive}) = "fp"
+name(::Type{<:FalseNegative}) = "fn"
 
-name(::Type{<:TPR}) = "true positive rate (sensitivity, recall, hit rate)"
-name(::Type{<:TNR}) = "true negative rate (specificity, selectivity)"
-name(::Type{<:FPR}) = "false positive rate (fallout)"
-name(::Type{<:FNR}) = "false negative rate (miss rate)"
+name(::Type{<:TPR}) = "tpr"
+name(::Type{<:TNR}) = "tnr"
+name(::Type{<:FPR}) = "fpr"
+name(::Type{<:FNR}) = "fnr"
 
-name(::Type{<:FDR}) = "false discovery rate"
-name(::Type{<:NPV}) = "negative predictive value"
+name(::Type{<:FDR}) = "fdr"
+name(::Type{<:NPV}) = "npv"
 
-name(::Type{<:Precision}) = "precision (positive predictive value)"
-
-name(::Type{<:FScore{β}}) where β = "F$β-score"
+name(::Type{<:Precision}) = "ppv"
+name(::Type{<:FScore{β}}) where β = "FScore{β}()"
 
 
 ## Internal functions on Confusion Matrix
