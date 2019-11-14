@@ -10,7 +10,9 @@ orientation(::Type{<:SupervisedLoss}) = :loss
 reports_each_observation(::Type{<:SupervisedLoss}) = true
 is_feature_dependent(::Type{<:SupervisedLoss}) = false
 supports_weights(::Type{<:SupervisedLoss}) = true
-
+name(M::Type{<:SupervisedLoss}) =
+    split(string(M), '.')[end]*"()"
+docstring(M::Type{<:SupervisedLoss}) = name(M)
 
 ## DISTANCE BASED LOSS FUNCTION
 

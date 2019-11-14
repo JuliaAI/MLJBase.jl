@@ -4,7 +4,7 @@ is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
-     :reports_each_observation, :aggregation, :is_feature_dependent]
+     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -12,6 +12,7 @@ const MEASURE_TRAITS =
 # supports_weights  - fallback value = false
 # prediction_type   - fallback value = :unknown (also: :deterministic,
 #                                           :probabilistic, :interval)
+# docstring         - fallback value is value of `name` trait. 
 
 # specfic to measures:
 orientation(::Type) = :loss  # other options are :score, :other

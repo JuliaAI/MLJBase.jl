@@ -22,10 +22,9 @@ Base.show(stream::IO, p::MeasureProxy) =
     print(stream, "(name = $(p.name), ...)")
 
 function Base.show(stream::IO, ::MIME"text/plain", p::MeasureProxy)
-    # uncomment next 4 lines if `docstring` is made a trait:
-    # printstyled(IOContext(stream, :color=> MLJBase.SHOW_COLOR),
-    # p.docstring, bold=false, color=:magenta)
-    # println(stream)
+    printstyled(IOContext(stream, :color=> MLJBase.SHOW_COLOR),
+                p.docstring, bold=false, color=:magenta)
+    println(stream)
     MLJBase.pretty_nt(stream, p)
 end
 
