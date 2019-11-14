@@ -178,10 +178,10 @@ end
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
         m == accuracy    && (@test e.name == "accuracy")
-        m == recall      && (@test e.name == "true positive rate (sensitivity, recall, hit rate)")
-        m isa Precision  && (@test e.name == "precision (positive predictive value)")
-        m == f1score     && (@test e.name == "F1-score")
-        m == specificity && (@test e.name == "true negative rate (specificity, selectivity)")
+        m == recall      && (@test e.name == "tpr")
+        m isa Precision  && (@test e.name == "ppv")
+        m == f1score     && (@test e.name == "FScore{1}()")
+        m == specificity && (@test e.name == "tnr")
         @test e.target_scitype == AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score

@@ -419,7 +419,7 @@ name(::Type{<:FDR}) = "fdr"
 name(::Type{<:NPV}) = "npv"
 
 name(::Type{<:Precision}) = "ppv"
-name(::Type{<:FScore{β}}) where β = "FScore{β}()"
+name(::Type{<:FScore{β}}) where β = "FScore{$β}()"
 
 
 ## Internal functions on Confusion Matrix
