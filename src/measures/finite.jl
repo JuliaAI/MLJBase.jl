@@ -7,7 +7,7 @@
 struct CrossEntropy <: Measure end
 
 """
-    cross_entropy(ŷ, y::AbstractVector{<:Finite})
+cross_entropy(ŷ, y::AbstractVector{<:Finite})
 
 Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie,
 probabilistic predictions) and an abstract vector of true observations
@@ -15,7 +15,6 @@ probabilistic predictions) and an abstract vector of true observations
 occur, according to the corresponding probabilistic prediction.
 
 For more information, run `info(cross_entropy)`.
-
 """
 cross_entropy = CrossEntropy()
 name(::Type{<:CrossEntropy}) = "cross_entropy"
@@ -112,6 +111,10 @@ end
 # ==> Precision
 # ---------------------------------------------------
 
+const INVARIANT_LABEL_MULTICLASS = "This metric is invariant to class labelling and can be used for multiclass classification."
+const INVARIANT_LABEL_BINARY = "This metric is invariant to class labelling and can be used only for binary classification."
+const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be used for binary classification."
+
 struct MisclassificationRate <: Measure end
 
 """
@@ -123,6 +126,7 @@ Returns the rate of misclassification of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
 A confusion matrix can also be passed as argument.
+$INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(misclassification_rate)`.
 You can also equivalently use `mcr`.
@@ -160,6 +164,7 @@ accuracy(conf_mat)
 Returns the accuracy of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
 `w`. All three arguments must be abstract vectors of the same length.
+$INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(accuracy)`.
 """
@@ -182,9 +187,23 @@ struct BalancedAccuracy <: Measure end
 
 const BACC = BalancedAccuracy
 
+"""
+balanced_accuracy(ŷ, y [, w])
+bacc(ŷ, y [, w])
+bac(ŷ, y [, w])
+balanced_accuracy(conf_mat)
+
+Return the balanced accuracy of the point prediction `ŷ`, given true
+observations `y`, optionally weighted by `w`. The balanced accuracy takes
+into consideration class imbalance.
+All  three arguments must have the same length.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(balanced_accuracy)`.
+"""
 const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
-const bac = bacc
+const bac  = bacc
 
 function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
                   y::AbstractVector{<:CategoricalElement})
@@ -220,12 +239,24 @@ struct MatthewsCorrelation <: Measure end
 
 const MCC = MatthewsCorrelation
 
+"""
+matthews_correlation(ŷ, y)
+mcc(ŷ, y)
+matthews_correlation(conf_mat)
+
+Return Matthews' correlation coefficient corresponding to the point
+prediction `ŷ`, given true observations `y`.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(matthews_correlation)`.
+"""
 const matthews_correlation = MCC()
 const mcc = matthews_correlation
 
-# http://rk.kvl.dk/introduction/index.html
 function (::MCC)(cm::ConfusionMatrix{C}) where C
-    # NOTE: this is O(C^3), there may be a clever way to adjust this
+    # http://rk.kvl.dk/introduction/index.html
+    # NOTE: this is O(C^3), there may be a clever way to
+    # speed this up though in general this is only used for low  C
     num = 0
     @inbounds for k in 1:C, l in 1:C, m in 1:C
         num += cm[k,k] * cm[l,m] - cm[k,l] * cm[m,k]
@@ -261,33 +292,39 @@ metadata_measure(MatthewsCorrelation;
 
 
 struct AUC <: Measure end
+
+"""
+auc(ŷ, y)
+
+Return the Area Under the (ROC) Curve for probabilistic prediction `ŷ` given true
+observations `y`.
+$INVARIANT_LABEL_BINARY
+
+For more information, run `info(auc)`.
+"""
 const auc = AUC()
 
 function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
                  y::AbstractVector{<:CategoricalElement})
-    # implementation drawn from the ranked comparison in
-    # https://blog.revolutionanalytics.com/2016/11/calculating-auc.html
-    label_1 = levels(y)[1]
-    scores  = pdf.(ŷ, label_1)
-    ranking = sortperm(scores, rev=true)
-
-    # sorted scores
-    scores = scores[ranking]
-    mask_1 = (y[ranking] .== label_1)
-
-    scores_1 = scores[mask_1]
-    scores_2 = scores[.!mask_1]
-
-    n_1 = length(scores_1)
-    n_2 = length(scores_2)
-
-    M = 0.0
-    for i in n_1:-1:1, j in 1:n_2
-        M += (1 + sign(scores_1[i] - scores_2[j]))/2
+    # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+    lab_pos = levels(y)[2]         # 'positive' label
+    scores  = pdf.(ŷ, lab_pos)     # associated scores
+    y_sort  = y[sortperm(scores)]  # sort by scores
+    n       = length(y)
+    n_neg   = 0  # to keep of the number of negative preds
+    auc     = 0
+    @inbounds for i in 1:n
+        # y == lab_p --> it's a positive label in the ground truth
+        # in that case increase the auc by the cumulative sum
+        # otherwise increase the number of negatives by 1
+        δ_auc, δ_neg = ifelse(y_sort[i] == lab_pos, (n_neg, 0), (0, 1))
+        auc   += δ_auc
+        n_neg += δ_neg
     end
-    auc = 1 - M / (n_1 * n_2)
-    return auc
+    n_pos = n - n_neg
+    return 1 - auc / (n_neg * n_pos)
 end
+
 
 metadata_measure(AUC;
     name="auc",
@@ -474,3 +511,90 @@ end
 # specify this as `precision` is in Base and so is ambiguous
 Base.precision(m::CM2) = m |> Precision()
 Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
+
+
+## ROC computation
+
+"""
+_idx_unique_sorted(v)
+
+Internal function to return the index of unique elements in `v` under the assumption
+that the vector `v` is sorted in decreasing order.
+"""
+function _idx_unique_sorted(v::AbstractVector{<:Real})
+    n    = length(v)
+    idx  = ones(Int, n)
+    p, h = 1, 1
+    cur  = v[1]
+    @inbounds while h < n
+        h     += 1                  # head position
+        cand   = v[h]               # candidate value
+        cand   < cur || continue    # is it new? otherwise skip
+        p     += 1                  # if new store it
+        idx[p] = h
+        cur    = cand               # and update the last seen value
+    end
+    p < n && deleteat!(idx, p+1:n)
+    return idx
+end
+
+"""
+tprs, fprs, ts = roc_curve(ŷ, y)
+tprs, fprs, ts = roc(ŷ, y)
+
+Return the ROC curve for a two-class probabilistic prediction `ŷ` given the ground  truth `y`.
+The true positive rates, false positive rates over a range of thresholds `ts` are returned.
+Note that if there are `k` unique scores, there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR and TPR are constant:
+
+* [0.0 - thresh[1]]
+* [thresh[1] - thresh[2]]
+* ...
+* [thresh[k] - 1]
+
+consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
+
+To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
+"""
+function roc_curve(ŷ::AbstractVector{<:UnivariateFinite},
+                   y::AbstractVector{<:CategoricalElement})
+
+    n       = length(y)
+    lab_pos = levels(y)[2]
+    scores  = pdf.(ŷ, lab_pos)
+    ranking = sortperm(scores, rev=true)
+
+    scores_sort = scores[ranking]
+    y_sort_bin  = (y[ranking] .== lab_pos)
+
+    idx_unique = _idx_unique_sorted(scores_sort)
+    thresholds = scores_sort[idx_unique]
+
+    # detailed computations with example:
+    # y = [  1   0   0   1   0   0   1]
+    # s = [0.5 0.5 0.2 0.2 0.1 0.1 0.1] thresh are 0.5 0.2, 0.1 // idx [1, 3, 5]
+    # ŷ = [  0   0   0   0   0   0   0] (0.5 - 1.0] # no pos pred
+    # ŷ = [  1   1   0   0   0   0   0] (0.2 - 0.5] # 2 pos pred
+    # ŷ = [  1   1   1   1   0   0   0] (0.1 - 0.2] # 4 pos pred
+    # ŷ = [  1   1   1   1   1   1   1] [0.0 - 0.1] # all pos pre
+
+    idx_unique_2 = idx_unique[2:end]   # [3, 5]
+    n_ŷ_pos      = idx_unique_2 .- 1   # [2, 4] implicit [0, 2, 4, 7]
+
+    cs   = cumsum(y_sort_bin)          # [1, 1, 1, 2, 2, 2, 3]
+    n_tp = cs[n_ŷ_pos]                 # [1, 2] implicit [0, 1, 2, 3]
+    n_fp = n_ŷ_pos .- n_tp             # [1, 2] implicit [0, 1, 2, 4]
+
+    # add end points
+    P = sum(y_sort_bin) # total number of true positives
+    N = n - P           # total number of true negatives
+
+    n_tp = [0, n_tp..., P] # [0, 1, 2, 3]
+    n_fp = [0, n_fp..., N] # [0, 1, 2, 4]
+
+    tprs = n_tp ./ P  # [0/3, 1/3, 2/3, 1]
+    fprs = n_fp ./ N  # [0/4, 1/4, 2/4, 1]
+
+    return fprs, tprs, thresholds
+end
+
+const roc = roc_curve
