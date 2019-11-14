@@ -1,10 +1,10 @@
 ## TRAITS FOR MEASURES
 
-is_measure(::Any) = false
+is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
-     :reports_each_observation, :is_feature_dependent]
+     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -12,19 +12,39 @@ const MEASURE_TRAITS =
 # supports_weights  - fallback value = false
 # prediction_type   - fallback value = :unknown (also: :deterministic,
 #                                           :probabilistic, :interval)
+# docstring         - fallback value is value of `name` trait. 
 
 # specfic to measures:
 orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
+aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
 
 # extend to instances:
 orientation(m) = orientation(typeof(m))
 reports_each_observation(m) = reports_each_observation(typeof(m))
+aggregation(m) = aggregation(typeof(m))
 is_feature_dependent(m) = is_feature_dependent(typeof(m))
 
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
+
+
+## AGGREGATION
+
+abstract type AggregationMode end
+
+struct Sum <: AggregationMode end
+(::Sum)(v) = sum(v)
+
+struct Mean <: AggregationMode end
+(::Mean)(v) = mean(v)
+
+# for rms and it's cousins:
+struct RootMeanSquare <: AggregationMode end
+(::RootMeanSquare)(v) = sqrt(mean(v.^2))
+
+aggregate(v, measure) = aggregation(measure)(v)
 
 
 ## DISPATCH FOR EVALUATION
@@ -82,23 +102,24 @@ end
 ## FOR BUILT-IN MEASURES
 
 abstract type Measure <: MLJType end
-is_measure(::Measure) = true
+is_measure_type(::Type{<:Measure}) = true
+is_measure(m) = is_measure_type(typeof(m))
 
-
-Base.show(stream::IO, ::MIME"text/plain", m::Measure) = print(stream, "$(name(m)) (callable Measure)")
+Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
+    print(stream, "$(name(m)) (callable Measure)")
 Base.show(stream::IO, m::Measure) = print(stream, name(m))
 
-MLJBase.info(measure, ::Val{:measure}) =
-    (name=name(measure),
-     target_scitype=target_scitype(measure),
-     prediction_type=prediction_type(measure),
-     orientation=orientation(measure),
-     reports_each_observation=reports_each_observation(measure),
-     is_feature_dependent=is_feature_dependent(measure),
-     supports_weights=supports_weights(measure))
+function MLJBase.info(M, ::Val{:measure_type})
+    values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
+    return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
+end
+
+MLJBase.info(m, ::Val{:measure}) = info(typeof(m))
 
 
-# INCLUDE SPECIFIC MEASURES AND TOOLS
+
+## INCLUDE SPECIFIC MEASURES AND TOOLS
+
 include("continuous.jl")
 include("confusion_matrix.jl")
 include("finite.jl")

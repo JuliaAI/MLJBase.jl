@@ -27,9 +27,11 @@ package_uuid(::Type) = "unknown"
 package_url(::Type) = "unknown"
 is_wrapper(::Type) = false
 supports_weights(::Type) = false  # used for measures too
-docstring(object::Type{<:MLJType}) =
-    "$(name(object)) from $(package_name(object)).jl.\n"*
-"[Documentation]($(package_url(object)))."
+docstring(M::Type) = string(M)
+docstring(M::Type{<:MLJType}) = name(M)
+docstring(M::Type{<:Model}) =
+    "$(name(M)) from $(package_name(M)).jl.\n"*
+    "[Documentation]($(package_url(M)))."
 
 # "derived" traits:
 name(M::Type) = string(M)

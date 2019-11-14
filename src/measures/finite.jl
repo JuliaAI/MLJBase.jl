@@ -224,7 +224,7 @@ function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
 end
 
 metadata_measure(BACC;
-    name="balanced accuracy",
+    name="balanced_accuracy",
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:score,
@@ -232,6 +232,8 @@ metadata_measure(BACC;
     is_feature_dependent=false,
     supports_weights=true)
 
+
+## Binary but order independent
 
 struct MatthewsCorrelation <: Measure end
 
@@ -276,9 +278,18 @@ function (::MCC)(cm::ConfusionMatrix{C}) where C
 end
 
 (m::MCC)(ŷ::AbstractVector{<:CategoricalElement},
-         y::AbstractVector{<:CategoricalElement}) = confmat(ŷ, y, warn=false) |> m
+         y::AbstractVector{<:CategoricalElement}) =
+             confmat(ŷ, y, warn=false) |> m
 
-## Binary but order independent
+metadata_measure(MatthewsCorrelation;
+    name="matthews_correlation",
+    target_scitype=AbstractVector{<:Finite{2}},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
+
 
 struct AUC <: Measure end
 
@@ -379,6 +390,7 @@ const fnr = falsenegative_rate
 const falsediscovery_rate = FDR()
 
 const fdr = falsediscovery_rate
+const negativepredictive_value = NPV()
 const npv = NPV()
 const ppv = precision
 
@@ -395,7 +407,16 @@ const f1           = f1score
 const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
 
-metadata_measure.((FalsePositive, FalseNegative, FPR, FNR, FDR);
+metadata_measure.((FalsePositive, FalseNegative);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:loss,
+    reports_each_observation=false,
+    aggregation=Sum(),
+    is_feature_dependent=false,
+    supports_weights=false)
+
+metadata_measure.((FPR, FNR, FDR);
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:loss,
@@ -403,7 +424,16 @@ metadata_measure.((FalsePositive, FalseNegative, FPR, FNR, FDR);
     is_feature_dependent=false,
     supports_weights=false)
 
-metadata_measure.((TruePositive, TrueNegative, TPR, TNR, Precision, FScore, NPV);
+metadata_measure.((TruePositive, TrueNegative);
+    target_scitype=AbstractVector{<:Finite},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    aggregation=Sum(),
+    is_feature_dependent=false,
+    supports_weights=false)
+
+metadata_measure.((TPR, TNR, Precision, FScore, NPV);
     target_scitype=AbstractVector{<:Finite},
     prediction_type=:deterministic,
     orientation=:score,
@@ -412,22 +442,22 @@ metadata_measure.((TruePositive, TrueNegative, TPR, TNR, Precision, FScore, NPV)
     supports_weights=false)
 
 # adjustments
-name(::Type{<:TruePositive})  = "true positive"
-name(::Type{<:TrueNegative})  = "true negative"
-name(::Type{<:FalsePositive}) = "false positive"
-name(::Type{<:FalseNegative}) = "false negative"
+name(::Type{<:TruePositive})  = "tp"
+name(::Type{<:TrueNegative})  = "tn"
+name(::Type{<:FalsePositive}) = "fp"
+name(::Type{<:FalseNegative}) = "fn"
 
-name(::Type{<:TPR}) = "true positive rate (sensitivity, recall, hit rate)"
-name(::Type{<:TNR}) = "true negative rate (specificity, selectivity)"
-name(::Type{<:FPR}) = "false positive rate (fallout)"
-name(::Type{<:FNR}) = "false negative rate (miss rate)"
+name(::Type{<:TPR}) = "tpr"
+name(::Type{<:TNR}) = "tnr"
+name(::Type{<:FPR}) = "fpr"
+name(::Type{<:FNR}) = "fnr"
 
-name(::Type{<:FDR}) = "false discovery rate"
-name(::Type{<:NPV}) = "negative predictive value"
+name(::Type{<:FDR}) = "fdr"
+name(::Type{<:NPV}) = "npv"
 
-name(::Type{<:Precision}) = "precision (positive predictive value)"
+name(::Type{<:Precision}) = "ppv"
+name(::Type{<:FScore{β}}) where β = "FScore{$β}()"
 
-name(::Type{<:FScore{β}}) where β = "F$β-score"
 
 ## Internal functions on Confusion Matrix
 

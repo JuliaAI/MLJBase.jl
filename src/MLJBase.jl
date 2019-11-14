@@ -35,8 +35,10 @@ export load_boston, load_ames, load_iris,
        @load_reduced_ames, @load_crabs               # datasets.jl
 
 # MEASURES
+export measures # measures/registry.jl
 export orientation, reports_each_observation
-export is_feature_dependent
+export is_feature_dependent, aggregation
+export aggregate
 export default_measure, value
 # -- continuous
 export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
@@ -59,7 +61,8 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        Recall, Specificity, BACC,
        # defaults and their synonyms
        truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsepositive_rate, falsenegative_rate,
+       truepositive_rate, truenegative_rate, falsepositive_rate,
+       falsenegative_rate, negativepredicitive_value,
        tp, tn, fp, fn, tpr, tnr, fpr, fnr,
        falsediscovery_rate, fdr, npv, ppv,
        recall, sensitivity, hit_rate, miss_rate,
@@ -233,6 +236,7 @@ include("info.jl")
 include("datasets.jl")
 include("tasks.jl")
 include("measures/measures.jl")
+include("measures/registry.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
@@ -242,7 +246,8 @@ function __init__()
         x-> x isa Supervised
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
         x-> x isa Unsupervised
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
+    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
+    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end
 
 end # module
