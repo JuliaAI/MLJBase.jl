@@ -1,6 +1,6 @@
 ## TRAITS FOR MEASURES
 
-is_measure(::Any) = false
+is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
@@ -101,23 +101,24 @@ end
 ## FOR BUILT-IN MEASURES
 
 abstract type Measure <: MLJType end
-is_measure(::Measure) = true
+is_measure_type(::Type{<:Measure}) = true
+is_measure(m) = is_measure_type(typeof(m))
 
-
-Base.show(stream::IO, ::MIME"text/plain", m::Measure) = print(stream, "$(name(m)) (callable Measure)")
+Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
+    print(stream, "$(name(m)) (callable Measure)")
 Base.show(stream::IO, m::Measure) = print(stream, name(m))
 
-MLJBase.info(measure, ::Val{:measure}) =
-    (name=name(measure),
-     target_scitype=target_scitype(measure),
-     prediction_type=prediction_type(measure),
-     orientation=orientation(measure),
-     reports_each_observation=reports_each_observation(measure),
-     is_feature_dependent=is_feature_dependent(measure),
-     supports_weights=supports_weights(measure))
+function MLJBase.info(M, ::Val{:measure_type})
+    values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
+    return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
+end
+
+MLJBase.info(m, ::Val{:measure}) = info(typeof(m))
 
 
-# INCLUDE SPECIFIC MEASURES AND TOOLS
+
+## INCLUDE SPECIFIC MEASURES AND TOOLS
+
 include("continuous.jl")
 include("confusion_matrix.jl")
 include("finite.jl")
