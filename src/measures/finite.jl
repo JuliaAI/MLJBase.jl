@@ -296,18 +296,22 @@ const auc = AUC()
 function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
                  y::AbstractVector{<:CategoricalElement})
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
-    lab_2  = levels(y)[2]
-    scores = pdf.(ŷ, lab_2)
-    y_sort = y[sortperm(scores)]
-    n   = length(y)
-    n_1 = 0
-    auc = 0
+    lab_pos = levels(y)[2]         # 'positive' label
+    scores  = pdf.(ŷ, lab_pos)     # associated scores
+    y_sort  = y[sortperm(scores)]  # sort by scores
+    n       = length(y)
+    n_neg   = 0  # to keep of the number of negative preds
+    auc     = 0
     @inbounds for i in 1:n
-        δ_auc, δ_1 = ifelse(y_sort[i] == lab_2, (n_1, 0), (0, 1))
-        auc += δ_auc
-        n_1 += δ_1
+        # y == lab_p --> it's a positive label in the ground truth
+        # in that case increase the auc by the cumulative sum
+        # otherwise increase the number of negatives by 1
+        δ_auc, δ_neg = ifelse(y_sort[i] == lab_pos, (n_neg, 0), (0, 1))
+        auc   += δ_auc
+        n_neg += δ_neg
     end
-    return 1 - auc / (n_1 * (length(y) - n_1))
+    n_pos = n - n_neg
+    return 1 - auc / (n_neg * n_pos)
 end
 
 
@@ -482,20 +486,20 @@ Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
 ## ROC computation
 
 """
-_idx_sorted_unique(v)
+_idx_unique_sorted(v)
 
 Internal function to return the index of unique elements in `v` under the assumption
-that the vector `v` is sorted in increasing order.
+that the vector `v` is sorted in decreasing order.
 """
-function _idx_sorted_unique(v::AbstractVector{<:Real})
+function _idx_unique_sorted(v::AbstractVector{<:Real})
     n    = length(v)
     idx  = ones(Int, n)
     p, h = 1, 1
     cur  = v[1]
     @inbounds while h < n
         h     += 1                  # head position
-        cand   = v[head]            # candidate value
-        cand   > cur || continue    # is it new? otherwise skip
+        cand   = v[h]               # candidate value
+        cand   < cur || continue    # is it new? otherwise skip
         p     += 1                  # if new store it
         idx[p] = h
         cur    = cand               # and update the last seen value
@@ -504,21 +508,63 @@ function _idx_sorted_unique(v::AbstractVector{<:Real})
     return idx
 end
 
-function _roc_curve(ŷ::AbstractVector{<:UnivariateFinite},
-                    y::AbstractVector{<:CategoricalElement},
-                    w::AbstractVector{<:Real}=Int[])
-    lab_2   = levels(y)[2]
-    scores  = pdf.(ŷ, lab_2)
-    ranking = sortperm(scores)
+"""
+tprs, fprs, ts = roc_curve(ŷ, y)
+tprs, fprs, ts = roc(ŷ, y)
+
+Return the ROC curve for a two-class probabilistic prediction `ŷ` given the ground  truth `y`.
+The true positive rates, false positive rates over a range of thresholds `ts` are returned.
+Note that if there are `k` unique scores, there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR and TPR are constant:
+
+* [0.0 - thresh[1]]
+* [thresh[1] - thresh[2]]
+* ...
+* [thresh[k] - 1]
+
+consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
+
+To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
+"""
+function roc_curve(ŷ::AbstractVector{<:UnivariateFinite},
+                   y::AbstractVector{<:CategoricalElement})
+
+    n       = length(y)
+    lab_pos = levels(y)[2]
+    scores  = pdf.(ŷ, lab_pos)
+    ranking = sortperm(scores, rev=true)
 
     scores_sort = scores[ranking]
-    y_sort      = y[ranking]
+    y_sort_bin  = (y[ranking] .== lab_pos)
 
-    w_sort = w
-    if !isempty(w)
-        w_sort .= w[ranking]
-    end
+    idx_unique = _idx_unique_sorted(scores_sort)
+    thresholds = scores_sort[idx_unique]
 
-    unique_scores = _sorted_unique(scores_sort)
+    # detailed computations with example:
+    # y = [  1   0   0   1   0   0   1]
+    # s = [0.5 0.5 0.2 0.2 0.1 0.1 0.1] thresh are 0.5 0.2, 0.1 // idx [1, 3, 5]
+    # ŷ = [  0   0   0   0   0   0   0] (0.5 - 1.0] # no pos pred
+    # ŷ = [  1   1   0   0   0   0   0] (0.2 - 0.5] # 2 pos pred
+    # ŷ = [  1   1   1   1   0   0   0] (0.1 - 0.2] # 4 pos pred
+    # ŷ = [  1   1   1   1   1   1   1] [0.0 - 0.1] # all pos pre
 
+    idx_unique_2 = idx_unique[2:end]   # [3, 5]
+    n_ŷ_pos      = idx_unique_2 .- 1   # [2, 4] implicit [0, 2, 4, 7]
+
+    cs   = cumsum(y_sort_bin)          # [1, 1, 1, 2, 2, 2, 3]
+    n_tp = cs[n_ŷ_pos]                 # [1, 2] implicit [0, 1, 2, 3]
+    n_fp = n_ŷ_pos .- n_tp             # [1, 2] implicit [0, 1, 2, 4]
+
+    # add end points
+    P = sum(y_sort_bin) # total number of true positives
+    N = n - P           # total number of true negatives
+
+    n_tp = [0, n_tp..., P] # [0, 1, 2, 3]
+    n_fp = [0, n_fp..., N] # [0, 1, 2, 4]
+
+    tprs = n_tp ./ P  # [0/3, 1/3, 2/3, 1]
+    fprs = n_fp ./ N  # [0/4, 1/4, 2/4, 1]
+
+    return fprs, tprs, thresholds
 end
+
+const roc = roc_curve

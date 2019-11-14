@@ -48,7 +48,7 @@ export cross_entropy, BrierScore,
        balanced_accuracy, bacc, bac,
        matthews_correlation, mcc
 # -- -- binary // order independent
-export auc
+export auc, roc_curve, roc
 # -- -- binary // order dependent
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
