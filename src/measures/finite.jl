@@ -214,6 +214,8 @@ metadata_measure(BACC;
     supports_weights=true)
 
 
+## Binary but order independent
+
 struct MatthewsCorrelation <: Measure end
 
 const MCC = MatthewsCorrelation
@@ -245,9 +247,18 @@ function (::MCC)(cm::ConfusionMatrix{C}) where C
 end
 
 (m::MCC)(ŷ::AbstractVector{<:CategoricalElement},
-         y::AbstractVector{<:CategoricalElement}) = confmat(ŷ, y, warn=false) |> m
+         y::AbstractVector{<:CategoricalElement}) =
+             confmat(ŷ, y, warn=false) |> m
 
-## Binary but order independent
+metadata_measure(MatthewsCorrelation;
+    name="matthews_correlation",
+    target_scitype=AbstractVector{<:Finite{2}},
+    prediction_type=:deterministic,
+    orientation=:score,
+    reports_each_observation=false,
+    is_feature_dependent=false,
+    supports_weights=false)
+
 
 struct AUC <: Measure end
 const auc = AUC()
@@ -255,7 +266,7 @@ const auc = AUC()
 function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
                  y::AbstractVector{<:CategoricalElement})
     # implementation drawn from the ranked comparison in
-    # ht_tps://blog.revolutionanalytics.com/2016/11/calculating-auc.html
+    # https://blog.revolutionanalytics.com/2016/11/calculating-auc.html
     label_1 = levels(y)[1]
     scores  = pdf.(ŷ, label_1)
     ranking = sortperm(scores, rev=true)
