@@ -5,7 +5,7 @@ module MLJBase
 export MLJType, Model, Supervised, Unsupervised
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-export fit, update, clean!
+export fit, update, update_data, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export info, info_dict
@@ -136,6 +136,10 @@ fit(model::Supervised, verbosity::Integer, X, y, w) =
     fit(model, verbosity, X, y)
 update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
     update(model, verbosity, fitresult, cache, X, y)
+
+# fallbacks for models that do not support online_learning
+update_data(model::Supervised, verbosity::Integer, args...) =
+    error("$model does not support online learning")
 
 # methods dispatched on a model and fit-result are called
 # *operations*.  Supervised models must implement a `predict`
