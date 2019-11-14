@@ -13,6 +13,10 @@ end
   @test include("equality.jl")
 end
 
+@testset "static transforms" begin
+  @test include("static.jl")
+end
+
 @testset "utilities" begin
   @test include("utilities.jl")
 end

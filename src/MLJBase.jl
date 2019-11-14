@@ -3,6 +3,7 @@
 module MLJBase
 
 export MLJType, Model, Supervised, Unsupervised
+export Static
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, clean!
@@ -110,6 +111,10 @@ abstract type Deterministic <: Supervised end
 # supervised models that `predict` intervals:
 abstract type Interval <: Supervised end
 
+# unsupervised models that just wrap callable objects ("functions with
+# parameters"):
+abstract type Static <: Unsupervised end
+
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
@@ -125,6 +130,9 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 # `fit(model, training_args...) -> fitresult`
 fit(model::Model, verbosity::Integer, args...) =
     fit(model, args...), nothing, nothing
+
+# fallback for static transformations:
+fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
 
 # each model interface may optionally overload the following refitting
 # method:
@@ -146,6 +154,10 @@ function transform end
 
 # unsupervised methods may implement this operation:
 function inverse_transform end
+
+# fallbacks for static transformers:
+transform(callable::Static, fitresult, args...) = callable(args...)
+inverse_transform(callable::Static, fitresult, args...) = inv(callable, args...)
 
 # this operation can be optionally overloaded to provide access to
 # fitted parameters (eg, coeficients of linear model):
