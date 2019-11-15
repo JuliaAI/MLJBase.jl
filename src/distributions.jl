@@ -369,6 +369,7 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     end
 
     return UnivariateFinite(prob_given_class)
+
 end
 
 

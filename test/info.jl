@@ -70,7 +70,6 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                :package_license => "MIT",
                                :input_scitype => MLJBase.Table(Finite),
                                :supports_weights => true,
-                               :supports_online => false,
                                :target_scitype => MLJBase.AbstractVector{<:Continuous},
                                :prediction_type => :probabilistic,
                                :package_url   => "https://mickey.mouse.org",
@@ -82,8 +81,8 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                                      "Array{Float64,1}", "Any"],
                                :hyperparameters => [:an_int, :a_float,
                                                     :a_vector, :untyped])
-
-
+    
+    
     @test info_dict(DummyProb) == d
     @test info_dict(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
     # for k in keys(d)
@@ -103,7 +102,6 @@ end
                                :package_license => "MIT",
                                :input_scitype => MLJBase.Table(Finite),
                                :supports_weights => true,
-                               :supports_online => false,
                                :target_scitype => MLJBase.AbstractVector{<:Continuous},
                                :prediction_type => :deterministic,
                                :package_url   => "https://mickey.mouse.org",
@@ -114,17 +112,17 @@ end
                                :hyperparameter_types  => [],
                                :hyperparameters => [])
 
-
+    
     @test info_dict(DummyDeterm) == d
     @test info_dict(DummyDeterm()) == d
     # for k in keys(d)
     #      println(string(k, " ",  info_dict(DummyDeterm)[k] == d[k]))
     # end
-
+    
 end
 
 @testset "info on interval models" begin
-
+    
     d = LittleDict{Symbol,Any}(:name => "DummyInt",
                                :load_path => "GreatPackage.MLJ.DummyInt",
                                :is_pure_julia => true,
@@ -133,7 +131,6 @@ end
                                :package_license => "MIT",
                                :input_scitype => MLJBase.Table(Finite),
                                :supports_weights => true,
-                               :supports_online => false,
                                :target_scitype => MLJBase.AbstractVector{<:Continuous},
                                :prediction_type => :interval,
                                :package_url   => "https://mickey.mouse.org",
@@ -143,13 +140,13 @@ end
                                :implemented_methods => [:predict, ],
                                :hyperparameter_types  => [],
                                :hyperparameters => [])
-
+    
     @test info_dict(DummyInt) == d
     @test info_dict(DummyInt()) == d
     # for k in keys(d)
     #      println(string(k, " ",  info_dict(DummyInt)[k] == d[k]))
     # end
-
+    
 end
 
 @testset "info on unsupervised models" begin
@@ -164,13 +161,12 @@ end
                                :output_scitype => MLJBase.AbstractVector{<:Continuous},
                                :package_url   => "https://mickey.mouse.org",
                                :is_supervised => false,
-                               :supports_online => false,
                                :is_wrapper => false,
                                :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:transform, ],
                                :hyperparameter_types  => [],
                                :hyperparameters => [])
-
+    
     @test info_dict(DummyUnsup) == d
     @test info_dict(DummyUnsup()) == d
     # for k in keys(d)
