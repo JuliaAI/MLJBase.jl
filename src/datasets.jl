@@ -42,28 +42,28 @@ const COERCE_REDUCED_AMES = (
     :LotArea      => Continuous,
     :GarageCars   => Count,
     :MSSubClass   => Multiclass,
-    :GarageArea   => Count,
-    :YearRemodAdd => Continuous,
-    :YearBuilt    => Continuous)
+    :GarageArea   => Continuous,
+    :YearRemodAdd => Count,
+    :YearBuilt    => Count)
 
 const COERCE_AMES = (
     :Id             => Count,
     :MSSubClass     => Multiclass,
     :MSZoning       => Multiclass,
     :LotFrontage    => Continuous,
-    :LotArea        => Count,
+    :LotArea        => Continuous,
     :Street         => Multiclass,
     :LotShape       => Multiclass,
     :LandContour    => Multiclass,
     :LotConfig      => Multiclass,
-    :LandSlope      => Multiclass,
+    :LandSlope      => OrderedFactor,
     :Neighborhood   => Multiclass,
     :Condition1     => Multiclass,
     :Condition2     => Multiclass,
     :BldgType       => Multiclass,
     :HouseStyle     => Multiclass,
-    :OverallQual    => Count,
-    :OverallCond    => Count,
+    :OverallQual    => OrderedFactor,
+    :OverallCond    => OrderedFactor,
     :YearBuilt      => Count,
     :YearRemodAdd   => Count,
     :RoofStyle      => Multiclass,
@@ -71,54 +71,54 @@ const COERCE_AMES = (
     :Exterior1st    => Multiclass,
     :Exterior2nd    => Multiclass,
     :MasVnrType     => Multiclass,
-    :MasVnrArea     => Count,
-    :ExterQual      => Multiclass,
-    :ExterCond      => Multiclass,
+    :MasVnrArea     => Continuous,
+    :ExterQual      => OrderedFactor,
+    :ExterCond      => OrderedFactor,
     :Foundation     => Multiclass,
-    :BsmtQual       => Multiclass,
-    :BsmtCond       => Multiclass,
-    :BsmtExposure   => Multiclass,
+    :BsmtQual       => OrderedFactor,
+    :BsmtCond       => OrderedFactor,
+    :BsmtExposure   => OrderedFactor,
     :BsmtFinType1   => Multiclass,
     :BsmtFinSF1     => Continuous,
     :BsmtFinType2   => Multiclass,
-    :BsmtFinSF2     => Count,
-    :BsmtUnfSF      => Count,
+    :BsmtFinSF2     => Continuous,
+    :BsmtUnfSF      => Continuous,
     :TotalBsmtSF    => Continuous,
     :Heating        => Multiclass,
-    :HeatingQC      => Multiclass,
+    :HeatingQC      => OrderedFactor,
     :CentralAir     => Multiclass,
     :Electrical     => Multiclass,
-    :x1stFlrSF      => Count,
-    :x2ndFlrSF      => Count,
-    :LowQualFinSF   => Count,
-    :GrLivArea      => Count,
+    :x1stFlrSF      => Continuous,
+    :x2ndFlrSF      => Continuous,
+    :LowQualFinSF   => Continuous,
+    :GrLivArea      => Continuous,
     :BsmtFullBath   => Count,
     :BsmtHalfBath   => Count,
     :FullBath       => Count,
     :HalfBath       => Count,
     :BedroomAbvGr   => Count,
     :KitchenAbvGr   => Count,
-    :KitchenQual    => Multiclass,
+    :KitchenQual    => OrderedFactor,
     :TotRmsAbvGrd   => Count,
-    :Functional     => Multiclass,
+    :Functional     => OrderedFactor,
     :Fireplaces     => Count,
-    :FireplaceQu    => Multiclass,
+    :FireplaceQu    => OrderedFactor,
     :GarageType     => Multiclass,
-    :GarageYrBlt    => Continuous,
+    :GarageYrBlt    => Count,
     :GarageFinish   => Multiclass,
     :GarageCars     => Count,
-    :GarageArea     => Count,
-    :GarageQual     => Multiclass,
-    :GarageCond     => Multiclass,
+    :GarageArea     => Continuous,
+    :GarageQual     => OrderedFactor,
+    :GarageCond     => OrderedFactor,
     :PavedDrive     => Multiclass,
-    :WoodDeckSF     => Count,
-    :OpenPorchSF    => Count,
-    :EnclosedPorch  => Count,
-    :x3SsnPorch     => Count,
-    :ScreenPorch    => Count,
-    :PoolArea       => Count,
-    :MiscVal        => Count,
-    :MoSold         => Count,
+    :WoodDeckSF     => Continuous,
+    :OpenPorchSF    => Continuous,
+    :EnclosedPorch  => Continuous,
+    :x3SsnPorch     => Continuous,
+    :ScreenPorch    => Continuous,
+    :PoolArea       => Continuous,
+    :MiscVal        => Continuous,
+    :MoSold         => Multiclass,
     :YrSold         => Count,
     :SaleType       => Multiclass,
     :SaleCondition  => Multiclass,
@@ -159,7 +159,23 @@ end
 
 load_boston()       = load_dataset("Boston.csv", COERCE_BOSTON)
 load_reduced_ames() = load_dataset("reduced_ames.csv", COERCE_REDUCED_AMES)
-load_ames()         = load_dataset("ames.csv", COERCE_AMES)
+function load_ames()
+    data = load_dataset("ames.csv", COERCE_AMES)
+    levels!(data.LandSlope, ["Gtl", "Mod", "Sev"])
+    levels!(data.ExterQual, ["Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.ExterCond, ["Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.HeatingQC, ["Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.KitchenQual, ["Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.BsmtQual, ["_NA", "Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.BsmtCond, ["_NA", "Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.BsmtExposure, ["_NA", "No", "Mn", "Av", "Gd"])
+    levels!(data.FireplaceQu, ["None", "Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.GarageQual, ["_NA", "Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.GarageCond, ["_NA", "Po", "Fa", "TA", "Gd", "Ex"])
+    levels!(data.Functional, ["Typ", "Min1", "Min2", "Mod", "Maj1", "Maj2",
+                              "Sev", "Sal"])
+    return data
+end
 load_iris()         = load_dataset("iris.csv", COERCE_IRIS)
 load_crabs()        = load_dataset("crabs.csv", COERCE_CRABS)
 
