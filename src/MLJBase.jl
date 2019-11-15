@@ -33,6 +33,7 @@ export load_boston, load_ames, load_iris,
        load_reduced_ames, load_crabs,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs               # datasets.jl
+export @load
 
 # MEASURES
 export measures # measures/registry.jl
@@ -164,9 +165,8 @@ fit(model::Supervised, verbosity::Integer, X, y, w) =
 update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
     update(model, verbosity, fitresult, cache, X, y)
 
-# fallbacks for models that do not support online_learning
-update_data(model::Supervised, verbosity::Integer, args...) =
-    error("$model does not support online learning")
+# stub for online learning method update method
+function update_data end
 
 # methods dispatched on a model and fit-result are called
 # *operations*.  Supervised models must implement a `predict`
@@ -206,6 +206,12 @@ function best end
 # warning should overload this method (return value is the warning
 # message):
 clean!(model::Model) = ""
+
+
+## STUB FOR @load (extended by MLJModels)
+
+macro load end
+
 
 ## TRAITS
 
