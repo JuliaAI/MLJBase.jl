@@ -1,7 +1,7 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
-version = "0.8.0"
+version = "0.8.1"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
