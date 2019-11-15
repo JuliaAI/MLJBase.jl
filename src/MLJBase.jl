@@ -6,7 +6,7 @@ export MLJType, Model, Supervised, Unsupervised
 export Static
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-export fit, update, update_data, clean!
+export fit, update, clean!
 export predict, predict_mean, predict_mode, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export info, info_dict
@@ -34,42 +34,12 @@ export load_boston, load_ames, load_iris,
        load_reduced_ames, load_crabs,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs               # datasets.jl
-export @load
-
-# MEASURES
-export measures # measures/registry.jl
-export orientation, reports_each_observation
-export is_feature_dependent, aggregation
-export aggregate
-export default_measure, value
-# -- continuous
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
-# -- confmat (measures/confusion_matrix)
-export confusion_matrix, confmat
-# -- finite (measures/finite)
-export cross_entropy, BrierScore,
-       misclassification_rate, mcr, accuracy,
-       balanced_accuracy, bacc, bac,
-       matthews_correlation, mcc
-# -- -- binary // order independent
-export auc, roc_curve, roc
-# -- -- binary // order dependent
-export TruePositive, TrueNegative, FalsePositive, FalseNegative,
-       TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
-       FalseDiscoveryRate, Precision, NPV, FScore,
-       # standard synonyms
-       TPR, TNR, FPR, FNR,
-       FDR, PPV,
-       Recall, Specificity, BACC,
-       # defaults and their synonyms
-       truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsepositive_rate,
-       falsenegative_rate, negativepredicitive_value,
-       positivepredictive_value,
-       tp, tn, fp, fn, tpr, tnr, fpr, fnr,
-       falsediscovery_rate, fdr, npv, ppv,
-       recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, f1, fallout
+export orientation, reports_each_observation         # measures.jl
+export is_feature_dependent                          # measures.jl
+export default_measure, value                        # measures.jl
+export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2     # measures.jl
+export misclassification_rate, cross_entropy         # measures.jl
+export BrierScore                                    # measures.jl
 
 # methods from other packages to be rexported:
 export pdf, mean, mode
@@ -85,7 +55,7 @@ export scitype, scitype_union, coerce, schema
 export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
 export std
 
-import Base.==, Base.precision, Base.getindex
+import Base.==
 import Base: @__doc__
 
 using Tables, DelimitedFiles
@@ -100,11 +70,13 @@ import Distributions
 import Distributions: pdf, mode
 
 using ScientificTypes
-using LossFunctions
 
 # from Standard Library:
 
-using Statistics, LinearAlgebra, Random, InteractiveUtils
+using Statistics
+using Random
+using InteractiveUtils
+using LossFunctions
 
 ## CONSTANTS
 
@@ -173,9 +145,6 @@ fit(model::Supervised, verbosity::Integer, X, y, w) =
 update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
     update(model, verbosity, fitresult, cache, X, y)
 
-# stub for online learning method update method
-function update_data end
-
 # methods dispatched on a model and fit-result are called
 # *operations*.  Supervised models must implement a `predict`
 # operation (extending the `predict` method of StatsBase).
@@ -219,12 +188,6 @@ function best end
 # message):
 clean!(model::Model) = ""
 
-
-## STUB FOR @load (extended by MLJModels)
-
-macro load end
-
-
 ## TRAITS
 
 """
@@ -248,9 +211,6 @@ include("show.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-# metadata utils
-include("metadata_utilities.jl")
-
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
@@ -258,19 +218,27 @@ include("distributions.jl")
 include("info.jl")
 include("datasets.jl")
 include("tasks.jl")
-include("measures/measures.jl")
-include("measures/registry.jl")
+include("measures.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
 
+# metadata utils
+include("metadata_utilities.jl")
+
+include("loss_functions_interface.jl")
+
+
+# include("init.jl")
+
 function __init__()
+
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
         x-> x isa Supervised
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
         x-> x isa Unsupervised
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
+
 end
 
 end # module

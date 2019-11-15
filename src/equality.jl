@@ -56,13 +56,19 @@ MLJBase.isequal(m1::MLJType, m2::MLJType) = (m1 === m2)
 
 # Note: To prevent julia crash, it seems we mysteriously need to
 # annotate the type of itr:
-function special_in(x, itr)::Union{Bool,Missing}
+function special_in(x, itr)
+    anymissing = false
     for y in itr
-        ismissing(y) && return missing
-        y === x && return true
+        v = (y === x)
+        if ismissing(v)
+            anymissing = true
+        elseif v
+            return true
+        end
     end
-    return false
+    return anymissing ? missing : false
 end
 Base.in(x::MLJType, itr::Set) = special_in(x, itr)
 Base.in(x::MLJType, itr::AbstractVector) = special_in(x, itr)
 Base.in(x::MLJType, itr::NTuple) = special_in(x, itr)
+

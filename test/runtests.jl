@@ -46,10 +46,11 @@ end
 end
 
 @testset "measures" begin
-  @test include("measures/measures.jl")
-  @test include("measures/continuous.jl")
-  @test include("measures/finite.jl")
-  @test include("measures/loss_functions_interface.jl")
+  @test include("measures.jl")
+end
+
+@testset "interface for LossFunctions" begin
+  @test include("loss_functions_interface.jl")
 end
 
 @testset "@mlj_model" begin

@@ -2,13 +2,12 @@
 
 # model trait names:
 const MODEL_TRAITS = [:input_scitype, :output_scitype, :target_scitype,
-                      :is_pure_julia, :package_name, :package_license,
-                      :load_path, :package_uuid,
-                      :package_url, :is_wrapper, :supports_weights,
-                      :supports_online, :docstring,
-                      :name, :is_supervised, :prediction_type,
-                      :implemented_methods, :hyperparameters,
-                      :hyperparameter_types]
+                    :is_pure_julia, :package_name, :package_license,
+                    :load_path, :package_uuid, 
+                    :package_url, :is_wrapper, :supports_weights, :docstring,
+                    :name, :is_supervised, :prediction_type,
+                    :implemented_methods, :hyperparameters,
+                    :hyperparameter_types]
 const SUPERVISED_TRAITS = filter(MODEL_TRAITS) do trait
     !(trait in [:output_scitype,])
 end
@@ -27,13 +26,10 @@ load_path(::Type) = "unknown"
 package_uuid(::Type) = "unknown"
 package_url(::Type) = "unknown"
 is_wrapper(::Type) = false
-supports_online(::Type) = false
 supports_weights(::Type) = false  # used for measures too
-docstring(M::Type) = string(M)
-docstring(M::Type{<:MLJType}) = name(M)
-docstring(M::Type{<:Model}) =
-    "$(name(M)) from $(package_name(M)).jl.\n"*
-    "[Documentation]($(package_url(M)))."
+docstring(object::Type{<:MLJType}) =
+    "$(name(object)) from $(package_name(object)).jl.\n"*
+"[Documentation]($(package_url(object)))."
 
 # "derived" traits:
 name(M::Type) = string(M)
@@ -57,7 +53,7 @@ hyperparameter_types(M::Type) = string.(_fieldtypes(M))
 #         return []
 #     end
 # end
-
+                    
 
 # following 5 lines commented out because they dissallow precompilation:
 # for trait in MODEL_TRAITS
@@ -77,7 +73,6 @@ package_uuid(object) = package_uuid(typeof(object))
 package_url(object) = package_url(typeof(object))
 is_wrapper(object) = is_wrapper(typeof(object))
 supports_weights(object) = supports_weights(typeof(object))
-supports_online(object) = supports_online(typeof(object))
 docstring(object) = docstring(typeof(object))
 name(object) = name(typeof(object))
 is_supervised(object) = is_supervised(typeof(object))
