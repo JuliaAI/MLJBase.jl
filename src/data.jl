@@ -111,35 +111,52 @@ end
 
 ## DEALING WITH CATEGORICAL ELEMENTS
 
-const CategoricalElement{U} = Union{CategoricalValue{<:Any,U},CategoricalString{U}}
-
+const CategoricalElement{U} =
+    Union{CategoricalValue{<:Any,U},CategoricalString{U}}
 
 """
     classes(x)
 
-All the categorical elements with in the same pool as `x` (including `x`),
-returned as a list, with an ordering consistent with the pool. Here
-`x` has `CategoricalValue` or `CategoricalString` type, and
-`classes(x)` is a vector of the same eltype.
+All the categorical elements with in the same pool as `x` (including
+`x`), returned as a list, with an ordering consistent with the
+pool. Here `x` has `CategoricalValue` or `CategoricalString` type, and
+`classes(x)` is a vector of the same eltype. Note that `x in
+classes(x)` is always true.
 
-Not to be confused with the levels of `x.pool` which have a
-different type. In particular, while `x in classes(x)` is always
-true, `x in x.pool.levels` is not true.
+Not to be confused with `levels(x.pool)`. See the example below.
 
-    julia> v = categorical([:c, :b, :c, :a])
+    julia>  v = categorical([:c, :b, :c, :a])
+    4-element CategoricalArrays.CategoricalArray{Symbol,1,UInt32}:
+     :c
+     :b
+     :c
+     :a
+
     julia> levels(v)
     3-element Array{Symbol,1}:
      :a
      :b
      :c
-    julia> classes(v[4])
-    3-element Array{CategoricalValue{Symbol,UInt32},1}:
+
+    julia> x = v[4]
+    CategoricalArrays.CategoricalValue{Symbol,UInt32} :a
+
+    julia> classes(x)
+    3-element CategoricalArrays.CategoricalArray{Symbol,1,UInt32}:
+     :a
+     :b
+     :c
+
+    julia> levels(x.pool)
+    3-element Array{Symbol,1}:
      :a
      :b
      :c
 
 """
-classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
+classes(p) = [p[i] for i in invperm(CategoricalArrays.order(p))]
+# older method that avoids inverting a permutation but has dict lookup:
+# classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
 classes(x::CategoricalElement) = classes(x.pool)
 
 """
@@ -173,7 +190,8 @@ Broadcasted versions of `int`.
 
 See also: [`decoder`](@ref).
 """
-int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+#int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
+int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
