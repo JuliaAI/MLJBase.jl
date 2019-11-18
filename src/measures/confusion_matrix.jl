@@ -27,6 +27,9 @@ end
 # allow to access cm[i,j] but not set (it's immutable)
 Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
 
+# XXX temporary hack to go from scitype to element scitype
+_get_elst(::Type{AbstractArray{T,N}}) where {T,N} = T
+
 """
 confusion_matrix(ŷ, y; rev=false)
 
@@ -68,12 +71,13 @@ function confusion_matrix(ŷ::VC, y::VC;
     end
     # warning
     if rev === nothing && perm === nothing
-        if warn &&
-            if nc==2 && !(scitype_union(y) >: OrderedFactor{2})
+        if warn
+            elst = scitype(y) |> _get_elst
+            if nc==2 && !(elst >: OrderedFactor{2})
                 @warn "The classes are un-ordered,\n" *
                       "using: negative='$(levels_[1])' and positive='$(levels_[2])'.\n" *
                       "To suppress this warning, consider coercing to OrderedFactor."
-            elseif !(scitype_union(y) >: OrderedFactor{nc})
+            elseif !(elst >: OrderedFactor{nc})
                 @warn "The classes are un-ordered,\n" *
                       "using order: $([l for l in levels_]).\n" *
                       "To suppress this warning, consider coercing to OrderedFactor."
