@@ -190,13 +190,16 @@ Broadcasted versions of `int`.
 
 See also: [`decoder`](@ref).
 """
-#int(x::CategoricalElement) = x.pool.order[x.pool.invindex[x]]
 int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
 # method):
 int(pool::CategoricalPool, level) =  pool.order[pool.invindex[level]]
+
+# convert the result to a specific integer type (some models may not work with UInt)
+int(a...; type::Union{Nothing,Type{T}}=nothing) where T <: Real =
+    type === nothing ? int(a...) : convert.(T, int(a...))
 
 struct CategoricalDecoder{T,R} # <: MLJType
     pool::CategoricalPool{T,R}
