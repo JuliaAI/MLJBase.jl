@@ -2,7 +2,7 @@
 # https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
 module MLJBase
 
-export MLJType, Model, Supervised, Unsupervised
+export MLJType, Model, Supervised, Unsupervised, Static
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, update_data, clean!
@@ -138,6 +138,9 @@ abstract type Deterministic <: Supervised end
 # supervised models that `predict` intervals:
 abstract type Interval <: Supervised end
 
+# for static operations dependent on user-specified parameters:
+abstract type Static <: Unsupervised end
+
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
@@ -153,6 +156,9 @@ abstract type UnsupervisedNetwork <: Unsupervised end
 # `fit(model, training_args...) -> fitresult`
 fit(model::Model, verbosity::Integer, args...) =
     fit(model, args...), nothing, nothing
+
+# fallback for static transformations:
+fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
 
 # each model interface may optionally overload the following refitting
 # method:

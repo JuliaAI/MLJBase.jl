@@ -1,12 +1,8 @@
 module TestData
 
-# using Revise
 using Test
 using DataFrames
 import TypedTables
-# using StatsBase
-# using JuliaDB
-# using SparseArrays
 using CategoricalArrays
 import Tables
 using ScientificTypes
@@ -127,6 +123,8 @@ end
     # broadcasted encoding:
     @test int(X) == int(V)
     @test int(Y) == int(W)
+
+    @test int(X, type=Int8) isa AbstractArray{Int8}
 
     # encoding is right-inverse to decoding:
     d = decoder(xo)
