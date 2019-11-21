@@ -267,6 +267,24 @@ tt = TypedTables.Table(df)
 #                      ["big", "small", 17, 34, 4, "small"])
 # @test matrix(nd) == sparsearray
 
+@testset "coverage" begin
+    @test_throws DomainError partition(1:10, 1.5)
+
+    @test_throws ArgumentError matrix(Val(:other), (1,2,3))
+    @test_throws ArgumentError selectrows(Val(:other), (1,), (1,))
+    @test_throws ArgumentError selectcols(Val(:other), (1,), (1,))
+    @test_throws ArgumentError select(Val(:other), (1,), (1,), (1,))
+    @test_throws ArgumentError nrows(Val(:other), (1,))
+
+    nt = (a=5, b=7)
+    @test MLJBase.project(nt, :) == (a=5, b=7)
+    @test MLJBase.project(nt, :a) == (a=5, )
+    @test MLJBase.project(nt, 1) == (a=5, )
+
+    X = MLJBase.table((x=[1,2,3], y=[4,5,6]))
+    @test select(Val(:table), X, 1, :y) == 4
+end
+
 end # module
 
 true
