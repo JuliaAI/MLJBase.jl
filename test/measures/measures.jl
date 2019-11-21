@@ -1,8 +1,8 @@
 @testset "aggregation" begin
     v = rand(5)
-    aggregate(v, mav) ≈ mean(v)
-    aggregate(v, TruePositive()) ≈ sum(v)
-    aggregate(v, rms) ≈ sqrt(mean(v.^2))
+    MLJBase.aggregate(v, mav) ≈ mean(v)
+    MLJBase.aggregate(v, TruePositive()) ≈ sum(v)
+    MLJBase.aggregate(v, rms) ≈ sqrt(mean(v.^2))
 end
 
 @testset "metadata" begin
