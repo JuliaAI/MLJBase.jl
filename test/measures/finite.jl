@@ -49,6 +49,31 @@ end
     y = categorical(['a','b','a','b'])
     ŷ = categorical(['b','b','a','a'])
     @test_logs (:warn, "The classes are un-ordered,\nusing: negative='a' and positive='b'.\nTo suppress this warning, consider coercing to OrderedFactor.") confmat(ŷ, y)
+
+    # more tests for coverage
+    y = categorical([1,2,3,1,2,3,1,2,3])
+    ŷ = categorical([1,2,3,1,2,3,1,2,3])
+    @test_throws ArgumentError confmat(ŷ, y, rev=true)
+
+    # silly test for display
+    ŷ = coerce(y, OrderedFactor)
+    y = coerce(y, OrderedFactor)
+    iob = IOBuffer()
+    Base.show(iob, MIME("text/plain"), confmat(ŷ, y))
+    siob = String(take!(iob))
+    @test strip(siob) == strip("""
+                         ┌─────────────────────────────────────────┐
+                         │              Ground Truth               │
+           ┌─────────────┼─────────────┬─────────────┬─────────────┤
+           │  Predicted  │      1      │      2      │      3      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      1      │      3      │      0      │      0      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      2      │      0      │      3      │      0      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      3      │      0      │      0      │      3      │
+           └─────────────┴─────────────┴─────────────┴─────────────┘""")
+
 end
 
 @testset "mcr, acc, bacc, mcc" begin
