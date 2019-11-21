@@ -314,5 +314,9 @@ end
     @test tprs ≈ sk_tprs
 end
 
+@testset "docstrings coverage" begin
+    @test info(BrierScore()).docstring == "Brier proper scoring rule for `MultiClass` data; aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
+end
+
 end
 true
