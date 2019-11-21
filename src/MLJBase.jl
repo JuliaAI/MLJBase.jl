@@ -138,8 +138,7 @@ abstract type Deterministic <: Supervised end
 # supervised models that `predict` intervals:
 abstract type Interval <: Supervised end
 
-# unsupervised models that just wrap callable objects ("functions with
-# parameters"):
+# for static operations dependent on user-specified parameters:
 abstract type Static <: Unsupervised end
 
 # for models that are "exported" learning networks (return a Node as
