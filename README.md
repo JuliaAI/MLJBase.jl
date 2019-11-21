@@ -5,6 +5,7 @@ The model interface for
 machine learning framework.
 
 [![Build Status](https://travis-ci.com/alan-turing-institute/MLJBase.jl.svg?branch=master)](https://travis-ci.com/alan-turing-institute/MLJBase.jl)
+[![Coverage](http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master)](http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
 
 MLJ is a Julia framework for combining and tuning machine learning
 models. Any machine learning algorithm written in Julia can be used
