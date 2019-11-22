@@ -328,7 +328,7 @@ function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
     n_neg   = 0  # to keep of the number of negative preds
     auc     = 0
     @inbounds for i in 1:n
-        # y == lab_p --> it's a positive label in the ground truth
+        # y[i] == lab_p --> it's a positive label in the ground truth
         # in that case increase the auc by the cumulative sum
         # otherwise increase the number of negatives by 1
         δ_auc, δ_neg = ifelse(y_sort[i] == lab_pos, (n_neg, 0), (0, 1))
@@ -336,7 +336,7 @@ function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
         n_neg += δ_neg
     end
     n_pos = n - n_neg
-    return 1 - auc / (n_neg * n_pos)
+    return auc / (n_neg * n_pos)
 end
 
 
@@ -580,8 +580,7 @@ function _idx_unique_sorted(v::AbstractVector{<:Real})
 end
 
 """
-tprs, fprs, ts = roc_curve(ŷ, y)
-tprs, fprs, ts = roc(ŷ, y)
+tprs, fprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
 
 Return the ROC curve for a two-class probabilistic prediction `ŷ` given the ground  truth `y`.
 The true positive rates, false positive rates over a range of thresholds `ts` are returned.
