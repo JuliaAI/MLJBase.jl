@@ -26,7 +26,7 @@ function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false,
     shuffle && shuffle!(rng, rows)
     rowss = []
     if sum(fractions) >= 1
-        throw(DomainError)
+        throw(DomainError(fractions, "Fractions must be <= 1"))
     end
     n_patterns = length(rows)
     first = 1
@@ -258,7 +258,7 @@ sources. Rows of the table or input matrix, correspond to rows of the
 output, unless `transpose=true`.
 """
 matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
-matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError)
+matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError(""))
 matrix(::Val{:other}, X::AbstractMatrix; transpose=false) =
     transpose ? permutedims(X) : X
 
@@ -340,7 +340,7 @@ preferred sink type of `typeof(X)`, even if only a single row is selected.
 
 """
 selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
-selectrows(::Val{:other}, X, r) = throw(ArgumentError)
+selectrows(::Val{:other}, X, r) = throw(ArgumentError(""))
 
 """
     selectcols(X, c)
@@ -352,7 +352,7 @@ is a table of the preferred sink type of `typeof(X)`. If `c` is a
 
 """
 selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
-selectcols(::Val{:other}, X, c) = throw(ArgumentError)
+selectcols(::Val{:other}, X, c) = throw(ArgumentError(""))
 
 """
     select(X, r, c)
@@ -365,7 +365,7 @@ See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
 select(X, r, c) = select(Val(ScientificTypes.trait(X)), X, r, c)
-select(::Val{:other}, X, r, c) = throw(ArgumentError)
+select(::Val{:other}, X, r, c) = throw(ArgumentError(""))
 
 """
     nrows(X)
@@ -375,7 +375,7 @@ matrix.
 
 """
 nrows(X) = nrows(Val(ScientificTypes.trait(X)), X)
-nrows(::Val{:other}, X) = throw(ArgumentError)
+nrows(::Val{:other}, X) = throw(ArgumentError(""))
 
 # project named tuple onto a tuple with only specified `labels` or indices:
 project(t::NamedTuple, labels::AbstractArray{Symbol}) = NamedTuple{tuple(labels...)}(t)
