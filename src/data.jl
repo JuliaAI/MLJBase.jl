@@ -127,9 +127,9 @@ sense.
 
 ### Example
 
-    folds = ([1, 2], [3, 4, 5],  [6,]])
+    folds = ([1, 2], [3, 4, 5],  [6,])
     R = restrict(folds, 2)
-    restric(folds, 2, [:x1, :x2, :x3 :x4, :x5, :x6]) # [:x3, :x4, :x5]
+    restrict(folds, 2, [:x1, :x2, :x3, :x4, :x5, :x6]) # [:x3, :x4, :x5]
 
 See also [`corestrict`](@ref)
 
@@ -145,7 +145,7 @@ restrict(f, i, X) = restrict(f, i)(X)
     complement(folds, i)
 
 The complement of the `i`th fold of `folds` in the concatenation of
-all elments of `folds`. Here `folds` is a vector or tuple of integer
+all elements of `folds`. Here `folds` is a vector or tuple of integer
 vectors, typically representing row indices or a vector, matrix or
 table.
 
@@ -173,9 +173,9 @@ sense.
 
 ### Example
 
-    folds = ([1, 2], [3, 4, 5],  [6,]])
+    folds = ([1, 2], [3, 4, 5],  [6,])
     R = corestrict(folds, 2)
-    restric(folds, 2, [:x1, :x2, :x3 :x4, :x5, :x6]) # [:x1, :x2, :x6]
+    corestrict(folds, 2, [:x1, :x2, :x3, :x4, :x5, :x6]) # [:x1, :x2, :x6]
 
 """
 corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
