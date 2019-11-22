@@ -86,8 +86,8 @@ end
     @test complement(f, 4) == [1, 2, 3, 4, 5, 6, 7]
 
     X = 10:10:100
-    @test restrict(f, 3, X) == 40:10:70
-    @test corestrict(f, 3, X) == [10, 20, 30, 80, 90, 100]
+    @test restrict(X, f, 3) == 40:10:70
+    @test corestrict(X, f, 3) == [10, 20, 30, 80, 90, 100]
 end
 
 @testset "categorical element decoder, classes " begin

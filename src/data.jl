@@ -117,25 +117,24 @@ end
 (r::FoldRestrictor{i})(X) where i = selectrows(X, (r.f)[i])
 
 """
-    restrict(folds, i, X)
+    restrict(X, folds, i)
 
 The restriction of `X`, a vector, matrix or table, to the `i`th fold
 of `folds`, where `folds` is a tuple of vectors of row indices. 
 
-The method is curried, so that `restrict(folds, i)(X)` also makes
-sense.
+The method is curried, so that `restrict(folds, i)` is the operator
+on data defined by `restrict(folds, i)(X) = restrict(X, folds, i)`.
 
 ### Example
 
     folds = ([1, 2], [3, 4, 5],  [6,])
-    R = restrict(folds, 2)
-    restrict(folds, 2, [:x1, :x2, :x3, :x4, :x5, :x6]) # [:x3, :x4, :x5]
+    restrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x3, :x4, :x5]
 
 See also [`corestrict`](@ref)
 
 """
 restrict(f::NTuple{N}, i) where N = FoldRestrictor{i,N}(f)
-restrict(f, i, X) = restrict(f, i)(X)
+restrict(X, f, i) = restrict(f, i)(X)
 
 
 ## RESTRICTING TO A FOLD COMPLEMENT
@@ -162,24 +161,23 @@ end
     selectrows(X, complement(r.f, i))
 
 """
-    corestrict(folds, i, X)
+    corestrict(X, folds, i)
 
 The restriction of `X`, a vector, matrix or table, to the *complement*
 of the `i`th fold of `folds`, where `folds` is a tuple of vectors of
 row indices.
 
-The method is curried, so that `corestrict(folds, i)(X)` also makes
-sense.
+The method is curried, so that `corestrict(folds, i)` is the operator
+on data defined by `corestrict(folds, i)(X) = corestrict(X, folds, i)`.
 
 ### Example
 
     folds = ([1, 2], [3, 4, 5],  [6,])
-    R = corestrict(folds, 2)
-    corestrict(folds, 2, [:x1, :x2, :x3, :x4, :x5, :x6]) # [:x1, :x2, :x6]
+    corestrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x1, :x2, :x6]
 
 """
 corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
-corestrict(f, i, X) = corestrict(f, i)(X)
+corestrict(X, f, i) = corestrict(f, i)(X)
 
 
 ## DEALING WITH CATEGORICAL ELEMENTS
