@@ -87,6 +87,23 @@ end
 end
 @test B1c().a isa Euclidean
 
+# Implicit defaults
+@mlj_model mutable struct Ca
+    a::String
+end
+@test Ca().a == ""
+@mlj_model mutable struct Cb
+    a::Any
+end
+@test Cb().a === missing
+@mlj_model mutable struct Cc
+    a::Union{Nothing,Int}
+end
+@test Cc().a === nothing
+@mlj_model mutable struct Cd
+    a::Union{Missing,Int}
+end
+@test Cd().a === missing
 
 end
 true

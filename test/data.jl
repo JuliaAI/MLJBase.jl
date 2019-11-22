@@ -11,6 +11,7 @@ using Random
 import Random.seed!
 seed!(1234)
 
+import MLJBase
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     CategoricalElement, selectrows, select, table, nrows
 
@@ -266,6 +267,24 @@ tt = TypedTables.Table(df)
 # sparsearray = sparse([6, 1, 1, 2, 3, 4], [2, 2, 3, 3, 1, 2],
 #                      ["big", "small", 17, 34, 4, "small"])
 # @test matrix(nd) == sparsearray
+
+@testset "coverage" begin
+    @test_throws DomainError partition(1:10, 1.5)
+
+    @test_throws ArgumentError matrix(Val(:other), (1,2,3))
+    @test_throws ArgumentError selectrows(Val(:other), (1,), (1,))
+    @test_throws ArgumentError selectcols(Val(:other), (1,), (1,))
+    @test_throws ArgumentError select(Val(:other), (1,), (1,), (1,))
+    @test_throws ArgumentError nrows(Val(:other), (1,))
+
+    nt = (a=5, b=7)
+    @test MLJBase.project(nt, :) == (a=5, b=7)
+    @test MLJBase.project(nt, :a) == (a=5, )
+    @test MLJBase.project(nt, 1) == (a=5, )
+
+    X = MLJBase.table((x=[1,2,3], y=[4,5,6]))
+    @test select(Val(:table), X, 1, :y) == 4
+end
 
 end # module
 

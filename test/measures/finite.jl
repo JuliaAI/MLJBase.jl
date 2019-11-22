@@ -49,6 +49,31 @@ end
     y = categorical(['a','b','a','b'])
     ŷ = categorical(['b','b','a','a'])
     @test_logs (:warn, "The classes are un-ordered,\nusing: negative='a' and positive='b'.\nTo suppress this warning, consider coercing to OrderedFactor.") confmat(ŷ, y)
+
+    # more tests for coverage
+    y = categorical([1,2,3,1,2,3,1,2,3])
+    ŷ = categorical([1,2,3,1,2,3,1,2,3])
+    @test_throws ArgumentError confmat(ŷ, y, rev=true)
+
+    # silly test for display
+    ŷ = coerce(y, OrderedFactor)
+    y = coerce(y, OrderedFactor)
+    iob = IOBuffer()
+    Base.show(iob, MIME("text/plain"), confmat(ŷ, y))
+    siob = String(take!(iob))
+    @test strip(siob) == strip("""
+                         ┌─────────────────────────────────────────┐
+                         │              Ground Truth               │
+           ┌─────────────┼─────────────┬─────────────┬─────────────┤
+           │  Predicted  │      1      │      2      │      3      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      1      │      3      │      0      │      0      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      2      │      0      │      3      │      0      │
+           ├─────────────┼─────────────┼─────────────┼─────────────┤
+           │      3      │      0      │      0      │      3      │
+           └─────────────┴─────────────┴─────────────┴─────────────┘""")
+
 end
 
 @testset "mcr, acc, bacc, mcc" begin
@@ -95,13 +120,13 @@ end
     # then using roc_auc_score from sklearn to get the AUC
     # we check that we recover a comparable AUC and that it's invariant
     # to ordering.
-    c = ["pos", "neg"]
+    c = ["neg", "pos"]
     y = categorical(c[[0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
                      1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1,
                      1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
                      1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0,
                      1, 0] .+ 1])
-    ŷ = [UnivariateFinite(y[1:2], [p, 1.0 - p]) for p in [
+    ŷ = [UnivariateFinite(y[1:2], [1.0 - p, p]) for p in [
         0.90237535, 0.41276349, 0.94511611, 0.08390761, 0.55847392,
         0.26043136, 0.78565351, 0.20133953, 0.7404382 , 0.15307601,
         0.59596716, 0.8169512 , 0.88200483, 0.23321489, 0.94050483,
@@ -119,7 +144,7 @@ end
                       0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
                       0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1,
                       0, 1] .+ 1])
-    ŷ2 = [UnivariateFinite(y[1:2], [p, 1.0 - p]) for p in [
+    ŷ2 = [UnivariateFinite(y[1:2], [1.0 - p, p]) for p in [
         0.09762465, 0.58723651, 0.05488389, 0.91609239, 0.44152608,
         0.73956864, 0.21434649, 0.79866047, 0.2595618 , 0.84692399,
         0.40403284, 0.1830488 , 0.11799517, 0.76678511, 0.05949517,
@@ -287,6 +312,10 @@ end
 
     @test fprs ≈ sk_fprs
     @test tprs ≈ sk_tprs
+end
+
+@testset "docstrings coverage" begin
+    @test info(BrierScore()).docstring == "Brier proper scoring rule for `MultiClass` data; aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
 end
 
 end

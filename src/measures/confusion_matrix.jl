@@ -111,8 +111,6 @@ end
 # synonym
 confmat = confusion_matrix
 
-
-
 # Machinery to display the confusion matrix in a non-confusing way
 # (provided the REPL is wide enough)
 
