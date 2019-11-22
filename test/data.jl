@@ -12,7 +12,8 @@ import Random.seed!
 seed!(1234)
 
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
-    CategoricalElement, selectrows, select, table, nrows
+    CategoricalElement, selectrows, select, table, nrows, restrict,
+    corestrict, complement
 
 @testset "partition" begin
     train, test = partition(1:100, 0.9)
@@ -77,6 +78,17 @@ end
 
 end
 
+@testset "restrict and corestrict" begin
+    f = ([1], [2, 3], [4, 5, 6, 7], [8, 9, 10])
+    @test complement(f, 1) == [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    @test complement(f, 2) == [1, 4, 5, 6, 7, 8, 9, 10]
+    @test complement(f, 3) == [1, 2, 3, 8, 9, 10]
+    @test complement(f, 4) == [1, 2, 3, 4, 5, 6, 7]
+
+    X = 10:10:100
+    @test restrict(f, 3, X) == 40:10:70
+    @test corestrict(f, 3, X) == [10, 20, 30, 80, 90, 100]
+end
 
 @testset "categorical element decoder, classes " begin
 

@@ -20,6 +20,7 @@ export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, unpack                             # data.jl
+export complement, restrict, corestrict              # data.jl
 export @set_defaults                                 # utilities.jl
 export @mlj_model                                    # mlj_model_macro.jl
 export metadata_model, metadata_pkg                  # metadata_utilities

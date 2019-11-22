@@ -109,6 +109,79 @@ function unpack(X, tests...; wrap_singles=false, pairs...)
 end
 
 
+## RESTRICTING TO A FOLD
+
+struct FoldRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldRestrictor{i})(X) where i = selectrows(X, (r.f)[i])
+
+"""
+    restrict(folds, i, X)
+
+The restriction of `X`, a vector, matrix or table, to the `i`th fold
+of `folds`, where `folds` is a tuple of vectors of row indices. 
+
+The method is curried, so that `restrict(folds, i)(X)` also makes
+sense.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,]])
+    R = restrict(folds, 2)
+    restric(folds, 2, [:x1, :x2, :x3 :x4, :x5, :x6]) # [:x3, :x4, :x5]
+
+See also [`corestrict`](@ref)
+
+"""
+restrict(f::NTuple{N}, i) where N = FoldRestrictor{i,N}(f)
+restrict(f, i, X) = restrict(f, i)(X)
+
+
+## RESTRICTING TO A FOLD COMPLEMENT
+
+
+"""
+    complement(folds, i)
+
+The complement of the `i`th fold of `folds` in the concatenation of
+all elments of `folds`. Here `folds` is a vector or tuple of integer
+vectors, typically representing row indices or a vector, matrix or
+table.
+
+    complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
+
+"""
+complement(f, i) =
+    reduce(vcat, (f[i] for i in filter(j -> j != i, eachindex(f))))
+
+struct FoldComplementRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldComplementRestrictor{i})(X) where i =
+    selectrows(X, complement(r.f, i))
+
+"""
+    corestrict(folds, i, X)
+
+The restriction of `X`, a vector, matrix or table, to the *complement*
+of the `i`th fold of `folds`, where `folds` is a tuple of vectors of
+row indices.
+
+The method is curried, so that `corestrict(folds, i)(X)` also makes
+sense.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,]])
+    R = corestrict(folds, 2)
+    restric(folds, 2, [:x1, :x2, :x3 :x4, :x5, :x6]) # [:x1, :x2, :x6]
+
+"""
+corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
+corestrict(f, i, X) = corestrict(f, i)(X)
+
+
 ## DEALING WITH CATEGORICAL ELEMENTS
 
 const CategoricalElement{U} =
