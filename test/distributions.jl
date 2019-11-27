@@ -94,9 +94,9 @@ end
     d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
     sample = rand(d, 10^4)
     freq_given_class = Distributions.countmap(sample)
-    pairs  = collect(freq_given_class)
-    sort!(pairs, by=pair->pair[2], alg=QuickSort)
-    sorted_classes = first.(pairs)
+    pairs_  = collect(freq_given_class)
+    sort!(pairs_, by=pair->pair[2], alg=QuickSort)
+    sorted_classes = first.(pairs_)
     @test sorted_classes == ['c', 'a', 'b', 'd']
 
     junk = categorical(['j',])
@@ -114,6 +114,9 @@ end
     @test pdf(d, 'f') == 0
     @test pdf(d, f) == 0
     @test_throws ArgumentError pdf(d, 'j')
+
+    d2 = Distributions.fit(UnivariateFinite, v, nothing)
+    @test d2 ≈ d
 
     # with weights:
     w = [2, 3, 2, 3, 5, 3, 2, 2]

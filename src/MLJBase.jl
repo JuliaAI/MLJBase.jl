@@ -171,6 +171,12 @@ fit(model::Supervised, verbosity::Integer, X, y, w) =
 update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
     update(model, verbosity, fitresult, cache, X, y)
 
+# fallbacks fit and predict when `w = nothing`:
+fit(model::Supervised, verbosity::Integer, X, y, w::Nothing) =
+    fit(model, verbosity, X, y)
+update(model::Supervised, verbosity, fitresult, cache, X, y, w::Nothing) =
+    update(model, verbosity, fitresult, cache, X, y)
+
 # stub for online learning method update method
 function update_data end
 
