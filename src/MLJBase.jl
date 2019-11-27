@@ -6,7 +6,7 @@ export MLJType, Model, Supervised, Unsupervised, Static
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, update_data, clean!
-export predict, predict_mean, predict_mode, fitted_params
+export predict, predict_mean, predict_mode, predict_median, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export info, info_dict
 export is_same_except
@@ -195,15 +195,33 @@ fitted_params(::Model, fitresult) = (fitresult=fitresult,)
 
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
+    predict_mode(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_mode(model, fitresult, Xnew, ::Any) =
     mode.(predict(model, fitresult, Xnew))
+const BadModeTypes = Union{AbstractArray{Continuous},Table(Continuous)}
+predict_mode(model, fitresult, Xnew, ::Val{<:BadModeTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Continuous` targets. "))
 
 # mean:
 predict_mean(model::Probabilistic, fitresult, Xnew) =
+    predict_mean(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_mean(model, fitresult, Xnew, ::Any) =
     mean.(predict(model, fitresult, Xnew))
+const BadMeanTypes = Union{AbstractArray{<:Finite},Table(Finite)}
+predict_mean(model, fitresult, Xnew, ::Val{<:BadMeanTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Finite` targets. "))
 
 # median:
 predict_median(model::Probabilistic, fitresult, Xnew) =
+    predict_median(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_median(model, fitresult, Xnew, ::Any) =
     median.(predict(model, fitresult, Xnew))
+const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
+predict_median(model, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Finite` targets. "))
 
 # operations implemented by some meta-models:
 function se end
