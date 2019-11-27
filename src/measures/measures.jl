@@ -46,6 +46,10 @@ struct RootMeanSquare <: AggregationMode end
 
 aggregate(v, measure) = aggregation(measure)(v)
 
+# aggregation is no-op on scalars:
+const MeasureValue = Union{Real,Tuple{<:Real,<:Real}} # number or interval
+aggregate(x::MeasureValue, measure) = x
+
 
 ## DISPATCH FOR EVALUATION
 

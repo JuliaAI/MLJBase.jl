@@ -79,7 +79,7 @@ export trait
 export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage, Image
-export scitype, scitype_union, coerce, schema
+export scitype, scitype_union, coerce, schema, elscitype
 
 # rexport from Random, Statistics, Distributions, CategoricalArrays,
 # InvertedIndices:
