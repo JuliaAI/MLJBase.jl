@@ -20,6 +20,7 @@ export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, unpack                             # data.jl
+export complement, restrict, corestrict              # data.jl
 export @set_defaults                                 # utilities.jl
 export @mlj_model                                    # mlj_model_macro.jl
 export metadata_model, metadata_pkg                  # metadata_utilities
@@ -80,9 +81,10 @@ export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage, Image
 export scitype, scitype_union, coerce, schema
 
-# rexport from Random, Statistics, Distributions, CategoricalArrays:
+# rexport from Random, Statistics, Distributions, CategoricalArrays,
+# InvertedIndices:
 export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
-export std
+export std, Not
 
 import Base.==, Base.precision, Base.getindex
 import Base: @__doc__
@@ -90,11 +92,11 @@ import Base: @__doc__
 using Tables, DelimitedFiles
 using OrderedCollections # already a dependency of StatsBase
 using CategoricalArrays
+import InvertedIndices: Not
 
 # to be extended:
 import StatsBase: fit, predict, fit!
 import Missings.levels
-
 import Distributions
 import Distributions: pdf, mode
 

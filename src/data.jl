@@ -109,6 +109,76 @@ function unpack(X, tests...; wrap_singles=false, pairs...)
 end
 
 
+## RESTRICTING TO A FOLD
+
+struct FoldRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldRestrictor{i})(X) where i = selectrows(X, (r.f)[i])
+
+"""
+    restrict(X, folds, i)
+
+The restriction of `X`, a vector, matrix or table, to the `i`th fold
+of `folds`, where `folds` is a tuple of vectors of row indices. 
+
+The method is curried, so that `restrict(folds, i)` is the operator
+on data defined by `restrict(folds, i)(X) = restrict(X, folds, i)`.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,])
+    restrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x3, :x4, :x5]
+
+See also [`corestrict`](@ref)
+
+"""
+restrict(f::NTuple{N}, i) where N = FoldRestrictor{i,N}(f)
+restrict(X, f, i) = restrict(f, i)(X)
+
+
+## RESTRICTING TO A FOLD COMPLEMENT
+
+
+"""
+    complement(folds, i)
+
+The complement of the `i`th fold of `folds` in the concatenation of
+all elements of `folds`. Here `folds` is a vector or tuple of integer
+vectors, typically representing row indices or a vector, matrix or
+table.
+
+    complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
+
+"""
+complement(f, i) = reduce(vcat, collect(f)[Not(i)])
+
+struct FoldComplementRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldComplementRestrictor{i})(X) where i =
+    selectrows(X, complement(r.f, i))
+
+"""
+    corestrict(X, folds, i)
+
+The restriction of `X`, a vector, matrix or table, to the *complement*
+of the `i`th fold of `folds`, where `folds` is a tuple of vectors of
+row indices.
+
+The method is curried, so that `corestrict(folds, i)` is the operator
+on data defined by `corestrict(folds, i)(X) = corestrict(X, folds, i)`.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,])
+    corestrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x1, :x2, :x6]
+
+"""
+corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
+corestrict(X, f, i) = corestrict(f, i)(X)
+
+
 ## DEALING WITH CATEGORICAL ELEMENTS
 
 const CategoricalElement{U} =
