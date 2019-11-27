@@ -1,8 +1,11 @@
 @testset "aggregation" begin
     v = rand(5)
-    MLJBase.aggregate(v, mav) ≈ mean(v)
-    MLJBase.aggregate(v, TruePositive()) ≈ sum(v)
-    MLJBase.aggregate(v, rms) ≈ sqrt(mean(v.^2))
+    @test aggregate(v, mav) ≈ mean(v)
+    @test aggregate(v, TruePositive()) ≈ sum(v)
+    @test aggregate(v, rms) ≈ sqrt(mean(v.^2))
+    λ = rand()
+    @test aggregate(λ, rms) === λ
+    @test aggregate(aggregate(v, l2), l2) == aggregate(v, l2)
 end
 
 @testset "metadata" begin
@@ -12,7 +15,7 @@ end
 end
 
 @testset "coverage" begin
-    # just checking that the  traits work not that they're correct
+    # just checking that the traits work not that they're correct
     @test orientation(BrierScore()) == :score
     @test orientation(auc) == :score
     @test orientation(rms) == :loss
