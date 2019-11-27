@@ -1,7 +1,8 @@
 ## SPLITTING DATA SETS
 
 """
-    partition(rows::AbstractVector{Int}, fractions...; shuffle=false, rng=Random.GLOBAL_RNG)
+    partition(rows::AbstractVector{Int}, fractions...; 
+              shuffle=nothing, rng=Random.GLOBAL_RNG)
 
 Splits the vector `rows` into a tuple of vectors whose lengths are
 given by the corresponding `fractions` of `length(rows)`. The last
@@ -11,16 +12,25 @@ ones. So, for example,
     julia> partition(1:1000, 0.2, 0.7)
     (1:200, 201:900, 901:1000)
 
-If `rng` is an integer, then `MersenneTwister(rng)` is the random
-number generator used for bagging. Otherwise some `AbstractRNG` object
-is expected.
+Pre-shuffling of `rows` always occurs if `rng` is specified, unless
+`shuffle=false` is also specified. If`rng` an integer, then
+`MersenneTwister(rng)` is used as a random number generator; otherwise
+some `AbstractRNG` object is expected.
+
+To use the global random generator it suffices to specify
+`shuffle=true`.
 
 """
-function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
+function partition(rows::AbstractVector{Int}, fractions...; shuffle=nothing,
+                   rng=Random.GLOBAL_RNG)
     rows = collect(rows)
-    
+
     if rng isa Integer
         rng = MersenneTwister(rng)
+    end
+
+    if shuffle === nothing
+        shuffle = ifelse(rng==Random.GLOBAL_RNG, false, true)
     end
 
     shuffle && shuffle!(rng, rows)

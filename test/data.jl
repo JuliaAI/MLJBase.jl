@@ -20,15 +20,25 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     train, test = partition(1:100, 0.9)
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
+    seed!(1234)
     train, test = partition(1:100, 0.9, shuffle=true)
     @test length(train) == 90
+    @test length(test) == 10
+    @test train[1:8] == [40, 88, 59, 94, 79, 7, 67, 62]
 
-    train, test = partition(1:100, 0.9, shuffle=true, rng=1)
-    @test length(train) == 90
+    train, test = partition(1:100, 0.9, rng=1)
+    seed!(1)
+    train2, test2 = partition(1:100, 0.9, shuffle=true)
+    @test train2 == train
+    @test test2 == test
 
-    train, test = partition(1:100, 0.9, shuffle=true,
-                            rng=Random.MersenneTwister(3))
-    @test length(train) == 90
+    train3, test3 = partition(1:100, 0.9, rng=Random.MersenneTwister(1))
+    @test train3 == train
+    @test test3 == test
+
+    train, test = partition(1:100, 0.9, shuffle=false, rng=1)
+    @test collect(train) == collect(1:90)
+    @test collect(test) == collect(91:100)
 end
 
 @testset "unpack" begin
