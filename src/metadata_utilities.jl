@@ -113,9 +113,11 @@ function metadata_measure(T; name::String="",
                           aggregation=Mean(),
                           is_feature_dependent::Bool=false,
                           supports_weights::Bool=false,
-                          docstring::String="")
+                          docstring::String="",
+                          distribution_type=missing)
     pred_str = "$prediction_type"
     orientation_str = "$orientation"
+    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
     ex = quote
         isempty($name) || (MLJBase.name(::Type{<:$T}) = $name)
         isempty($docstring) || (MLJBase.docstring(::Type{<:$T}) = $docstring)
@@ -126,6 +128,7 @@ function metadata_measure(T; name::String="",
         MLJBase.aggregation(::Type{<:$T}) = $aggregation
         MLJBase.is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
         MLJBase.supports_weights(::Type{<:$T}) = $supports_weights
+        MLJBase.distribution_type(::Type{<:$T}) = $dist
     end
     parentmodule(T).eval(ex)
 end

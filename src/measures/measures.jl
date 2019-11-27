@@ -4,7 +4,8 @@ is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
-     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring]
+     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
+     :distribution_type]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -104,6 +105,9 @@ end
 abstract type Measure <: MLJType end
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
+
+
+## DISPLAY AND INFO
 
 Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
     print(stream, "$(name(m)) (callable Measure)")

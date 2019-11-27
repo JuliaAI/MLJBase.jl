@@ -198,7 +198,6 @@ function (::RMSL)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     return sqrt(ret / length(y))
 end
 
-
 struct RMSLP1 <: Measure end
 """
     rmslp1(ŷ, y)
