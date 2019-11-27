@@ -5,6 +5,10 @@
 
 using MLJBase, Test
 
+@testset "model interface" begin
+    @test include("MLJBase.jl")
+end
+
 @testset "scientific trait" begin
     @test include("scientific_trait.jl")
 end
