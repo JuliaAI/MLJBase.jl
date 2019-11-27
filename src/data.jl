@@ -151,8 +151,7 @@ table.
     complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
 
 """
-complement(f, i) =
-    reduce(vcat, (f[i] for i in filter(j -> j != i, eachindex(f))))
+complement(f, i) = reduce(vcat, collect(f)[Not(i)])
 
 struct FoldComplementRestrictor{i,N}
     f::NTuple{N,Vector{Int}}
