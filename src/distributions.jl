@@ -337,6 +337,10 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     return UnivariateFinite(prob_given_class)
 end
 
+Distributions.fit(d::Type{<:UnivariateFinite},
+                  v::AbstractVector{L}, weights::Nothing) where L =
+                      fit(d, v)
+
 function Distributions.fit(d::Type{<:UnivariateFinite},
                            v::AbstractVector{L},
                            weights::AbstractVector{<:Real}) where L
