@@ -26,6 +26,7 @@ orientation(::Type{<:CrossEntropy}) = :loss
 reports_each_observation(::Type{<:CrossEntropy}) = true
 is_feature_dependent(::Type{<:CrossEntropy}) = false
 supports_weights(::Type{<:CrossEntropy}) = false
+distribution_type(::Type{<:CrossEntropy}) = UnivariateFinite
 
 # for single observation:
 _cross_entropy(d, y) = -log(pdf(d, y))
@@ -78,6 +79,7 @@ orientation(::Type{<:BrierScore}) = :score
 reports_each_observation(::Type{<:BrierScore}) = true
 is_feature_dependent(::Type{<:BrierScore}) = false
 supports_weights(::Type{<:BrierScore}) = true
+distribution_type(::Type{<:BrierScore{D}}) where D = UnivariateFinite
 
 # For single observations (no checks):
 

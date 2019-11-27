@@ -23,7 +23,8 @@ end
     @test reports_each_observation(auc) == false
     @test is_feature_dependent(auc) == false
 
-    @test_broken MLJBase.distribution_type(BrierScore{UnivariateFinite}) == UnivariateFinite
+    @test MLJBase.distribution_type(BrierScore{UnivariateFinite}) ==
+        UnivariateFinite
 end
 
 true
