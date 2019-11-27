@@ -193,13 +193,17 @@ tt = TypedTables.Table(df)
 # uncomment 1 line to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 
+@test selectcols(nothing, 4:6) == nothing
 @test selectcols(df, 4:6) == df[:,4:6]
 @test selectcols(df, [:x1, :z]) == df[:,[:x1, :z]]
 @test selectcols(df, :x2) == df.x2
+@test selectcols(nothing, 4:6) == nothing
 @test selectcols(df, 2) == df.x2
 @test selectrows(df, 4:6) == selectrows(df[4:6, :], :)
 @test selectrows(df, 1) == selectrows(df[1:1, :], :)
+@test selectrows(nothing, 4:6) == nothing
 @test select(df, 2, :x2) == df[2,:x2]
+@test select(nothing, 2, :x) == nothing
 s = schema(df)
 @test nrows(df) == size(df, 1)
 

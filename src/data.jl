@@ -18,7 +18,7 @@ is expected.
 """
 function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
     rows = collect(rows)
-
+    
     if rng isa Integer
         rng = MersenneTwister(rng)
     end
@@ -191,6 +191,7 @@ Broadcasted versions of `int`.
 See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
+int(x::Missing) = missing
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
@@ -339,6 +340,7 @@ or matrix.  If `X` is tabular, the object returned is a table of the
 preferred sink type of `typeof(X)`, even if only a single row is selected.
 
 """
+selectrows(::Nothing, r) = nothing
 selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
 selectrows(::Val{:other}, X, r) = throw(ArgumentError(""))
 
@@ -351,6 +353,7 @@ is a table of the preferred sink type of `typeof(X)`. If `c` is a
 *single* integer or column, then an `AbstractVector` is returned.
 
 """
+selectcols(::Nothing, r) = nothing
 selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
 selectcols(::Val{:other}, X, c) = throw(ArgumentError(""))
 
@@ -364,6 +367,7 @@ Select element of a table or matrix at row `r` and column
 See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
+select(::Nothing, r, c) = nothing
 select(X, r, c) = select(Val(ScientificTypes.trait(X)), X, r, c)
 select(::Val{:other}, X, r, c) = throw(ArgumentError(""))
 
