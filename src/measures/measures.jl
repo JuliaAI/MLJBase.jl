@@ -4,7 +4,8 @@ is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
-     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring]
+     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
+     :distribution_type]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -45,6 +46,10 @@ struct RootMeanSquare <: AggregationMode end
 (::RootMeanSquare)(v) = sqrt(mean(v.^2))
 
 aggregate(v, measure) = aggregation(measure)(v)
+
+# aggregation is no-op on scalars:
+const MeasureValue = Union{Real,Tuple{<:Real,<:Real}} # number or interval
+aggregate(x::MeasureValue, measure) = x
 
 
 ## DISPATCH FOR EVALUATION
@@ -104,6 +109,9 @@ end
 abstract type Measure <: MLJType end
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
+
+
+## DISPLAY AND INFO
 
 Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
     print(stream, "$(name(m)) (callable Measure)")

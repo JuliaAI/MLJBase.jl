@@ -115,6 +115,9 @@ end
     @test pdf(d, f) == 0
     @test_throws ArgumentError pdf(d, 'j')
 
+    d2 = Distributions.fit(UnivariateFinite, v, nothing)
+    @test d2 ≈ d
+
     # with weights:
     w = [2, 3, 2, 3, 5, 3, 2, 2]
     d = Distributions.fit(UnivariateFinite, v, w)

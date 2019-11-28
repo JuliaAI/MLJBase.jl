@@ -13,21 +13,32 @@ seed!(1234)
 
 import MLJBase
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
-    CategoricalElement, selectrows, select, table, nrows
+    CategoricalElement, selectrows, select, table, nrows, restrict,
+    corestrict, complement
 
 @testset "partition" begin
     train, test = partition(1:100, 0.9)
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
+    seed!(1234)
     train, test = partition(1:100, 0.9, shuffle=true)
     @test length(train) == 90
+    @test length(test) == 10
+    @test train[1:8] == [40, 88, 59, 94, 79, 7, 67, 62]
 
-    train, test = partition(1:100, 0.9, shuffle=true, rng=1)
-    @test length(train) == 90
+    train, test = partition(1:100, 0.9, rng=1)
+    seed!(1)
+    train2, test2 = partition(1:100, 0.9, shuffle=true)
+    @test train2 == train
+    @test test2 == test
 
-    train, test = partition(1:100, 0.9, shuffle=true,
-                            rng=Random.MersenneTwister(3))
-    @test length(train) == 90
+    train3, test3 = partition(1:100, 0.9, rng=Random.MersenneTwister(1))
+    @test train3 == train
+    @test test3 == test
+
+    train, test = partition(1:100, 0.9, shuffle=false, rng=1)
+    @test collect(train) == collect(1:90)
+    @test collect(test) == collect(91:100)
 end
 
 @testset "unpack" begin
@@ -78,6 +89,17 @@ end
 
 end
 
+@testset "restrict and corestrict" begin
+    f = ([1], [2, 3], [4, 5, 6, 7], [8, 9, 10])
+    @test complement(f, 1) == [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    @test complement(f, 2) == [1, 4, 5, 6, 7, 8, 9, 10]
+    @test complement(f, 3) == [1, 2, 3, 8, 9, 10]
+    @test complement(f, 4) == [1, 2, 3, 4, 5, 6, 7]
+
+    X = 10:10:100
+    @test restrict(X, f, 3) == 40:10:70
+    @test corestrict(X, f, 3) == [10, 20, 30, 80, 90, 100]
+end
 
 @testset "categorical element decoder, classes " begin
 
@@ -193,13 +215,17 @@ tt = TypedTables.Table(df)
 # uncomment 1 line to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 
+@test selectcols(nothing, 4:6) == nothing
 @test selectcols(df, 4:6) == df[:,4:6]
 @test selectcols(df, [:x1, :z]) == df[:,[:x1, :z]]
 @test selectcols(df, :x2) == df.x2
+@test selectcols(nothing, 4:6) == nothing
 @test selectcols(df, 2) == df.x2
 @test selectrows(df, 4:6) == selectrows(df[4:6, :], :)
 @test selectrows(df, 1) == selectrows(df[1:1, :], :)
+@test selectrows(nothing, 4:6) == nothing
 @test select(df, 2, :x2) == df[2,:x2]
+@test select(nothing, 2, :x) == nothing
 s = schema(df)
 @test nrows(df) == size(df, 1)
 

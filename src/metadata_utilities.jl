@@ -1,7 +1,8 @@
 """
 docstring_ext
 
-Helper function to generate the docstring for a package.
+Internal helper function to generate the docstring for a package.
+See [`metadata_model`](@ref).
 """
 function docstring_ext(T; descr::String="")
     package_name = MLJBase.package_name(T)
@@ -15,9 +16,32 @@ function docstring_ext(T; descr::String="")
 end
 
 """
-metadata_pkg
+metadata_pkg(T; args...)
 
-Helper function to write the metadata for a package.
+Helper function to write the metadata for a package providing model `T`.
+Use it with broadcasting to define the metadata of the package providing
+a series of models.
+
+## Keywords
+
+* `name="unknown"`   : package name
+* `uuid="unknown"`   : package uuid
+* `url="unknown"`    : package url
+* `julia=missing`    : whether the package is pure julia
+* `license="unknown"`: package license
+* `is_wrapper=false` : whether the package is a wrapper
+
+## Example
+
+```
+metadata_pkg.((KNNRegressor, KNNClassifier),
+    name="NearestNeighbors",
+    uuid="b8a86587-4115-5ab1-83bc-aa920d37bbce",
+    url="https://github.com/KristofferC/NearestNeighbors.jl",
+    julia=true,
+    license="MIT",
+    is_wrapper=false)
+```
 """
 function metadata_pkg(T; name::String="unknown", uuid::String="unknown",
                       url::String="unknown", julia::Union{Missing,Bool}=missing,
@@ -34,10 +58,29 @@ function metadata_pkg(T; name::String="unknown", uuid::String="unknown",
 end
 
 """
-metadata_model
+metadata_model(`T`; args...)
 
-Helper function to write the metadata for a single model of a package (complements
-[`metadata_ext`](@ref)).
+Helper function to write the metadata for a model `T`.
+
+## Keywords
+
+* `input=Unknown` : allowed scientific type of the input data
+* `target=Unknown`: allowed sc. type of the target (supervised)
+* `output=Unknown`: allowed sc. type of the transformed data (unsupervised)
+* `weights=false` : whether the model supports sample weights
+* `descr=""`      : short description of the model
+* `path=""`       : where the model is (usually `PackageName.ModelName`)
+
+## Example
+
+```
+metadata_model(KNNRegressor,
+    input=MLJBase.Table(MLJBase.Continuous),
+    target=AbstractVector{MLJBase.Continuous},
+    weights=true,
+    descr="K-Nearest Neighbors classifier: ...",
+    path="NearestNeighbors.KNNRegressor")
+```
 """
 function metadata_model(T; input=Unknown, target=Unknown,
                         output=Unknown, weights::Bool=false,
@@ -70,9 +113,11 @@ function metadata_measure(T; name::String="",
                           aggregation=Mean(),
                           is_feature_dependent::Bool=false,
                           supports_weights::Bool=false,
-                          docstring::String="")
+                          docstring::String="",
+                          distribution_type=missing)
     pred_str = "$prediction_type"
     orientation_str = "$orientation"
+    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
     ex = quote
         isempty($name) || (MLJBase.name(::Type{<:$T}) = $name)
         isempty($docstring) || (MLJBase.docstring(::Type{<:$T}) = $docstring)
@@ -83,6 +128,7 @@ function metadata_measure(T; name::String="",
         MLJBase.aggregation(::Type{<:$T}) = $aggregation
         MLJBase.is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
         MLJBase.supports_weights(::Type{<:$T}) = $supports_weights
+        MLJBase.distribution_type(::Type{<:$T}) = $dist
     end
     parentmodule(T).eval(ex)
 end

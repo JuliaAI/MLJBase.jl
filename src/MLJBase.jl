@@ -6,7 +6,7 @@ export MLJType, Model, Supervised, Unsupervised, Static
 export Deterministic, Probabilistic, Interval
 export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 export fit, update, update_data, clean!
-export predict, predict_mean, predict_mode, fitted_params
+export predict, predict_mean, predict_mode, predict_median, fitted_params
 export transform, inverse_transform, se, evaluate, best
 export info, info_dict
 export is_same_except
@@ -20,6 +20,7 @@ export reconstruct, int, decoder, classes            # data.jl
 export selectrows, selectcols, select, nrows         # data.jl
 export table, levels_seen, matrix, container_type    # data.jl
 export partition, unpack                             # data.jl
+export complement, restrict, corestrict              # data.jl
 export @set_defaults                                 # utilities.jl
 export @mlj_model                                    # mlj_model_macro.jl
 export metadata_model, metadata_pkg                  # metadata_utilities
@@ -78,11 +79,12 @@ export trait
 export Scientific, Found, Unknown, Finite, Infinite
 export OrderedFactor, Multiclass, Count, Continuous
 export Binary, ColorImage, GrayImage, Image
-export scitype, scitype_union, coerce, schema
+export scitype, scitype_union, coerce, schema, elscitype
 
-# rexport from Random, Statistics, Distributions, CategoricalArrays:
+# rexport from Random, Statistics, Distributions, CategoricalArrays,
+# InvertedIndices:
 export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
-export std
+export std, Not
 
 import Base.==, Base.precision, Base.getindex
 import Base: @__doc__
@@ -90,11 +92,11 @@ import Base: @__doc__
 using Tables, DelimitedFiles
 using OrderedCollections # already a dependency of StatsBase
 using CategoricalArrays
+import InvertedIndices: Not
 
 # to be extended:
 import StatsBase: fit, predict, fit!
 import Missings.levels
-
 import Distributions
 import Distributions: pdf, mode
 
@@ -193,15 +195,33 @@ fitted_params(::Model, fitresult) = (fitresult=fitresult,)
 
 # mode:
 predict_mode(model::Probabilistic, fitresult, Xnew) =
+    predict_mode(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_mode(model, fitresult, Xnew, ::Any) =
     mode.(predict(model, fitresult, Xnew))
+const BadModeTypes = Union{AbstractArray{Continuous},Table(Continuous)}
+predict_mode(model, fitresult, Xnew, ::Val{<:BadModeTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Continuous` targets. "))
 
 # mean:
 predict_mean(model::Probabilistic, fitresult, Xnew) =
+    predict_mean(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_mean(model, fitresult, Xnew, ::Any) =
     mean.(predict(model, fitresult, Xnew))
+const BadMeanTypes = Union{AbstractArray{<:Finite},Table(Finite)}
+predict_mean(model, fitresult, Xnew, ::Val{<:BadMeanTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Finite` targets. "))
 
 # median:
 predict_median(model::Probabilistic, fitresult, Xnew) =
+    predict_median(model, fitresult, Xnew, Val(target_scitype(model)))
+predict_median(model, fitresult, Xnew, ::Any) =
     median.(predict(model, fitresult, Xnew))
+const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
+predict_median(model, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
+    throw(ArgumentError("Attempting to compute mode of predictions made "*
+                        "by a model expecting `Finite` targets. "))
 
 # operations implemented by some meta-models:
 function se end

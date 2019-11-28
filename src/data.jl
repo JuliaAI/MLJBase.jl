@@ -1,7 +1,8 @@
 ## SPLITTING DATA SETS
 
 """
-    partition(rows::AbstractVector{Int}, fractions...; shuffle=false, rng=Random.GLOBAL_RNG)
+    partition(rows::AbstractVector{Int}, fractions...; 
+              shuffle=nothing, rng=Random.GLOBAL_RNG)
 
 Splits the vector `rows` into a tuple of vectors whose lengths are
 given by the corresponding `fractions` of `length(rows)`. The last
@@ -11,16 +12,25 @@ ones. So, for example,
     julia> partition(1:1000, 0.2, 0.7)
     (1:200, 201:900, 901:1000)
 
-If `rng` is an integer, then `MersenneTwister(rng)` is the random
-number generator used for bagging. Otherwise some `AbstractRNG` object
-is expected.
+Pre-shuffling of `rows` always occurs if `rng` is specified, unless
+`shuffle=false` is also specified. If`rng` an integer, then
+`MersenneTwister(rng)` is used as a random number generator; otherwise
+some `AbstractRNG` object is expected.
+
+To use the global random generator it suffices to specify
+`shuffle=true`.
 
 """
-function partition(rows::AbstractVector{Int}, fractions...; shuffle::Bool=false, rng=Random.GLOBAL_RNG)
+function partition(rows::AbstractVector{Int}, fractions...; shuffle=nothing,
+                   rng=Random.GLOBAL_RNG)
     rows = collect(rows)
 
     if rng isa Integer
         rng = MersenneTwister(rng)
+    end
+
+    if shuffle === nothing
+        shuffle = ifelse(rng==Random.GLOBAL_RNG, false, true)
     end
 
     shuffle && shuffle!(rng, rows)
@@ -109,6 +119,76 @@ function unpack(X, tests...; wrap_singles=false, pairs...)
 end
 
 
+## RESTRICTING TO A FOLD
+
+struct FoldRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldRestrictor{i})(X) where i = selectrows(X, (r.f)[i])
+
+"""
+    restrict(X, folds, i)
+
+The restriction of `X`, a vector, matrix or table, to the `i`th fold
+of `folds`, where `folds` is a tuple of vectors of row indices. 
+
+The method is curried, so that `restrict(folds, i)` is the operator
+on data defined by `restrict(folds, i)(X) = restrict(X, folds, i)`.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,])
+    restrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x3, :x4, :x5]
+
+See also [`corestrict`](@ref)
+
+"""
+restrict(f::NTuple{N}, i) where N = FoldRestrictor{i,N}(f)
+restrict(X, f, i) = restrict(f, i)(X)
+
+
+## RESTRICTING TO A FOLD COMPLEMENT
+
+
+"""
+    complement(folds, i)
+
+The complement of the `i`th fold of `folds` in the concatenation of
+all elements of `folds`. Here `folds` is a vector or tuple of integer
+vectors, typically representing row indices or a vector, matrix or
+table.
+
+    complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
+
+"""
+complement(f, i) = reduce(vcat, collect(f)[Not(i)])
+
+struct FoldComplementRestrictor{i,N}
+    f::NTuple{N,Vector{Int}}
+end
+(r::FoldComplementRestrictor{i})(X) where i =
+    selectrows(X, complement(r.f, i))
+
+"""
+    corestrict(X, folds, i)
+
+The restriction of `X`, a vector, matrix or table, to the *complement*
+of the `i`th fold of `folds`, where `folds` is a tuple of vectors of
+row indices.
+
+The method is curried, so that `corestrict(folds, i)` is the operator
+on data defined by `corestrict(folds, i)(X) = corestrict(X, folds, i)`.
+
+### Example
+
+    folds = ([1, 2], [3, 4, 5],  [6,])
+    corestrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x1, :x2, :x6]
+
+"""
+corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
+corestrict(X, f, i) = corestrict(f, i)(X)
+
+
 ## DEALING WITH CATEGORICAL ELEMENTS
 
 const CategoricalElement{U} =
@@ -191,6 +271,7 @@ Broadcasted versions of `int`.
 See also: [`decoder`](@ref).
 """
 int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
+int(x::Missing) = missing
 int(A::AbstractArray) = broadcast(int, A)
 
 # get the integer representation of a level given pool (private
@@ -339,6 +420,7 @@ or matrix.  If `X` is tabular, the object returned is a table of the
 preferred sink type of `typeof(X)`, even if only a single row is selected.
 
 """
+selectrows(::Nothing, r) = nothing
 selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
 selectrows(::Val{:other}, X, r) = throw(ArgumentError(""))
 
@@ -351,6 +433,7 @@ is a table of the preferred sink type of `typeof(X)`. If `c` is a
 *single* integer or column, then an `AbstractVector` is returned.
 
 """
+selectcols(::Nothing, r) = nothing
 selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
 selectcols(::Val{:other}, X, c) = throw(ArgumentError(""))
 
@@ -364,6 +447,7 @@ Select element of a table or matrix at row `r` and column
 See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
+select(::Nothing, r, c) = nothing
 select(X, r, c) = select(Val(ScientificTypes.trait(X)), X, r, c)
 select(::Val{:other}, X, r, c) = throw(ArgumentError(""))
 
