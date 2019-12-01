@@ -97,7 +97,7 @@ make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 Generates a dataset with `n` bi-dimensional examples. Samples are created
 from two circles. One of the circles inside the other. The `noise` scalar
 can be used to add noise to the generation process. The scalar `factor`
-can be used to make the radious of the smallest circle smaller.
+correspond to the radius of the smallest circle.
 """
 function make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 

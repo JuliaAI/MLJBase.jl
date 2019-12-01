@@ -35,7 +35,7 @@ export load_boston, load_ames, load_iris,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs               # datasets.jl
 export @load
-export make_blobs, make_moons, make_circles
+export make_blobs, make_moons, make_circles          # datasets_synthetic.jl
 
 # MEASURES
 export measures # measures/registry.jl
