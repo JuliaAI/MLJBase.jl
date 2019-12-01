@@ -1,6 +1,8 @@
 
 using Random
 
+export make_blobs, make_circles, make_moons
+
 uniform_sample_in_zero_maxval(p, maxval) = maxval .* (1 .- rand(p)) 
 uniform_sample_in_minval_maxval(p, minval, maxval) = (maxval-minval) .* rand(p) .+ minval 
 normal_sample(p, mu, var) = mu .+ sqrt(var) .* randn(p)
