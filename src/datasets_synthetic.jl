@@ -1,9 +1,6 @@
 module DatasetsSynthetic
 
-using Test
 using Random
-using MLJBase
-
 export make_blobs, make_circles, make_moons
 
 uniform_sample_in_zero_maxval(p, maxval) = maxval .* (1 .- rand(p))
