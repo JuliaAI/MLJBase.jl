@@ -61,10 +61,10 @@ function make_blobs(n=100; p=2,
         cluster_std = 0.5 * randn(n_centers)
     end
     
-    # generates examples for each center
+    # generates div(n, n_centers) examples per center
     n_per_center = [div(n, n_centers) for x  in 1:n_centers]
     
-    # adds new examples to each center until the n examples have been filled
+    # adds examples to each center until the n examples have been filled
     for i in 1:(n % n_centers)
         n_per_center[i] += 1
     end
