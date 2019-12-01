@@ -101,14 +101,14 @@ can be used to make the radious of the smallest circle smaller.
 """
 function make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 
-    @assert 0 <= factor <=1, "factor is expected to be in [0,1]"
-    @assert 0 <= noise, "noise is expected to be in positive"
+    @assert 0 <= factor <=1  "factor is expected to be in [0,1]"
+    @assert 0 <= noise  "noise is expected to be in positive"
 
     n_out = div(n, 2)
     n_in = n - n_out
 
-    linrange_out = Array(LinRange(0, 2 * pi, n_out)[1:end-1])
-    linrange_in  = Array(LinRange(0, 2 * pi, n_in)[1:end-1])
+    linrange_out = Array(LinRange(0, 2 * pi, n_out))
+    linrange_in  = Array(LinRange(0, 2 * pi, n_in))
 
     outer_circ_x = cos.(linrange_out)
     outer_circ_y = sin.(linrange_out)
@@ -127,6 +127,28 @@ function make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.
     return X,y
 end
 
+function make_circles2(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
+
+    @assert 0 <= factor <=1  "factor is expected to be in [0,1]"
+    @assert 0 <= noise  "noise is expected to be in positive"
+
+    n_out = div(n, 2)
+    n_in = n - n_out
+
+    linrange_out = Array(LinRange(0, 2 * pi, n_out))
+    linrange_in  = Array(LinRange(0, 2 * pi, n_in))
+
+    outer_circ_x = cos.(linrange_out)
+    outer_circ_y = sin.(linrange_out)
+    inner_circ_x = cos.(linrange_in) .* factor
+    inner_circ_y = sin.(linrange_in) .* factor
+
+    X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
+    y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
+
+    return X,y
+end
+
 
 """
 make_moons(n=100; shuffle=true, noise=0.,
@@ -138,8 +160,8 @@ noise to the samples.
 function make_moons(n=100; shuffle=true, noise=0.,
                    translation=0.5, factor=1.0, random_seed=1234)
 
-    @assert 0 <= factor <=1, "factor is expected to be in [0,1]"
-    @assert 0 <= noise, "noise is expected to be in positive"
+    @assert 0 <= factor <=1 "factor is expected to be in [0,1]"
+    @assert 0 <= noise "noise is expected to be in positive"
 
     n_out = div(n, 2)
     n_in = n - n_out
