@@ -107,6 +107,10 @@ using LossFunctions
 
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
+# to be used by the OpenML API
+using HTTP
+using JSON
+
 ## CONSTANTS
 
 # the directory containing this file:
@@ -277,6 +281,10 @@ include("measures/registry.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
+
+# OpenML API
+include("openml.jl")
+
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
