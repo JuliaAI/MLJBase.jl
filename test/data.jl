@@ -39,6 +39,52 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     train, test = partition(1:100, 0.9, shuffle=false, rng=1)
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
+
+    # with stratification
+    y = ones(Int, 1000)
+    y[end-100:end] .= 0; # 90%
+
+    train, test = partition(eachindex(y), 0.8, stratify=y, rng=34)
+    @test isapprox(sum(y[train])/length(train), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[test])/length(test), 0.9, rtol=1e-2)
+
+    s1, s2, s3 = partition(eachindex(y), 0.3, 0.6, stratify=y, rng=345)
+    @test isapprox(sum(y[s1])/length(s1), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[s2])/length(s2), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[s3])/length(s3), 0.9, rtol=1e-2)
+
+    y = ones(Int, 1000)
+    y[end-500:end-200] .= 2
+    y[end-200+1:end] .= 3
+    p1 = sum(y .== 1) / length(y) # 0.5
+    p2 = sum(y .== 2) / length(y) # 0.3
+    p3 = sum(y .== 3) / length(y) # 0.2
+
+    s1, s2, s3 = partition(eachindex(y), 0.3, 0.6, stratify=y, rng=111)
+    # overkill test...
+    for s in (s1, s2, s3)
+        for (i, p) in enumerate((p1, p2, p3))
+            @test isapprox(sum(y[s] .== i)/length(s), p, rtol=1e-2)
+        end
+    end
+
+    # it should work with missing values though maybe not recommended...
+    y = ones(Union{Missing,Int}, 1000)
+    y[end-600:end-550] .= missing
+    y[end-500:end-200] .= 2
+    y[end-200+1:end] .= 3
+    p1 = sum(skipmissing(y) .== 1) / length(y) # 0.45
+    p2 = sum(skipmissing(y) .== 2) / length(y) # 0.3
+    p3 = sum(skipmissing(y) .== 3) / length(y) # 0.2
+    pm = sum(ismissing.(y)) / length(y)        # 0.05
+
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y, rng=11)
+    for s in (s1, s2)
+        for (i, p) in enumerate((p1, p2, p3))
+            @test isapprox(sum(y[s] .=== i)/length(s), p, rtol=1e-2)
+        end
+        @test isapprox(sum(ismissing.(y[s]))/length(s), pm, rtol=1e-1)
+    end
 end
 
 @testset "unpack" begin

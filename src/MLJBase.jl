@@ -95,7 +95,7 @@ using CategoricalArrays
 import InvertedIndices: Not
 
 # to be extended:
-import StatsBase: fit, predict, fit!
+import StatsBase: fit, predict, fit!, countmap
 import Missings.levels
 import Distributions
 import Distributions: pdf, mode
