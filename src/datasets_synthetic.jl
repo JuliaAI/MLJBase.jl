@@ -40,8 +40,8 @@ The data lives inside `center_box` in the case it is randomly generated.
 - If `return_centers=true` the centroids of the blobs are returned.
 """
 function make_blobs(n::Int=100; p::Int=2,
-                    centers=3, cluster_std::Real=1.0, center_box=(-10.,10.),
-                    element_type=Float64, random_seed=1234, return_centers=false)
+                    shuffle::Bool=false, centers=3, cluster_std::Real=1.0, center_box=(-10.,10.),
+                    element_type=Float64, random_seed=1234, return_centers=false, verbose=0)
 
     Random.seed!(random_seed)
 
@@ -67,20 +67,27 @@ function make_blobs(n::Int=100; p::Int=2,
     n_per_center = [div(n, n_centers) for x  in 1:n_centers]
 
     # adds the reamainding examples to each center up to n
-    for i in 1:(n % n_centers)
-        n_per_center[i] += 1
-    end
+    n_per_center = fill(div(n,n_centers), n_centers)
+    n_per_center[end] += rem(n,n_centers)
 
     # generates the actual vectors close to each center blob
+    X = zeros(n, p)
+    y = zeros(n)
+
+    start_ind = 1
     for (i, (n_blob, std, center)) in enumerate(zip(n_per_center, cluster_std, centers))
-        X_current = center' .+ std .* randn(element_type, (n_blob, p))
-        push!(X, X_current)
-        push!(y, [i for k in 1:n_blob])
+        ind_center = start_ind:(start_ind + n_per_center[i]-1)
+        X[ind_center,:] .= center' .+ std .* randn(element_type, (n_per_center[i], p));
+        y[ind_center] .= i
+        if verbose>0
+            println("center $i with $(n_per_center[i]) points created")
+        end
+        start_ind += n_per_center[i]
     end
 
-    # stack all the previous arrays created for each of the centers
-    X = vcat(X...)
-    y = vcat(y...)
+    if shuffle
+       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
+    end
 
     if return_centers
         return X, y, centers
@@ -88,6 +95,7 @@ function make_blobs(n::Int=100; p::Int=2,
         return X, y
     end
 end
+
 
 
 
@@ -129,36 +137,6 @@ function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, fact
     return X,y
 end
 
-
-function make_circles2(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
-
-    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
-    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
-
-    Random.seed!(random_seed)
-
-    n_out = div(n, 2)
-    n_in = n - n_out
-
-    linrange_out = Array(LinRange(0, 2 * pi, n_out))
-    linrange_in  = Array(LinRange(0, 2 * pi, n_in))
-
-    outer_circ_x = cos.(linrange_out)
-    outer_circ_y = sin.(linrange_out)
-    inner_circ_x = cos.(linrange_in) .* factor
-    inner_circ_y = sin.(linrange_in) .* factor
-
-    #X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
-    #y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
-    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
-    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
-
-    if shuffle
-       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
-    end
-
-    return X,y
-end
 
 
 """
