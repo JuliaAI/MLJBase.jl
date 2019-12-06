@@ -44,9 +44,8 @@ function make_blobs(n::Int=100; p::Int=2,
                     element_type=Float64, random_seed=1234, return_centers=false, verbose=0)
 
     Random.seed!(random_seed)
-
-    X = []
-    y = []
+    X = zeros(n, p)
+    y = zeros(n)
 
     if typeof(centers) <: Int
         n_centers = centers
@@ -71,9 +70,6 @@ function make_blobs(n::Int=100; p::Int=2,
     n_per_center[end] += rem(n,n_centers)
 
     # generates the actual vectors close to each center blob
-    X = zeros(n, p)
-    y = zeros(n)
-
     start_ind = 1
     for (i, (n_blob, std, center)) in enumerate(zip(n_per_center, cluster_std, centers))
         ind_center = start_ind:(start_ind + n_per_center[i]-1)
