@@ -20,8 +20,8 @@ end
 
 
 """
-make_blobs(n=100;
-           p=2,
+make_blobs(n::Int=100;
+           p::Int=2,
            centers=3,
            cluster_std=1.0,
            center_box=(-10.,10.),
@@ -29,18 +29,18 @@ make_blobs(n=100;
            random_seed=1234,
            return_centers=false)
 
- Generates a dataset with `n` of dimension `p` and returns a vector containing
- as integers the membership of the different points generated.
+Generates a dataset with `n` examples of dimension `p` and returns a vector containing
+as integers the membership of the different points generated.
 
- The data is roughly grouped around several `centers`  which are created using `cluster_std`.
- The data lives inside `center_box` in the case it is randomly generated.
+The data is roughly grouped around several `centers`  which are created using `cluster_std`.
+The data lives inside `center_box` in the case it is randomly generated.
 
- - If `centers` is an integer the centroids are created randomly.
- - If `centers` is an Array containing points the centroids are picked from `centers`.
- - If `return_centers=true` the centroids of the bloods are returned
+- If `centers` is an integer the centroids are created randomly.
+- If `centers` is an Array containing points the centroids are picked from `centers`.
+- If `return_centers=true` the centroids of the blobs are returned.
 """
-function make_blobs(n=100; p=2,
-                    centers=3, cluster_std=1.0, center_box=(-10.,10.),
+function make_blobs(n::Int=100; p::Int=2,
+                    centers=3, cluster_std::Real=1.0, center_box=(-10.,10.),
                     element_type=Float64, random_seed=1234, return_centers=false)
 
     Random.seed!(random_seed)
@@ -60,7 +60,7 @@ function make_blobs(n=100; p=2,
     end
 
     if typeof(cluster_std) <: AbstractFloat
-        cluster_std = 0.5 * randn(n_centers)
+        cluster_std = cluster_std * randn(n_centers)
     end
 
     # generates div(n, n_centers) examples assigned to each center
@@ -72,15 +72,15 @@ function make_blobs(n=100; p=2,
     end
 
     # generates the actual vectors close to each center blob
-    for (i, (n_bloob, std, center)) in enumerate(zip(n_per_center, cluster_std, centers))
-        X_current = center' .+ std .* randn(element_type, (n_bloob, p))
+    for (i, (n_blob, std, center)) in enumerate(zip(n_per_center, cluster_std, centers))
+        X_current = center' .+ std .* randn(element_type, (n_blob, p))
         push!(X, X_current)
-        push!(y, [i for k in 1:n_bloob])
+        push!(y, [i for k in 1:n_blob])
     end
 
     # stack all the previous arrays created for each of the centers
-    X = cat(X..., dims=1)
-    y = cat(y..., dims=1)
+    X = vcat(X...)
+    y = vcat(y...)
 
     if return_centers
         return X, y, centers
@@ -92,17 +92,19 @@ end
 
 
 """
-make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
+make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 
 Generates a dataset with `n` bi-dimensional examples. Samples are created
 from two circles. One of the circles inside the other. The `noise` scalar
 can be used to add noise to the generation process. The scalar `factor`
-correspond to the radius of the smallest circle.
+corresponds to the radius of the smallest circle.
 """
-function make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
+function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 
-    @assert 0 <= factor <=1  "factor is expected to be in [0,1]"
-    @assert 0 <= noise  "noise is expected to be in positive"
+    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
+    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
+
+    Random.seed!(random_seed)
 
     n_out = div(n, 2)
     n_in = n - n_out
@@ -115,22 +117,25 @@ function make_circles(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.
     inner_circ_x = cos.(linrange_in) .* factor
     inner_circ_y = sin.(linrange_in) .* factor
 
-    X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
-    y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
+    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
+    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
 
     if shuffle
        X, y = shuffle_Xy(X, y ; random_seed=random_seed)
     end
 
-    X .+= noise .* rand(size(X)...)
+    X .+= noise .* rand(n, 2)
 
     return X,y
 end
 
-function make_circles2(n=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
 
-    @assert 0 <= factor <=1  "factor is expected to be in [0,1]"
-    @assert 0 <= noise  "noise is expected to be in positive"
+function make_circles2(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
+
+    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
+    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
+
+    Random.seed!(random_seed)
 
     n_out = div(n, 2)
     n_in = n - n_out
@@ -143,25 +148,33 @@ function make_circles2(n=100; shuffle=true, noise=0., random_seed=1234, factor=0
     inner_circ_x = cos.(linrange_in) .* factor
     inner_circ_y = sin.(linrange_in) .* factor
 
-    X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
-    y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
+    #X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
+    #y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
+    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
+    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
+
+    if shuffle
+       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
+    end
 
     return X,y
 end
 
 
 """
-make_moons(n=100; shuffle=true, noise=0.,
-           translation=0.5, factor=1.0, random_seed=1234)
+make_moons(n::Int=100; shuffle=true, noise=0.,
+           translation::Int=0.5, factor=1.0, random_seed=1234)
 
 Generates `n` examples sampling from two moons. The `noise` can be changed to add
 noise to the samples.
 """
-function make_moons(n=100; shuffle=true, noise=0.,
-                   translation=0.5, factor=1.0, random_seed=1234)
+function make_moons(n::Int=100; shuffle=true, noise=0.,
+                   translation::Int=0.5, factor=1.0, random_seed=1234)
 
-    @assert 0 <= factor <=1 "factor is expected to be in [0,1]"
-    @assert 0 <= noise "noise is expected to be in positive"
+    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
+    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
+
+    Random.seed!(random_seed)
 
     n_out = div(n, 2)
     n_in = n - n_out
@@ -174,14 +187,14 @@ function make_moons(n=100; shuffle=true, noise=0.,
     inner_circ_x = 1 .- cos.(linrange_in) .* factor
     inner_circ_y = 1 .- sin.(linrange_in) .* factor .- translation
 
-    X = [[outer_circ_x..., inner_circ_x...] [outer_circ_y..., inner_circ_y...]]
-    y = [ones(Int,n_out)..., 2*ones(Int,n_in)...]
+    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
+    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
 
     if shuffle
        X, y = shuffle_Xy(X, y ; random_seed=random_seed)
     end
 
-    X .+= noise .* rand(size(X)...)
+    X .+= noise .* rand(n, 2)
 
     return X,y
 end
