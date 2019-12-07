@@ -45,6 +45,10 @@ end
   @test include("datasets.jl")
 end
 
+@testset "datasets syhtehic" begin
+  @test include("datasets_synthetic.jl")
+end
+
 @testset "tasks" begin
   @test include("tasks.jl")
 end

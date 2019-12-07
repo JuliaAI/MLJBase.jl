@@ -143,7 +143,7 @@ Generates `n` examples sampling from two moons. The `noise` can be changed to ad
 noise to the samples.
 """
 function make_moons(n::Int=100; shuffle=true, noise=0.,
-                   translation::Int=0.5, factor=1.0, random_seed=1234)
+                   translation=0.5, factor=1.0, random_seed=1234)
 
     @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
     @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
