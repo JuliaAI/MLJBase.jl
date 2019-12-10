@@ -4,8 +4,7 @@ export RidgeRegressor, PCA
 
 import MLJBase
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
-import StatsBase: proportions, CovarianceEstimator
-using Distances
+# using Distances
 using LinearAlgebra
 using Tables, ScientificTypes
 
