@@ -17,7 +17,7 @@ end
   @test include("equality.jl")
 end
 
-@testset "static transforms" begin
+@testset "Static type" begin
   @test include("static.jl")
 end
 
@@ -63,3 +63,8 @@ end
 @testset "metadatautils" begin
   @test include("metadata_utilities.jl")
 end
+
+@testset "pipeline_static.jl" begin
+  @test include("pipeline_static.jl")
+end
+

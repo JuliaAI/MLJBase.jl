@@ -262,8 +262,8 @@ include("show.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-# metadata utils
-include("metadata_utilities.jl")
+include("metadata_utilities.jl") # metadata utils
+include("mlj_model_macro.jl")    # macro to streamline model definitions
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
@@ -274,9 +274,7 @@ include("datasets.jl")
 include("tasks.jl")
 include("measures/measures.jl")
 include("measures/registry.jl")
-
-# mlj model macro to help define models
-include("mlj_model_macro.jl")
+include("pipeline_static.jl")  # static transformer needed by pipeline.jl
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
