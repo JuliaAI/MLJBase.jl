@@ -6,7 +6,6 @@ const CategoricalElement = MLJBase.CategoricalElement
 ## DESCRIPTIONS (see also metadata at the bottom)
 
 const STATIC_TRANSFORMER_DESCR = "Applies a given data transformation `f` (either a function or callable)."
-const FILL_IMPUTER_DESCR = "Imputes missing data with a fixed value computed on the non-missing values. The way to compute the filler depends on the scitype of the data and can be specified."
 const FEATURE_SELECTOR_DESCR = "Filter features (columns) of a table by name."
 const UNIVARIATE_STD_DESCR = "Standardize (whiten) univariate data."
 const UNIVARIATE_DISCR_DESCR = "Discretize continuous variables via quantiles."
@@ -35,73 +34,6 @@ StaticTransformer(;f=identity) = StaticTransformer(f)
 MLJBase.fitted_params(::StaticTransformer) = NamedTuple()
 MLJBase.fit(::StaticTransformer, ::Integer, _) = nothing, nothing, NamedTuple()
 MLJBase.transform(model::StaticTransformer, fitresult, Xnew) = (model.f)(Xnew)
-
-##
-## IMPUTER
-##
-
-round_median(v::AbstractVector) = v -> round(eltype(v), median(v))
-
-_median       = e -> skipmissing(e) |> median
-_round_median = e -> skipmissing(e) |> (f -> round(eltype(f), median(f)))
-_mode         = e -> skipmissing(e) |> mode
-
-"""
-FillImputer
-
-$FILL_IMPUTER_DESCR
-
-## Fields
-
-* `continuous_fill`:  function to use on Continuous data (by default the median)
-* `count_fill`:       function to use on Count data (by default the rounded median)
-* `categorical_fill`: function to use on Finite data (by default the mode)
-"""
-@with_kw_noshow mutable struct FillImputer <: MLJBase.Unsupervised
-    features::Vector{Symbol}  = Symbol[]
-    continuous_fill::Function = _median
-    count_fill::Function      = _round_median
-    finite_fill::Function     = _mode
-end
-
-function MLJBase.fit(transformer::FillImputer, verbosity::Int, X)
-    if isempty(transformer.features)
-        features = Tables.schema(X).names |> collect
-    else
-        features = transformer.features
-    end
-    fitresult = features
-    report    = nothing
-    cache     = nothing
-    return fitresult, cache, report
-end
-
-function MLJBase.transform(transformer::FillImputer, fitresult, X)
-    features = Tables.schema(X).names
-    # check that the features match that of the transformer
-    all(e -> e in fitresult, features) ||
-        error("Attempting to transform table with feature labels not seen in fit. ")
-
-    cols = map(features) do ftr
-        col = MLJBase.selectcols(X, ftr)
-        if eltype(col) >: Missing
-            T    = scitype_union(col)
-            if T <: Union{MLJBase.Continuous,Missing}
-                filler = transformer.continuous_fill(col)
-            elseif T <: Union{MLJBase.Count,Missing}
-                filler = transformer.count_fill(col)
-            elseif T <: Union{MLJBase.Finite,Missing}
-                filler = transformer.finite_fill(col)
-            end
-            col = copy(col) # carries the same name but not attached to the same memory
-            col[ismissing.(col)] .= filler
-            col = convert.(nonmissing(eltype(col)), col)
-        end
-        col
-    end
-    named_cols = NamedTuple{features}(tuple(cols...))
-    return MLJBase.table(named_cols, prototype=X)
-end
 
 ##
 ## FOR FEATURE (COLUMN) SELECTION
@@ -673,8 +605,8 @@ end
 ##
 
 metadata_pkg.((FeatureSelector, StaticTransformer, UnivariateStandardizer,
-               UnivariateDiscretizer, Standardizer, UnivariateBoxCoxTransformer,
-               OneHotEncoder, FillImputer),
+               UnivariateDiscretizer, Standardizer,
+               UnivariateBoxCoxTransformer, OneHotEncoder),
               name="MLJModels",
               uuid="d491faf4-2d78-11e9-2867-c94bc002c0b7",
               url="https://github.com/alan-turing-institute/MLJModels.jl",
@@ -688,13 +620,6 @@ metadata_model(StaticTransformer,
                weights=false,
                descr=STATIC_TRANSFORMER_DESCR,
                path="MLJModels.StaticTransformer")
-
-metadata_model(FillImputer,
-               input=MLJBase.Table(MLJBase.Scientific),
-               output=MLJBase.Table(MLJBase.Scientific),
-               weights=false,
-               descr=FILL_IMPUTER_DESCR,
-               path="MLJModels.FillImputer")
 
 metadata_model(FeatureSelector,
                input=MLJBase.Table(MLJBase.Scientific),
