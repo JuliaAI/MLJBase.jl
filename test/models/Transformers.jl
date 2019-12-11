@@ -5,35 +5,12 @@ const CategoricalElement = MLJBase.CategoricalElement
 
 ## DESCRIPTIONS (see also metadata at the bottom)
 
-const STATIC_TRANSFORMER_DESCR = "Applies a given data transformation `f` (either a function or callable)."
 const FEATURE_SELECTOR_DESCR = "Filter features (columns) of a table by name."
 const UNIVARIATE_STD_DESCR = "Standardize (whiten) univariate data."
 const UNIVARIATE_DISCR_DESCR = "Discretize continuous variables via quantiles."
 const STANDARDIZER_DESCR = "Standardize (whiten) data."
 const UNIVARIATE_BOX_COX_DESCR = "Box-Cox transformation of univariate data."
 const ONE_HOT_DESCR = "One-Hot-Encoding of the categorical data."
-
-##
-## STATIC TRANSFORMERS
-##
-
-"""
-StaticTransformer
-
-$STATIC_TRANSFORMER_DESCR
-
-## Field
-
-* `f=identity`: function or callable object to use for the data transformation.
-"""
-mutable struct StaticTransformer <: MLJBase.Unsupervised
-    f
-end
-StaticTransformer(;f=identity) = StaticTransformer(f)
-
-MLJBase.fitted_params(::StaticTransformer) = NamedTuple()
-MLJBase.fit(::StaticTransformer, ::Integer, _) = nothing, nothing, NamedTuple()
-MLJBase.transform(model::StaticTransformer, fitresult, Xnew) = (model.f)(Xnew)
 
 ##
 ## FOR FEATURE (COLUMN) SELECTION
@@ -604,61 +581,51 @@ end
 ## Metadata for all built-in transformers
 ##
 
-metadata_pkg.((FeatureSelector, StaticTransformer, UnivariateStandardizer,
+metadata_pkg.((FeatureSelector, UnivariateStandardizer,
                UnivariateDiscretizer, Standardizer,
                UnivariateBoxCoxTransformer, OneHotEncoder),
-              name="MLJModels",
-              uuid="d491faf4-2d78-11e9-2867-c94bc002c0b7",
-              url="https://github.com/alan-turing-institute/MLJModels.jl",
+              name="MLJBase",
               julia=true,
-              license="MIT",
-              is_wrapper=false)
-
-metadata_model(StaticTransformer,
-               input=MLJBase.Table(MLJBase.Scientific),
-               output=MLJBase.Table(MLJBase.Scientific),
-               weights=false,
-               descr=STATIC_TRANSFORMER_DESCR,
-               path="MLJModels.StaticTransformer")
+              license="MIT")
 
 metadata_model(FeatureSelector,
                input=MLJBase.Table(MLJBase.Scientific),
                output=MLJBase.Table(MLJBase.Scientific),
                weights=false,
                descr=FEATURE_SELECTOR_DESCR,
-               path="MLJModels.FeatureSelector")
+               path="MLJBase.FeatureSelector")
 
 metadata_model(UnivariateDiscretizer,
                input=AbstractVector{<:MLJBase.Continuous},
                output=AbstractVector{<:MLJBase.OrderedFactor},
                weights=false,
                descr=UNIVARIATE_DISCR_DESCR,
-               path="MLJModels.UnivariateDiscretizer")
+               path="MLJBase.UnivariateDiscretizer")
 
 metadata_model(UnivariateStandardizer,
                input=AbstractVector{<:MLJBase.Infinite},
                output=AbstractVector{MLJBase.Continuous},
                weights=false,
                descr=UNIVARIATE_STD_DESCR,
-               path="MLJModels.UnivariateStandardizer")
+               path="MLJBase.UnivariateStandardizer")
 
 metadata_model(Standardizer,
                input=MLJBase.Table(MLJBase.Scientific),
                output=MLJBase.Table(MLJBase.Scientific),
                weights=false,
                descr=STANDARDIZER_DESCR,
-               path="MLJModels.Standardizer")
+               path="MLJBase.Standardizer")
 
 metadata_model(UnivariateBoxCoxTransformer,
                input=AbstractVector{MLJBase.Continuous},
                output=AbstractVector{MLJBase.Continuous},
                weights=false,
                descr=UNIVARIATE_BOX_COX_DESCR,
-               path="MLJModels.UnivariateBoxCoxTransformer")
+               path="MLJBase.UnivariateBoxCoxTransformer")
 
 metadata_model(OneHotEncoder,
                input=MLJBase.Table(MLJBase.Scientific),
                output=MLJBase.Table(MLJBase.Scientific),
                weights=false,
                descr=ONE_HOT_DESCR,
-               path="MLJModels.OneHotEncoder")
+               path="MLJBase.OneHotEncoder")
