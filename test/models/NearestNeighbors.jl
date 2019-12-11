@@ -1,10 +1,7 @@
-module NearestNeighbors_
-
-import MLJBase
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
 using Distances
 
-import ..NearestNeighbors
+import NearestNeighbors
 
 const NN = NearestNeighbors
 
@@ -169,4 +166,4 @@ metadata_model(KNNClassifier,
     descr=KNNClassifierDescription
     )
 
-end # module
+

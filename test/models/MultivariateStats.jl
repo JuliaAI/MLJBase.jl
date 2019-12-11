@@ -1,7 +1,3 @@
-module MultivariateStats_
-
-export RidgeRegressor, PCA
-
 import MLJBase
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
 # using Distances
@@ -144,4 +140,3 @@ metadata_model(PCA,
                weights=false,
                descr=PCA_DESCR)
 
-end

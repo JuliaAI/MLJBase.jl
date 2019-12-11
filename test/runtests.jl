@@ -68,3 +68,13 @@ end
   @test include("pipeline_static.jl")
 end
 
+# load model interfaces for testing:
+include("models/loading.jl")
+
+
+
+
+
+
+
+

@@ -1,29 +1,11 @@
-#> This code implements the MLJ model interface for models in the
-#> DecisionTree.jl package. It is annotated so that it may serve as a
-#> template for other regressors of Deterministic type and classifiers
-#> of Probabilistic type. The annotations, which begin with "#>",
-#> should be removed (but copy this file first!). See also the model
-#> interface specification at "doc/adding_new_models.md".
-
-#> Note that all models need to "register" their location by setting
-#> `load_path(<:ModelType)` appropriately.
-
-module DecisionTree_
-
-#> export the new models you're going to define (and nothing else):
-export DecisionTreeClassifier, DecisionTreeRegressor
-
 import MLJBase
 import MLJBase: @mlj_model, metadata_pkg, metadata_model
 
-#> needed for metadata:
 using ScientificTypes
 
-#> needed for classifiers:
 using CategoricalArrays
 
-#> import package:
-import ..DecisionTree # strange syntax b/s we are lazy-loading
+import DecisionTree 
 
 ## DESCRIPTIONS
 
@@ -213,7 +195,7 @@ end
 ##
 ## METADATA
 ##
-;;;
+
 metadata_pkg.((DecisionTreeClassifier, DecisionTreeRegressor),
               name="DecisionTree",
               uuid="7806a523-6efd-50cb-b5f6-3fa6f1930dbb",
@@ -234,4 +216,3 @@ metadata_model(DecisionTreeRegressor,
                weights=false,
                descr=DTR_DESCR)
 
-end # module
