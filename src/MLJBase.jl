@@ -22,7 +22,7 @@ export load_path, package_url, package_name, package_uuid,
     is_pure_julia, is_wrapper, prediction_type
 
 # parameters.jl:
-export params
+export params # note this is *not* an extension of StatsBase.params
 
 # data.jl:
 export reconstruct, int, decoder, classes,
@@ -56,16 +56,16 @@ export info_dict
 
 # datasets.jl:
 export load_boston, load_ames, load_iris,
-       load_reduced_ames, load_crabs,
-       @load_boston, @load_ames, @load_iris,
-       @load_reduced_ames, @load_crabs
+    load_reduced_ames, load_crabs,
+    @load_boston, @load_ames, @load_iris,
+    @load_reduced_ames, @load_crabs
 
 # machines.jl:
 export machine, Machine, AbstractMachine, fit!, report
 
 # networks.jl:
 export NodalMachine,  machines, source, node,sources, origins,
-    rebind!, nodes, freeze!, thaw!
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
 
 # measures/registry.jl:
 export measures

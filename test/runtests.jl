@@ -69,7 +69,9 @@ end
 end
 
 # load Models module containing models for further testing:
+print("Loading some models for testing")
 include("models.jl")
+println("\rModels for testing loaded.    ")
 
 @testset "machines" begin
    @test include("machines.jl")
