@@ -1,3 +1,5 @@
+export RidgeRegressor, PCA
+
 import MLJBase
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
 # using Distances

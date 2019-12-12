@@ -11,7 +11,8 @@ end
 @testset "metadata" begin
     measures()
     measures(m -> m.target_scitype <: AbstractVector{<:Finite} &&
-                  m.supports_weights)
+             m.supports_weights)
+    info(rms)
 end
 
 @testset "coverage" begin

@@ -1,11 +1,10 @@
-# Defines a simple deterministic regressor for MLJ testing purposes
-# only. MLJ users should use RidgeRegressor from MultivariateStats.
+# a intercept-free ridge regressor for testing meta-alogorithms
+
+export FooBarRegressor
 
 import MLJBase
 using LinearAlgebra
 using ScientificTypes
-
-export FooBarRegressor
 
 mutable struct FooBarRegressor <: MLJBase.Deterministic
     lambda::Float64
@@ -18,7 +17,7 @@ function FooBarRegressor(; lambda=0.0)
     return simpleridgemodel
 end
 
-function MLJ.clean!(model::FooBarRegressor)
+function MLJBase.clean!(model::FooBarRegressor)
     warning = ""
     if model.lambda < 0
         warning *= "Need lambda ≥ 0. Resetting lambda=0. "
@@ -45,12 +44,9 @@ function MLJBase.predict(model::FooBarRegressor, fitresult, Xnew)
     return x*fitresult
 end
 
-# to hide from models generated from calls to models()
-MLJBase.is_wrapper(::Type{<:FooBarRegressor}) = true
-
 # metadata:
-MLJBase.load_path(::Type{<:FooBarRegressor}) = "MLJ.FooBarRegressor"
-MLJBase.package_name(::Type{<:FooBarRegressor}) = "MLJ"
+MLJBase.load_path(::Type{<:FooBarRegressor}) = "MLJBase.FooBarRegressor"
+MLJBase.package_name(::Type{<:FooBarRegressor}) = "MLJBase"
 MLJBase.package_uuid(::Type{<:FooBarRegressor}) = ""
 MLJBase.is_pure_julia(::Type{<:FooBarRegressor}) = true
 MLJBase.input_scitype(::Type{<:FooBarRegressor}) = Table(Continuous)

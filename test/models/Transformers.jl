@@ -1,5 +1,10 @@
 ## CONSTANTS
 
+export FeatureSelector,
+    UnivariateStandardizer, Standardizer,
+    UnivariateBoxCoxTransformer,
+    OneHotEncoder, UnivariateDiscretizer
+
 const N_VALUES_THRESH = 16 # for BoxCoxTransformation
 const CategoricalElement = MLJBase.CategoricalElement
 
@@ -26,9 +31,11 @@ Alternatively, if a non-empty `features` is specified, then only the
 specified features are used. Throws an error if a recorded or
 specified feature is not present in the transformation input.
 """
-@with_kw_noshow mutable struct FeatureSelector <: MLJBase.Unsupervised
-    features::Vector{Symbol} = Symbol[]
+mutable struct FeatureSelector <: MLJBase.Unsupervised
+    features::Vector{Symbol}
 end
+
+FeatureSelector(; features=Symbol[]) = FeatureSelector(features)
 
 function MLJBase.fit(transformer::FeatureSelector, verbosity::Int, X)
     namesX = collect(Tables.schema(X).names)
@@ -115,9 +122,11 @@ The transformation is chosen so that the vector on which the
     v_approx = inverse_transform(discretizer, w) # reconstruction of v from w
 
 """
-@with_kw_noshow mutable struct UnivariateDiscretizer <:MLJBase.Unsupervised
-    n_classes::Int = 512
+mutable struct UnivariateDiscretizer <:MLJBase.Unsupervised
+    n_classes::Int
 end
+
+UnivariateDiscretizer(; n_classes=512) = UnivariateDiscretizer(n_classes)
 
 struct UnivariateDiscretizerResult{C}
     odd_quantiles::Vector{Float64}
@@ -264,9 +273,11 @@ names of features to be standardized.
     │ 3   │ 1.14708   │ 3     │
 
 """
-@with_kw_noshow mutable struct Standardizer <: MLJBase.Unsupervised
-    features::Vector{Symbol} = Symbol[] # features to be standardized; empty means all
+mutable struct Standardizer <: MLJBase.Unsupervised
+    features::Vector{Symbol} 
 end
+
+Standardizer(; features=Symbol[]) = Standardizer(features)
 
 function MLJBase.fit(transformer::Standardizer, verbosity::Int, X::Any)
     all_features = Tables.schema(X).names
@@ -389,10 +400,13 @@ positive shift `c` of `0.2` times the data mean. If there are no zero
 values, then no shift is applied.
 
 """
-@with_kw_noshow mutable struct UnivariateBoxCoxTransformer <: MLJBase.Unsupervised
-    n::Int      = 171   # nbr values tried in optimizing exponent lambda
-    shift::Bool = false # whether to shift data away from zero
+mutable struct UnivariateBoxCoxTransformer <: MLJBase.Unsupervised
+    n::Int
+    shift::Bool
 end
+
+UnivariateBoxCoxTransformer(; n=171, shift=false) =
+    UnivariateBoxCoxTransformer(n, shift)
 
 function MLJBase.fit(transformer::UnivariateBoxCoxTransformer, verbosity::Int,
              v::AbstractVector{T}) where T <: Real
@@ -462,11 +476,14 @@ features present in the fit data, but no new features can be present.
  CategoricalPool object encountered during the fit.
 
 """
-@with_kw_noshow mutable struct OneHotEncoder <: MLJBase.Unsupervised
-    features::Vector{Symbol} = Symbol[]
-    drop_last::Bool          = false
-    ordered_factor::Bool     = true
+mutable struct OneHotEncoder <: MLJBase.Unsupervised
+    features::Vector{Symbol}
+    drop_last::Bool
+    ordered_factor::Bool
 end
+
+OneHotEncoder(; features=Symbol[], drop_last=false, ordered_factor=true) =
+    OneHotEncoder(features, drop_last, ordered_factor)
 
 # we store the categorical refs for each feature to be encoded and the
 # corresponing feature labels generated (called

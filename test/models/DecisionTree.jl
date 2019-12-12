@@ -1,3 +1,5 @@
+export DecisionTreeClassifier, DecisionTreeRegressor
+
 import MLJBase
 import MLJBase: @mlj_model, metadata_pkg, metadata_model
 
@@ -205,7 +207,7 @@ metadata_pkg.((DecisionTreeClassifier, DecisionTreeRegressor),
               is_wrapper=false)
 
 metadata_model(DecisionTreeClassifier,
-               input=MLJBase.Table(MLJBase.Continuous, Count, OrderedFactor),
+               input=MLJBase.Table(Continuous, Count, OrderedFactor),
                target=AbstractVector{<:MLJBase.Finite},
                weights=false,
                descr=DTC_DESCR)

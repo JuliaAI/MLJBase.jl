@@ -22,7 +22,7 @@ end
 end
 
 @testset "utilities" begin
-  @test include("utilities.jl")
+   @test include("utilities.jl")
 end
 
 @testset "parameters" begin
@@ -37,8 +37,8 @@ end
   @test include("data.jl")
 end
 
-@testset "info" begin
-  @test include("info.jl")
+@testset "info_dict" begin
+  @test include("info_dict.jl")
 end
 
 @testset "datasets" begin
@@ -68,12 +68,16 @@ end
   @test include("pipeline_static.jl")
 end
 
-# load model interfaces for testing:
-include("models/loading.jl")
+# load Models module containing models for further testing:
+include("models.jl")
 
+@testset "machines" begin
+   @test include("machines.jl")
+end
 
-
-
+@testset "networks" begin
+   @test include("networks.jl")
+end
 
 
 

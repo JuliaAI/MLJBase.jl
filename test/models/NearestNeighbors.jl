@@ -1,3 +1,5 @@
+export KNNRegressor, KNNClassifier
+
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
 using Distances
 

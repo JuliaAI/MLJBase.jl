@@ -12,5 +12,45 @@ struct Baz <: Foo end
 
 @test MLJBase.finaltypes(Foo) == [Bar, Baz]
 
+@testset "flat_values" begin
+    t = (X = (x = 1, y = 2), Y = 3)
+    @test flat_values(t) == (1, 2, 3)
+end
+
+mutable struct M
+    a1
+    a2
+end
+mutable struct A1
+    a11
+    a12
+end
+mutable struct A2
+    a21
+end
+mutable struct A21
+    a211
+    a212
+end
+
+@testset "recursive getproperty, setproperty!" begin
+
+    m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),)) 
+
+    @test MLJBase.recursive_getproperty(m, :(a1.a12)) == 20
+    @test MLJBase.recursive_getproperty(m, :a1) == (a11 = 10, a12 = 20)
+    @test MLJBase.recursive_getproperty(m, :(a2.a21.a212)) == 40
+
+    m = M(A1(10, 20), A2(A21(30, 40)))
+    MLJBase.recursive_setproperty!(m, :(a2.a21.a212), 42)
+    @test MLJBase.recursive_getproperty(m, :(a1.a11)) == 10
+    @test MLJBase.recursive_getproperty(m, :(a1.a12)) == 20
+    @test MLJBase.recursive_getproperty(m, :(a2.a21.a211)) == 30
+    @test MLJBase.recursive_getproperty(m, :(a2.a21.a212)) == 42
+    @test MLJBase.recursive_getproperty(
+        MLJBase.recursive_getproperty(m, :(a2.a21)), :a212) == 42
+
+end
+
 end # module
 true
