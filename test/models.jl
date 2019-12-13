@@ -15,6 +15,8 @@ include("models/NearestNeighbors.jl")
 include("models/MultivariateStats.jl")
 include("models/Transformers.jl")
 include("models/foobarmodel.jl")
+include("models/simple_composite_model.jl")
+
 end
 
 # to load a model with @load:

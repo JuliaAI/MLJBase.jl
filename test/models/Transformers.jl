@@ -5,6 +5,8 @@ export FeatureSelector,
     UnivariateBoxCoxTransformer,
     OneHotEncoder, UnivariateDiscretizer
 
+using Statistics
+
 const N_VALUES_THRESH = 16 # for BoxCoxTransformation
 const CategoricalElement = MLJBase.CategoricalElement
 

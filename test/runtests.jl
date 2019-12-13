@@ -1,8 +1,3 @@
-# It is suggested that test code for MLJ.jl include files be placed in
-# a file of the same name under "test/" (and included below) and that
-# this test code be wrapped in a module. Any new module name will do -
-# eg, `module TestDatasets` for code testing `datasets.jl`.
-
 using MLJBase, Test
 
 @testset "model interface" begin
@@ -69,9 +64,9 @@ end
 end
 
 # load Models module containing models for further testing:
-print("Loading some models for testing")
+print("Loading some models for testing...")
 include("models.jl")
-println("\rModels for testing loaded.    ")
+print("\r                                           \r")
 
 @testset "machines" begin
    @test include("machines.jl")
@@ -79,6 +74,14 @@ end
 
 @testset "networks" begin
    @test include("networks.jl")
+end
+
+@testset "composites" begin
+   @test include("composites.jl")
+end
+
+@testset "pipelines" begin
+   @test include("pipelines.jl")
 end
 
 

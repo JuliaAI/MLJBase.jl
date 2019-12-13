@@ -67,6 +67,12 @@ export machine, Machine, AbstractMachine, fit!, report
 export NodalMachine,  machines, source, node,sources, origins,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
 
+# composites.jl:
+export machines, sources, anonymize!, @from_network, fitresults
+
+# pipelines.jl:
+export @pipeline
+
 # measures/registry.jl:
 export measures
 
@@ -308,7 +314,9 @@ include("measures/registry.jl")
 include("pipeline_static.jl")  # static transformer needed by pipeline.jl
 include("machines.jl")
 include("networks.jl")
-include("operations.jl")
+include("operations.jl") # overloading predict, transform, etc
+include("composites.jl") # building and exporting learning networks
+include("pipelines.jl")
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
