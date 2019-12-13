@@ -492,6 +492,12 @@ Returns a `Node` object `N` such that `N() = selectrows(X(), r)` (and
 selectrows(X::AbstractNode, r) = node(XX->selectrows(XX, r),
 X)
 
+# for accessing and setting model hyperparameters at node:
+getindex(n::Node{<:NodalMachine{<:Model}}, s::Symbol) =
+    getproperty(n.machine.model, s)
+setindex!(n::Node{<:NodalMachine{<:Model}}, v, s::Symbol) =
+    setproperty!(n.machine.model, s, v)
+
 
 ## INSPECTING LEARNING NETWORKS
 
@@ -613,3 +619,4 @@ function reset!(W::Node)
         mach.state = 0 # to do: replace with dagger object
     end
 end
+

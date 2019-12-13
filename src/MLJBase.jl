@@ -132,7 +132,7 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle,
 
 ## METHOD IMPORT
 
-import Base: ==, precision, getindex, @__doc__
+import Base: ==, precision, getindex, setindex!, @__doc__
 
 using Tables
 using DelimitedFiles

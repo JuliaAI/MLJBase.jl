@@ -84,6 +84,3 @@ function fitted_params(machine::AbstractMachine)
         throw(error("$machine has not been trained."))
     end
 end
-
-getindex(n::Node{<:NodalMachine{<:Model}}, s::Symbol) = getproperty(n.machine.model, s)
-setindex!(n::Node{<:NodalMachine{<:Model}}, v, s::Symbol) = setproperty!(n.machine.model, s, v)
