@@ -317,6 +317,7 @@ include("networks.jl")
 include("operations.jl") # overloading predict, transform, etc
 include("composites.jl") # building and exporting learning networks
 include("pipelines.jl")
+VERSION ≥ v"1.3.0-" && include("arrows.jl")
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
