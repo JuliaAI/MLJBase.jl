@@ -1,111 +1,158 @@
-# Users of this module should first read the document
-# https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
 module MLJBase
 
-export MLJType, Model, Supervised, Unsupervised, Static
-export Deterministic, Probabilistic, Interval
-export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-export fit, update, update_data, clean!
-export predict, predict_mean, predict_mode, predict_median, fitted_params
-export transform, inverse_transform, se, evaluate, best
-export info, info_dict
+
+## METHOD EXPORT
+
+# defined in this file:
+export MLJType, Model, Supervised, Unsupervised, Static,
+    Deterministic, Probabilistic, Interval,
+    DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
+    fit, update, update_data, clean!,
+    predict, predict_mean, predict_mode, predict_median, fitted_params,
+    transform, inverse_transform, se, evaluate, best, @load
+
+
+# equality.jl:
 export is_same_except
 
-export load_path, package_url, package_name, package_uuid  # model_traits.jl
-export input_scitype, supports_weights                     # model_traits.jl
-export target_scitype, output_scitype                      # model_traits.jl
-export is_pure_julia, is_wrapper, prediction_type          # model_traits.jl
-export params                                        # parameters.jl
-export reconstruct, int, decoder, classes            # data.jl
-export selectrows, selectcols, select, nrows         # data.jl
-export table, levels_seen, matrix, container_type    # data.jl
-export partition, unpack                             # data.jl
-export complement, restrict, corestrict              # data.jl
-export @set_defaults                                 # utilities.jl
-export @mlj_model                                    # mlj_model_macro.jl
-export metadata_model, metadata_pkg                  # metadata_utilities
-export HANDLE_GIVEN_ID, @more, @constant             # show.jl
-export color_on, color_off                           # show.jl
-export UnivariateFinite, average                     # distributions.jl
-export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
-export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
-export info                                          # info.jl
+# model_traits.jl:
+export load_path, package_url, package_name, package_uuid,
+    input_scitype, supports_weights,
+    target_scitype, output_scitype,
+    is_pure_julia, is_wrapper, prediction_type
+
+# parameters.jl:
+export params # note this is *not* an extension of StatsBase.params
+
+# data.jl:
+export reconstruct, int, decoder, classes,
+    selectrows, selectcols, select, nrows,
+    table, levels_seen, matrix, container_type,
+    partition, unpack,
+    complement, restrict, corestrict
+
+# utilities.jl:
+export @set_defaults, flat_values,
+    recursive_setproperty!, recursive_getproperty
+
+# mlj_model_macro.jl
+export @mlj_model
+
+# metadata_utilities:
+export metadata_model, metadata_pkg
+
+# show.jl
+export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
+
+# distributions.jl:
+export UnivariateFinite, average
+
+# tasks.jl:
+export SupervisedTask, UnsupervisedTask, MLJTask,
+    X_and_y, X_, y_, nfeatures
+
+# info_dict.jl:
+export info_dict
+
+# datasets.jl:
 export load_boston, load_ames, load_iris,
-       load_reduced_ames, load_crabs,
-       @load_boston, @load_ames, @load_iris,
-       @load_reduced_ames, @load_crabs               # datasets.jl
-export @load
+    load_reduced_ames, load_crabs,
+    @load_boston, @load_ames, @load_iris,
+    @load_reduced_ames, @load_crabs
 
-# MEASURES
-export measures # measures/registry.jl
-export orientation, reports_each_observation
-export is_feature_dependent, aggregation
-export aggregate
-export default_measure, value
-# -- continuous
+# machines.jl:
+export machine, Machine, AbstractMachine, fit!, report
+
+# networks.jl:
+export NodalMachine,  machines, source, node,sources, origins,
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
+
+# composites.jl:
+export machines, sources, anonymize!, @from_network, fitresults
+
+# pipelines.jl:
+export @pipeline
+
+# measures/registry.jl:
+export measures
+
+# measures.jl:
+export orientation, reports_each_observation,
+    is_feature_dependent, aggregation,
+    aggregate,
+    default_measure, value
+
+# measures/continuous.jl:
 export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
-# -- confmat (measures/confusion_matrix)
+
+# measures/confusion_matrix.jl:
 export confusion_matrix, confmat
-# -- finite (measures/finite)
+
+# measures/finite.jl
 export cross_entropy, BrierScore,
-       misclassification_rate, mcr, accuracy,
-       balanced_accuracy, bacc, bac,
-       matthews_correlation, mcc
-# -- -- binary // order independent
+    misclassification_rate, mcr, accuracy,
+    balanced_accuracy, bacc, bac,
+    matthews_correlation, mcc
+
+# measures/finite.jl -- binary order independent:
 export auc, roc_curve, roc
-# -- -- binary // order dependent
+
+# measures/finite.jl -- binary order dependent:
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
-       TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
-       FalseDiscoveryRate, Precision, NPV, FScore,
-       # standard synonyms
-       TPR, TNR, FPR, FNR,
-       FDR, PPV,
-       Recall, Specificity, BACC,
-       # defaults and their synonyms
-       truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsepositive_rate,
-       falsenegative_rate, negativepredicitive_value,
-       positivepredictive_value,
-       tp, tn, fp, fn, tpr, tnr, fpr, fnr,
-       falsediscovery_rate, fdr, npv, ppv,
-       recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, f1, fallout
+    TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
+    FalseDiscoveryRate, Precision, NPV, FScore,
+    # standard synonyms
+    TPR, TNR, FPR, FNR,
+    FDR, PPV,
+    Recall, Specificity, BACC,
+    # instances and their synonyms
+    truepositive, truenegative, falsepositive, falsenegative,
+    truepositive_rate, truenegative_rate, falsepositive_rate,
+    falsenegative_rate, negativepredicitive_value,
+    positivepredictive_value,
+    tp, tn, fp, fn, tpr, tnr, fpr, fnr,
+    falsediscovery_rate, fdr, npv, ppv,
+    recall, sensitivity, hit_rate, miss_rate,
+    specificity, selectivity, f1score, f1, fallout
 
-# methods from other packages to be rexported:
-export pdf, mean, mode
 
-# re-export of ScientificTypes (`Table` not exported):
-export trait
-export Scientific, Found, Unknown, Finite, Infinite
-export OrderedFactor, Multiclass, Count, Continuous
-export Binary, ColorImage, GrayImage, Image
-export scitype, scitype_union, coerce, schema, elscitype
+## METHOD RE-EXPORT
 
-# rexport from Random, Statistics, Distributions, CategoricalArrays,
+# re-export from ScientificTypes (`Table` not exported):
+export trait, Scientific, Found, Unknown, Finite, Infinite,
+    OrderedFactor, Multiclass, Count, Continuous,
+    Binary, ColorImage, GrayImage, Image,
+    scitype, scitype_union, coerce, schema, elscitype, info
+
+# re-xport from Random, StatsBase, Statistics, Distributions, CategoricalArrays,
 # InvertedIndices:
-export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
-export std, Not
+export pdf, mode, median, mean, shuffle!, categorical, shuffle,
+    levels, levels!, std, Not
 
-import Base.==, Base.precision, Base.getindex
-import Base: @__doc__
 
-using Tables, DelimitedFiles
-using OrderedCollections # already a dependency of StatsBase
+## METHOD IMPORT
+
+import Base: ==, precision, getindex, setindex!, @__doc__
+
+using Tables
+using DelimitedFiles
+using OrderedCollections
 using CategoricalArrays
+using ScientificTypes
+using LossFunctions
 import InvertedIndices: Not
 
 # to be extended:
-import StatsBase: fit, predict, fit!
+import StatsBase
+import StatsBase: fit, predict, fit!, mode
 import Missings.levels
 import Distributions
-import Distributions: pdf, mode
-
-using ScientificTypes
-using LossFunctions
+import Distributions: pdf
+import ScientificTypes.info
 
 # from Standard Library:
-
 using Statistics, LinearAlgebra, Random, InteractiveUtils
+
 
 ## CONSTANTS
 
@@ -241,16 +288,6 @@ macro load end
 
 ## TRAITS
 
-"""
-
-    info(object)
-
-List the traits of an object, such as a model or a performance measure.
-
-"""
-info(object) = info(object, Val(ScientificTypes.trait(object)))
-
-
 include("model_traits.jl")
 
 # for unpacking the fields of MLJ objects:
@@ -262,27 +299,27 @@ include("show.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-# metadata utils
-include("metadata_utilities.jl")
+include("metadata_utilities.jl") # metadata utils
+include("mlj_model_macro.jl")    # macro to streamline model definitions
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
 
-include("info.jl")
+include("info_dict.jl")
 include("datasets.jl")
 include("tasks.jl")
 include("measures/measures.jl")
 include("measures/registry.jl")
-
-# mlj model macro to help define models
-include("mlj_model_macro.jl")
+include("pipeline_static.jl")  # static transformer needed by pipeline.jl
+include("machines.jl")
+include("networks.jl")
+include("operations.jl") # overloading predict, transform, etc
+include("composites.jl") # building and exporting learning networks
+include("pipelines.jl")
+VERSION ≥ v"1.3.0-" && include("arrows.jl")
 
 function __init__()
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
-        x-> x isa Supervised
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
-        x-> x isa Unsupervised
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end

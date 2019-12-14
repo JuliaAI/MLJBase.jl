@@ -10,6 +10,10 @@ end
 
 function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
 
+    @warn "UnsupervisedTask is deprecated. For model search options, "*
+    "see "*
+    "https://alan-turing-institute.github.io/MLJ.jl/dev/model_search/"
+
     data != nothing || error("You must specify data=... ")
 
     if ignore isa Symbol
@@ -17,7 +21,7 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
     end
 
     names = schema(data).names |> collect
-    
+
     issubset(ignore, names) || error("ignore=$ignore contains a column name "*
                                      "not encountered in supplied data.")
 
@@ -34,20 +38,20 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
     end
 
     input_scitype = scitype(X)
-    
+
     if input_is_multivariate
         input_scitypes = _scitypes(X)
     else
         input_scitypes = (input=scitype_union(X), )
     end
-    
+
     if Unknown <: input_scitype
         @warn "An input feature with unknown scitype has been encountered. "*
         "Check the input_scitypes field of your task. "
-        
+
     end
 
-    if verbosity > 0 
+    if verbosity > 0
         @info "input_scitype = $input_scitype"
     end
 
@@ -55,8 +59,8 @@ function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
 end
 
 # X and y can be different views of a common object.
-mutable struct SupervisedTask <: MLJTask 
-    X                               
+mutable struct SupervisedTask <: MLJTask
+    X
     y
     is_probabilistic
     input_scitypes
@@ -81,7 +85,7 @@ function contains_unknown(X)
         types = values(_scitypes(X))
         unknown_detected = !all([!(Unknown <: t) for t in types])
     elseif target_scitype <: AbstractArray{<:Tuple}
-        types = scitype_union(X).types 
+        types = scitype_union(X).types
         unknown_detected = !all([!(Unknown <: t) for t in types])
     elseif target_scitype <: AbstractArray
         unknown_detected = Unknown <: scitype_union(X)
@@ -96,8 +100,9 @@ function SupervisedTask(X, y::AbstractVector;
                         target=:target,
                         verbosity=1)
 
-    # is_probabilistic != nothing ||
-    #     error("You must specify is_probabilistic=true or is_probabilistic=false. ")
+    @warn "SupervisedTask is deprecated. For model search options, "*
+    "see "*
+    "https://alan-turing-institute.github.io/MLJ.jl/dev/model_search/"
 
     target_scitype = scitype(y)
     input_scitype = scitype(X)
@@ -107,7 +112,7 @@ function SupervisedTask(X, y::AbstractVector;
     else
         input_scitypes = (input=scitype_union(X),)
     end
-    
+
     unknown_detected = contains_unknown(input_scitype)||
     contains_unknown(target_scitype)
 
@@ -117,13 +122,13 @@ function SupervisedTask(X, y::AbstractVector;
         "your task. "
     end
 
-    if verbosity > 0 
+    if verbosity > 0
         @info "\nis_probabilistic = $is_probabilistic\ninput_scitype = "*
         "$input_scitype \ntarget_scitype = $target_scitype"
     end
 
     return SupervisedTask(X, y,
-                          is_probabilistic, 
+                          is_probabilistic,
                           input_scitypes,
                           target,
                           input_scitype, target_scitype)
@@ -142,9 +147,9 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
     if ignore isa Symbol
         ignore = [ignore, ]
     end
-    
+
     names = schema(data).names |> collect
-    
+
     issubset(ignore, names) ||
         error("ignore=$ignore contains a column name not encountered "*
               "in supplied data.")
@@ -176,7 +181,7 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
         X = selectcols(data, features)
         input_is_multivariate = true
     end
-    
+
     return SupervisedTask(X, y;
                           is_probabilistic=is_probabilistic,
                           target=target_as_input,
@@ -199,7 +204,3 @@ X_and_y(task::SupervisedTask) = (X_(task), y_(task))
 # make tasks callable:
 (task::UnsupervisedTask)() = X_(task)
 (task::SupervisedTask)() = X_and_y(task)
-
-
-
-

@@ -122,8 +122,8 @@ function MLJBase.info(M, ::Val{:measure_type})
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
 
+# overload info from ScientificTypes:
 MLJBase.info(m, ::Val{:measure}) = info(typeof(m))
-
 
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
