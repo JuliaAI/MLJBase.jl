@@ -84,8 +84,8 @@ end
    @test include("pipelines.jl")
 end
 
-VERSION ≥ v"1.3.0-" && @testset "pipelines" begin
-    @test include("pipelines.jl")
+VERSION ≥ v"1.3.0-" && @testset "arrows" begin
+    @test include("arrows.jl")
 end
 
 
