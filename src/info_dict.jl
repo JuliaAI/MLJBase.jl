@@ -1,8 +1,6 @@
-# `info` returns a dictionary of model trait values suitable, after
+# `info_dict` returns a dictionary of model trait values suitable, after
 # encoding, to serializing to TOML file. Not intended to be exposed to
-# user. The `traits` function, defined in MLJ, returns the trait
-# values as a named-tuple, more friendly for user-interaction. One can
-# similarly call `traits` on performance measures.
+# user. 
 
 info_dict(M::Type{<:Supervised}) = info_dict(M, SUPERVISED_TRAITS)
 info_dict(M::Type{<:Unsupervised}) = info_dict(M, UNSUPERVISED_TRAITS)
