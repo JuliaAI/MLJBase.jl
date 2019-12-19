@@ -4,7 +4,29 @@
 # >> BriersScore
 # ---------------------------------------------------
 
-struct CrossEntropy <: Measure end
+"""
+    ce = CrossEntropy(; eps=eps())
+    ce(ŷ, y)
+
+Given an abstract vector of distributions `ŷ` and an abstract vector
+of true observations `y`, return the corresponding Cross-Entropy
+loss (aka log loss) scores.
+
+Since the loss is undefined for a score of `0` or `1`, probabilities
+are clipped between `eps` and `1-eps` where `eps` can be specified.
+
+If `sᵢ` is the predicted probability for the true class `yᵢ` then
+the score for that example is given by
+
+``-log(clamp(sᵢ, eps, 1-eps))``
+
+For more information, run `info(cross_entropy)`.
+"""
+
+struct CrossEntropy{R} <: Measure where R <: AbstractFloat
+    eps::R
+end
+CrossEntropy(;eps=eps()) = CrossEntropy(eps)
 
 """
 cross_entropy(ŷ, y::AbstractVector{<:Finite})
@@ -29,13 +51,13 @@ supports_weights(::Type{<:CrossEntropy}) = false
 distribution_type(::Type{<:CrossEntropy}) = UnivariateFinite
 
 # for single observation:
-_cross_entropy(d, y) = -log(clamp(pdf(d, y), eps(), 1.0-eps()))
+_cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
-function (::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
+function (c::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
                           y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y)
+    return broadcast(_cross_entropy, ŷ, y, c.eps)
 end
 
 # TODO: support many distributions/samplers D below:
@@ -58,7 +80,6 @@ Brier score for that observation is given by
 ``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
 
 For more information, run `info(brier_score)`.
-
 """
 function BrierScore(; distribution=UnivariateFinite)
     distribution == UnivariateFinite ||
