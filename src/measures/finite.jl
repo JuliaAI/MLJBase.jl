@@ -29,13 +29,13 @@ supports_weights(::Type{<:CrossEntropy}) = false
 distribution_type(::Type{<:CrossEntropy}) = UnivariateFinite
 
 # for single observation:
-_cross_entropy(d, y) = -log(pdf(d, y))
+_cross_entropy(d, y) = -log(clamp(pdf(d, y), eps(), 1.0-eps()))
 
 function (::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
                           y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, Any[ŷ...], y)
+    return broadcast(_cross_entropy, ŷ, y)
 end
 
 # TODO: support many distributions/samplers D below:
@@ -88,7 +88,7 @@ function brier_score(d::UnivariateFinite, y)
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     offset = 1 + sum(pvec.^2)
-    return 2*pdf(d, y) - offset
+    return 2 * pdf(d, y) - offset
 end
 
 # For multiple observations:
@@ -99,7 +99,7 @@ function (::BrierScore{<:UnivariateFinite})(
     y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(brier_score, Any[ŷ...], y)
+    return broadcast(brier_score, ŷ, y)
 end
 
 function (score::BrierScore{<:UnivariateFinite})(
