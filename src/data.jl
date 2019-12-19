@@ -1,8 +1,8 @@
 ## SPLITTING DATA SETS
 
-# Helper function for partition in the non-stratified case
-function _partition(rows, fractions, ::Nothing, rng)
-    # container for the row selections (head - tail)
+# Helper function for partitioning in the non-stratified case
+function _partition(rows, fractions, ::Nothing)
+    # container for the row selections (head:tail)
     n_splits = length(fractions) + 1
     heads    = zeros(Int, n_splits)
     tails    = zeros(Int, n_splits)
@@ -28,17 +28,17 @@ function _partition(rows, fractions, ::Nothing, rng)
     return tuple((rows[h:t] for (h, t) in zip(heads, tails))...)
 end
 
-# Helper function for partition in the stratified case
-function _partition(rows, fractions, stratify::AbstractVector, rng)
-
+# Helper function for partitioning in the stratified case
+function _partition(rows, fractions, stratify::AbstractVector)
     length(stratify) == length(rows) ||
-        throw(ArgumentError("The stratification vector must have as many entries as "*
+        throw(ArgumentError("The stratification vector must have as many entries as " *
                             "the rows to partition."))
-
     uv    = unique(stratify)
-    # construct table n_classes * idx_of_that_class NOTE === is important for missing.
+    # construct table (n_classes * idx_of_that_class)
+    # NOTE use of '===' is important to handle missing.
     idxs  = [[i for i in rows if stratify[rows[i]] === v] for v in uv]
-    # number of occurences of each class
+
+    # number of occurences of each class and proportions
     nidxs = length.(idxs)
     props = length.(idxs) ./ length(rows)
 
@@ -59,9 +59,8 @@ function _partition(rows, fractions, stratify::AbstractVector, rng)
         tails   = heads .+ ns_props[r, :] .- 1
         # take chunks of the indices corresponding to the current fraction
         indices = vcat((idxs[i][heads[i]:tails[i]] for i in eachindex(uv))...)
-        # reshuffle the indices so that we don't end up with the first few
-        # examples of one class then next few from second etc.
-        shuffle!(rng, indices)
+        # rearrange by order of appearance
+        indices = sort(indices)
         push!(split_rows, rows[indices])
         heads .= tails .+ 1
     end
@@ -108,14 +107,9 @@ function partition(rows::AbstractVector{Int}, fractions::Real...;
     if rng != Random.GLOBAL_RNG && shuffle === nothing
         shuffle = true
     end
-    if stratify !== nothing && shuffle === false
-        throw(ArgumentError("In the stratified case, shuffle cannot be set to false."))
-    end
     shuffle !== nothing && shuffle && shuffle!(rng, rows)
-    return _partition(rows, collect(fractions), stratify, rng)
+    return _partition(rows, collect(fractions), stratify)
 end
-
-
 
 
 """

@@ -85,6 +85,15 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
         end
         @test isapprox(sum(ismissing.(y[s]))/length(s), pm, rtol=1e-1)
     end
+
+    # test ordering is preserved if no shuffle
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y)
+    @test issorted(s1)
+    @test issorted(s2)
+
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y, shuffle=true)
+    @test !issorted(s1)
+    @test !issorted(s2)
 end
 
 @testset "unpack" begin
