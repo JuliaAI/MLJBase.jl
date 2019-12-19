@@ -144,7 +144,7 @@ import InvertedIndices: Not
 
 # to be extended:
 import StatsBase
-import StatsBase: fit, predict, fit!, mode
+import StatsBase: fit, predict, fit!, mode, countmap
 import Missings.levels
 import Distributions
 import Distributions: pdf
