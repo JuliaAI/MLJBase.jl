@@ -1,7 +1,7 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
-version = "0.8.4"
+version = "0.9.1"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
@@ -28,7 +28,7 @@ LossFunctions = "^0.5"
 Missings = "^0.4"
 OrderedCollections = "^1.1"
 Parameters = "^0.12"
-ScientificTypes = "^0.2.6"
+ScientificTypes = "^0.3"
 StatsBase = "^0.32"
 Tables = "^0.2"
 julia = "1"
@@ -36,9 +36,12 @@ julia = "1"
 [extras]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
+NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [targets]
-test = ["CSV", "DataFrames", "Distances", "Test", "TypedTables"]
+test = ["CSV", "DataFrames", "DecisionTree", "Distances", "NearestNeighbors", "MultivariateStats", "Test", "TypedTables"]

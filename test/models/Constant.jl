@@ -1,5 +1,11 @@
 ## THE CONSTANT REGRESSOR
 
+export ConstantClassifier, ConstantRegressor,
+    DeterministicConstantClassifier,
+    ProbabilisticConstantClassifer
+
+import MLJBase
+import MLJBase: metadata_pkg, metadata_model
 import Distributions
 
 """
