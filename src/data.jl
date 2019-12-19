@@ -48,6 +48,10 @@ function _partition(rows, fractions, stratify::AbstractVector)
     ns_props = round.(Int, n_rows * fractions * props')
     ns_props = vcat(ns_props, nidxs' .- sum(ns_props, dims=1))
 
+    # warn if anything is >= 1
+    if !all(e -> e > 1, ns_props)
+        @warn "Some splits have a single or no representative of some class."
+    end
     # container for the rows
     split_rows = []
     heads      = ones(Int, length(uv))
