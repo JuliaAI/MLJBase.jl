@@ -67,6 +67,9 @@ export machine, Machine, AbstractMachine, fit!, report
 export NodalMachine,  machines, source, node,sources, origins,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
 
+# datasets_synthetics.jl
+export make_blobs, make_moons, make_circles
+
 # composites.jl:
 export machines, sources, anonymize!, @from_network, fitresults
 
@@ -308,6 +311,7 @@ include("distributions.jl")
 
 include("info_dict.jl")
 include("datasets.jl")
+include("datasets_synthetic.jl")
 include("tasks.jl")
 include("measures/measures.jl")
 include("measures/registry.jl")
