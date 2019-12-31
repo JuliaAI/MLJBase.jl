@@ -5,6 +5,7 @@ export make_blobs, make_circles, make_moons
 
 uniform_sample_in_zero_maxval(p, maxval) = maxval .* (1 .- rand(p))
 uniform_sample_in_minval_maxval(p, minval, maxval) = (maxval-minval) .* rand(p) .+ minval
+uniform_sample_in_minval_maxval(n, p, minval, maxval) = (maxval-minval) .* rand(n, p) .+ minval
 normal_sample(p, mu, var) = mu .+ sqrt(var) .* randn(p)
 
 
@@ -12,7 +13,7 @@ normal_sample(p, mu, var) = mu .+ sqrt(var) .* randn(p)
 Shuffles the rows of an Array `X` and the values of a vector `y` using a randomly
 generated permutation. The same permutation is used to shuffle both `X` and `y`.
 """
-function shuffle_Xy(X, y; random_seed=1234)
+function shuffle_Xy(X, y; random_seed=Random.GLOBAL_RNG)
     Random.seed!(random_seed)
     perm = randperm(length(y))
     return X[perm,:], y[perm]
@@ -22,11 +23,11 @@ end
 """
 make_blobs(n::Int=100;
            p::Int=2,
-           centers=3,
+           centers::Int=3,
            cluster_std=1.0,
            center_box=(-10.,10.),
            element_type=Float64,
-           random_seed=1234,
+           random_seed=Random.GLOBAL_RNG,
            return_centers=false)
 
 Generates a dataset with `n` examples of dimension `p` and returns a vector containing
@@ -40,8 +41,8 @@ The data lives inside `center_box` in the case it is randomly generated.
 - If `return_centers=true` the centroids of the blobs are returned.
 """
 function make_blobs(n::Int=100; p::Int=2,
-                    shuffle::Bool=false, centers=3, cluster_std::Real=1.0, center_box=(-10.,10.),
-                    element_type=Float64, random_seed=1234, return_centers=false, verbose=0)
+                    shuffle::Bool=false, centers::Int=3, cluster_std::Real=1.0, center_box=(-10.,10.),
+                    element_type=Float64, random_seed=Random.GLOBAL_RNG, return_centers=false, verbose=0)
 
     Random.seed!(random_seed)
     X = zeros(n, p)
@@ -49,11 +50,7 @@ function make_blobs(n::Int=100; p::Int=2,
 
     if typeof(centers) <: Int
         n_centers = centers
-        centers = []
-        for c in 1:n_centers
-            center_sample = uniform_sample_in_minval_maxval(p, center_box[1], center_box[2])
-            push!(centers, center_sample)
-        end
+        center_sample = uniform_sample_in_minval_maxval(n, p, center_box[1], center_box[2])
     else
         n_centers = length(centers)
     end
@@ -96,18 +93,15 @@ end
 
 
 """
-make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
+make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
 
 Generates a dataset with `n` bi-dimensional examples. Samples are created
 from two circles. One of the circles inside the other. The `noise` scalar
 can be used to add noise to the generation process. The scalar `factor`
 corresponds to the radius of the smallest circle.
 """
-function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, factor=0.8)
-
-    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
-    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
-
+function make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
+   
     Random.seed!(random_seed)
 
     n_out = div(n, 2)
@@ -130,24 +124,21 @@ function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=1234, fact
 
     X .+= noise .* rand(n, 2)
 
-    return X,y
+    return X, y
 end
 
 
 
 """
-make_moons(n::Int=100; shuffle=true, noise=0.,
-           translation::Int=0.5, factor=1.0, random_seed=1234)
+make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
+           translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
 
 Generates `n` examples sampling from two moons. The `noise` can be changed to add
 noise to the samples.
 """
-function make_moons(n::Int=100; shuffle=true, noise=0.,
-                   translation=0.5, factor=1.0, random_seed=1234)
-
-    @assert 0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
-    @assert 0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
-
+function make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
+                   translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
+   
     Random.seed!(random_seed)
 
     n_out = div(n, 2)
@@ -170,7 +161,7 @@ function make_moons(n::Int=100; shuffle=true, noise=0.,
 
     X .+= noise .* rand(n, 2)
 
-    return X,y
+    return X, y
 end
 
 end #module
