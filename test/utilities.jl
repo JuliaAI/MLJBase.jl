@@ -34,8 +34,7 @@ mutable struct A21
 end
 
 @testset "recursive getproperty, setproperty!" begin
-
-    m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),)) 
+    m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),))
 
     @test MLJBase.recursive_getproperty(m, :(a1.a12)) == 20
     @test MLJBase.recursive_getproperty(m, :a1) == (a11 = 10, a12 = 20)
@@ -49,7 +48,28 @@ end
     @test MLJBase.recursive_getproperty(m, :(a2.a21.a212)) == 42
     @test MLJBase.recursive_getproperty(
         MLJBase.recursive_getproperty(m, :(a2.a21)), :a212) == 42
+end
 
+@testset "shuffle rows" begin
+    # check dims
+    x = randn(5)
+    y = randn(5, 5)
+    z = randn(5, 5)
+    @test MLJBase.check_dimensions(x, y) === nothing
+    @test MLJBase.check_dimensions(z, x) === nothing
+    @test MLJBase.check_dimensions(y, z) === nothing
+    @test_throws DimensionMismatch MLJBase.check_dimensions(x, randn(4))
+
+    x = 1:5 |> collect
+    y = 1:5 |> collect
+    rng = 555
+    Random.seed!(rng)
+    perm = randperm(5)
+    @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm])
+    y = randn(5,5)
+    @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm,:])
+    @test MLJBase.shuffle_rows(z, y; rng=rng) == (z[perm,:], y[perm,:])
+    @test MLJBase.shuffle_rows(x, x; rng=rng) == (x[perm], x[perm])
 end
 
 end # module

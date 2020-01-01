@@ -1,112 +1,107 @@
-module DatasetsSynthetic
+runif_ab(n, p, minval, maxval) = (maxval - minval) .* rand(n, p) .+ minval
+# runif_ab(n, minval, maxval)    = unif_ab(n, 1, minval, maxval)
+# runif_0b(n, maxval)            = unif_ab(n, 1, 0, maxval)
 
-using Random
-export make_blobs, make_circles, make_moons
-
-uniform_sample_in_zero_maxval(p, maxval) = maxval .* (1 .- rand(p))
-uniform_sample_in_minval_maxval(p, minval, maxval) = (maxval-minval) .* rand(p) .+ minval
-normal_sample(p, mu, var) = mu .+ sqrt(var) .* randn(p)
+# rnorm(n, p, mu=0.0, std=1.0) = mu .+ std .* randn(n, p)
 
 
 """
-Shuffles the rows of an Array `X` and the values of a vector `y` using a randomly
-generated permutation. The same permutation is used to shuffle both `X` and `y`.
+make_blobs(n=100, p=2; kwargs...)
+
+Generate gaussian blobs with `n` examples of `p` features.
+Return a `n x p` matrix with the samples and an integer vector indicating the
+membership of each point.
+
+## Keyword arguments
+
+* `shuffle=true`:             whether to shuffle the resulting points,
+* `centers=3`:                either a number of centers or a `c x p` matrix with `c` pre-determined centers,
+* `cluster_std=1.0`:          the standard deviation(s) of each blob,
+* `center_box=(-10. => 10.)`: the limits of the `p`-dimensional cube within which the cluster centers are drawn if they are not provided,
+* `rng=nothing`:              to make the blobs reproducible.
 """
-function shuffle_Xy(X, y; random_seed=Random.GLOBAL_RNG)
-    Random.seed!(random_seed)
-    perm = randperm(length(y))
-    return X[perm,:], y[perm]
-end
-
-
-"""
-make_blobs(n::Int=100;
-           p::Int=2,
-           centers=3,
-           cluster_std=1.0,
-           center_box=(-10.,10.),
-           element_type=Float64,
-           random_seed=Random.GLOBAL_RNG,
-           return_centers=false)
-
-Generates a dataset with `n` examples of dimension `p` and returns a vector containing
-as integers the membership of the different points generated.
-
-The data is roughly grouped around several `centers`  which are created using `cluster_std`.
-The data lives inside `center_box` in the case it is randomly generated.
-
-- If `centers` is an integer the centroids are created randomly.
-- If `centers` is an Array containing points the centroids are picked from `centers`.
-- If `return_centers=true` the centroids of the blobs are returned.
-"""
-function make_blobs(n::Int=100; p::Int=2,
-                    shuffle::Bool=false, centers=3, cluster_std::Real=1.0, center_box=(-10.,10.),
-                    element_type=Float64, random_seed=Random.GLOBAL_RNG, return_centers=false, verbose=0)
-
-    Random.seed!(random_seed)
-    X = zeros(n, p)
-    y = zeros(n)
-
-    if typeof(centers) <: Int
+function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
+                    centers::Union{<:Integer,Matrix{<:Real}}=3,
+                    cluster_std::Union{<:Real,Vector{<:Real}}=1.0,
+                    center_box::Pair{<:Real,<:Real}=(-10.0 => 10.0),
+                    rng=nothing)
+    # check arguments make sense
+    if n < 1 || p < 1
+        throw(ArgumentError(
+            "Expected `n` and `p` to be at least 1."))
+    end
+    if center_box.first >= center_box.second
+        throw(ArgumentError(
+            "Domain for the centers improperly defined expected a pair " *
+            "`a => b` with `a < b`."))
+    end
+    if centers isa Matrix
+        if size(centers, 2) != p
+            throw(ArgumentError(
+                "The centers provided have dimension ($(size(centers, 2))) " *
+                "that doesn't match the one specified ($(p))."))
+        end
+        n_centers = size(centers, 1)
+    else
+        # in case the centers aren't provided, draw them from the box
         n_centers = centers
-        centers = []
-        for c in 1:n_centers
-            center_sample = uniform_sample_in_minval_maxval(p, center_box[1], center_box[2])
-            push!(centers, center_sample)
+        centers   = runif_ab(n_centers, p, center_box...)
+    end
+    if cluster_std isa Vector
+        if length(cluster_std) != n_centers
+            throw(ArgumentError(
+                "$(length(cluster_std)) standard deviations given but there " *
+                "are $(n_centers) centers."))
+        end
+        if any(cluster_std .<= 0)
+            throw(ArgumentError(
+                "Cluster(s) standard deviation(s) must be positive."))
         end
     else
-        n_centers = length(centers)
+        # In case only one std is given, repeat it for each center
+        cluster_std = fill(cluster_std, n_centers)
     end
 
-    if typeof(cluster_std) <: AbstractFloat
-        cluster_std = cluster_std * randn(n_centers)
+    rng === nothing || Random.seed!(rng)
+
+    # split points equally among centers
+    ni, r    = divrem(n, n_centers)
+    ns       = fill(ni, n_centers)
+    ns[end] += r
+
+    # vector of memberships
+    y = vcat((fill(i, ni) for (i, ni) in enumerate(ns))...)
+
+    # Pre-generate random points then modify for each center
+    X    = randn(n, p)
+    nss  = [1, cumsum(ns)...]
+    # ranges of rows for each center
+    rows = [nss[i]:nss[i+1] for i in 1:n_centers]
+    @inbounds for c in 1:n_centers
+        Xc = view(X, rows[c], :)
+        # adjust standard deviation
+        Xc .*= cluster_std[c]
+        # adjust center
+        Xc .+= centers[c, :]'
     end
 
-    # generates div(n, n_centers) examples assigned to each center
-    n_per_center = [div(n, n_centers) for x  in 1:n_centers]
+    shuffle && return shuffle_rows(X, y)
 
-    # adds the reamainding examples to each center up to n
-    n_per_center = fill(div(n,n_centers), n_centers)
-    n_per_center[end] += rem(n,n_centers)
-
-    # generates the actual vectors close to each center blob
-    start_ind = 1
-    for (i, (n_blob, std, center)) in enumerate(zip(n_per_center, cluster_std, centers))
-        ind_center = start_ind:(start_ind + n_per_center[i]-1)
-        X[ind_center,:] .= center' .+ std .* randn(element_type, (n_per_center[i], p));
-        y[ind_center] .= i
-        if verbose>0
-            println("center $i with $(n_per_center[i]) points created")
-        end
-        start_ind += n_per_center[i]
-    end
-
-    if shuffle
-       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
-    end
-
-    if return_centers
-        return X, y, centers
-    else
-        return X, y
-    end
+    return X, y
 end
 
 
 
 
 """
-make_circles(n::Int=100; shuffle=true, noise=0., random_seed=Random.GLOBAL_RNG, factor=0.8)
+make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
 
 Generates a dataset with `n` bi-dimensional examples. Samples are created
 from two circles. One of the circles inside the other. The `noise` scalar
 can be used to add noise to the generation process. The scalar `factor`
 corresponds to the radius of the smallest circle.
 """
-function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=Random.GLOBAL_RNG, factor=0.8)
-
-    0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
-    0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
+function make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
 
     Random.seed!(random_seed)
 
@@ -130,23 +125,20 @@ function make_circles(n::Int=100; shuffle=true, noise=0., random_seed=Random.GLO
 
     X .+= noise .* rand(n, 2)
 
-    return X,y
+    return X, y
 end
 
 
 
 """
-make_moons(n::Int=100; shuffle=true, noise=0.,
-           translation::Int=0.5, factor=1.0, random_seed=Random.GLOBAL_RNG)
+make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
+           translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
 
 Generates `n` examples sampling from two moons. The `noise` can be changed to add
 noise to the samples.
 """
-function make_moons(n::Int=100; shuffle=true, noise=0.,
-                   translation=0.5, factor=1.0, random_seed=Random.GLOBAL_RNG)
-
-    0 <= factor <=1  || throw(ArgumentError("factor should be in [0,1]"))
-    0 <= noise  || throw(ArgumentError("noise should be in [0,inf)"))
+function make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
+                   translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
 
     Random.seed!(random_seed)
 
@@ -170,7 +162,5 @@ function make_moons(n::Int=100; shuffle=true, noise=0.,
 
     X .+= noise .* rand(n, 2)
 
-    return X,y
+    return X, y
 end
-
-end #module
