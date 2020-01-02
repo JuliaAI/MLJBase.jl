@@ -330,6 +330,8 @@ Broadcasted versions of `int`.
 
 See also: [`decoder`](@ref).
 """
+int(x) = throw(DomainError(x, "Can only convert categorical "*
+                     "elements to integers. "))
 int(x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
 int(x::Missing) = missing
 int(A::AbstractArray) = broadcast(int, A)

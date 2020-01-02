@@ -156,7 +156,9 @@ end
     @test corestrict(X, f, 3) == [10, 20, 30, 80, 90, 100]
 end
 
-@testset "categorical element decoder, classes " begin
+@testset "categorical element decoder, classes, int " begin
+
+    @test_throws DomainError int("g")
 
     N = 10
     mix = shuffle(0:N - 1)
