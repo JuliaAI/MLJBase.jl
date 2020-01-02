@@ -33,13 +33,23 @@ using Statistics
     @test_throws ArgumentError make_blobs(n, p; centers=2, cluster_std=[0,1])
 end
 
-@testset "make_circles Tests" begin
+@testset "make_circles" begin
     n = 55
-    X, y = DatasetsSynthetic.make_circles(n)
+    X, y = make_circles(n)
     @test (n, 2) == size(X)
     @test n == length(y)
     @test 2 == length(unique(y))
-end;
+
+    # specific arguments
+    X, y = make_circles(150; shuffle=false, noise=0.4, factor=0.2, rng=55)
+    @test sum(y .== 0) < sum(y .== 1)
+
+    # Errors
+    @test_throws ArgumentError make_circles(-1)
+    @test_throws ArgumentError make_circles(; noise=-1)
+    @test_throws ArgumentError make_circles(; factor=5)
+    @test_throws ArgumentError make_circles(; factor=0)
+end
 
 @testset "make_moons Tests" begin
     n = 55

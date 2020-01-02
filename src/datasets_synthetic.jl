@@ -1,15 +1,16 @@
-runif_ab(n, p, minval, maxval) = (maxval - minval) .* rand(n, p) .+ minval
-# runif_ab(n, minval, maxval)    = unif_ab(n, 1, minval, maxval)
-# runif_0b(n, maxval)            = unif_ab(n, 1, 0, maxval)
+"""
+runif_ab(n, p, a, b)
 
-# rnorm(n, p, mu=0.0, std=1.0) = mu .+ std .* randn(n, p)
+Internal function to generate `n` points in `[a, b]ᵖ` uniformly at random.
+"""
+runif_ab(n, p, a, b) = (b - a) .* rand(n, p) .+ a
 
 
 """
 make_blobs(n=100, p=2; kwargs...)
 
-Generate gaussian blobs with `n` examples of `p` features.
-Return a `n x p` matrix with the samples and an integer vector indicating the
+Generate gaussian blobs with `n` examples of `p` features. The function returns
+a `n x p` matrix with the samples and a `n` integer vector indicating the
 membership of each point.
 
 ## Keyword arguments
@@ -18,7 +19,13 @@ membership of each point.
 * `centers=3`:                either a number of centers or a `c x p` matrix with `c` pre-determined centers,
 * `cluster_std=1.0`:          the standard deviation(s) of each blob,
 * `center_box=(-10. => 10.)`: the limits of the `p`-dimensional cube within which the cluster centers are drawn if they are not provided,
-* `rng=nothing`:              to make the blobs reproducible.
+* `rng=nothing`:              specify a number to make the blobs reproducible.
+
+## Example
+
+```
+X, y = make_blobs(100, 3; centers=2, cluster_std=[1.0, 3.0])
+```
 """
 function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
                     centers::Union{<:Integer,Matrix{<:Real}}=3,
@@ -62,6 +69,7 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
         cluster_std = fill(cluster_std, n_centers)
     end
 
+    # Seed the random number generator if required
     rng === nothing || Random.seed!(rng)
 
     # split points equally among centers
@@ -85,45 +93,64 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
         Xc .+= centers[c, :]'
     end
 
-    shuffle && return shuffle_rows(X, y)
+    # Shuffle the rows if required
+    shuffle && return shuffle_rows(X, y; rng=rng)
 
     return X, y
 end
 
 
+"""
+make_circles(n=100; kwargs...)
 
+Generate `n` points in two circumscribed circles returning the `n x 2` matrix
+of points and a vector of membership (0, 1) depending on whether the points are inside (0) or outside (1) the smaller circle.
+
+## Keyword arguments
+
+* `shuffle=true`:   whether to shuffle the resulting points,
+* `noise=0`:        standard deviation of the gaussian noise added to the data,
+* `factor=0.8`:     ratio of the smaller radius over the larger one,
+* `rng=nothing`:    specify a number to make the blobs reproducible.
 
 """
-make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
-
-Generates a dataset with `n` bi-dimensional examples. Samples are created
-from two circles. One of the circles inside the other. The `noise` scalar
-can be used to add noise to the generation process. The scalar `factor`
-corresponds to the radius of the smallest circle.
-"""
-function make_circles(n::Int=100; shuffle::Bool=true, noise::Number=0., random_seed=Random.GLOBAL_RNG, factor::Number=0.8)
-
-    Random.seed!(random_seed)
-
-    n_out = div(n, 2)
-    n_in = n - n_out
-
-    linrange_out = Array(LinRange(0, 2 * pi, n_out))
-    linrange_in  = Array(LinRange(0, 2 * pi, n_in))
-
-    outer_circ_x = cos.(linrange_out)
-    outer_circ_y = sin.(linrange_out)
-    inner_circ_x = cos.(linrange_in) .* factor
-    inner_circ_y = sin.(linrange_in) .* factor
-
-    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
-    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
-
-    if shuffle
-       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
+function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
+                      factor::Real=0.8, rng=nothing)
+    # NOTE: the implementation is a bit different than in
+    # sklearn in that here, the points are generated on the
+    # larger circle and membership is determined based  on the
+    # radius. So if `factor` is close to 1 or close to 0 then
+    # the dataset is imbalanced.
+    #  -------------------------
+    # check arguments make sense
+    if n < 1
+        throw(ArgumentError(
+            "Expected `n` to be at least 1."))
+    end
+    if noise < 0
+        throw(ArgumentError(
+            "Noise argument cannot be negative."))
+    end
+    if !(0 < factor < 1)
+        throw(ArgumentError(
+            "Factor argument must be strictly between 0 and 1."))
     end
 
-    X .+= noise .* rand(n, 2)
+    rng === nothing || Random.seed!(rng)
+
+    # Generate points in a 2D circle (not uniformly but we don't care)
+    rs = runif_ab(n, 1, eps(), 1)
+    θs = runif_ab(n, 1, 0, 2pi)
+    xs = rs .* cos.(θs)
+    ys = rs .* sin.(θs)
+    X  = hcat(xs, ys)
+    y  = Int.(rs .> factor)
+
+    if !iszero(noise)
+        X .+= noise .* randn(n, 2)
+    end
+
+    shuffle && return shuffle_rows(X, y; rng=rng)
 
     return X, y
 end
