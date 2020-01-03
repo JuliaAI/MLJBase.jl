@@ -13,7 +13,7 @@ const MEASURE_TRAITS =
 # supports_weights  - fallback value = false
 # prediction_type   - fallback value = :unknown (also: :deterministic,
 #                                           :probabilistic, :interval)
-# docstring         - fallback value is value of `name` trait. 
+# docstring         - fallback value is value of `name` trait.
 
 # specfic to measures:
 orientation(::Type) = :loss  # other options are :score, :other
@@ -82,19 +82,7 @@ value(measure, yhat, X, y, w, ::Val{true}, ::Val{true}) = measure(yhat, X, y, w)
 value(measure, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = measure(yhat, X, y)
 
 
-## HELPERS
-
-"""
-    check_dimension(ŷ, y)
-
-Check that two vectors have compatible dimensions
-"""
-function check_dimensions(ŷ::AbstractVector, y::AbstractVector)
-    length(y) == length(ŷ) ||
-        throw(DimensionMismatch("Differing numbers of observations and "*
-                                "predictions. "))
-    return nothing
-end
+## helper
 
 function check_pools(ŷ, y)
     levels(y) == levels(ŷ[1]) ||

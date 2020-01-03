@@ -10,7 +10,7 @@ end
 
 function UnsupervisedTask(; data=nothing, ignore=Symbol[], verbosity=1)
 
-    @warn "UnsupervisedTask is deprecated. For model search options, "*
+    verbosity == -1 || @warn "UnsupervisedTask is deprecated. For model search options, "*
     "see "*
     "https://alan-turing-institute.github.io/MLJ.jl/dev/model_search/"
 
@@ -100,7 +100,7 @@ function SupervisedTask(X, y::AbstractVector;
                         target=:target,
                         verbosity=1)
 
-    @warn "SupervisedTask is deprecated. For model search options, "*
+    verbosity == -1 || @warn "SupervisedTask is deprecated. For model search options, "*
     "see "*
     "https://alan-turing-institute.github.io/MLJ.jl/dev/model_search/"
 

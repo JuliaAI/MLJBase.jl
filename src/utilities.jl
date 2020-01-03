@@ -174,3 +174,40 @@ function recursive_setproperty!(obj, ex::Expr, value)
     last_obj = recursive_getproperty(obj, subex)
     return recursive_setproperty!(last_obj, field, value)
 end
+
+"""
+    check_dimension(X, Y)
+
+Check that two vectors or matrices have matching dimensions
+"""
+function check_dimensions(X::AbstractVecOrMat, Y::AbstractVecOrMat)
+    size(X, 1) == size(Y, 1) ||
+        throw(DimensionMismatch("The two objects don't have the same " *
+                                "number of rows."))
+    return nothing
+end
+
+"""
+_permute_rows(obj, perm)
+
+Internal function to return a vector or matrix with permuted rows given
+the permutation `perm`.
+"""
+function _permute_rows(obj::AbstractVecOrMat, perm::Vector{Int})
+    check_dimensions(obj, perm)
+    obj isa AbstractVector && return obj[perm]
+    obj[perm, :]
+end
+
+"""
+shuffle_rows(X, Y, ...; rng=)
+
+Return a shuffled view of a vector or  matrix `X` (or set of such) using a
+random permutation (which can be seeded specifying `rng`).
+"""
+function shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng=nothing)
+    check_dimensions(X, Y)
+    rng === nothing || Random.seed!(rng)
+    perm = randperm(size(X, 1))
+    return _permute_rows(X, perm), _permute_rows(Y, perm)
+end
