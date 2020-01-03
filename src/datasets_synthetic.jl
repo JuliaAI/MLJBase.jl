@@ -1,3 +1,5 @@
+### CLASSIFICATION TOY DATASETS
+
 """
 runif_ab(n, p, a, b)
 
@@ -103,25 +105,24 @@ end
 """
 make_circles(n=100; kwargs...)
 
-Generate `n` points in two circumscribed circles returning the `n x 2` matrix
-of points and a vector of membership (0, 1) depending on whether the points are inside (0) or outside (1) the smaller circle.
+Generate `n` points along two circumscribed circles returning the `n x 2`
+matrix of points and a vector of membership (0, 1) depending on whether the points are on the smaller circle (0) or the larger one (1).
 
 ## Keyword arguments
 
 * `shuffle=true`:   whether to shuffle the resulting points,
 * `noise=0`:        standard deviation of the gaussian noise added to the data,
 * `factor=0.8`:     ratio of the smaller radius over the larger one,
-* `rng=nothing`:    specify a number to make the blobs reproducible.
+* `rng=nothing`:    specify a number to make the points reproducible.
 
+## Example
+
+```
+X, y = make_circles(100; noise=0.5, factor=0.3)
+```
 """
 function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
                       factor::Real=0.8, rng=nothing)
-    # NOTE: the implementation is a bit different than in
-    # sklearn in that here, the points are generated on the
-    # larger circle and membership is determined based  on the
-    # radius. So if `factor` is close to 1 or close to 0 then
-    # the dataset is imbalanced.
-    #  -------------------------
     # check arguments make sense
     if n < 1
         throw(ArgumentError(
@@ -138,13 +139,16 @@ function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
 
     rng === nothing || Random.seed!(rng)
 
-    # Generate points in a 2D circle (not uniformly but we don't care)
-    rs = runif_ab(n, 1, eps(), 1)
+    # Generate points on a 2D circle
     θs = runif_ab(n, 1, 0, 2pi)
-    xs = rs .* cos.(θs)
-    ys = rs .* sin.(θs)
-    X  = hcat(xs, ys)
-    y  = Int.(rs .> factor)
+
+    n0 = div(n, 2)
+
+    X = hcat(cos.(θs), sin.(θs))
+    X[1:n0, :] .*= factor
+
+    y = ones(Int, n)
+    y[1:n0] .= 0
 
     if !iszero(noise)
         X .+= noise .* randn(n, 2)
@@ -156,38 +160,76 @@ function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
 end
 
 
-
 """
-make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
-           translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
+make_moons(n::Int=100; kwargs...)
 
-Generates `n` examples sampling from two moons. The `noise` can be changed to add
-noise to the samples.
+Generates `n` examples sampling from two interleaved half-circles returning
+the `n x 2` matrix of points and a vector of membership (0, 1) depending on
+whether the points are on the half-circle on the left (0) or on the right (1).
+
+## Keyword arguments
+
+* `shuffle=true`:   whether to shuffle the resulting points,
+* `noise=0.1`:      standard deviation of the gaussian noise added to the data,
+* `xshift=1.0`:     horizontal translation of the second center with respect to
+                    the first one.
+* `yshift=0.3`:     vertical translation of the second center with respect to
+                    the first one.
+* `rng=nothing`:    specify a number to make the points reproducible.
+
+## Example
+
+```
+X, y = make_moons(100; noise=0.5)
+```
 """
-function make_moons(n::Int=100; shuffle::Bool=true, noise::Number=0.,
-                   translation::Number=0.5, factor::Number=1.0, random_seed=Random.GLOBAL_RNG)
-
-    Random.seed!(random_seed)
-
-    n_out = div(n, 2)
-    n_in = n - n_out
-
-    linrange_out = Array(LinRange(0, pi, n_out))
-    linrange_in  = Array(LinRange(0, pi, n_in))
-
-    outer_circ_x = cos.(linrange_out)
-    outer_circ_y = sin.(linrange_out)
-    inner_circ_x = 1 .- cos.(linrange_in) .* factor
-    inner_circ_y = 1 .- sin.(linrange_in) .* factor .- translation
-
-    X = hcat(vcat(outer_circ_x, inner_circ_x), vcat(outer_circ_y, inner_circ_y))
-    y = vcat(ones(Int,n_out), 2*ones(Int,n_in))
-
-    if shuffle
-       X, y = shuffle_Xy(X, y ; random_seed=random_seed)
+function make_moons(n::Int=150; shuffle::Bool=true, noise::Real=0.1,
+                   xshift::Real=1.0, yshift::Real=0.3, rng=nothing)
+    # check arguments make sense
+    if n < 1
+        throw(ArgumentError(
+            "Expected `n` to be at least 1."))
+    end
+    if noise < 0
+        throw(ArgumentError(
+            "Noise argument cannot be negative."))
     end
 
-    X .+= noise .* rand(n, 2)
+    rng === nothing || Random.seed!(rng)
+
+    n1 = div(n, 2)
+    n2 = n - n1
+
+    θs = runif_ab(n, 1, 0, pi)
+    θs[n2+1:end] .*= -1
+
+    X = hcat(cos.(θs), sin.(θs))
+
+    X[n2+1:end, 1] .+= xshift
+    X[n2+1:end, 2] .+= yshift
+
+    y = ones(Int, n)
+    y[1:n1] .= 0
+
+    if !iszero(noise)
+        X .+= noise .* randn(n, 2)
+    end
+
+    shuffle && return shuffle_rows(X, y; rng=rng)
 
     return X, y
 end
+
+
+### REGRESSION TOY DATASETS
+
+
+function make_regression(n, p; intercept::Bool=true, rng=nothing)
+    rng === nothing || Random.seed!(rng)
+    X = randn(n, p)
+
+end
+
+# XXX  tests
+# -- augment_X
+# -- make_regression

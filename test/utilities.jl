@@ -2,6 +2,7 @@ module TestUtilities
 
 using Test
 using MLJBase
+using Random
 
 @test MLJBase.finaltypes(Union{Missing,Int}) == [Union{Missing,Int64}]
 @test MLJBase.finaltypes(Float64) == [Float64]

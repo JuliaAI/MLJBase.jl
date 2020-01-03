@@ -211,3 +211,15 @@ function shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng=nothing)
     perm = randperm(size(X, 1))
     return _permute_rows(X, perm), _permute_rows(Y, perm)
 end
+
+
+"""
+augment_X(X, fit_intercept)
+
+Given a matrix `X`, append a column of ones if `fit_intercept` is true.
+See [`make_regression`](@ref).
+"""
+function augment_X(X::Matrix{<:Real}, fit_intercept::Bool)
+	fit_intercept || return X
+	return hcat(X, ones(eltype(X), size(X, 1)))
+end

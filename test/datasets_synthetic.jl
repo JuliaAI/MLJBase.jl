@@ -41,8 +41,10 @@ end
     @test 2 == length(unique(y))
 
     # specific arguments
-    X, y = make_circles(150; shuffle=false, noise=0.4, factor=0.2, rng=55)
-    @test sum(y .== 0) < sum(y .== 1)
+    X, y = make_circles(150; shuffle=false, noise=0.01, factor=0.2, rng=55)
+    rs = sqrt.(sum(X.^2, dims=2))
+    @test all(0.15 .< rs[y.==0] .< 0.25)
+    @test all(0.95 .< rs[y.==1] .< 1.05)
 
     # Errors
     @test_throws ArgumentError make_circles(-1)
@@ -53,11 +55,20 @@ end
 
 @testset "make_moons Tests" begin
     n = 55
-    X, y = DatasetsSynthetic.make_moons(n)
+    X, y = make_moons(n)
     @test (n, 2) == size(X)
     @test n == length(y)
     @test 2 == length(unique(y))
-end;
+
+    # specific arguments
+    X, y = make_moons(50; shuffle=false, noise=0.5, xshift=0.3, yshift=0.2,
+                           rng=455)
+    @test length(unique(y)) == 2
+
+    # Errors
+    @test_throws ArgumentError make_moons(-1)
+    @test_throws ArgumentError make_moons(noise=-1)
+end
 
 end # module
 true
