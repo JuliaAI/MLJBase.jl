@@ -261,7 +261,7 @@ A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
 X = CategoricalArrays.categorical(A)
 
 df = DataFrame(A)
-tt = TypedTables.Table(df)
+
 # uncomment 4 lines to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 # nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
@@ -269,6 +269,8 @@ tt = TypedTables.Table(df)
 
 df.z  = 1:10
 tt = TypedTables.Table(df)
+rt = Tables.rowtable(tt)
+ct = Tables.columntable(tt)
 # uncomment 1 line to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 
@@ -293,6 +295,15 @@ s = schema(df)
 @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
 @test nrows(tt) == length(tt.x1)
 @test select(tt, 2, :x2) == tt.x2[2]
+
+@test selectrows(rt, 4:6) == rt[4:6]
+@test selectrows(rt, :) == rt
+@test selectrows(rt, 5) == view(rt, 5)
+
+@test Tables.rowtable(selectrows(ct, 4:6)) == rt[4:6]
+@test selectrows(ct, :) == ct
+@test Tables.rowtable(selectrows(ct, 5))[1] == view(rt, 5)[1]
+
 
 @testset "vector accessors" begin
     v = rand(Int, 4)

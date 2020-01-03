@@ -1,3 +1,13 @@
+## POOR MAN'S TYPE CHECKS (HACK)
+
+# This is being used for temporary optimization of selectrows for:
+
+# - DataFrames
+
+typename(X) = split(string(supertype(typeof(X)).name), '.')[end]
+isdataframe(X) = typename(X) == "AbstractDataFrame"
+
+
 ## SPLITTING DATA SETS
 
 # Helper function for partitioning in the non-stratified case
@@ -546,6 +556,9 @@ end
 
 # multiple rows (using columntable):
 function selectrows(::Val{:table}, X, r::Union{Colon,AbstractVector{<:Integer}})
+    # next uncommented lines are a hack; see
+    # https://github.com/alan-turing-institute/MLJBase.jl/issues/151
+    isdataframe(X) && return X[r,:] 
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple([c[r] for c in values(cols)]...))
     return Tables.materializer(X)(new_cols)
@@ -553,10 +566,35 @@ end
 
 # single row (using columntable):
 function selectrows(::Val{:table}, X, r::Integer)
+    # next ucommented line is a hack; see
+    # https://github.com/alan-turing-institute/MLJBase.jl/issues/151
+    isdataframe(X) && return X[r:r,:]
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple([c[r:r] for c in values(cols)]...))
     return Tables.materializer(X)(new_cols)
 end
+
+
+## PERFORMANCE IMPROVEMENT FOR JULIA NATIVE ROW TABLES
+
+const RowTable =
+    AbstractVector{NamedTuple{Names,Types}} where {Names,Types}
+
+selectrows(X::RowTable, r) = view(X, r)
+
+
+## PERFORMANCE IMPROVEMENT FOR JULIA NATIVE COLUMN TABLES
+
+const ColumnTable{names} =
+    NamedTuple{names,<:NTuple{N, AbstractArray{T,M} where T}} where {names,N,M}
+
+selectrows(X::ColumnTable, ::Colon) = X
+function selectrows(X::ColumnTable{names}, r)
+    raw_tuple = Tuple(view(getproperty(X, name), r) for name in names)
+    return NamedTuple{Names}(raw_tuple)
+end
+
+
 
 ## ALTERNATIVE CODE FOR PREVIOUS TWO FUNCTIONS.
 ## ROWTABLE SELECTION OF ROWS INSTEAD OF COLUMNTABLE SELECTION
@@ -572,7 +610,8 @@ end
 #     return Tables.materializer(X)([rows[r]])
 # end
 
-select(::Val{:table}, X, r::Integer, c::Symbol) = selectcols(selectrows(X, r), c)[1]
+select(::Val{:table}, X, r::Integer, c::Symbol) =
+    selectcols(selectrows(X, r), c)[1]
 select(::Val{:table}, X, r::Integer, c) = selectcols(selectrows(X, r), c)
 select(::Val{:table}, X, r, c::Symbol) = selectcols(X, c)[r]
 select(::Val{:table}, X, r, c) = selectcols(selectrows(X, r), c)
