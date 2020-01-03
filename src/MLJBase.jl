@@ -68,7 +68,8 @@ export NodalMachine,  machines, source, node,sources, origins,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
 
 # datasets_synthetics.jl
-export make_blobs, make_moons, make_circles
+export make_blobs, make_moons, make_circles,
+       make_regression
 
 # composites.jl:
 export machines, sources, anonymize!, @from_network, fitresults
