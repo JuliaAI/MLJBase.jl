@@ -42,9 +42,10 @@ end
     @test include("datasets_synthetic.jl")
 end
 
-@testset "tasks" begin
-    @test include("tasks.jl")
-end
+# Now obsolete -- see #144
+# @testset "tasks" begin
+#     @test include("tasks.jl")
+# end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
