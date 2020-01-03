@@ -126,7 +126,8 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 export trait, Scientific, Found, Unknown, Finite, Infinite,
     OrderedFactor, Multiclass, Count, Continuous,
     Binary, ColorImage, GrayImage, Image,
-    scitype, scitype_union, coerce, schema, elscitype, info
+    scitype, scitype_union, coerce, coerce!,
+    schema, elscitype, info
 
 # re-xport from Random, StatsBase, Statistics, Distributions, CategoricalArrays,
 # InvertedIndices:
