@@ -67,6 +67,10 @@ export machine, Machine, AbstractMachine, fit!, report
 export NodalMachine,  machines, source, node,sources, origins,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
 
+# datasets_synthetics.jl
+export make_blobs, make_moons, make_circles,
+       make_regression
+
 # composites.jl:
 export machines, sources, anonymize!, @from_network, fitresults
 
@@ -122,7 +126,8 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 export trait, Scientific, Found, Unknown, Finite, Infinite,
     OrderedFactor, Multiclass, Count, Continuous,
     Binary, ColorImage, GrayImage, Image,
-    scitype, scitype_union, coerce, schema, elscitype, info
+    scitype, scitype_union, coerce, coerce!,
+    schema, elscitype, info
 
 # re-xport from Random, StatsBase, Statistics, Distributions, CategoricalArrays,
 # InvertedIndices:
@@ -144,7 +149,7 @@ import InvertedIndices: Not
 
 # to be extended:
 import StatsBase
-import StatsBase: fit, predict, fit!, mode
+import StatsBase: fit, predict, fit!, mode, countmap
 import Missings.levels
 import Distributions
 import Distributions: pdf
@@ -308,6 +313,7 @@ include("distributions.jl")
 
 include("info_dict.jl")
 include("datasets.jl")
+include("datasets_synthetic.jl")
 include("tasks.jl")
 include("measures/measures.jl")
 include("measures/registry.jl")

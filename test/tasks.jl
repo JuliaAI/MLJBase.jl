@@ -1,6 +1,5 @@
 module TestTasks
 
-# using Revise
 using Test
 using MLJBase
 
@@ -21,7 +20,7 @@ XX = (Crim = [0.00632, 0.02731, 0.02729],
 
 allnames = collect(MLJBase.schema(XX).names)
 
-task = SupervisedTask(data=XX, target=[:Crim, :Zn], is_probabilistic=true, ignore=:Dis)
+task = SupervisedTask(data=XX, target=[:Crim, :Zn], is_probabilistic=true, ignore=:Dis, verbosity=-1)
 
 y = y_(task);
 X = X_(task);
@@ -32,7 +31,7 @@ end
 y1 = [(XX.Crim[i], XX.Zn[i]) for i in 1:length(y)];
 @test y == y1
 
-task = SupervisedTask(data=XX, target=:Crim, is_probabilistic=true, ignore=[:Dis, :Rm])
+task = SupervisedTask(data=XX, target=:Crim, is_probabilistic=true, ignore=[:Dis, :Rm], verbosity=-1)
 y = y_(task);
 X = X_(task);
 t = MLJBase.schema(X)
@@ -40,14 +39,14 @@ t = MLJBase.schema(X)
     !(ftr in [:Crim, :Dis, :Rm])
 end
 
-task = UnsupervisedTask(data=XX, ignore=[:Dis, :Rm])
+task = UnsupervisedTask(data=XX, ignore=[:Dis, :Rm], verbosity=-1)
 X = task();
 t = MLJBase.schema(X)
 @test collect(t.names) == filter(allnames) do ftr
     !(ftr in [:Dis, :Rm])
 end
 
-task = UnsupervisedTask(data=XX, ignore=:Rm)
+task = UnsupervisedTask(data=XX, ignore=:Rm, verbosity=-1)
 X = X_(task);
 t = MLJBase.schema(X)
 @test collect(t.names) == filter(allnames) do ftr
@@ -55,9 +54,9 @@ t = MLJBase.schema(X)
 end
 
 # single feature for input:
-task = UnsupervisedTask(data=(Crim=XX.Crim,))
+task = UnsupervisedTask(data=(Crim=XX.Crim,), verbosity=-1)
 @test task.X == XX.Crim
-task = SupervisedTask(data=MLJBase.selectcols(XX, [:Crim, :Zn]), target=:Zn, is_probabilistic=true)
+task = SupervisedTask(data=MLJBase.selectcols(XX, [:Crim, :Zn]), target=:Zn, is_probabilistic=true, verbosity=-1)
 @test task.X == XX.Crim
 @test task.y == XX.Zn
 

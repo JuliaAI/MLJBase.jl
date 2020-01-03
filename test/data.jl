@@ -39,6 +39,61 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     train, test = partition(1:100, 0.9, shuffle=false, rng=1)
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
+
+    # with stratification
+    y = ones(Int, 1000)
+    y[end-100:end] .= 0; # 90%
+
+    train, test = partition(eachindex(y), 0.8, stratify=y, rng=34)
+    @test isapprox(sum(y[train])/length(train), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[test])/length(test), 0.9, rtol=1e-2)
+
+    s1, s2, s3 = partition(eachindex(y), 0.3, 0.6, stratify=y, rng=345)
+    @test isapprox(sum(y[s1])/length(s1), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[s2])/length(s2), 0.9, rtol=1e-2)
+    @test isapprox(sum(y[s3])/length(s3), 0.9, rtol=1e-2)
+
+    y = ones(Int, 1000)
+    y[end-500:end-200] .= 2
+    y[end-200+1:end] .= 3
+    p1 = sum(y .== 1) / length(y) # 0.5
+    p2 = sum(y .== 2) / length(y) # 0.3
+    p3 = sum(y .== 3) / length(y) # 0.2
+
+    s1, s2, s3 = partition(eachindex(y), 0.3, 0.6, stratify=y, rng=111)
+    # overkill test...
+    for s in (s1, s2, s3)
+        for (i, p) in enumerate((p1, p2, p3))
+            @test isapprox(sum(y[s] .== i)/length(s), p, rtol=1e-2)
+        end
+    end
+
+    # it should work with missing values though maybe not recommended...
+    y = ones(Union{Missing,Int}, 1000)
+    y[end-600:end-550] .= missing
+    y[end-500:end-200] .= 2
+    y[end-200+1:end] .= 3
+    p1 = sum(skipmissing(y) .== 1) / length(y) # 0.45
+    p2 = sum(skipmissing(y) .== 2) / length(y) # 0.3
+    p3 = sum(skipmissing(y) .== 3) / length(y) # 0.2
+    pm = sum(ismissing.(y)) / length(y)        # 0.05
+
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y, rng=11)
+    for s in (s1, s2)
+        for (i, p) in enumerate((p1, p2, p3))
+            @test isapprox(sum(y[s] .=== i)/length(s), p, rtol=1e-2)
+        end
+        @test isapprox(sum(ismissing.(y[s]))/length(s), pm, rtol=1e-1)
+    end
+
+    # test ordering is preserved if no shuffle
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y)
+    @test issorted(s1)
+    @test issorted(s2)
+
+    s1, s2 = partition(eachindex(y), 0.7, stratify=y, shuffle=true)
+    @test !issorted(s1)
+    @test !issorted(s2)
 end
 
 @testset "unpack" begin
@@ -101,7 +156,9 @@ end
     @test corestrict(X, f, 3) == [10, 20, 30, 80, 90, 100]
 end
 
-@testset "categorical element decoder, classes " begin
+@testset "categorical element decoder, classes, int " begin
+
+    @test_throws DomainError int("g")
 
     N = 10
     mix = shuffle(0:N - 1)
@@ -204,7 +261,7 @@ A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
 X = CategoricalArrays.categorical(A)
 
 df = DataFrame(A)
-tt = TypedTables.Table(df)
+
 # uncomment 4 lines to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 # nd = ndsparse((document=[6, 1, 1, 2, 3, 4],
@@ -212,6 +269,8 @@ tt = TypedTables.Table(df)
 
 df.z  = 1:10
 tt = TypedTables.Table(df)
+rt = Tables.rowtable(tt)
+ct = Tables.columntable(tt)
 # uncomment 1 line to restore JuliaDB testing:
 # db = JuliaDB.table(tt)
 
@@ -236,6 +295,15 @@ s = schema(df)
 @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
 @test nrows(tt) == length(tt.x1)
 @test select(tt, 2, :x2) == tt.x2[2]
+
+@test selectrows(rt, 4:6) == rt[4:6]
+@test selectrows(rt, :) == rt
+@test selectrows(rt, 5) == view(rt, 5)
+
+@test Tables.rowtable(selectrows(ct, 4:6)) == rt[4:6]
+@test selectrows(ct, :) == ct
+@test Tables.rowtable(selectrows(ct, 5))[1] == view(rt, 5)[1]
+
 
 @testset "vector accessors" begin
     v = rand(Int, 4)

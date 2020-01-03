@@ -4,7 +4,30 @@
 # >> BriersScore
 # ---------------------------------------------------
 
-struct CrossEntropy <: Measure end
+"""
+    ce = CrossEntropy(; eps=eps())
+    ce(ŷ, y)
+
+Given an abstract vector of distributions `ŷ` and an abstract vector
+of true observations `y`, return the corresponding Cross-Entropy
+loss (aka log loss) scores.
+
+Since the score is undefined in the case of the true observation has
+predicted probability zero, probablities are clipped between `eps` and `1-eps`
+where `eps` can be specified.
+
+If `sᵢ` is the predicted probability for the true class `yᵢ` then
+the score for that example is given by
+
+``-log(clamp(sᵢ, eps, 1-eps))``
+
+For more information, run `info(cross_entropy)`.
+"""
+
+struct CrossEntropy{R} <: Measure where R <: AbstractFloat
+    eps::R
+end
+CrossEntropy(;eps=eps()) = CrossEntropy(eps)
 
 """
 cross_entropy(ŷ, y::AbstractVector{<:Finite})
@@ -19,7 +42,7 @@ For more information, run `info(cross_entropy)`.
 cross_entropy = CrossEntropy()
 name(::Type{<:CrossEntropy}) = "cross_entropy"
 docstring(::Type{<:CrossEntropy}) =
-    "Cross entropy loss; aliases: `cross_entropy`"
+    "Cross entropy loss with probabilities clamped between eps and 1-eps; aliases: `cross_entropy`"
 target_scitype(::Type{<:CrossEntropy}) = AbstractVector{<:Finite}
 prediction_type(::Type{<:CrossEntropy}) = :probabilistic
 orientation(::Type{<:CrossEntropy}) = :loss
@@ -29,13 +52,13 @@ supports_weights(::Type{<:CrossEntropy}) = false
 distribution_type(::Type{<:CrossEntropy}) = UnivariateFinite
 
 # for single observation:
-_cross_entropy(d, y) = -log(pdf(d, y))
+_cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
-function (::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
+function (c::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
                           y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, Any[ŷ...], y)
+    return broadcast(_cross_entropy, ŷ, y, c.eps)
 end
 
 # TODO: support many distributions/samplers D below:
@@ -58,7 +81,6 @@ Brier score for that observation is given by
 ``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
 
 For more information, run `info(brier_score)`.
-
 """
 function BrierScore(; distribution=UnivariateFinite)
     distribution == UnivariateFinite ||
@@ -88,7 +110,7 @@ function brier_score(d::UnivariateFinite, y)
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     offset = 1 + sum(pvec.^2)
-    return 2*pdf(d, y) - offset
+    return 2 * pdf(d, y) - offset
 end
 
 # For multiple observations:
@@ -99,7 +121,7 @@ function (::BrierScore{<:UnivariateFinite})(
     y::AbstractVector{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(brier_score, Any[ŷ...], y)
+    return broadcast(brier_score, ŷ, y)
 end
 
 function (score::BrierScore{<:UnivariateFinite})(
