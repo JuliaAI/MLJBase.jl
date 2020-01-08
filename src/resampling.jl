@@ -403,7 +403,7 @@ resampling strategies. If `resampling` is not an object of type
 
 gives two-fold cross-validation using the first 200 rows of data.
 
-The resampling strategy is applied repeatedly if `n > 1`. For
+The resampling strategy is applied repeatedly if `repeats > 1`. For
 `resampling = CV(nfolds=5)`, for example, this generates a total of
 `5n` test folds for evaluation and subsequent aggregation.
 
@@ -458,22 +458,22 @@ function evaluate!(mach::Machine{<:Supervised};
                    resampling=CV(),
                    measures=nothing, measure=measures, weights=nothing,
                    operation=predict, acceleration=default_resource(),
-                   rows=nothing, n=1, force=false,
+                   rows=nothing, repeats=1, force=false,
                    check_measure=true, verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights and measures, and dispatches a strategy-specific
     # `evaluate!`
 
-    n > 0 || error("Need n > 0. ")
+    repeats > 0 || error("Need n > 0. ")
 
     if resampling isa TrainTestPairs
         if rows !== nothing
             error("You cannot specify `rows` unless `resampling "*
                   "isa MLJ.ResamplingStrategy` is true. ")
         end
-        if n != 1 && verbosity > 0
-            @warn "n > 1 not supported unless "*
+        if repeats != 1 && verbosity > 0
+            @warn "repeats > 1 not supported unless "*
             "`resampling<:ResamplingStrategy. "
         end
     end
@@ -495,7 +495,7 @@ function evaluate!(mach::Machine{<:Supervised};
         end
     end
 
-    evaluate!(mach, resampling, _weights, rows, verbosity, n,
+    evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
                    _measures, operation, acceleration, force)
 
 end
@@ -540,7 +540,8 @@ end
 end
 
 # Evaluation when resampling is a TrainTestPairs (core evaluator):
-function evaluate!(mach::Machine, resampling, weights, rows, verbosity, n,
+function evaluate!(mach::Machine, resampling, weights,
+                   rows, verbosity, repeats,
                    measures, operation, acceleration, force)
 
     # Note: `rows` and `n` are ignored here
@@ -635,18 +636,18 @@ end
 
 # Evaluation when resampling is a ResamplingStrategy:
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
-                   weights, rows, verbosity, n, args...)
+                   weights, rows, verbosity, repeats, args...)
 
     y = mach.args[2]
     _rows = actual_rows(rows, length(y), verbosity)
 
     repeated_train_test_pairs =
         vcat([train_test_pairs(resampling, _rows, mach.args...)
-              for i in 1:n]...)
+              for i in 1:repeats]...)
 
     return evaluate!(mach::Machine,
                      repeated_train_test_pairs,
-                     weights, nothing, verbosity, n, args...)
+                     weights, nothing, verbosity, repeats, args...)
 
 end
 
@@ -659,7 +660,7 @@ end
                           measure=nothing,
                           weights=nothing,
                           operation=predict,
-                          n = 1,
+                          repeats = 1,
                           acceleration=default_resource(),
                           check_measure=true)
 
@@ -692,7 +693,7 @@ mutable struct Resampler{S,M<:Supervised} <: Supervised
     operation
     acceleration::AbstractResource
     check_measure::Bool
-    n::Int
+    repeats::Int
 end
 
 MLJBase.package_name(::Type{<:Resampler}) = "MLJ"
@@ -717,10 +718,10 @@ end
 
 function Resampler(; model=ConstantRegressor(), resampling=CV(),
             measure=nothing, weights=nothing, operation=predict,
-            acceleration=default_resource(), check_measure=true, n=1)
+            acceleration=default_resource(), check_measure=true, repeats=1)
 
     resampler = Resampler(model, resampling, measure, weights, operation,
-                          acceleration, check_measure, n)
+                          acceleration, check_measure, repeats)
     message = MLJBase.clean!(resampler)
     isempty(message) || @warn message
 
@@ -738,7 +739,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
                                   verbosity, resampler.check_measure)
 
     fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.n,
+                          weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
                           resampler.acceleration, false)
 
@@ -769,7 +770,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
                                   verbosity, resampler.check_measure)
 
     fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.n,
+                          weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
                           resampler.acceleration, false)
 

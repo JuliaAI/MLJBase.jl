@@ -92,7 +92,7 @@ end
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=holdout,
-                       measure=[rms, rmslp1], n=6)
+                       measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
     @test unique(per_fold) |> length == 6
     @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
@@ -101,7 +101,7 @@ end
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv,
-                       measure=[rms, rmslp1], n=6)
+                       measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
     @test unique(per_fold) |> length == 18
     @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
