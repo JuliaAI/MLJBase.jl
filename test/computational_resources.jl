@@ -1,5 +1,3 @@
-include("acceleration.jl")
-
 @test default_resource() == CPU1()
 
 default_resource(ComputationalResources.CPUProcesses())

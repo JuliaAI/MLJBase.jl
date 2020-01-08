@@ -14,8 +14,16 @@ print("Loading some models for testing...")
 @everywhere include("models.jl")
 print("\r                                           \r")
 
+@testset "computational resources" begin
+    @test include("computational_resources.jl")
+end
+
 @testset "model interface" begin
     @test include("MLJBase.jl")
+end
+
+@testset "one_dimensional_ranges" begin
+  @test include("one_dimensional_ranges.jl")
 end
 
 @testset "scientific trait" begin
@@ -102,5 +110,6 @@ end
 @testset "resampling" begin
     @test include("resampling.jl")
 end
+
 
 
