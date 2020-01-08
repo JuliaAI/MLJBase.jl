@@ -68,11 +68,11 @@ end
 ## SHOW METHOD FOR NAMED TUPLES
 
 # long version of showing a named tuple:
-Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty_nt(stream, t)
-pretty_nt(t) = pretty_nt(stdout, t)
-pretty_nt(stream::IO, t) = pretty_nt(stream, t, 0)
-pretty_nt(stream, t, n) = show(stream, t)
-function pretty_nt(stream, t::NamedTuple, n)
+Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = fancy_nt(stream, t)
+fancy_nt(t) = fancy_nt(stdout, t)
+fancy_nt(stream::IO, t) = fancy_nt(stream, t, 0)
+fancy_nt(stream, t, n) = show(stream, t)
+function fancy_nt(stream, t::NamedTuple, n)
     print(stream, "(")
     first_item = true
     for k in keys(t)
@@ -83,7 +83,7 @@ function pretty_nt(stream, t::NamedTuple, n)
             first_item = false
         end
         print(stream, "$k = ")
-        pretty_nt(stream, value, n + length("$k = ") + 1)
+        fancy_nt(stream, value, n + length("$k = ") + 1)
         print(stream, ",")
     end
     print(stream, ")")
@@ -146,11 +146,11 @@ function Base.show(stream::IO, ::MIME"text/plain", object::MLJType, ::Val{false}
 end
 
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true})
-    pretty(stream, object)
+    fancy(stream, object)
 end
-pretty(stream::IO, object) = pretty(stream, object, 0, DEFAULT_SHOW_DEPTH + 2, 0)
-pretty(stream, object, current_depth, depth, n) = show(stream, object)
-function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
+fancy(stream::IO, object) = fancy(stream, object, 0, DEFAULT_SHOW_DEPTH + 2, 0)
+fancy(stream, object, current_depth, depth, n) = show(stream, object)
+function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
     if current_depth == depth
         show(stream, object)
     else
@@ -165,7 +165,7 @@ function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
                 first_item = false
             end
             print(stream, "$k = ")
-            pretty(stream, value, current_depth + 1, depth, n + length(prefix) + 1 + length("$k = "))
+            fancy(stream, value, current_depth + 1, depth, n + length(prefix) + 1 + length("$k = "))
             print(stream, ",")
         end
         print(stream, ")")
@@ -183,7 +183,7 @@ Base.show(stream::IO, object::M, depth::Int) where M<:MLJType =
 Base.show(stream::IO, object::MLJType, depth::Int, ::Val{false}) =
     _recursive_show(stream, object, 1, depth)
 Base.show(stream::IO, object::MLJType, depth::Int, ::Val{true}) = 
-    pretty(stream, object, 0, 100, 0)
+    fancy(stream, object, 0, 100, 0)
 
 # for convenience:
 Base.show(object::MLJType, depth::Int) = show(stdout, object, depth)

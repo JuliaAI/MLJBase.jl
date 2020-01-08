@@ -1,4 +1,4 @@
-module TestUtilities
+module Utilities
 
 using Test
 using MLJBase

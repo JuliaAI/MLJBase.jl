@@ -1,5 +1,18 @@
+using Distributed
+addprocs(2)
+
+@everywhere begin
 using MLJBase, Test
 using Logging
+using ComputationalResources
+end
+
+include("test_utilities.jl")
+
+# load Models module containing models implementations for testing:
+print("Loading some models for testing...")
+@everywhere include("models.jl")
+print("\r                                           \r")
 
 @testset "model interface" begin
     @test include("MLJBase.jl")
@@ -42,10 +55,10 @@ end
     @test include("datasets_synthetic.jl")
 end
 
-# Now obsolete -- see #144
-@testset "tasks" begin
-    @test include("tasks.jl")
-end
+# # Now obsolete -- see #144
+# @testset "tasks" begin
+#     @test include("tasks.jl")
+# end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
@@ -66,11 +79,6 @@ end
     @test include("pipeline_static.jl")
 end
 
-# load Models module containing models for further testing:
-print("Loading some models for testing...")
-include("models.jl")
-print("\r                                           \r")
-
 @testset "machines" begin
     @test include("machines.jl")
 end
@@ -87,6 +95,12 @@ end
     @test include("pipelines.jl")
 end
 
-VERSION ≥ v"1.3.0-" && @testset "arrows" begin
-    @test include("arrows.jl")
+# VERSION ≥ v"1.3.0-" && @testset "arrows" begin
+#     @test include("arrows.jl")
+# end
+
+@testset "resampling" begin
+    @test include("resampling.jl")
 end
+
+

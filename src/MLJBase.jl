@@ -11,6 +11,8 @@ export MLJType, Model, Supervised, Unsupervised, Static,
     predict, predict_mean, predict_mode, predict_median, fitted_params,
     transform, inverse_transform, se, evaluate, best, @load
 
+# computational_resources.jl:
+export default_resource
 
 # equality.jl:
 export is_same_except
@@ -33,7 +35,7 @@ export reconstruct, int, decoder, classes,
 
 # utilities.jl:
 export @set_defaults, flat_values,
-    recursive_setproperty!, recursive_getproperty
+    recursive_setproperty!, recursive_getproperty, pretty
 
 # mlj_model_macro.jl
 export @mlj_model
@@ -76,6 +78,10 @@ export machines, sources, anonymize!, @from_network, fitresults
 
 # pipelines.jl:
 export @pipeline
+
+# resampling.jl:
+export ResamplingStrategy, Holdout, CV, StratifiedCV,
+    evaluate!, Resampler
 
 # measures/registry.jl:
 export measures
@@ -146,6 +152,11 @@ using CategoricalArrays
 using ScientificTypes
 using LossFunctions
 import InvertedIndices: Not
+using Distributed
+using ComputationalResources
+using ComputationalResources: CPUProcesses
+using ProgressMeter
+using PrettyTables
 
 # to be extended:
 import StatsBase
@@ -167,13 +178,16 @@ const srcdir = dirname(@__FILE__)
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
+const DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
 
 include("utilities.jl")
+
 
 ## BASE TYPES
 
 abstract type MLJType end
 include("equality.jl") # equality for MLJType objects
+
 
 ## ABSTRACT MODEL TYPES
 
@@ -291,8 +305,13 @@ clean!(model::Model) = ""
 macro load end
 
 
-## TRAITS
+## THE REST
 
+# methods to inspect/change default computational resource (mode of
+# parallelizaion):
+include("computational_resources.jl")
+
+# model trait fallbacks
 include("model_traits.jl")
 
 # for unpacking the fields of MLJ objects:
@@ -324,6 +343,7 @@ include("operations.jl") # overloading predict, transform, etc
 include("composites.jl") # building and exporting learning networks
 include("pipelines.jl")
 VERSION ≥ v"1.3.0-" && include("arrows.jl")
+include("resampling.jl")
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
