@@ -52,7 +52,7 @@ vectors such that `rows=vcat(train, test)` and
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `Holdout` keyword constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
-expected. 
+expected.
 
 If `rng` is left unspecified, `rng` is reset to `Random.GLOBAL_RNG`,
 in which case rows are only pre-shuffled if `shuffle=true` is
@@ -104,7 +104,7 @@ generated. All but the last `test` vector have equal length.
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `CV` keyword constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
-expected. 
+expected.
 
 If `rng` is left unspecified, `rng` is reset to `Random.GLOBAL_RNG`,
 in which case rows are only pre-shuffled if `shuffle=true` is
@@ -185,7 +185,7 @@ the original order of `rows` (after shuffling, if `shuffle=true`).
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `StratifedCV` keyword constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
-expected. 
+expected.
 
 If `rng` is left unspecified, `rng` is reset to `Random.GLOBAL_RNG`,
 in which case rows are only pre-shuffled if `shuffle=true` is
@@ -383,6 +383,7 @@ end
               measure=nothing,
               weights=nothing,
               operation=predict,
+              n = 1,
               acceleration=default_resource(),
               force=false,
               verbosity=1)
@@ -401,6 +402,10 @@ resampling strategies. If `resampling` is not an object of type
                    (101:200), (1:100)]
 
 gives two-fold cross-validation using the first 200 rows of data.
+
+The resampling strategy is applied repeatedly if `n > 1`. For
+`resampling = CV(nfolds=5)`, for example, this generates a total of
+`5n` test folds for evaluation and subsequent aggregation.
 
 If `resampling isa MLJ.ResamplingStrategy` then one may optionally
 restrict the data used in evaluation by specifying `rows`.
@@ -427,21 +432,50 @@ accelerate/parallelize the resampling operation.
 Although evaluate! is mutating, `mach.model` and `mach.args` are
 untouched.
 
+### Return value
+
+A property-accessible object of type `PerformanceEvaluation` with
+these properties:
+
+- `measure`: the vector of specified measures
+
+- `measurements`: the corresponding measurements, aggregated across the
+  test folds using the aggregation method defined for each measure (do
+  `aggregation(measure)` to inspect)
+
+- `per_fold`: a vector of vectors of individual test fold evaluations
+  (one vector per measure)
+
+- `per_observation`: a vector of vectors of individual observation
+  evaluations of those measures for which
+  `reports_each_observation(measure)` is true, which is otherwise
+  reported `missing`.
+
+See also [`evaluate`](@ref)
+
 """
 function evaluate!(mach::Machine{<:Supervised};
                    resampling=CV(),
                    measures=nothing, measure=measures, weights=nothing,
                    operation=predict, acceleration=default_resource(),
-                   rows=nothing, force=false,
+                   rows=nothing, n=1, force=false,
                    check_measure=true, verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights and measures, and dispatches a strategy-specific
     # `evaluate!`
 
-    if resampling isa TrainTestPairs && rows !== nothing
-        error("You cannot specify `rows` unless `resampling "*
-              "isa MLJ.ResamplingStrategy` is true. ")
+    n > 0 || error("Need n > 0. ")
+
+    if resampling isa TrainTestPairs
+        if rows !== nothing
+            error("You cannot specify `rows` unless `resampling "*
+                  "isa MLJ.ResamplingStrategy` is true. ")
+        end
+        if n != 1 && verbosity > 0
+            @warn "n > 1 not supported unless "*
+            "`resampling<:ResamplingStrategy. "
+        end
     end
 
     _weights, _measures =
@@ -461,7 +495,7 @@ function evaluate!(mach::Machine{<:Supervised};
         end
     end
 
-    evaluate!(mach, resampling, _weights, rows, verbosity,
+    evaluate!(mach, resampling, _weights, rows, verbosity, n,
                    _measures, operation, acceleration, force)
 
 end
@@ -505,11 +539,11 @@ end
     end
 end
 
-# Evaluation when resampling is not a ResamplingStrategy (core evaluator):
-function evaluate!(mach::Machine, resampling, weights, rows, verbosity,
+# Evaluation when resampling is a TrainTestPairs (core evaluator):
+function evaluate!(mach::Machine, resampling, weights, rows, verbosity, n,
                    measures, operation, acceleration, force)
 
-    # Note: `rows` is ignored here
+    # Note: `rows` and `n` are ignored here
 
     resampling isa TrainTestPairs ||
         error("`resampling` must be an "*
@@ -601,14 +635,18 @@ end
 
 # Evaluation when resampling is a ResamplingStrategy:
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
-                   weights, rows, verbosity, args...)
+                   weights, rows, verbosity, n, args...)
 
     y = mach.args[2]
     _rows = actual_rows(rows, length(y), verbosity)
 
+    repeated_train_test_pairs =
+        vcat([train_test_pairs(resampling, _rows, mach.args...)
+              for i in 1:n]...)
+
     return evaluate!(mach::Machine,
-                     train_test_pairs(resampling, _rows, mach.args...),
-                     weights, nothing, verbosity, args...)
+                     repeated_train_test_pairs,
+                     weights, nothing, verbosity, n, args...)
 
 end
 
@@ -616,16 +654,18 @@ end
 ## RESAMPLER - A MODEL WRAPPER WITH `evaluate` OPERATION
 
 """
-    resampler = Resampler(model=ConstantRegressor(), 
+    resampler = Resampler(model=ConstantRegressor(),
                           resampling=CV(),
-                          measure=nothing, 
-                          weights=nothing, 
+                          measure=nothing,
+                          weights=nothing,
                           operation=predict,
-                          acceleration=default_resource(), 
+                          n = 1,
+                          acceleration=default_resource(),
                           check_measure=true)
 
 Resampling model wrapper, used internally by the `fit` method of
-`TunedModel` instances. Not intended for general use.
+`TunedModel` instances. See [`evaluate!](@ref) for options. Not
+intended for general use.
 
 Given a machine `mach = machine(resampler, args...)` one obtains a
 performance evaluation of the specified `model`, performed according
@@ -633,7 +673,7 @@ to the prescribed `resampling` strategy and other parameters, using
 data `args...`, by calling `fit!(mach)` followed by
 `evaluate(mach)`. The advantage over using `evaluate(model, X, y)` is
 that the latter call always calls `fit` on the `model` but
-`fit!(mach)` only calls `update` after the first call. 
+`fit!(mach)` only calls `update` after the first call.
 
 The sample `weights` are passed to the specified performance
 measures that support weights for evaluation.
@@ -652,8 +692,8 @@ mutable struct Resampler{S,M<:Supervised} <: Supervised
     operation
     acceleration::AbstractResource
     check_measure::Bool
+    n::Int
 end
-
 
 MLJBase.package_name(::Type{<:Resampler}) = "MLJ"
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
@@ -677,10 +717,10 @@ end
 
 function Resampler(; model=ConstantRegressor(), resampling=CV(),
             measure=nothing, weights=nothing, operation=predict,
-                   acceleration=default_resource(), check_measure=true)
+            acceleration=default_resource(), check_measure=true, n=1)
 
     resampler = Resampler(model, resampling, measure, weights, operation,
-                          acceleration, check_measure)
+                          acceleration, check_measure, n)
     message = MLJBase.clean!(resampler)
     isempty(message) || @warn message
 
@@ -698,7 +738,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
                                   verbosity, resampler.check_measure)
 
     fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1,
+                          weights, nothing, verbosity - 1, resampler.n,
                           measures, resampler.operation,
                           resampler.acceleration, false)
 
@@ -729,7 +769,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
                                   verbosity, resampler.check_measure)
 
     fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1,
+                          weights, nothing, verbosity - 1, resampler.n,
                           measures, resampler.operation,
                           resampler.acceleration, false)
 

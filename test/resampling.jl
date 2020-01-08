@@ -82,6 +82,31 @@ end
     @test result.measurement[2] ≈ mean(v)
 end
 
+@testset "repeated resampling" begin
+    x1 = ones(20)
+    x2 = ones(20)
+    X = (x1=x1, x2=x2)
+    y = rand(20)
+
+    holdout = Holdout(fraction_train=0.75, rng=123)
+    model = Models.DeterministicConstantRegressor()
+    mach = machine(model, X, y)
+    result = evaluate!(mach, resampling=holdout,
+                       measure=[rms, rmslp1], n=6)
+    per_fold = result.per_fold[1]
+    @test unique(per_fold) |> length == 6
+    @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
+
+    cv = CV(nfolds=3, rng=123)
+    model = Models.DeterministicConstantRegressor()
+    mach = machine(model, X, y)
+    result = evaluate!(mach, resampling=cv,
+                       measure=[rms, rmslp1], n=6)
+    per_fold = result.per_fold[1]
+    @test unique(per_fold) |> length == 18
+    @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
+end
+
 @testset_accelerated "holdout" accel begin
     x1 = ones(4)
     x2 = ones(4)
