@@ -268,25 +268,15 @@ end
 
 ## EVALUATION TYPE
 
-const Evaluation = NamedTuple{(:measure, :measurement,
+const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
                                :per_fold, :per_observation)}
-
-# for pretty printing:
+# pretty printing:
 round3(x) = round(x, sigdigits=3)
-function _short(v::Vector{<:Real})
-    L = length(v)
-    if L <= 3
-        middle = join(v, ", ")
-    else
-        middle = string(round3(v[1]), ", ", round3(v[2]),
-                        ", ..., ", round3(v[end]))
-    end
-    return "[$middle]"
-end
+_short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
-function Base.show(io::IO, ::MIME"text/plain", e::Evaluation)
+function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     data = hcat(e.measure, round3.(e.measurement),
                 [round3.(v) for v in e.per_fold])
     header = ["_.measure", "_.measurement", "_.per_fold"]
@@ -294,6 +284,11 @@ function Base.show(io::IO, ::MIME"text/plain", e::Evaluation)
                               header_crayon=Crayon(bold=false),
                               alignment=:l)
     println(io, "_.per_observation = $(_short(e.per_observation))")
+end
+
+function Base.show(io::IO, e::PerformanceEvaluation)
+    summary = Tuple(round3.(e.measurement))
+    print(io, "PerformanceEvaluation$summary")
 end
 
 

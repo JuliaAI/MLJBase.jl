@@ -81,7 +81,7 @@ export @pipeline
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
-    evaluate!, Resampler
+    evaluate!, Resampler, PerformanceEvaluation
 
 # measures/registry.jl:
 export measures
@@ -146,6 +146,7 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle,
 import Base: ==, precision, getindex, setindex!, @__doc__
 
 using Tables
+using PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
@@ -156,7 +157,6 @@ using Distributed
 using ComputationalResources
 using ComputationalResources: CPUProcesses
 using ProgressMeter
-using PrettyTables
 
 # to be extended:
 import StatsBase
@@ -178,7 +178,6 @@ const srcdir = dirname(@__FILE__)
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
-const DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
 
 include("utilities.jl")
 
@@ -346,6 +345,7 @@ VERSION ≥ v"1.3.0-" && include("arrows.jl")
 include("resampling.jl")
 
 function __init__()
+    global DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end

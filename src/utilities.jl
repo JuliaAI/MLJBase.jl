@@ -213,8 +213,9 @@ function shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng=nothing)
 end
 
 
-## FOR PRETTY PRINTING COLUMN TABLES
+## FOR PRETTY PRINTING 
 
+# of coloumns:
 function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
     names = schema(X).names |> collect
     if showtypes
@@ -237,3 +238,17 @@ function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
 end
 
 pretty(X; kwargs...) = pretty(stdout, X; kwargs...)
+
+# of long vectors (returns a compact string version of a vector):
+function short_string(v::Vector)
+    L = length(v)
+    if L <= 3
+        middle = join(v, ", ")
+    else
+        middle = string(round3(v[1]), ", ", round3(v[2]),
+                        ", ..., ", round3(v[end]))
+    end
+    return "[$middle]"
+end
+
+
