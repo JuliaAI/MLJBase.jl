@@ -266,6 +266,37 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 end
 
 
+## EVALUATION TYPE
+
+const Evaluation = NamedTuple{(:measure, :measurement,
+                               :per_fold, :per_observation)}
+
+# for pretty printing:
+round3(x) = round(x, sigdigits=3)
+function _short(v::Vector{<:Real})
+    L = length(v)
+    if L <= 3
+        middle = join(v, ", ")
+    else
+        middle = string(round3(v[1]), ", ", round3(v[2]),
+                        ", ..., ", round3(v[end]))
+    end
+    return "[$middle]"
+end
+_short(v::Vector) = string("[", join(_short.(v), ", "), "]")
+_short(::Missing) = missing
+
+function Base.show(io::IO, ::MIME"text/plain", e::Evaluation)
+    data = hcat(e.measure, round3.(e.measurement),
+                [round3.(v) for v in e.per_fold])
+    header = ["_.measure", "_.measurement", "_.per_fold"]
+    PrettyTables.pretty_table(io, data, header;
+                              header_crayon=Crayon(bold=false),
+                              alignment=:l)
+    println(io, "_.per_observation = $(_short(e.per_observation))")
+end
+
+
 ## EVALUATION METHODS
 
 function _check_measure(model, measure, y, operation, override)
