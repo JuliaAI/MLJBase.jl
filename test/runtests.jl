@@ -110,6 +110,3 @@ end
 @testset "resampling" begin
     @test include("resampling.jl")
 end
-
-
-

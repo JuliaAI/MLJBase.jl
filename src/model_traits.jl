@@ -8,7 +8,7 @@ const MODEL_TRAITS = [:input_scitype, :output_scitype, :target_scitype,
                       :supports_online, :docstring,
                       :name, :is_supervised, :prediction_type,
                       :implemented_methods, :hyperparameters,
-                      :hyperparameter_types]
+                      :hyperparameter_types, :hyperparameter_ranges]
 const SUPERVISED_TRAITS = filter(MODEL_TRAITS) do trait
     !(trait in [:output_scitype,])
 end
@@ -20,7 +20,7 @@ end
 input_scitype(::Type) = Unknown
 output_scitype(::Type) = Unknown
 target_scitype(::Type) = Unknown  # used for measures too
-is_pure_julia(::Type) = missing
+is_pure_julia(::Type) = nothing
 package_name(::Type) = "unknown"
 package_license(::Type) = "unknown"
 load_path(::Type) = "unknown"
@@ -29,6 +29,7 @@ package_url(::Type) = "unknown"
 is_wrapper(::Type) = false
 supports_online(::Type) = false
 supports_weights(::Type) = false  # used for measures too
+hyperparameter_ranges(T::Type) = Tuple(fill(nothing, length(fieldnames(T))))
 docstring(M::Type) = string(M)
 docstring(M::Type{<:MLJType}) = name(M)
 docstring(M::Type{<:Model}) =
@@ -45,7 +46,7 @@ prediction_type(::Type{<:Deterministic}) = :deterministic
 prediction_type(::Type{<:Probabilistic}) = :probabilistic
 prediction_type(::Type{<:Interval}) = :interval
 implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
-hyperparameters(M::Type) = collect(fieldnames(M))
+hyperparameters(M::Type) = fieldnames(M) |> collect
 _fieldtypes(M) = [fieldtype(M, fld) for fld in fieldnames(M)]
 hyperparameter_types(M::Type) = string.(_fieldtypes(M))
 # function hyperparmeter_defaults(M::Type)
