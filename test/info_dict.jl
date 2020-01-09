@@ -83,10 +83,10 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                :is_wrapper => false,
                                :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => ["Int64", "Float64",
-                                                     "Array{Float64,1}", "Any"],
-                               :hyperparameters => [:an_int, :a_float,
-                                                    :a_vector, :untyped],
+                               :hyperparameter_types  => ("Int64", "Float64",
+                                                     "Array{Float64,1}", "Any"),
+                               :hyperparameters => (:an_int, :a_float,
+                                                    :a_vector, :untyped),
                                :hyperparameter_ranges =>
                                (range(Int, :an_int, values=[1,2]),
                                 range(Float64, :a_float, lower=1, upper=2),
@@ -122,8 +122,8 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyDeterm from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [],
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
                                :hyperparameter_ranges => ())
 
     @test info_dict(DummyDeterm) == d
@@ -152,8 +152,8 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyInt from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [],
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
                                :hyperparameter_ranges => ())
 
     @test info_dict(DummyInt) == d
@@ -180,8 +180,8 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:transform, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [],
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
                                :hyperparameter_ranges => ())
 
     @test info_dict(DummyUnsup) == d

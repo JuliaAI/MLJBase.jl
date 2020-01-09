@@ -235,7 +235,7 @@ end
     e3=evaluate(resampling_machine).measurement[1]
     @test e3 != e2
 
-    @test MLJBase.package_name(Resampler) == "MLJ"
+    @test MLJBase.package_name(Resampler) == "MLJBase"
     @test MLJBase.is_wrapper(Resampler)
     rnd = randn(5)
     @test evaluate(resampler, rnd) === rnd

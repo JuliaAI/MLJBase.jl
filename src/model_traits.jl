@@ -46,19 +46,9 @@ prediction_type(::Type{<:Deterministic}) = :deterministic
 prediction_type(::Type{<:Probabilistic}) = :probabilistic
 prediction_type(::Type{<:Interval}) = :interval
 implemented_methods(M::Type{<:MLJType}) = map(f->f.name, methodswith(M))
-hyperparameters(M::Type) = fieldnames(M) |> collect
-_fieldtypes(M) = [fieldtype(M, fld) for fld in fieldnames(M)]
+hyperparameters(M::Type) = fieldnames(M)
+_fieldtypes(M) = Tuple(fieldtype(M, fld) for fld in fieldnames(M))
 hyperparameter_types(M::Type) = string.(_fieldtypes(M))
-# function hyperparmeter_defaults(M::Type)
-#     try
-#         model = M()
-#         return [Meta.parse(string(getproperty(model, fld)))
-#                 for fld in fieldnames(M)]
-#     catch
-#         return []
-#     end
-# end
-
 
 # following 5 lines commented out because they dissallow precompilation:
 # for trait in MODEL_TRAITS
