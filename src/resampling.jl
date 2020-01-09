@@ -700,6 +700,7 @@ MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
 MLJBase.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_weights(M)
+MLJBase.is_pure_julia(::Type{<:Resampler}) = true
 
 function MLJBase.clean!(resampler::Resampler)
     warning = ""

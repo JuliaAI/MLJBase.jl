@@ -20,7 +20,7 @@ end
 input_scitype(::Type) = Unknown
 output_scitype(::Type) = Unknown
 target_scitype(::Type) = Unknown  # used for measures too
-is_pure_julia(::Type) = nothing
+is_pure_julia(::Type) = false
 package_name(::Type) = "unknown"
 package_license(::Type) = "unknown"
 load_path(::Type) = "unknown"

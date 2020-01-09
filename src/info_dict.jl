@@ -10,8 +10,8 @@ function info_dict(M::Type{<:Model}, traits)
 
     message = "$M has a bad trait declaration.\n"
 
-    is_pure_julia(M) == nothing || is_pure_julia(M) isa Bool ||
-        error(message*"is_pure_julia($M) must return true, false or nothing. ")
+    is_pure_julia(M) isa Bool ||
+        error(message*"is_pure_julia($M) must return true or false")
 
     :supports_weights in traits &&
         !(supports_weights(M) isa Bool) &&
