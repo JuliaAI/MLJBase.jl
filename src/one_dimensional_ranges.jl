@@ -43,8 +43,8 @@ struct NumericRange{T,D} <: ParamRange
     field::Union{Symbol,Expr}
     lower::Union{T,Float64} # Float64 to allow for -Inf
     upper::Union{T,Float64} # Float64 to allow for Inf
-    origin::T
-    unit::T
+    origin::Float64
+    unit::Float64
     scale::D
 end
 
@@ -124,7 +124,7 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
                              "define a centre.\nTo make the range "*
                              "bounded, specify finite `upper=...` "*
                              "and `lower=...`")
-        origin = _round(T, (upper + lower)/2)
+        origin = (upper + lower)/2)
     end
     if unit == nothing
         isunbounded && error("For an unbounded range you must "*
@@ -132,13 +132,12 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
                              "define a unit of scale.\nTo make the range "*
                              "bounded, specify finite `upper=...` "*
                              "and `lower=...`")
-        unit = _floor(T, (upper - lower)/2)
-        unit < 1 && T <: Integer && (unit = one(T))
+        unit = (upper - lower)/2
     end
 
     unit > 0 || error("`unit` must be positive. ")
-    origin <= upper && origin >= lower ||
-        error("`origin` must lie between `lower` and `upper`, inclusively. " )
+    origin < upper && origin > lower ||
+        error("`origin` must lie strictly between `lower` and `upper`. ")
 
     return NumericRange{T,D}(field, lower, upper, origin, unit, scale)
 
@@ -149,12 +148,6 @@ function nominal_range(T, field, values)
                                 "for a nominal parameter. ")
     return NominalRange{T}(field, Tuple(values))
 end
-
-# to only round and floor for integers:
-_floor(::Type, x) = x
-_floor(T::Type{<:Integer}, x) = convert(T, floor(x))
-_round(T::Type, x) = x
-_round(T::Type{<:Integer}, x) = convert(T, round(x))
 
 
 """
