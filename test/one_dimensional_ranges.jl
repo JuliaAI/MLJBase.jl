@@ -22,7 +22,9 @@ dummy2 = DummyModel(2, 9.5, 'k')
 super_model = SuperModel(0.5, dummy1, dummy2)
 
 @testset "range constructors, scale, iterator" begin
-    @test_throws ErrorException range(dummy_model, :K, values=['c', 'd'])
+    @test_logs((:warn, r"`values`"),
+               @test_throws ErrorException range(dummy_model, :K,
+                                                 values=['c', 'd']))
     @test_throws ErrorException range(dummy_model, :K, lower=Inf,
                                       origin=1, unit=1)
     @test_throws ErrorException range(dummy_model, :K, upper=-Inf,
@@ -79,6 +81,11 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     @test scale(sin) === sin
     @test transform(MLJBase.Scale, scale(:log), ℯ) == 1
     @test inverse_transform(MLJBase.Scale, scale(:log), 1) == float(ℯ)
+
+    # test that you can replace model with type:
+    @test z1 == range(Int, :K, lower=1, upper=10)
+    @test z4 == range(Float64, :lambda, lower=1, upper=10)
+    @test p2 == range(Char, :kernel, values=['c', 'd'])
 
     @test iterator(p1, 5)  == [1, 2, 3, 6, 10]
     @test iterator(p2) == collect(p2.values)

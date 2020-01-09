@@ -54,11 +54,16 @@ MLJBase.show_as_constructed(::Type{<:ParamRange}) = true
     r = range(model, :hyper; values=nothing)
 
 Defines a `NominalRange` object for a field `hyper` of `model`,
-assuming the field is a not a subtype of `Real`. Note that `r` is not
-directly iterable but `iterator(r)` iterates over `values`.
+assuming the field value does not subtype `Real`. Note that `r` is not
+directly iterable but `iterator(r)` iterates over `values`. 
+
+The specific type of the hyperparameter is automatically determined
+from the current value at `model`. To override, specify a type in
+place of `model`.
 
 A nested hyperparameter is specified using dot notation. For example,
-`:(atom.max_depth)` specifies the `:max_depth` hyperparameter of the hyperparameter `:atom` of `model`.
+`:(atom.max_depth)` specifies the `:max_depth` hyperparameter of the
+hyperparameter `:atom` of `model`.
 
     r = range(model, :hyper; upper=nothing, lower=nothing, scale=:linear)
 
@@ -66,63 +71,80 @@ Defines a `NumericRange` object for a `Real` field `hyper` of `model`.
 Note that `r` is not directly iteratable but `iterator(r, n)` iterates
 over `n` values between `lower` and `upper` values, according to the
 specified `scale`. The supported scales are `:linear, :log, :log10,
-:log2`. Values for `Integer` types are rounded (with duplicate values
-removed, resulting in possibly less than `n` values).
+:log2`, or a function (see below).  Values for `Integer` types are
+rounded (with duplicate values removed, resulting in possibly less
+than `n` values).
 
-Alternatively, if a function `f` is provided as `scale`, then
+To override the automatically detected hyperparameter type, substitute
+a type in place of `model`.
+
+If a function `f` is provided as `scale`, then
 `iterator(r, n)` iterates over the values `[f(x1), f(x2), ... ,
 f(xn)]`, where `x1, x2, ..., xn` are linearly spaced between `lower`
 and `upper`.
 
-
 """
-function Base.range(model, field::Union{Symbol,Expr}; values=nothing,
+function Base.range(model::Union{Model, Type},
+                    field::Union{Symbol,Expr}; values=nothing,
                     lower=nothing, upper=nothing,
                     origin=nothing, unit=nothing, scale::D=:linear) where D
-    value = recursive_getproperty(model, field)
-    T = typeof(value)
+
+    if model isa Model
+        value = recursive_getproperty(model, field)
+        T = typeof(value)
+    else
+        T = model
+    end
     if T <: Real
-        if lower === nothing && upper === nothing
-            error("You must specify `lower=...` or "*
-                  "`upper=...` or both, for a `Real` parameter. ")
-        end
-        lower === Inf && error("`lower` must be finite or `-Inf`. ")
-        upper === -Inf && error("`upper` must be finite or `Inf`")
-        lower === nothing && (lower = -Inf)
-        upper === nothing && (upper = Inf)
-        lower < upper || errof("`lower` must be strictly less than `upper`. ")
-        isunbounded = (lower === -Inf || upper === Inf)
-        if origin == nothing
-            isunbounded && error("For an unbounded range you must "*
-                                 "specify `origin=...` to "*
-                                 "define a centre.\nTo make the range "*
-                                 "bounded, specify finite `upper=...` "*
-                                 "and `lower=...`")
-            origin = _round(T, (upper + lower)/2)
-        end
-        if unit == nothing
-            isunbounded && error("For an unbounded range you must "*
-                                 "specify `unit=...` to "*
-                                 "define a unit of scale.\nTo make the range "*
-                                 "bounded, specify finite `upper=...` "*
-                                 "and `lower=...`")
-            unit = _floor(T, (upper - lower)/2)
-        end
-
-        unit > 0 || error("`unit` must be positive. ")
-        origin < upper && origin > lower ||
-            error("`origin` must lie strictly between `lower` and `upper`." )
-
-
         values !== nothing && @warn "`values` in the case of a "*
         "numeric range are ignored. "
-
-        return NumericRange{T,D}(field, lower, upper, origin, unit, scale)
+        return numeric_range(T, D, field, lower, upper, origin, unit, scale)
     else
-        values === nothing && error("You must specify values=... "*
-                                    "for a nominal parameter. ")
-        return NominalRange{T}(field, Tuple(values))
+        return nominal_range(T, field, values)
     end
+
+end
+
+function numeric_range(T, D, field, lower, upper, origin, unit, scale)
+    if lower === nothing && upper === nothing
+        error("You must specify `lower=...` or "*
+              "`upper=...` or both, for a `Real` parameter. ")
+    end
+    lower === Inf && error("`lower` must be finite or `-Inf`. ")
+    upper === -Inf && error("`upper` must be finite or `Inf`")
+    lower === nothing && (lower = -Inf)
+    upper === nothing && (upper = Inf)
+    lower < upper || errof("`lower` must be strictly less than `upper`. ")
+    isunbounded = (lower === -Inf || upper === Inf)
+    if origin == nothing
+        isunbounded && error("For an unbounded range you must "*
+                             "specify `origin=...` to "*
+                             "define a centre.\nTo make the range "*
+                             "bounded, specify finite `upper=...` "*
+                             "and `lower=...`")
+        origin = _round(T, (upper + lower)/2)
+    end
+    if unit == nothing
+        isunbounded && error("For an unbounded range you must "*
+                             "specify `unit=...` to "*
+                             "define a unit of scale.\nTo make the range "*
+                             "bounded, specify finite `upper=...` "*
+                             "and `lower=...`")
+        unit = _floor(T, (upper - lower)/2)
+    end
+
+    unit > 0 || error("`unit` must be positive. ")
+    origin < upper && origin > lower ||
+        error("`origin` must lie strictly between `lower` and `upper`." )
+
+    return NumericRange{T,D}(field, lower, upper, origin, unit, scale)
+
+end
+
+function nominal_range(T, field, values)
+    values === nothing && error("You must specify values=... "*
+                                "for a nominal parameter. ")
+    return NominalRange{T}(field, Tuple(values))
 end
 
 # to only round and floor for integers:
@@ -133,9 +155,9 @@ _round(T::Type{<:Integer}, x) = convert(T, round(x))
 
 
 """
-    MLJTuning.scale(r::ParamRange)
+    MLJBase.scale(r::ParamRange)
 
-Return the scale associated with the `ParamRange` object `r`. The
+Return the scale associated with a `ParamRange` object `r`. The
 possible return values are: `:none` (for a `NominalRange`), `:linear`,
 `:log`, `:log10`, `:log2`, or `:custom` (if `r.scale` is function).
 
