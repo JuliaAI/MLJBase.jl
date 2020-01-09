@@ -133,11 +133,12 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
                              "bounded, specify finite `upper=...` "*
                              "and `lower=...`")
         unit = _floor(T, (upper - lower)/2)
+        unit < 1 && T <: Integer && (unit = one(T))
     end
 
     unit > 0 || error("`unit` must be positive. ")
-    origin < upper && origin > lower ||
-        error("`origin` must lie strictly between `lower` and `upper`." )
+    origin <= upper && origin >= lower ||
+        error("`origin` must lie between `lower` and `upper`, inclusively. " )
 
     return NumericRange{T,D}(field, lower, upper, origin, unit, scale)
 
