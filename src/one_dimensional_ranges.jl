@@ -65,15 +65,19 @@ A nested hyperparameter is specified using dot notation. For example,
 `:(atom.max_depth)` specifies the `:max_depth` hyperparameter of the
 hyperparameter `:atom` of `model`.
 
-    r = range(model, :hyper; upper=nothing, lower=nothing, scale=:linear)
+    r = range(model, :hyper; upper=nothing, lower=nothing, 
+              scale=:linear, values=nothing)
 
-Defines a `NumericRange` object for a `Real` field `hyper` of `model`.
-Note that `r` is not directly iteratable but `iterator(r, n)` iterates
-over `n` values between `lower` and `upper` values, according to the
-specified `scale`. The supported scales are `:linear, :log, :log10,
-:log2`, or a function (see below).  Values for `Integer` types are
-rounded (with duplicate values removed, resulting in possibly less
-than `n` values).
+Assuming `values == nothing`, this defines a `NumericRange` object for
+a `Real` field `hyper` of `model`.  Note that `r` is not directly
+iteratable but `iterator(r, n)` iterates over `n` values between
+`lower` and `upper` values, according to the specified `scale`. The
+supported scales are `:linear, :log, :log10, :log2`, or a function
+(see below).  Values for `Integer` types are rounded (with duplicate
+values removed, resulting in possibly less than `n` values).
+
+If `values` is specified, the other keyword arguments are ignored and
+a `NominalRange` object is returned (see above).
 
 To override the automatically detected hyperparameter type, substitute
 a type in place of `model`.
@@ -95,9 +99,7 @@ function Base.range(model::Union{Model, Type},
     else
         T = model
     end
-    if T <: Real
-        values !== nothing && @warn "`values` in the case of a "*
-        "numeric range are ignored. "
+    if T <: Real && values == nothing
         return numeric_range(T, D, field, lower, upper, origin, unit, scale)
     else
         return nominal_range(T, field, values)

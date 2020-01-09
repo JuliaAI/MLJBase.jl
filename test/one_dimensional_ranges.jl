@@ -22,9 +22,6 @@ dummy2 = DummyModel(2, 9.5, 'k')
 super_model = SuperModel(0.5, dummy1, dummy2)
 
 @testset "range constructors, scale, iterator" begin
-    @test_logs((:warn, r"`values`"),
-               @test_throws ErrorException range(dummy_model, :K,
-                                                 values=['c', 'd']))
     @test_throws ErrorException range(dummy_model, :K, lower=Inf,
                                       origin=1, unit=1)
     @test_throws ErrorException range(dummy_model, :K, upper=-Inf,
@@ -47,10 +44,10 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     @test_throws ErrorException range(dummy_model, :K,
                                       lower=3, unit=1, origin=2)
 
-    @test_logs((:warn, r"`values` in"),
-               range(dummy_model, :K, lower=1, upper=40, values=['c', 'd']))
-
     @test_throws ErrorException range(dummy_model, :kernel)
+
+    range(dummy_model, :K, values=['c', 'd']) ==
+        range(Char, :K, values=['c', 'd'])
 
     z1 = range(dummy_model, :K, lower=1, upper=10)
     @test z1.origin == 6
