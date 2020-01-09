@@ -58,7 +58,6 @@ end
 @extend_to_machines predict_median
 @extend_to_machines transform
 @extend_to_machines inverse_transform
-@extend_to_machines se
 
 @sugar predict
 @sugar predict_mode
@@ -66,8 +65,6 @@ end
 @sugar predict_median
 @sugar transform
 @sugar inverse_transform
-@sugar se
-
 
 # the zero argument special cases:
 function evaluate(machine::AbstractMachine)

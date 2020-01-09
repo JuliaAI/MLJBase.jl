@@ -184,130 +184,11 @@ const DEFAULT_SHOW_DEPTH = 0
 
 include("utilities.jl")
 
+# what new models must implement:
+include("model_interface.jl")
 
-## BASE TYPES
-
-abstract type MLJType end
-include("equality.jl") # equality for MLJType objects
-
-
-## MODEL API - TYPES
-
-# for storing hyperparameters:
-abstract type Model <: MLJType end
-
-abstract type Supervised <: Model end
-abstract type Unsupervised <: Model end
-
-# supervised models that `predict` probability distributions are of:
-abstract type Probabilistic <: Supervised end
-
-# supervised models that `predict` point-values are of:
-abstract type Deterministic <: Supervised end
-
-# supervised models that `predict` intervals:
-abstract type Interval <: Supervised end
-
-# for static operations dependent on user-specified parameters:
-abstract type Static <: Unsupervised end
-
-# for models that are "exported" learning networks (return a Node as
-# their fit-result; see MLJ docs:
-abstract type ProbabilisticNetwork <: Probabilistic end
-abstract type DeterministicNetwork <: Deterministic end
-abstract type UnsupervisedNetwork <: Unsupervised end
-
-
-## MODEL API - METHODS
-
-# every model interface must implement a `fit` method of the form
-# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
-# or, one the simplified versions
-# `fit(model, training_args...) -> fitresult`
-fit(model::Model, verbosity::Integer, args...) =
-    fit(model, args...), nothing, nothing
-
-# fallback for static transformations:
-fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
-
-# each model interface may optionally overload the following refitting
-# method:
-update(model::Model, verbosity, fitresult, cache, args...) =
-    fit(model, verbosity, args...)
-
-# fallbacks for supervised models that don't support sample weights:
-fit(model::Supervised, verbosity::Integer, X, y, w) =
-    fit(model, verbosity, X, y)
-update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
-    update(model, verbosity, fitresult, cache, X, y)
-
-# stub for online learning method update method
-function update_data end
-
-# methods dispatched on a model and fit-result are called
-# *operations*.  Supervised models must implement a `predict`
-# operation (extending the `predict` method of StatsBase).
-
-# unsupervised methods must implement this operation:
-function transform end
-
-# unsupervised methods may implement this operation:
-function inverse_transform end
-
-# this operation can be optionally overloaded to provide access to
-# fitted parameters (eg, coeficients of linear model):
-fitted_params(::Model, fitresult) = (fitresult=fitresult,)
-
-# probabilistic supervised models may also overload one or more of
-# `predict_mode`, `predict_median` and `predict_mean` defined below.
-
-# mode:
-predict_mode(model::Probabilistic, fitresult, Xnew) =
-    predict_mode(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mode(model, fitresult, Xnew, ::Any) =
-    mode.(predict(model, fitresult, Xnew))
-const BadModeTypes = Union{AbstractArray{Continuous},Table(Continuous)}
-predict_mode(model, fitresult, Xnew, ::Val{<:BadModeTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Continuous` targets. "))
-
-# mean:
-predict_mean(model::Probabilistic, fitresult, Xnew) =
-    predict_mean(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mean(model, fitresult, Xnew, ::Any) =
-    mean.(predict(model, fitresult, Xnew))
-const BadMeanTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_mean(model, fitresult, Xnew, ::Val{<:BadMeanTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# median:
-predict_median(model::Probabilistic, fitresult, Xnew) =
-    predict_median(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_median(model, fitresult, Xnew, ::Any) =
-    median.(predict(model, fitresult, Xnew))
-const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_median(model, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# operations implemented by some meta-models:
-function se end
-function evaluate end
-function best end
-
-# a model wishing invalid hyperparameters to be corrected with a
-# warning should overload this method (return value is the warning
-# message):
-clean!(model::Model) = ""
-
-
-## STUB FOR @load (extended by MLJModels)
-
-macro load end
-
-
-## THE REST
+# equality for `MLJType` objects
+include("equality.jl") 
 
 # for displaying objects of `MLJType`:
 include("show.jl")
@@ -328,26 +209,47 @@ include("parameters.jl")
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-include("metadata_utilities.jl") # metadata utils
-include("mlj_model_macro.jl")    # macro to streamline model definitions
+# metadata utils:
+include("metadata_utilities.jl")
+
+# macro to streamline model definitions
+include("mlj_model_macro.jl")    
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
 
+# assembles model traits into dictionaries:
 include("info_dict.jl")
+
+# datasets:
 include("datasets.jl")
 include("datasets_synthetic.jl")
+
+# to be depreciated:
 include("tasks.jl")
+
+# scores, losses, etc: 
 include("measures/measures.jl")
 include("measures/registry.jl")
+
 include("pipeline_static.jl")  # static transformer needed by pipeline.jl
 include("machines.jl")
 include("networks.jl")
-include("operations.jl") # overloading predict, transform, etc
-include("composites.jl") # building and exporting learning networks
+
+# overloading predict, transform, etc, to work with machines:
+include("operations.jl")
+
+# building and exporting learning networks:
+include("composites.jl")
+
+# macro for non-branching exported networks:
 include("pipelines.jl")
+
+# arrow syntax for constructing learning networks:
 VERSION ≥ v"1.3.0-" && include("arrows.jl")
+
+# resampling (Holdout, CV, etc)
 include("resampling.jl")
 
 function __init__()
