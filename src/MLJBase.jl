@@ -17,6 +17,9 @@ export default_resource
 # equality.jl:
 export is_same_except
 
+# one_dimensional_ranges.jl:
+export ParamRange, NumericRange, NominalRange, iterator, scale
+
 # model_traits.jl:
 export load_path, package_url, package_name, package_uuid,
     input_scitype, supports_weights,
@@ -188,7 +191,7 @@ abstract type MLJType end
 include("equality.jl") # equality for MLJType objects
 
 
-## ABSTRACT MODEL TYPES
+## MODEL API - TYPES
 
 # for storing hyperparameters:
 abstract type Model <: MLJType end
@@ -215,7 +218,7 @@ abstract type DeterministicNetwork <: Deterministic end
 abstract type UnsupervisedNetwork <: Unsupervised end
 
 
-## THE MODEL INTERFACE
+## MODEL API - METHODS
 
 # every model interface must implement a `fit` method of the form
 # `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
@@ -306,18 +309,21 @@ macro load end
 
 ## THE REST
 
+# for displaying objects of `MLJType`:
+include("show.jl")
+
 # methods to inspect/change default computational resource (mode of
 # parallelizaion):
 include("computational_resources.jl")
+
+# hyperparameter ranges (domains):
+include("one_dimensional_ranges.jl")
 
 # model trait fallbacks
 include("model_traits.jl")
 
 # for unpacking the fields of MLJ objects:
 include("parameters.jl")
-
-# for displaying objects of `MLJType`:
-include("show.jl")
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
