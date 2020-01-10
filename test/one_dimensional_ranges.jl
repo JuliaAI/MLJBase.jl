@@ -43,29 +43,45 @@ super_model = SuperModel(0.5, dummy1, dummy2)
                                       lower=3, unit=0, origin=4)
     @test_throws ErrorException range(dummy_model, :K,
                                       lower=3, unit=1, origin=2)
+ 
+    @test_throws ErrorException range(dummy_model, :K, origin=2)
+    @test_throws ErrorException range(dummy_model, :K, unit=1)
+    @test_throws ErrorException range(dummy_model, :K)
+
 
     @test_throws ErrorException range(dummy_model, :kernel)
 
-    range(dummy_model, :K, values=['c', 'd']) ==
-        range(Char, :K, values=['c', 'd'])
+    @test_throws ErrorException range(dummy_model, :K, values=['c', 'd'])
+    @test_throws ErrorException range(Int, :K, values=['c', 'd'])
+
+
+    @test range(dummy_model, :K, values=[1, 7]) ==
+        range(Int, :K, values=[1, 7])
 
     z1 = range(dummy_model, :K, lower=1, upper=10)
-    @test z1.origin == 6
-    @test z1.unit == 4
+    @test z1.origin == 5.5
+    @test z1.unit == 4.5
+    @test z1.scale == :linear
 
-    z2 = range(dummy_model, :K, lower=0, origin=2, unit=1)
-    @test z2.origin == 2
-    @test z2.unit == 1
+    z2 = range(dummy_model, :K, lower=10, origin=10^6, unit=10^5)
+    @test z2.origin == 10^6
+    @test z2.unit == 10^5
     @test z2.upper  == Inf
+    @test z2.scale == :log
 
-    z3 = range(dummy_model, :K, upper=0, origin=-2, unit=1)
-    @test z3.origin == -2
-    @test z3.unit == 1
+    z3 = range(dummy_model, :K, upper=-10, origin=-10^6, unit=10^5)
+    @test z3.origin == -10^6
+    @test z3.unit == 10^5
     @test z3.lower  == -Inf
+    @test z3.scale == :logminus
 
     z4 = range(super_model, :lambda, lower=1, upper=10)
     @test z4.origin == 5.5
     @test z4.unit == 4.5
+    @test z4.scale == :linear
+
+    z5 = range(dummy_model, :K, origin=10, unit=20)
+    @test z5.scale == :linear
 
     p1 = range(dummy_model, :K, lower=1, upper=10, scale=:log10)
     p2 = range(dummy_model, :kernel, values=['c', 'd'])
@@ -84,11 +100,23 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     @test z4 == range(Float64, :lambda, lower=1, upper=10)
     @test p2 == range(Char, :kernel, values=['c', 'd'])
 
+    # test iterators:
     @test iterator(p1, 5)  == [1, 2, 3, 6, 10]
     @test iterator(p2) == collect(p2.values)
     u = 2^(log2(0.1)/2)
     @test iterator(p3, 3) ≈ [0.1, u, 1]
     @test iterator(p4, 3) == [2, 4, 6]
+
+    # iterator for semi-unbounded ranges:
+    v = Int.(round.(exp.([(1-t)*log(10) + t*log(10+2e5)
+                     for t in 0:(1/3):1]))) |> unique
+    @test iterator(z2, 4) == v
+    @test iterator(z3, 4) == reverse(-v)
+
+    # iterator for doubly-unbounded ranges:
+    @test iterator(z5, 4) ==
+        iterator(range(Int, :foo, lower=-10, upper=30), 4)
+
 end
 
 @testset "range constructors for nested parameters" begin

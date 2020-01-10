@@ -23,10 +23,13 @@ MLJBase.transform(::SCALE, ::Val{:linear}, x) = x
 MLJBase.inverse_transform(::SCALE, ::Val{:linear}, x) = x
 MLJBase.transform(::SCALE, ::Val{:log}, x) = log(x)
 MLJBase.inverse_transform(::SCALE, ::Val{:log}, x) = exp(x)
+MLJBase.transform(::SCALE, ::Val{:logminus}, x) = log(-x)
+MLJBase.inverse_transform(::SCALE, ::Val{:logminus}, x) = -exp(x)
 MLJBase.transform(::SCALE, ::Val{:log10}, x) = log10(x)
 MLJBase.inverse_transform(::SCALE, ::Val{:log10}, x) = 10^x
 MLJBase.transform(::SCALE, ::Val{:log2}, x) = log2(x)
 MLJBase.inverse_transform(::SCALE, ::Val{:log2}, x) = 2^x
+
 MLJBase.transform(::SCALE, f::Function, x) = x            # not a typo!
 MLJBase.inverse_transform(::SCALE, f::Function, x) = f(x) # not a typo!
 
@@ -34,12 +37,14 @@ abstract type ParamRange <: MLJType end
 
 Base.isempty(::ParamRange) = false
 
-struct NominalRange{T} <: ParamRange
-    field::Union{Symbol,Expr}
-    values::Tuple{Vararg{T}}
-end
+abstract type Boundedness end
+abstract type Bounded <: Boundedness end
+abstract type Unbounded <: Boundedness end 
+abstract type LeftUnbounded <: Unbounded end
+abstract type RightUnbounded <: Unbounded end
+abstract type DoublyUnbounded <: Unbounded end
 
-struct NumericRange{T,D} <: ParamRange
+struct NumericRange{B<:Boundedness,T,D} <: ParamRange 
     field::Union{Symbol,Expr}
     lower::Union{T,Float64} # Float64 to allow for -Inf
     upper::Union{T,Float64} # Float64 to allow for Inf
@@ -47,6 +52,12 @@ struct NumericRange{T,D} <: ParamRange
     unit::Float64
     scale::D
 end
+
+struct NominalRange{T} <: ParamRange
+    field::Union{Symbol,Expr}
+    values::Tuple{Vararg{T}}
+end
+
 
 MLJBase.show_as_constructed(::Type{<:ParamRange}) = true
 
@@ -66,15 +77,21 @@ A nested hyperparameter is specified using dot notation. For example,
 hyperparameter `:atom` of `model`.
 
     r = range(model, :hyper; upper=nothing, lower=nothing, 
-              scale=:linear, values=nothing)
+              scale=nothing, values=nothing)
 
 Assuming `values == nothing`, this defines a `NumericRange` object for
 a `Real` field `hyper` of `model`.  Note that `r` is not directly
-iteratable but `iterator(r, n)` iterates over `n` values between
-`lower` and `upper` values, according to the specified `scale`. The
-supported scales are `:linear, :log, :log10, :log2`, or a function
-(see below).  Values for `Integer` types are rounded (with duplicate
-values removed, resulting in possibly less than `n` values).
+iteratable but `iterator(r, n)` iterates over `n` values controlled by
+the various parameters (see more at [iterator](@ref).  The supported
+scales are `:linear`,` :log`, `:logminus`, `:log10`, `:log2`, or a
+function (see below).  Values for `Integer` types are rounded (with
+duplicate values removed, resulting in possibly less than `n` values).
+
+If `scale` is unspecified, it is set to `:linear`, `:log`,
+`:logminus`, or `:linear`, according to whether the interval `(lower,
+upper)` is bounded, right-unbounded, left-unbounded, or doubly
+unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
+allowed.
 
 If `values` is specified, the other keyword arguments are ignored and
 a `NominalRange` object is returned (see above).
@@ -91,7 +108,7 @@ and `upper`.
 function Base.range(model::Union{Model, Type},
                     field::Union{Symbol,Expr}; values=nothing,
                     lower=nothing, upper=nothing,
-                    origin=nothing, unit=nothing, scale::D=:linear) where D
+                    origin=nothing, unit=nothing, scale::D=nothing) where D 
 
     if model isa Model
         value = recursive_getproperty(model, field)
@@ -104,14 +121,10 @@ function Base.range(model::Union{Model, Type},
     else
         return nominal_range(T, field, values)
     end
-
 end
 
 function numeric_range(T, D, field, lower, upper, origin, unit, scale)
-    if lower === nothing && upper === nothing
-        error("You must specify `lower=...` or "*
-              "`upper=...` or both, for a `Real` parameter. ")
-    end
+
     lower === Inf && error("`lower` must be finite or `-Inf`. ")
     upper === -Inf && error("`upper` must be finite or `Inf`")
     lower === nothing && (lower = -Inf)
@@ -124,7 +137,7 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
                              "define a centre.\nTo make the range "*
                              "bounded, specify finite `upper=...` "*
                              "and `lower=...`")
-        origin = (upper + lower)/2)
+        origin = (upper + lower)/2
     end
     if unit == nothing
         isunbounded && error("For an unbounded range you must "*
@@ -139,16 +152,38 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
     origin < upper && origin > lower ||
         error("`origin` must lie strictly between `lower` and `upper`. ")
 
-    return NumericRange{T,D}(field, lower, upper, origin, unit, scale)
-
+    if lower == -Inf
+        if upper == Inf
+            B = DoublyUnbounded
+            scale == nothing && (scale = :linear)
+        else
+            B = LeftUnbounded
+            scale == nothing && (scale = :logminus)
+        end
+    else
+        if upper == Inf
+            B = RightUnbounded
+            scale == nothing && (scale = :log)
+        else
+            B = Bounded
+            scale == nothing && (scale = :linear)
+        end
+    end
+    if scale isa Symbol
+        NumericRange{B,T, Symbol}(field, lower, upper, origin, unit, scale)
+    else
+        NumericRange{B,T, D}(field, lower, upper, origin, unit, scale)
+    end
 end
 
-function nominal_range(T, field, values)
+nominal_range(T, field, values) =
+    error("`values` does not have an appropriate type. ")
+function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
     values === nothing && error("You must specify values=... "*
                                 "for a nominal parameter. ")
+    values
     return NominalRange{T}(field, Tuple(values))
 end
-
 
 """
     MLJBase.scale(r::ParamRange)
@@ -160,7 +195,7 @@ possible return values are: `:none` (for a `NominalRange`), `:linear`,
 """
 scale(r::NominalRange) = :none
 scale(r::NumericRange) = :custom
-scale(r::NumericRange{T,Symbol}) where T =
+scale(r::NumericRange{B,T,Symbol}) where {B<:Boundedness,T} =
     r.scale
 
 
@@ -173,37 +208,76 @@ scale(r::NumericRange{T,Symbol}) where T =
 
 Return an iterator (currently a vector) for a `ParamRange` object `r`.
 In the first case iteration is over all values. In the second case,
-the iteration is over `N` ordered values in the range, as specified by
-the `lower`, `upper` and `scale` attributes of the range. For
-`AbstractFloat` ranges `N=n`. For `Integer` ranges `N` could be less
-than `n`, because of rounding.
+the iteration is over approximately `n` ordered values, generated as
+follows:
 
-Iterating over unbounded ranges (`lower=-Inf` or `upper=Inf`) is not
-supported.
+First, exacltly `n` values are generated between `U` and `L`, with a
+spacing determined by `r.scale`, where `U` and `L` are given by the
+following table:
 
- """
+| `r.lower`   | `r.upper`  | `L`                 | `U`                 |
+|-------------|------------|---------------------|---------------------|
+| finite      | finite     | `r.lower`           | `r.upper`           |
+| `-Inf`      | finite     | `r.upper - 2r.unit` | `r.upper`           |
+| finite      | `Inf`      | `r.lower`           | `r.lower + 2r.unit  |
+| `-Inf`      | `Inf`      | `r.origin - r.unit` | `r.origin + r.unit  |
 
-iterator(param_range::NominalRange) = collect(param_range.values)
+If `r` isa a discrete range (`r isa
+NumericRange{<:Any,<:Any,<:Integer}`) then the values are rounded,
+with any duplicate values removed. Otherwise all the values are used
+as is (and there are exacltly `n` of them).  """
+iterator(r::NominalRange) = collect(r.values)
 
-function iterator(param_range::NumericRange{T}, n::Int) where {T<:Real}
-    s = scale(param_range.scale)
-    transformed = range(transform(Scale, s, param_range.lower),
-                stop=transform(Scale, s, param_range.upper),
-                length=n)
+# top level
+
+function iterator(r::NumericRange{<:Bounded,T},
+                  n::Int) where {T<:Real}
+    L = r.lower
+    U = r.upper
+    return iterator(T, L, U, r.scale, n)
+end
+
+function iterator(r::NumericRange{<:LeftUnbounded,T},
+                  n::Int) where {T<:Real}
+    L = r.upper - 2r.unit
+    U = r.upper
+    return iterator(T, L, U, r.scale, n)
+end
+
+function iterator(r::NumericRange{<:RightUnbounded,T},
+                  n::Int) where {T<:Real}
+    L = r.lower
+    U = r.lower + 2r.unit
+    return iterator(T, L, U, r.scale, n)
+end
+
+function iterator(r::NumericRange{<:DoublyUnbounded,T},
+                  n::Int) where {T<:Real}
+    L = r.origin - r.unit
+    U = r.origin + r.unit
+    return iterator(T, L, U, r.scale, n)
+end
+
+# middle level
+
+iterator(::Type{<:Real}, L, U, s, n) =
+    iterator(L, U, s, n)
+
+function iterator(I::Type{<:Integer}, L, U, s, n)
+    raw = iterator(L, U, s, n)
+    rounded = map(x -> round(I, x), raw)
+    return unique(rounded)
+end
+
+# base level
+
+function iterator(L, U, s, n)
+    transformed = range(transform(Scale, scale(s), L),
+                stop=transform(Scale, scale(s), U),
+                        length=n)
     inverse_transformed = map(transformed) do value
-        inverse_transform(Scale, s, value)
+        inverse_transform(Scale, scale(s), value)
     end
-    return unique(inverse_transformed)
+    return inverse_transformed
 end
 
-# in special case of integers, round to nearest integer:
-function iterator(param_range::NumericRange{I}, n::Int) where {I<:Integer}
-    s = scale(param_range.scale)
-    transformed = range(transform(Scale, s, param_range.lower),
-                stop=transform(Scale, s, param_range.upper),
-                length=n)
-    inverse_transformed =  map(transformed) do value
-        round(I, inverse_transform(Scale, s, value))
-    end
-    return unique(inverse_transformed)
-end
