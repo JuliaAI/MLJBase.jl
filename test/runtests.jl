@@ -26,6 +26,10 @@ end
   @test include("one_dimensional_ranges.jl")
 end
 
+@testset "one_dimensional_range_methods" begin
+  @test include("one_dimensional_range_methods.jl")
+end
+
 @testset "scientific trait" begin
     @test include("scientific_trait.jl")
 end

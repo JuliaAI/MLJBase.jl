@@ -181,13 +181,19 @@ const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
 
+
+## INCLUDE FILES
+
 include("utilities.jl")
 
 # what new models must implement:
 include("model_interface.jl")
 
+# for inspecting (possibly nested) fields of MLJ objects:
+include("parameters.jl")
+
 # equality for `MLJType` objects
-include("equality.jl") 
+include("equality.jl")
 
 # for displaying objects of `MLJType`:
 include("show.jl")
@@ -198,12 +204,10 @@ include("computational_resources.jl")
 
 # hyperparameter ranges (domains):
 include("one_dimensional_ranges.jl")
+include("one_dimensional_range_methods.jl")
 
 # model trait fallbacks
 include("model_traits.jl")
-
-# for unpacking the fields of MLJ objects:
-include("parameters.jl")
 
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
@@ -212,7 +216,7 @@ include("data.jl")
 include("metadata_utilities.jl")
 
 # macro to streamline model definitions
-include("mlj_model_macro.jl")    
+include("mlj_model_macro.jl")
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
@@ -228,7 +232,7 @@ include("datasets_synthetic.jl")
 # to be depreciated:
 include("tasks.jl")
 
-# scores, losses, etc: 
+# scores, losses, etc:
 include("measures/measures.jl")
 include("measures/registry.jl")
 

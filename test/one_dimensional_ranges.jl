@@ -21,7 +21,7 @@ dummy1 = DummyModel(1, 9.5, 'k')
 dummy2 = DummyModel(2, 9.5, 'k')
 super_model = SuperModel(0.5, dummy1, dummy2)
 
-@testset "range constructors, scale, iterator" begin
+@testset "constructors" begin
     @test_throws ErrorException range(dummy_model, :K, lower=Inf,
                                       origin=1, unit=1)
     @test_throws ErrorException range(dummy_model, :K, upper=-Inf,
@@ -87,36 +87,11 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     p2 = range(dummy_model, :kernel, values=['c', 'd'])
     p3 = range(super_model, :lambda, lower=0.1, upper=1, scale=:log2)
     p4 = range(dummy_model, :K, lower=1, upper=3, scale=x->2x)
-    @test scale(p1) == :log10
-    @test scale(p2) == :none
-    @test scale(p3) == :log2
-    @test scale(p4) == :custom
-    @test scale(sin) === sin
-    @test transform(MLJBase.Scale, scale(:log), ℯ) == 1
-    @test inverse_transform(MLJBase.Scale, scale(:log), 1) == float(ℯ)
 
     # test that you can replace model with type:
     @test z1 == range(Int, :K, lower=1, upper=10)
     @test z4 == range(Float64, :lambda, lower=1, upper=10)
     @test p2 == range(Char, :kernel, values=['c', 'd'])
-
-    # test iterators:
-    @test iterator(p1, 5)  == [1, 2, 3, 6, 10]
-    @test iterator(p2) == collect(p2.values)
-    u = 2^(log2(0.1)/2)
-    @test iterator(p3, 3) ≈ [0.1, u, 1]
-    @test iterator(p4, 3) == [2, 4, 6]
-
-    # iterator for semi-unbounded ranges:
-    v = Int.(round.(exp.([(1-t)*log(10) + t*log(10+2e5)
-                     for t in 0:(1/3):1]))) |> unique
-    @test iterator(z2, 4) == v
-    @test iterator(z3, 4) == reverse(-v)
-
-    # iterator for doubly-unbounded ranges:
-    @test iterator(z5, 4) ==
-        iterator(range(Int, :foo, lower=-10, upper=30), 4)
-
 end
 
 @testset "range constructors for nested parameters" begin
