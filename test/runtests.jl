@@ -107,9 +107,9 @@ end
     @test include("pipelines.jl")
 end
 
-# VERSION ≥ v"1.3.0-" && @testset "arrows" begin
-#     @test include("arrows.jl")
-# end
+VERSION ≥ v"1.3.0-" && @testset "arrows" begin
+    @test include("arrows.jl")
+end
 
 @testset "resampling" begin
     @test include("resampling.jl")
