@@ -25,7 +25,7 @@ export load_path, package_url, package_name, package_uuid,
     target_scitype, output_scitype,
     is_pure_julia, is_wrapper, prediction_type
 
-# parameters.jl:
+# parameter_inspection.jl:
 export params # note this is *not* an extension of StatsBase.params
 
 # data.jl:
@@ -190,7 +190,7 @@ include("utilities.jl")
 include("model_interface.jl")
 
 # for inspecting (possibly nested) fields of MLJ objects:
-include("parameters.jl")
+include("parameter_inspection.jl")
 
 # equality for `MLJType` objects
 include("equality.jl")

@@ -46,8 +46,8 @@ end
     @test include("utilities.jl")
 end
 
-@testset "parameters" begin
-    @test include("parameters.jl")
+@testset "parameter inspection" begin
+    @test include("parameter_inspection.jl")
 end
 
 @testset "distributions" begin
