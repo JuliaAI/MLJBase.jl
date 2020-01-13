@@ -2,6 +2,8 @@ module TestOneDimensionalRangeIterators
 
 using Test
 using MLJBase
+using Random
+Random.seed!(123)
 
 mutable struct DummyModel <: Deterministic
     K::Int
@@ -62,8 +64,17 @@ end
     @test iterator(z5, 4) ==
         iterator(range(Int, :foo, lower=-10, upper=30), 4)
 
-end
+    # truncated nominal range iteration:
+    rr = range(Char, :foo, values=collect("abcdefg"))
+    @test iterator(rr, 3) == ['a', 'b', 'c']
 
+    # random:
+    rng = MersenneTwister(123)
+    @test iterator(p1, 5, rng) == [10, 6, 1, 2, 3]
+    @test iterator(rr, rng) == ['b', 'a', 'g', 'c', 'e', 'f', 'd']
+    @test iterator(rr, 3, rng) == ['b', 'c', 'a']
+
+end
 
 end
 true

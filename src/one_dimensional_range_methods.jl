@@ -52,13 +52,13 @@ scale(r::NumericRange{B,T,Symbol}) where {B<:Boundedness,T} =
 ## ITERATORS 
 
 """
-    MLJTuning.iterator(r::NominalRange)
-    MLJTuning.iterator(r::NumericRange, n)
+    MLJTuning.iterator(r::NominalRange, [,n, rng])
+    MLJTuning.iterator(r::NumericRange, n, [, rng])
 
 Return an iterator (currently a vector) for a `ParamRange` object `r`.
-In the first case iteration is over all values. In the second case,
-the iteration is over approximately `n` ordered values, generated as
-follows:
+In the first case iteration is over all `values` stored in the range
+(or just the first `n`, if `n` is specified). In the second case, the iteration
+is over approximately `n` ordered values, generated as follows:
 
 First, exacltly `n` values are generated between `U` and `L`, with a
 spacing determined by `r.scale`, where `U` and `L` are given by the
@@ -76,11 +76,21 @@ NumericRange{<:Any,<:Any,<:Integer}`) then the values are rounded,
 with any duplicate values removed. Otherwise all the values are used
 as is (and there are exacltly `n` of them).
 
+If a random number generator `rng` is specified, then the values are
+returned in random order (sampling without replacement), and otherwise
+they are returned in numeric order, or in the order provided to the
+range constructor, in the case of a `NominalRange`.
+
 """
+iterator(r::ParamRange, n::Integer, rng::AbstractRNG) =
+    StatsBase.sample(rng, iterator(r, n), n, replace=false)
+
+iterator(r::NominalRange, n::Integer) = collect(r.values[1:n])
 iterator(r::NominalRange) = collect(r.values)
+iterator(r::NominalRange, rng::AbstractRNG) =
+    iterator(r, length(r.values), rng)
 
-# top level dispatch
-
+# nominal range, top level dispatch
 function iterator(r::NumericRange{<:Bounded,T},
                   n::Int) where {T<:Real}
     L = r.lower
