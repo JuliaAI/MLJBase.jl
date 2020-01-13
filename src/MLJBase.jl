@@ -180,6 +180,8 @@ const srcdir = dirname(@__FILE__)
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
+const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
+const INDENT = 4
 
 
 ## INCLUDE FILES

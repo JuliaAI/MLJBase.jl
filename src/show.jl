@@ -148,25 +148,31 @@ end
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true})
     fancy(stream, object)
 end
-fancy(stream::IO, object) = fancy(stream, object, 0, DEFAULT_SHOW_DEPTH + 2, 0)
+fancy(stream::IO, object) = fancy(stream, object, 0,
+                                  DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH, 0)
 fancy(stream, object, current_depth, depth, n) = show(stream, object)
 function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
     if current_depth == depth
         show(stream, object)
     else
-        prefix = string(coretype(typeof(object)))
+        prefix = split(string(coretype(typeof(object))), '.')[end]
+        anti = max(length(prefix) - INDENT, 3)
         print(stream, prefix, "(")
         first_item = true
-        for k in fieldnames(M)
-            value =  getproperty(object, k)
-            if !first_item
-                print(stream, crind(n + length(prefix) + 1))
-            else
-                first_item = false
-            end
-            print(stream, "$k = ")
-            fancy(stream, value, current_depth + 1, depth, n + length(prefix) + 1 + length("$k = "))
-            print(stream, ",")
+        names = fieldnames(M)
+        n_names = length(names)
+        for k in eachindex(names)
+            value =  getproperty(object, names[k])
+            # if !first_item
+            #     print(stream, crind(n + length(prefix)))
+            # else
+            #     first_item = false
+            # end
+            print(stream, crind(n + length(prefix) - anti))
+            print(stream, "$(names[k]) = ")
+            fancy(stream, value, current_depth + 1, depth, n + length(prefix)
+                  - anti + length("$k = "))
+            k == n_names || print(stream, ",")
         end
         print(stream, ")")
         if current_depth == 0
