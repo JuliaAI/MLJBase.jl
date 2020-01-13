@@ -93,7 +93,7 @@ end
 ## OTHER EXPOSED SHOW METHODS
 
 # string consisting of carriage return followed by indentation of length n:
-crind(n) = "\n"*repeat(' ', n)
+crind(n) = "\n"*repeat(' ', max(n, 0))
 
 # trait to tag those objects to be displayed as constructed:
 show_as_constructed(::Any) = false
@@ -156,7 +156,7 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
         show(stream, object)
     else
         prefix = split(string(coretype(typeof(object))), '.')[end]
-        anti = max(length(prefix) - INDENT, 3)
+        anti = max(length(prefix) - INDENT)
         print(stream, prefix, "(")
         first_item = true
         names = fieldnames(M)
