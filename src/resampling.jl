@@ -769,7 +769,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
         _process_weights_measures(resampler.weights, resampler.measure,
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
-
+    mach.model = resampler.model
     fitresult = evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
