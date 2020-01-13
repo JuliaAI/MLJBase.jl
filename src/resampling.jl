@@ -785,7 +785,13 @@ end
 MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.input_scitype(M)
 MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.target_scitype(M)
 
+evaluate(resampler::Resampler, fitresult) = fitresult
 
-## EVALUATE FOR MODEL + DATA
+function evaluate(machine::AbstractMachine{<:Resampler})
+    if isdefined(machine, :fitresult)
+        return evaluate(machine.model, machine.fitresult)
+    else
+        throw(error("$machine has not been trained."))
+    end
+end
 
-MLJBase.evaluate(model::Resampler, fitresult) = fitresult

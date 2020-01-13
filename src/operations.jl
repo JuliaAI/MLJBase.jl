@@ -67,13 +67,6 @@ end
 @sugar inverse_transform
 
 # the zero argument special cases:
-function evaluate(machine::AbstractMachine)
-    if isdefined(machine, :fitresult)
-        return evaluate(machine.model, machine.fitresult)
-    else
-        throw(error("$machine has not been trained."))
-    end
-end
 function fitted_params(machine::AbstractMachine)
     if isdefined(machine, :fitresult)
         return fitted_params(machine.model, machine.fitresult)
