@@ -1,6 +1,5 @@
 module MLJBase
 
-
 ## METHOD EXPORT
 
 # defined in this file:
@@ -9,11 +8,16 @@ export MLJType, Model, Supervised, Unsupervised, Static,
     DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
     fit, update, update_data, clean!,
     predict, predict_mean, predict_mode, predict_median, fitted_params,
-    transform, inverse_transform, se, evaluate, best, @load
+    transform, inverse_transform, evaluate, best, @load
 
+# computational_resources.jl:
+export default_resource
 
 # equality.jl:
 export is_same_except
+
+# one_dimensional_ranges.jl:
+export ParamRange, NumericRange, NominalRange, iterator, scale
 
 # model_traits.jl:
 export load_path, package_url, package_name, package_uuid,
@@ -21,7 +25,7 @@ export load_path, package_url, package_name, package_uuid,
     target_scitype, output_scitype,
     is_pure_julia, is_wrapper, prediction_type
 
-# parameters.jl:
+# parameter_inspection.jl:
 export params # note this is *not* an extension of StatsBase.params
 
 # data.jl:
@@ -33,7 +37,7 @@ export reconstruct, int, decoder, classes,
 
 # utilities.jl:
 export @set_defaults, flat_values,
-    recursive_setproperty!, recursive_getproperty
+    recursive_setproperty!, recursive_getproperty, pretty, unwind
 
 # mlj_model_macro.jl
 export @mlj_model
@@ -76,6 +80,10 @@ export machines, sources, anonymize!, @from_network, fitresults
 
 # pipelines.jl:
 export @pipeline
+
+# resampling.jl:
+export ResamplingStrategy, Holdout, CV, StratifiedCV,
+    evaluate!, Resampler, PerformanceEvaluation
 
 # measures/registry.jl:
 export measures
@@ -140,12 +148,17 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle,
 import Base: ==, precision, getindex, setindex!, @__doc__
 
 using Tables
+using PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
 using ScientificTypes
 using LossFunctions
 import InvertedIndices: Not
+using Distributed
+using ComputationalResources
+using ComputationalResources: CPUProcesses
+using ProgressMeter
 
 # to be extended:
 import StatsBase
@@ -167,165 +180,85 @@ const srcdir = dirname(@__FILE__)
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
+const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
+const INDENT = 4
+
+
+## INCLUDE FILES
 
 include("utilities.jl")
 
-## BASE TYPES
+# what new models must implement:
+include("model_interface.jl")
 
-abstract type MLJType end
-include("equality.jl") # equality for MLJType objects
+# for inspecting (possibly nested) fields of MLJ objects:
+include("parameter_inspection.jl")
 
-## ABSTRACT MODEL TYPES
-
-# for storing hyperparameters:
-abstract type Model <: MLJType end
-
-abstract type Supervised <: Model end
-abstract type Unsupervised <: Model end
-
-# supervised models that `predict` probability distributions are of:
-abstract type Probabilistic <: Supervised end
-
-# supervised models that `predict` point-values are of:
-abstract type Deterministic <: Supervised end
-
-# supervised models that `predict` intervals:
-abstract type Interval <: Supervised end
-
-# for static operations dependent on user-specified parameters:
-abstract type Static <: Unsupervised end
-
-# for models that are "exported" learning networks (return a Node as
-# their fit-result; see MLJ docs:
-abstract type ProbabilisticNetwork <: Probabilistic end
-abstract type DeterministicNetwork <: Deterministic end
-abstract type UnsupervisedNetwork <: Unsupervised end
-
-
-## THE MODEL INTERFACE
-
-# every model interface must implement a `fit` method of the form
-# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
-# or, one the simplified versions
-# `fit(model, training_args...) -> fitresult`
-fit(model::Model, verbosity::Integer, args...) =
-    fit(model, args...), nothing, nothing
-
-# fallback for static transformations:
-fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
-
-# each model interface may optionally overload the following refitting
-# method:
-update(model::Model, verbosity, fitresult, cache, args...) =
-    fit(model, verbosity, args...)
-
-# fallbacks for supervised models that don't support sample weights:
-fit(model::Supervised, verbosity::Integer, X, y, w) =
-    fit(model, verbosity, X, y)
-update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
-    update(model, verbosity, fitresult, cache, X, y)
-
-# stub for online learning method update method
-function update_data end
-
-# methods dispatched on a model and fit-result are called
-# *operations*.  Supervised models must implement a `predict`
-# operation (extending the `predict` method of StatsBase).
-
-# unsupervised methods must implement this operation:
-function transform end
-
-# unsupervised methods may implement this operation:
-function inverse_transform end
-
-# this operation can be optionally overloaded to provide access to
-# fitted parameters (eg, coeficients of linear model):
-fitted_params(::Model, fitresult) = (fitresult=fitresult,)
-
-# probabilistic supervised models may also overload one or more of
-# `predict_mode`, `predict_median` and `predict_mean` defined below.
-
-# mode:
-predict_mode(model::Probabilistic, fitresult, Xnew) =
-    predict_mode(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mode(model, fitresult, Xnew, ::Any) =
-    mode.(predict(model, fitresult, Xnew))
-const BadModeTypes = Union{AbstractArray{Continuous},Table(Continuous)}
-predict_mode(model, fitresult, Xnew, ::Val{<:BadModeTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Continuous` targets. "))
-
-# mean:
-predict_mean(model::Probabilistic, fitresult, Xnew) =
-    predict_mean(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mean(model, fitresult, Xnew, ::Any) =
-    mean.(predict(model, fitresult, Xnew))
-const BadMeanTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_mean(model, fitresult, Xnew, ::Val{<:BadMeanTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# median:
-predict_median(model::Probabilistic, fitresult, Xnew) =
-    predict_median(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_median(model, fitresult, Xnew, ::Any) =
-    median.(predict(model, fitresult, Xnew))
-const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_median(model, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# operations implemented by some meta-models:
-function se end
-function evaluate end
-function best end
-
-# a model wishing invalid hyperparameters to be corrected with a
-# warning should overload this method (return value is the warning
-# message):
-clean!(model::Model) = ""
-
-
-## STUB FOR @load (extended by MLJModels)
-
-macro load end
-
-
-## TRAITS
-
-include("model_traits.jl")
-
-# for unpacking the fields of MLJ objects:
-include("parameters.jl")
+# equality for `MLJType` objects
+include("equality.jl")
 
 # for displaying objects of `MLJType`:
 include("show.jl")
 
+# methods to inspect/change default computational resource (mode of
+# parallelizaion):
+include("computational_resources.jl")
+
+# hyperparameter ranges (domains):
+include("one_dimensional_ranges.jl")
+include("one_dimensional_range_methods.jl")
+
+# model trait fallbacks
+include("model_traits.jl")
+
 # convenience methods for manipulating categorical and tabular data
 include("data.jl")
 
-include("metadata_utilities.jl") # metadata utils
-include("mlj_model_macro.jl")    # macro to streamline model definitions
+# metadata utils:
+include("metadata_utilities.jl")
+
+# macro to streamline model definitions
+include("mlj_model_macro.jl")
 
 # probability distributions and methods not provided by
 # Distributions.jl package:
 include("distributions.jl")
 
+# assembles model traits into dictionaries:
 include("info_dict.jl")
+
+# datasets:
 include("datasets.jl")
 include("datasets_synthetic.jl")
+
+# to be depreciated:
 include("tasks.jl")
+
+# scores, losses, etc:
 include("measures/measures.jl")
 include("measures/registry.jl")
+
 include("pipeline_static.jl")  # static transformer needed by pipeline.jl
 include("machines.jl")
 include("networks.jl")
-include("operations.jl") # overloading predict, transform, etc
-include("composites.jl") # building and exporting learning networks
+
+# overloading predict, transform, etc, to work with machines:
+include("operations.jl")
+
+# building and exporting learning networks:
+include("composites.jl")
+
+# macro for non-branching exported networks:
 include("pipelines.jl")
+
+# arrow syntax for constructing learning networks:
 VERSION ≥ v"1.3.0-" && include("arrows.jl")
 
+# resampling (Holdout, CV, etc)
+include("resampling.jl")
+
 function __init__()
+    global DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end

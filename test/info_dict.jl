@@ -1,6 +1,5 @@
 module TestInfo
 
-# using Revise
 using MLJBase
 import MLJBase.info_dict
 using Test
@@ -22,6 +21,12 @@ MLJBase.package_name(::Type{DummyProb}) = "GreatPackage"
 MLJBase.package_uuid(::Type{DummyProb}) = "6f286f6a-111f-5878-ab1e-185364afe411"
 MLJBase.package_url(::Type{DummyProb}) = "https://mickey.mouse.org"
 MLJBase.package_license(::Type{DummyProb}) = "MIT"
+MLJBase.hyperparameter_ranges(::Type{DummyProb}) =
+                              (range(Int, :an_int, values=[1,2]),
+                               range(Float64, :a_float, lower=1, upper=2),
+                               range(Vector{Float64}, :a_vector,
+                                     values=[[1.0], [2.0]]),
+                               nothing)
 MLJBase.predict(::DummyProb, fr, X) = nothing
 
 mutable struct DummyDeterm <: Deterministic end
@@ -78,10 +83,16 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                                :is_wrapper => false,
                                :docstring => "DummyProb from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => ["Int64", "Float64",
-                                                     "Array{Float64,1}", "Any"],
-                               :hyperparameters => [:an_int, :a_float,
-                                                    :a_vector, :untyped])
+                               :hyperparameter_types  => ("Int64", "Float64",
+                                                     "Array{Float64,1}", "Any"),
+                               :hyperparameters => (:an_int, :a_float,
+                                                    :a_vector, :untyped),
+                               :hyperparameter_ranges =>
+                               (range(Int, :an_int, values=[1,2]),
+                                range(Float64, :a_float, lower=1, upper=2),
+                                range(Vector{Float64}, :a_vector,
+                                      values=[[1.0], [2.0]]),
+                                nothing))
 
 
     @test info_dict(DummyProb) == d
@@ -111,9 +122,9 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyDeterm from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [])
-
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
+                               :hyperparameter_ranges => ())
 
     @test info_dict(DummyDeterm) == d
     @test info_dict(DummyDeterm()) == d
@@ -141,8 +152,9 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyInt from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:predict, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [])
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
+                               :hyperparameter_ranges => ())
 
     @test info_dict(DummyInt) == d
     @test info_dict(DummyInt()) == d
@@ -168,8 +180,9 @@ end
                                :is_wrapper => false,
                                :docstring => "DummyUnsup from GreatPackage.jl.\n[Documentation](https://mickey.mouse.org).",
                                :implemented_methods => [:transform, ],
-                               :hyperparameter_types  => [],
-                               :hyperparameters => [])
+                               :hyperparameter_types  => (),
+                               :hyperparameters => (),
+                               :hyperparameter_ranges => ())
 
     @test info_dict(DummyUnsup) == d
     @test info_dict(DummyUnsup()) == d

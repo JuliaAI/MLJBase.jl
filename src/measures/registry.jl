@@ -25,7 +25,7 @@ function Base.show(stream::IO, ::MIME"text/plain", p::MeasureProxy)
     printstyled(IOContext(stream, :color=> MLJBase.SHOW_COLOR),
                 p.docstring, bold=false, color=:magenta)
     println(stream)
-    MLJBase.pretty_nt(stream, p)
+    MLJBase.fancy_nt(stream, p)
 end
 
 

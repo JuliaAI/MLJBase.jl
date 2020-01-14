@@ -58,7 +58,6 @@ end
 @extend_to_machines predict_median
 @extend_to_machines transform
 @extend_to_machines inverse_transform
-@extend_to_machines se
 
 @sugar predict
 @sugar predict_mode
@@ -66,17 +65,8 @@ end
 @sugar predict_median
 @sugar transform
 @sugar inverse_transform
-@sugar se
-
 
 # the zero argument special cases:
-function evaluate(machine::AbstractMachine)
-    if isdefined(machine, :fitresult)
-        return evaluate(machine.model, machine.fitresult)
-    else
-        throw(error("$machine has not been trained."))
-    end
-end
 function fitted_params(machine::AbstractMachine)
     if isdefined(machine, :fitresult)
         return fitted_params(machine.model, machine.fitresult)

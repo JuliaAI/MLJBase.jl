@@ -1,8 +1,33 @@
-using MLJBase, Test
-using Logging
+using Distributed
+addprocs(2)
+
+@everywhere begin
+    using MLJBase, Test
+    using Logging
+    using ComputationalResources
+end
+
+include("test_utilities.jl")
+
+# load Models module containing models implementations for testing:
+print("Loading some models for testing...")
+@everywhere include("models.jl")
+print("\r                                           \r")
+
+@testset "computational resources" begin
+    @test include("computational_resources.jl")
+end
 
 @testset "model interface" begin
-    @test include("MLJBase.jl")
+    @test include("model_interface.jl")
+end
+
+@testset "one_dimensional_ranges" begin
+  @test include("one_dimensional_ranges.jl")
+end
+
+@testset "one_dimensional_range_methods" begin
+  @test include("one_dimensional_range_methods.jl")
 end
 
 @testset "scientific trait" begin
@@ -21,8 +46,8 @@ end
     @test include("utilities.jl")
 end
 
-@testset "parameters" begin
-    @test include("parameters.jl")
+@testset "parameter inspection" begin
+    @test include("parameter_inspection.jl")
 end
 
 @testset "distributions" begin
@@ -42,10 +67,10 @@ end
     @test include("datasets_synthetic.jl")
 end
 
-# Now obsolete -- see #144
-@testset "tasks" begin
-    @test include("tasks.jl")
-end
+# # Now obsolete -- see #144
+# @testset "tasks" begin
+#     @test include("tasks.jl")
+# end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
@@ -66,11 +91,6 @@ end
     @test include("pipeline_static.jl")
 end
 
-# load Models module containing models for further testing:
-print("Loading some models for testing...")
-include("models.jl")
-print("\r                                           \r")
-
 @testset "machines" begin
     @test include("machines.jl")
 end
@@ -89,4 +109,8 @@ end
 
 VERSION ≥ v"1.3.0-" && @testset "arrows" begin
     @test include("arrows.jl")
+end
+
+@testset "resampling" begin
+    @test include("resampling.jl")
 end
