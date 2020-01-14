@@ -782,8 +782,14 @@ function MLJBase.update(resampler::Resampler{Holdout},
 
 end
 
-MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.input_scitype(M)
-MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.target_scitype(M)
+MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    MLJBase.input_scitype(M)
+MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    MLJBase.target_scitype(M)
+MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
+    MLJBase.target_scitype(M)
+MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
+    MLJBase.target_scitype(M)
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 
