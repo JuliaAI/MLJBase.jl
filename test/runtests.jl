@@ -2,9 +2,9 @@ using Distributed
 addprocs(2)
 
 @everywhere begin
-using MLJBase, Test
-using Logging
-using ComputationalResources
+    using MLJBase, Test
+    using Logging
+    using ComputationalResources
 end
 
 include("test_utilities.jl")
