@@ -68,11 +68,11 @@ end
 ## SHOW METHOD FOR NAMED TUPLES
 
 # long version of showing a named tuple:
-Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = pretty_nt(stream, t)
-pretty_nt(t) = pretty_nt(stdout, t)
-pretty_nt(stream::IO, t) = pretty_nt(stream, t, 0)
-pretty_nt(stream, t, n) = show(stream, t)
-function pretty_nt(stream, t::NamedTuple, n)
+Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = fancy_nt(stream, t)
+fancy_nt(t) = fancy_nt(stdout, t)
+fancy_nt(stream::IO, t) = fancy_nt(stream, t, 0)
+fancy_nt(stream, t, n) = show(stream, t)
+function fancy_nt(stream, t::NamedTuple, n)
     print(stream, "(")
     first_item = true
     for k in keys(t)
@@ -83,7 +83,7 @@ function pretty_nt(stream, t::NamedTuple, n)
             first_item = false
         end
         print(stream, "$k = ")
-        pretty_nt(stream, value, n + length("$k = ") + 1)
+        fancy_nt(stream, value, n + length("$k = ") + 1)
         print(stream, ",")
     end
     print(stream, ")")
@@ -93,7 +93,7 @@ end
 ## OTHER EXPOSED SHOW METHODS
 
 # string consisting of carriage return followed by indentation of length n:
-crind(n) = "\n"*repeat(' ', n)
+crind(n) = "\n"*repeat(' ', max(n, 0))
 
 # trait to tag those objects to be displayed as constructed:
 show_as_constructed(::Any) = false
@@ -146,27 +146,33 @@ function Base.show(stream::IO, ::MIME"text/plain", object::MLJType, ::Val{false}
 end
 
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{true})
-    pretty(stream, object)
+    fancy(stream, object)
 end
-pretty(stream::IO, object) = pretty(stream, object, 0, DEFAULT_SHOW_DEPTH + 2, 0)
-pretty(stream, object, current_depth, depth, n) = show(stream, object)
-function pretty(stream, object::M, current_depth, depth, n) where M<:MLJType
+fancy(stream::IO, object) = fancy(stream, object, 0,
+                                  DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH, 0)
+fancy(stream, object, current_depth, depth, n) = show(stream, object)
+function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
     if current_depth == depth
         show(stream, object)
     else
-        prefix = string(coretype(typeof(object)))
+        prefix = split(string(coretype(typeof(object))), '.')[end]
+        anti = max(length(prefix) - INDENT)
         print(stream, prefix, "(")
         first_item = true
-        for k in fieldnames(M)
-            value =  getproperty(object, k)
-            if !first_item
-                print(stream, crind(n + length(prefix) + 1))
-            else
-                first_item = false
-            end
-            print(stream, "$k = ")
-            pretty(stream, value, current_depth + 1, depth, n + length(prefix) + 1 + length("$k = "))
-            print(stream, ",")
+        names = fieldnames(M)
+        n_names = length(names)
+        for k in eachindex(names)
+            value =  getproperty(object, names[k])
+            # if !first_item
+            #     print(stream, crind(n + length(prefix)))
+            # else
+            #     first_item = false
+            # end
+            print(stream, crind(n + length(prefix) - anti))
+            print(stream, "$(names[k]) = ")
+            fancy(stream, value, current_depth + 1, depth, n + length(prefix)
+                  - anti + length("$k = "))
+            k == n_names || print(stream, ",")
         end
         print(stream, ")")
         if current_depth == 0
@@ -183,7 +189,7 @@ Base.show(stream::IO, object::M, depth::Int) where M<:MLJType =
 Base.show(stream::IO, object::MLJType, depth::Int, ::Val{false}) =
     _recursive_show(stream, object, 1, depth)
 Base.show(stream::IO, object::MLJType, depth::Int, ::Val{true}) = 
-    pretty(stream, object, 0, 100, 0)
+    fancy(stream, object, 0, 100, 0)
 
 # for convenience:
 Base.show(object::MLJType, depth::Int) = show(stdout, object, depth)
