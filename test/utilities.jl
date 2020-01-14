@@ -73,5 +73,22 @@ end
     @test MLJBase.shuffle_rows(x, x; rng=rng) == (x[perm], x[perm])
 end
 
+@testset "unwind" begin
+    iterators = ([1, 2], ["a","b"], ["x", "y", "z"])
+    @test unwind(iterators...) ==
+        [1  "a"  "x";
+         2  "a"  "x";
+         1  "b"  "x";
+         2  "b"  "x";
+         1  "a"  "y";
+         2  "a"  "y";
+         1  "b"  "y";
+         2  "b"  "y";
+         1  "a"  "z";
+         2  "a"  "z";
+         1  "b"  "z";
+         2  "b"  "z"]
+end
+
 end # module
 true

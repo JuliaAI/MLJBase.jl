@@ -8,7 +8,7 @@ export MLJType, Model, Supervised, Unsupervised, Static,
     DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
     fit, update, update_data, clean!,
     predict, predict_mean, predict_mode, predict_median, fitted_params,
-    transform, inverse_transform, se, evaluate, best, @load
+    transform, inverse_transform, evaluate, best, @load
 
 # computational_resources.jl:
 export default_resource
@@ -37,7 +37,7 @@ export reconstruct, int, decoder, classes,
 
 # utilities.jl:
 export @set_defaults, flat_values,
-    recursive_setproperty!, recursive_getproperty, pretty
+    recursive_setproperty!, recursive_getproperty, pretty, unwind
 
 # mlj_model_macro.jl
 export @mlj_model
