@@ -786,6 +786,7 @@ MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
 MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
     MLJBase.target_scitype(M)
 MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
+
 MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
