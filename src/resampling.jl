@@ -696,7 +696,6 @@ mutable struct Resampler{S,M<:Supervised} <: Supervised
     repeats::Int
 end
 
-MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
 MLJBase.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_weights(M)
@@ -782,8 +781,13 @@ function MLJBase.update(resampler::Resampler{Holdout},
 
 end
 
-MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.input_scitype(M)
-MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} = MLJBase.target_scitype(M)
+MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    MLJBase.input_scitype(M)
+MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    MLJBase.target_scitype(M)
+MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
+
+MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 

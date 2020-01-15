@@ -85,7 +85,8 @@ range constructor, in the case of a `NominalRange`.
 iterator(r::ParamRange, n::Integer, rng::AbstractRNG) =
     StatsBase.sample(rng, iterator(r, n), n, replace=false)
 
-iterator(r::NominalRange, n::Integer) = collect(r.values[1:n])
+iterator(r::NominalRange, n::Integer) =
+    collect(r.values[1:min(n, length(r.values))])
 iterator(r::NominalRange) = collect(r.values)
 iterator(r::NominalRange, rng::AbstractRNG) =
     iterator(r, length(r.values), rng)
