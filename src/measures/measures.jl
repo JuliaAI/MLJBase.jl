@@ -135,6 +135,5 @@ default_measure(::Type{<:Deterministic},
 default_measure(::Type{<:Probabilistic},
                 ::Type{<:AbstractVector{<:Finite}}) = cross_entropy
 
-
-default_measure(model::M) where M<:Supervised =
-    default_measure(M, target_scitype(M))
+default_measure(M::Type{<:Supervised})= default_measure(M, target_scitype(M))
+default_measure(model::M) where M<:Supervised = default_measure(M)
