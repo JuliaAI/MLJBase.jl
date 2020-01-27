@@ -123,19 +123,17 @@ include("loss_functions_interface.jl")
 
 
 ## DEFAULT MEASURES
+default_measure(T, S) = nothing
+default_measure(::Type{<:Deterministic},
+                ::Type{<:Union{AbstractVector{<:Continuous},
+                               AbstractVector{<:Count}}}) = rms
+default_measure(::Type{<:Deterministic},
+                ::Type{<:AbstractVector{<:Finite}}) = misclassification_rate
+# default_measure(::Type{Probabilistic},
+#                 ::Type{<:Union{AbstractVector{<:Continuous},
+#                                AbstractVector{<:Count}}}) = ???
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:AbstractVector{<:Finite}}) = cross_entropy
 
-default_measure(model::M) where M<:Supervised =
-    default_measure(model, target_scitype(M))
-default_measure(model, ::Any) = nothing
-default_measure(model::Deterministic,
-                ::Type{<:Union{AbstractVector{Continuous},
-                               AbstractVector{Count}}}) = rms
-# default_measure(model::Probabilistic,
-#                 ::Type{<:Union{AbstractVector{Continuous},
-#                                AbstractVector{Count}}}) = rms
-default_measure(model::Deterministic,
-                ::Type{<:AbstractVector{<:Finite}}) =
-                    misclassification_rate
-default_measure(model::Probabilistic,
-                ::Type{<:AbstractVector{<:Finite}}) =
-                    cross_entropy
+default_measure(M::Type{<:Supervised})= default_measure(M, target_scitype(M))
+default_measure(model::M) where M<:Supervised = default_measure(M)

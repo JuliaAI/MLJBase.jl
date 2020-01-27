@@ -28,4 +28,32 @@ end
         UnivariateFinite
 end
 
+mutable struct DRegressor <: Deterministic end
+MLJBase.target_scitype(::Type{<:DRegressor}) =
+    AbstractVector{<:Continuous}
+
+mutable struct D2Regressor <: Deterministic end
+MLJBase.target_scitype(::Type{<:D2Regressor}) =
+    AbstractVector{Continuous}
+
+mutable struct DClassifier <: Deterministic end
+MLJBase.target_scitype(::Type{<:DClassifier}) =
+    AbstractVector{<:Finite}
+
+mutable struct PClassifier <: Probabilistic end
+MLJBase.target_scitype(::Type{<:PClassifier}) = 
+    AbstractVector{<:Finite}
+
+@testset "default_measure" begin
+    @test MLJBase.default_measure(DRegressor()) == rms
+    @test MLJBase.default_measure(D2Regressor()) == rms
+    @test MLJBase.default_measure(DClassifier()) == misclassification_rate
+    @test MLJBase.default_measure(PClassifier()) == cross_entropy
+
+    @test MLJBase.default_measure(DRegressor) == rms
+    @test MLJBase.default_measure(D2Regressor) == rms
+    @test MLJBase.default_measure(DClassifier) == misclassification_rate
+    @test MLJBase.default_measure(PClassifier) == cross_entropy
+end
+
 true
