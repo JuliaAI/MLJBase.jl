@@ -1,9 +1,8 @@
-# using Requires
+function __init__()
+    global DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
 
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
-    x-> x isa Supervised
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:unsupervised_model] =
-    x-> x isa Unsupervised
-ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] =  is_measure
+    ST.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
+    ST.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 
-include("loss_functions_interface.jl")
+    MMI.set_interface_mode(MMI.FullInterface())
+end

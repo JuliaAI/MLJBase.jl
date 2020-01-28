@@ -1,5 +1,6 @@
 module MLJBase
 
+# ===================================================================
 ## METHOD EXPORT
 
 # defined in this file:
@@ -127,7 +128,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
     recall, sensitivity, hit_rate, miss_rate,
     specificity, selectivity, f1score, f1, fallout
 
-
+# ===================================================================
 ## METHOD RE-EXPORT
 
 # re-export from ScientificTypes (`Table` not exported):
@@ -142,19 +143,24 @@ export trait, Scientific, Found, Unknown, Finite, Infinite,
 export pdf, mode, median, mean, shuffle!, categorical, shuffle,
     levels, levels!, std, Not
 
-
+# ===================================================================
 ## METHOD IMPORT
 
 import Base: ==, precision, getindex, setindex!, @__doc__
 
-using Tables
-using PrettyTables
+# Scitype
+using MLJModelInterface
+using MLJScientificTypes
+using ScientificTypes
+
+# Containers
+using Tables, PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
-using ScientificTypes
 using LossFunctions
 import InvertedIndices: Not
+
 using Distributed
 using ComputationalResources
 using ComputationalResources: CPUProcesses
@@ -166,13 +172,17 @@ import StatsBase: fit, predict, fit!, mode, countmap
 import Missings.levels
 import Distributions
 import Distributions: pdf
-import ScientificTypes.info
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
-
+# ===================================================================
 ## CONSTANTS
+
+# aliases
+const MST = MLJScientificTypes
+const MMI = MLJModelInterface
+const ST  = ScientificTypes
 
 # the directory containing this file:
 const srcdir = dirname(@__FILE__)
@@ -182,7 +192,6 @@ const COLUMN_WIDTH = 24
 const DEFAULT_SHOW_DEPTH = 0
 const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
 const INDENT = 4
-
 
 ## INCLUDE FILES
 
@@ -257,10 +266,6 @@ VERSION ≥ v"1.3.0-" && include("arrows.jl")
 # resampling (Holdout, CV, etc)
 include("resampling.jl")
 
-function __init__()
-    global DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure] = is_measure
-    ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
-end
+include("init.jl")
 
 end # module

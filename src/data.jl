@@ -167,7 +167,7 @@ function unpack(X, tests...; wrap_singles=false, pairs...)
     if isempty(pairs)
         Xfixed = X
     else
-        Xfixed = ScientificTypes.coerce(X, pairs...)
+        Xfixed = coerce(X, pairs...)
     end
 
     unpacked = Any[]
@@ -403,19 +403,15 @@ decoder(element::CategoricalElement) =
 ## UTILITY FOR CONVERTING BETWEEN TABULAR DATA AND MATRICES
 
 """
-    MLJBase.matrix(X; transpose=false)
+    matrix(X; transpose=false)
 
 Convert a Tables.jl compatible table source `X` into an `Matrix`; or,
 if `X` is a `AbstractMatrix`, return `X`. Optimized for column-based
 sources. Rows of the table or input matrix, correspond to rows of the
 output, unless `transpose=true`.
 """
-matrix(X; kwargs...) = matrix(Val(ScientificTypes.trait(X)), X; kwargs...)
-matrix(::Val{:other}, X; kwargs...) = throw(ArgumentError(""))
-matrix(::Val{:other}, X::AbstractMatrix; transpose=false) =
-    transpose ? permutedims(X) : X
-
-matrix(::Val{:table}, X; kwargs...) = Tables.matrix(X; kwargs...)
+MMI.matrix(::Val{:table}, X, ::MMI.FullInterface; kw...) =
+    Tables.matrix(X; kw...)
 
 # matrix(::Val{:table, X)
 #     cols = Tables.columns(X) # property-accessible object
@@ -490,10 +486,9 @@ end
 Select single or multiple rows from any table, or abstract vector `X`,
 or matrix.  If `X` is tabular, the object returned is a table of the
 preferred sink type of `typeof(X)`, even if only a single row is selected.
-
 """
 selectrows(::Nothing, r) = nothing
-selectrows(X, r) = selectrows(Val(ScientificTypes.trait(X)), X, r)
+selectrows(X, r) = selectrows(MMI.vtrait(X), X, r)
 selectrows(::Val{:other}, X, r) = throw(ArgumentError(""))
 
 """
@@ -503,10 +498,9 @@ Select single or multiple columns from any table or matrix `X`. If `c`
 is an abstract vector of integers or symbols, then the object returned
 is a table of the preferred sink type of `typeof(X)`. If `c` is a
 *single* integer or column, then an `AbstractVector` is returned.
-
 """
 selectcols(::Nothing, r) = nothing
-selectcols(X, c) = selectcols(Val(ScientificTypes.trait(X)), X, c)
+selectcols(X, c) = selectcols(MMI.vtrait(X), X, c)
 selectcols(::Val{:other}, X, c) = throw(ArgumentError(""))
 
 """
@@ -520,7 +514,7 @@ See also: [`selectrows`](@ref), [`selectcols`](@ref).
 
 """
 select(::Nothing, r, c) = nothing
-select(X, r, c) = select(Val(ScientificTypes.trait(X)), X, r, c)
+select(X, r, c) = select(MMI.vtrait(X), X, r, c)
 select(::Val{:other}, X, r, c) = throw(ArgumentError(""))
 
 """
@@ -530,7 +524,7 @@ Return the number of rows in a table, abstract vector or abstract
 matrix.
 
 """
-nrows(X) = nrows(Val(ScientificTypes.trait(X)), X)
+nrows(X) = nrows(MMI.vtrait(X), X)
 nrows(::Val{:other}, X) = throw(ArgumentError(""))
 
 # project named tuple onto a tuple with only specified `labels` or indices:
@@ -558,7 +552,7 @@ end
 function selectrows(::Val{:table}, X, r::Union{Colon,AbstractVector{<:Integer}})
     # next uncommented lines are a hack; see
     # https://github.com/alan-turing-institute/MLJBase.jl/issues/151
-    isdataframe(X) && return X[r,:] 
+    isdataframe(X) && return X[r,:]
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple([c[r] for c in values(cols)]...))
     return Tables.materializer(X)(new_cols)

@@ -4,7 +4,9 @@ import MLJBase
 import MLJBase: @mlj_model, metadata_model, metadata_pkg
 # using Distances
 using LinearAlgebra
-using Tables, ScientificTypes
+using Tables
+using ScientificTypes
+using MLJScientificTypes
 
 import MultivariateStats
 
@@ -141,4 +143,3 @@ metadata_model(PCA,
                target=MLJBase.Table(MLJBase.Continuous),
                weights=false,
                descr=PCA_DESCR)
-

@@ -453,7 +453,7 @@ machine(model::Model, args::AbstractNode...) = NodalMachine(model, args...)
 machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
 machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
 
-matrix(X::AbstractNode) = node(matrix, X)
+MMI.matrix(X::AbstractNode) = node(matrix, X)
 table(X::AbstractNode) = node(table, X)
 Base.vcat(args::AbstractNode...) = node(vcat, args...)
 Base.hcat(args::AbstractNode...) = node(hcat, args...)
@@ -619,4 +619,3 @@ function reset!(W::Node)
         mach.state = 0 # to do: replace with dagger object
     end
 end
-

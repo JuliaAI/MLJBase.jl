@@ -81,7 +81,7 @@ selector_model = FeatureSelector()
 end
 
 import MLJBase
-using ScientificTypes
+using MLJScientificTypes
 
 mutable struct WrappedRidge <: DeterministicNetwork
     ridge

@@ -365,7 +365,6 @@ tt = TypedTables.Table(df)
 @testset "coverage" begin
     @test_throws DomainError partition(1:10, 1.5)
 
-    @test_throws ArgumentError matrix(Val(:other), (1,2,3))
     @test_throws ArgumentError selectrows(Val(:other), (1,), (1,))
     @test_throws ArgumentError selectcols(Val(:other), (1,), (1,))
     @test_throws ArgumentError select(Val(:other), (1,), (1,), (1,))

@@ -7,11 +7,21 @@ addprocs(2)
     using ComputationalResources
 end
 
+function include_everywhere(filepath)
+    include(filepath) # Load on Node 1 first, triggering any precompile
+    if nprocs() > 1
+        fullpath = joinpath(@__DIR__, filepath)
+        @sync for p in workers()
+            @async remotecall_wait(include, p, fullpath)
+        end
+    end
+end
+
 include("test_utilities.jl")
 
 # load Models module containing models implementations for testing:
 print("Loading some models for testing...")
-@everywhere include("models.jl")
+include_everywhere("models.jl")
 print("\r                                           \r")
 
 @testset "computational resources" begin
@@ -19,6 +29,7 @@ print("\r                                           \r")
 end
 
 @testset "model interface" begin
+    include("models.jl")
     @test include("model_interface.jl")
 end
 
@@ -50,27 +61,26 @@ end
     @test include("parameter_inspection.jl")
 end
 
+# OK
 @testset "distributions" begin
     @test include("distributions.jl")
 end
 
+# OK
 @testset "info_dict" begin
     @test include("info_dict.jl")
 end
 
+# OK
 @testset "data" begin
     @test include("data.jl")
 end
 
+# OK
 @testset "datasets" begin
     @test include("datasets.jl")
     @test include("datasets_synthetic.jl")
 end
-
-# # Now obsolete -- see #144
-# @testset "tasks" begin
-#     @test include("tasks.jl")
-# end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
