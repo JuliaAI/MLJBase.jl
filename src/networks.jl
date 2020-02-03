@@ -1,3 +1,9 @@
+# for models that are "exported" learning networks (return a Node as
+# their fit-result; see MLJ docs:
+abstract type ProbabilisticNetwork <: Probabilistic end
+abstract type DeterministicNetwork <: Deterministic end
+abstract type  UnsupervisedNetwork <: Unsupervised end
+
 ## ABSTRACT NODES AND SOURCE NODES
 
 abstract type AbstractNode <: MLJType end
@@ -453,7 +459,7 @@ machine(model::Model, args::AbstractNode...) = NodalMachine(model, args...)
 machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
 machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
 
-MMI.matrix(X::AbstractNode) = node(matrix, X)
+MLJModelInterface.matrix(X::AbstractNode) = node(matrix, X)
 table(X::AbstractNode) = node(table, X)
 Base.vcat(args::AbstractNode...) = node(vcat, args...)
 Base.hcat(args::AbstractNode...) = node(hcat, args...)

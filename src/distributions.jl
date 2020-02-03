@@ -1,29 +1,3 @@
-## CONSTANTS
-
-const Dist = Distributions
-
-## EQUALITY OF DISTRIBUTIONS (minor type piracy)
-
-# TODO: We should get rid of this. I think it is used only in
-# MLJModels/test.
-
-function ==(d1::D, d2::D) where D<:Dist.Sampleable
-    ret = true
-    for fld in fieldnames(D)
-        ret = ret && getfield(d1, fld) == getfield(d2, fld)
-    end
-    return ret
-end
-
-
-## DISTRIBUTION AS TRAIT (needed?)
-
-# fallback:
-isdistribution(d) = isdistribution(typeof(d))
-isdistribution(::Type{<:Any}) = false
-
-# for anything sampleable in Distributions.jl:
-isdistribution(::Type{<:Dist.Sampleable}) = true
 
 
 ## ADD TO distributions.jl TYPE HIERARCHY TO ACCOUNT FOR NON-EUCLIDEAN
@@ -34,31 +8,14 @@ abstract type NonEuclidean <: Distributions.ValueSupport end
 
 ## A NEW TRAIT FOR DISTRIBUTIONS
 
-support_scitype(::Type) = Unknown
-support_scitype(d) = support_scitype(typeof(d))
+# support_scitype(::Type) = Unknown
+# support_scitype(d) = support_scitype(typeof(d))
 
 
 ## UNIVARIATE NOMINAL PROBABILITY DISTRIBUTION
 
+
 """
-    UnivariateFinite(classes, p)
-
-A discrete univariate distribution whose finite support is the
-elements of the vector `classes`, and whose corresponding
-probabilities are elements of the vector `p`, which must sum to
-one. Here `classes` must have type
-`AbstractVector{<:CategoricalElement}` where
-
-    CategoricalElement = Union{CategoricalValue,CategoricalString}
-
-and all classes are assumed to share the same categorical pool.
-
-    UnivariateFinite(prob_given_class)
-
-A discrete univariate distribution whose finite support is the set of
-keys of the provided dictionary, `prob_given_class`. The dictionary
-keys must be of type `CategoricalElement` (see above) and the dictionary
-values specify the corresponding probabilities.
 
     classes(d::UnivariateFinite)
 
@@ -99,44 +56,43 @@ One can also do weighted fits:
  constructor is changed.
 
 See also `classes`, `support`.
-
 """
-struct UnivariateFinite{L,U,T<:Real} <: Dist.Distribution{Dist.Univariate,NonEuclidean}
-    decoder::CategoricalDecoder{L,U}
-    prob_given_class::LittleDict{U,T}
-end
 
-UnivariateFinite(prob_given_class::AbstractDict) =
-    throw(ArgumentError("The support of a UnivariateFinite "*
-                        "can consist only of `CategoricalString` "*
-                        "or `CategoricalValue` elements, and "*
-                        "probabilities must be `AbstractFloat`. "))
 
-function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
 
-    an_element = first(keys(prob_given_class))
-    decoder_ = decoder(an_element)
+levels(d::UnivariateFinite)  = d.decoder.pool.levels
 
-    p = values(prob_given_class) |> collect
-    Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
+# UnivariateFinite(prob_given_class::AbstractDict) =
+#     throw(ArgumentError("The support of a UnivariateFinite "*
+#                         "can consist only of `CategoricalString` "*
+#                         "or `CategoricalValue` elements, and "*
+#                         "probabilities must be `AbstractFloat`. "))
 
-    d = LittleDict{U,T}()
-    for key in classes(an_element)
-        haskey(prob_given_class, key) && (d[int(key)] = prob_given_class[key] )
-    end
-    return UnivariateFinite(decoder_, d)
-end
+# function UnivariateFinite(prob_given_class::AbstractDict{L,T}) where {U<:Unsigned,L<:CategoricalElement{U},T<:Real}
+#
+#     an_element = first(keys(prob_given_class))
+#     decoder_ = decoder(an_element)
+#
+#     p = values(prob_given_class) |> collect
+#     Dist.@check_args(UnivariateFinite, Dist.isprobvec(p))
+#
+#     d = LittleDict{U,T}()
+#     for key in classes(an_element)
+#         haskey(prob_given_class, key) && (d[int(key)] = prob_given_class[key] )
+#     end
+#     return UnivariateFinite(decoder_, d)
+# end
 
-function UnivariateFinite(classes::AbstractVector{<:CategoricalElement},
-                          p::AbstractVector{<:Real})
-    Dist.@check_args(UnivariateFinite, length(classes)==length(p))
-    prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
-    return  UnivariateFinite(prob_given_class)
-end
-UnivariateFinite(classes::AbstractVector, p) =
-    throw(ArgumentError("`classes` must have type `AbstractVector{T}` where "*
-                        "`T <: Union{CategoricalValue,CategoricalString}. "*
-                        "Perhaps you have `T=Any`? "))
+# function UnivariateFinite(classes::AbstractVector{<:CategoricalElement},
+#                           p::AbstractVector{<:Real})
+#     Dist.@check_args(UnivariateFinite, length(classes)==length(p))
+#     prob_given_class = LittleDict([classes[i]=>p[i] for i in eachindex(p)])
+#     return  UnivariateFinite(prob_given_class)
+# end
+# UnivariateFinite(classes::AbstractVector, p) =
+#     throw(ArgumentError("`classes` must have type `AbstractVector{T}` where "*
+#                         "`T <: Union{CategoricalValue,CategoricalString}. "*
+#                         "Perhaps you have `T=Any`? "))
 
 classes(d::UnivariateFinite) = classes(d.decoder.pool)
 levels(d::UnivariateFinite)  = d.decoder.pool.levels
@@ -245,12 +201,12 @@ function Distributions.pdf(d::UnivariateFinite{L,U,T},
                            level::L) where {L,U,T}
     p = d.decoder.pool
     if level in p.levels
-        return _pdf(d, int(p, level))
+        ref = x.order[x.invindex[level]]
+        return _pdf(d, ref)
     else
         throw(ArgumentError(""))
     end
 end
-
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_class

@@ -1,11 +1,3 @@
-function coretype(M)
-    if isdefined(M, :name)
-        return M.name
-    else
-        return coretype(M.body)
-    end
-end
-
 function finaltypes(T::Type)
     s = InteractiveUtils.subtypes(T)
     if isempty(s)
@@ -213,7 +205,7 @@ function shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng=nothing)
 end
 
 
-## FOR PRETTY PRINTING 
+## FOR PRETTY PRINTING
 
 # of coloumns:
 function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
@@ -262,7 +254,7 @@ column cycle fastest, those in the last clolumn slowest.
 
 ### Example
 
-````julia
+```julia
 julia> iterators = ([1, 2], ["a","b"], ["x", "y", "z"]);
 julia> MLJTuning.unwind(iterators...)
 12×3 Array{Any,2}:
@@ -278,7 +270,7 @@ julia> MLJTuning.unwind(iterators...)
  2  "a"  "z"
  1  "b"  "z"
  2  "b"  "z"
-````
+```
 
 """
 function unwind(iterators...)
@@ -301,4 +293,3 @@ function unwind(iterators...)
     end
     return A
 end
-

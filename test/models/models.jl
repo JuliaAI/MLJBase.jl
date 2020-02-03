@@ -7,15 +7,15 @@
 # load the models for testing:
 module Models
 
-using MLJBase
+using MLJModelInterface
 
-include("models/Constant.jl")
-include("models/DecisionTree.jl")
-include("models/NearestNeighbors.jl")
-include("models/MultivariateStats.jl")
-include("models/Transformers.jl")
-include("models/foobarmodel.jl")
-include("models/simple_composite_model.jl")
+include("Constant.jl")
+# include("DecisionTree.jl")
+# include("NearestNeighbors.jl")
+# include("MultivariateStats.jl")
+# include("Transformers.jl")
+# include("foobarmodel.jl")
+# include("simple_composite_model.jl")
 
 end
 

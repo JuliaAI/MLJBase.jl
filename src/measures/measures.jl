@@ -30,6 +30,44 @@ is_feature_dependent(m) = is_feature_dependent(typeof(m))
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
 
+"""
+metadata_measure
+
+Helper function to write the metadata for a single measure.
+"""
+function metadata_measure(T; name::String="",
+                          target_scitype=Unknown,
+                          prediction_type::Symbol=:unknown,
+                          orientation::Symbol=:unknown,
+                          reports_each_observation::Bool=true,
+                          aggregation=Mean(),
+                          is_feature_dependent::Bool=false,
+                          supports_weights::Bool=false,
+                          docstring::String="",
+                          distribution_type=missing)
+    pred_str        = "$prediction_type"
+    orientation_str = "$orientation"
+    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
+    ex = quote
+        if !isempty($name)
+            MLJModelInterface.name(::Type{<:$T}) = $name
+        end
+        if !isempty($docstring)
+            MLJModelInterface.docstring(::Type{<:$T}) = $docstring
+        end
+        MLJModelInterface.target_scitype(::Type{<:$T}) = $target_scitype
+        MLJModelInterface.prediction_type(::Type{<:$T}) = Symbol($pred_str)
+        MLJModelInterface.orientation(::Type{<:$T}) = Symbol($orientation_str)
+        MLJModelInterface.reports_each_observation(::Type{<:$T}) =
+            $reports_each_observation
+        MLJModelInterface.aggregation(::Type{<:$T}) = $aggregation
+        MLJModelInterface.is_feature_dependent(::Type{<:$T}) =
+            $is_feature_dependent
+        MLJModelInterface.supports_weights(::Type{<:$T}) = $supports_weights
+        MLJModelInterface.distribution_type(::Type{<:$T}) = $dist
+    end
+    parentmodule(T).eval(ex)
+end
 
 ## AGGREGATION
 

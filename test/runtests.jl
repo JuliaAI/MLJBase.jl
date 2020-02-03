@@ -1,3 +1,15 @@
+include("models/test_models.jl")
+
+@testset "utilities" begin
+    @test include("utilities.jl")
+end
+
+@testset "interface" begin
+    @test include("interface/interface.jl")
+end
+
+
+
 using Distributed
 addprocs(2)
 
@@ -51,10 +63,6 @@ end
 
 @testset "Static type" begin
     @test include("static.jl")
-end
-
-@testset "utilities" begin
-    @test include("utilities.jl")
 end
 
 @testset "parameter inspection" begin

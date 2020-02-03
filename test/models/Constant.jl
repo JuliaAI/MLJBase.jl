@@ -1,10 +1,9 @@
 ## THE CONSTANT REGRESSOR
 
 export ConstantClassifier, ConstantRegressor,
-    DeterministicConstantClassifier,
-    ProbabilisticConstantClassifer
+       DeterministicConstantClassifier,
+       ProbabilisticConstantClassifer
 
-import MLJBase
 import MLJBase: metadata_pkg, metadata_model
 import Distributions
 
@@ -15,20 +14,18 @@ A regressor that, for any new input pattern, predicts the univariate
 probability distribution best fitting the training target data. Use
 `predict_mean` to predict the mean value instead.
 """
-struct ConstantRegressor{D} <: MLJBase.Probabilistic
-    distribution_type::Type{D}
-end
+struct ConstantRegressor{D} <: MLJBase.Probabilistic end
 
 function ConstantRegressor(; distribution_type=Distributions.Normal)
-    model   = ConstantRegressor(distribution_type)
+    model   = ConstantRegressor{distribution_type}()
     message = clean!(model)
     isempty(message) || @warn message
     return model
 end
 
-function clean!(model::ConstantRegressor)
+function clean!(model::ConstantRegressor{D}) where D
     message = ""
-    MLJBase.isdistribution(model.distribution_type) ||
+    D <: Distributions.Sampleable ||
         error("$model.distribution_type is not a valid distribution_type.")
     return message
 end
@@ -105,40 +102,40 @@ MLJBase.predict(::DeterministicConstantClassifier, fitresult, Xnew) = fill(fitre
 ##
 ## METADATA
 ##
-
-metadata_pkg.((ConstantRegressor, ConstantClassifier,
-               DeterministicConstantRegressor, DeterministicConstantClassifier),
-              name="MLJModels",
-              uuid="d491faf4-2d78-11e9-2867-c94bc002c0b7",
-              url="https://github.com/alan-turing-institute/MLJModels.jl",
-              julia=true,
-              license="MIT",
-              is_wrapper=false)
-
-metadata_model(ConstantRegressor,
-               input=MLJBase.Table(MLJBase.Scientific),
-               target=AbstractVector{MLJBase.Continuous},
-               weights=false,
-               descr="Constant regressor (Probabilistic).",
-               path="MLJModels.ConstantRegressor")
-
-metadata_model(DeterministicConstantRegressor,
-               input=MLJBase.Table(MLJBase.Scientific),
-               target=AbstractVector{MLJBase.Continuous},
-               weights=false,
-               descr="Constant regressor (Deterministic).",
-               path="MLJModels.DeterministicConstantRegressor")
-
-metadata_model(ConstantClassifier,
-               input=MLJBase.Table(MLJBase.Scientific),
-               target=AbstractVector{<:MLJBase.Finite},
-               weights=true,
-               descr="Constant classifier (Probabilistic).",
-               path="MLJModels.ConstantClassifier")
-
-metadata_model(DeterministicConstantClassifier,
-               input=MLJBase.Table(MLJBase.Scientific),
-               target=AbstractVector{<:MLJBase.Finite},
-               weights=false,
-               descr="Constant classifier (Deterministic).",
-               path="MLJModels.DeterministicConstantClassifier")
+#
+# metadata_pkg.((ConstantRegressor, ConstantClassifier,
+#                DeterministicConstantRegressor, DeterministicConstantClassifier),
+#               name="MLJModels",
+#               uuid="d491faf4-2d78-11e9-2867-c94bc002c0b7",
+#               url="https://github.com/alan-turing-institute/MLJModels.jl",
+#               julia=true,
+#               license="MIT",
+#               is_wrapper=false)
+#
+# metadata_model(ConstantRegressor,
+#                input=MLJBase.Table(MLJBase.Scientific),
+#                target=AbstractVector{MLJBase.Continuous},
+#                weights=false,
+#                descr="Constant regressor (Probabilistic).",
+#                path="MLJModels.ConstantRegressor")
+#
+# metadata_model(DeterministicConstantRegressor,
+#                input=MLJBase.Table(MLJBase.Scientific),
+#                target=AbstractVector{MLJBase.Continuous},
+#                weights=false,
+#                descr="Constant regressor (Deterministic).",
+#                path="MLJModels.DeterministicConstantRegressor")
+#
+# metadata_model(ConstantClassifier,
+#                input=MLJBase.Table(MLJBase.Scientific),
+#                target=AbstractVector{<:MLJBase.Finite},
+#                weights=true,
+#                descr="Constant classifier (Probabilistic).",
+#                path="MLJModels.ConstantClassifier")
+#
+# metadata_model(DeterministicConstantClassifier,
+#                input=MLJBase.Table(MLJBase.Scientific),
+#                target=AbstractVector{<:MLJBase.Finite},
+#                weights=false,
+#                descr="Constant classifier (Deterministic).",
+#                path="MLJModels.DeterministicConstantClassifier")
