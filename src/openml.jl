@@ -308,6 +308,89 @@ function changeStatusDataset(id::String, status::String, api_key::String)
     end
 end
 
+"""
+Uploads dataset feature description. Upon success, it returns the data id.
+
+412 - Precondition failed. An error code and message are returned.
+431 - Dataset already processed
+432 - Please provide description xml
+433 - Problem validating uploaded description file
+434 - Could not find dataset
+436 - Something wrong with XML, check data id and evaluation engine id
+"""
+function updaloadDatasetFeatureDescription(description, api_key::String)
+    url = string(api_url, "/data/features")
+    r = HTTP.request("POST", url)
+    if r.status == 200
+        return JSON.parse(String(r.body))
+    end
+end
+
+"""
+Tags a dataset.
+
+412 - Precondition failed. An error code and message are returned.
+470 - In order to add a tag, please upload the entity id (either data_id, flow_id, run_id) and tag (the name of the tag).
+471 - Entity not found. The provided entity_id {data_id, flow_id, run_id} does not correspond to an existing entity.
+472 - Entity already tagged by this tag. The entity {dataset, flow, run} already had this tag.
+473 - Something went wrong inserting the tag. Please contact OpenML Team.
+474 - Internal error tagging the entity. Please contact OpenML Team.
+"""
+function tagDatabase(data_id::Int, tag::String, api_key::String)
+    url = string(api_url, "/data/tag")
+    r = HTTP.request("POST", url)
+    if r.status == 200
+        return JSON.parse(String(r.body))
+    end
+end
+
+"""
+Untags a dataset.
+
+412 - Precondition failed. An error code and message are returned.
+475 - Please give entity_id {data_id, flow_id, run_id} and tag. In order
+to remove a tag, please upload the entity id (either data_id, flow_id, run_id)
+and tag (the name of the tag).
+476 - Entity {dataset, flow, run} not found. The provided entity_id
+{data_id, flow_id, run_id} does not correspond to an existing entity.
+477 - Tag not found. The provided tag is not associated with the
+entity {dataset, flow, run}.
+478 - Tag is not owned by you. The entity {dataset, flow, run} was
+tagged by another user. Hence you cannot delete it.
+479 - Internal error removing the tag. Please contact OpenML Team.
+"""
+function untagDatabase(data_id::Int, tag::String, api_key::String)
+    url = string(api_url, "/data/untag")
+    r = HTTP.request("POST", url)
+    if r.status == 200
+        return JSON.parse(String(r.body))
+    end
+end
+
+"""
+412 - Precondition failed. An error code and message are returned.
+686 - Please specify the features the evaluation engine wants to calculate
+(at least 2).
+687 - No unprocessed datasets according to the given set of meta-features.
+688 - Illegal qualities.
+"""
+function getListOfDatasetsWithUnprocessedQualities(data_engine_id::String, order::String; api_key::String, qualities::String)
+    url = string(api_url, "/data/qualities/unprocessed/{$data_engine_id}/{$order}")
+    r = HTTP.request("POST", url)
+    if r.status == 200
+        return JSON.parse(String(r.body))
+end
+
+"""
+Deletes a dataset. Upon success, it returns the ID of the deleted dataset.
+"""
+function deleteDataset(id::Int; api_key::String)
+    url = string(api_url, "/data/{$id}")
+    r = HTTP.request("DELETE", url)
+    if r.status == 200
+        return JSON.parse(String(r.body))
+end
+
 # Get data description
 
 
