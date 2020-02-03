@@ -25,6 +25,7 @@ using ProgressMeter
 
 # Operations & extensions
 import LossFunctions
+import LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
@@ -34,12 +35,14 @@ import Distributions: pdf
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
-
 # ===================================================================
 ## METHOD EXPORTS
 
 # -------------------------------------------------------------------
 # re-exports from MLJModelInterface, (MLJ)ScientificTypes
+# NOTE: MLJBase does **not** re-export UnivariateFinite to avoid
+# ambiguities between the raw constructor (MLJBase.UnivariateFinite)
+# and the general method (MLJModelInterface.UnivariateFinite)
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
@@ -104,7 +107,7 @@ export @set_defaults, flat_values, recursive_setproperty!,
 export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
 # distributions.jl:
-export UnivariateFinite, average
+export average
 
 # tasks.jl:
 export SupervisedTask, UnsupervisedTask, MLJTask,
@@ -205,6 +208,11 @@ const INDENT = 4
 
 const CategoricalElement = Union{CategoricalValue,CategoricalString}
 
+const Arr = AbstractArray
+const Vec = AbstractVector
+
+const MMI = MLJModelInterface
+const FI  = FullInterface
 
 # ===================================================================
 ## INCLUDE FILES
@@ -215,6 +223,9 @@ include("utilities.jl")
 
 # extension & implementation of MLJModelInterface
 include("interface/interface.jl")
+
+# probability distributions and methods not provided by Distributions.jl
+include("distributions.jl")
 
 
 #
@@ -261,9 +272,9 @@ include("interface/interface.jl")
 # # to be depreciated:
 # include("tasks.jl")
 #
-# # scores, losses, etc:
-# include("measures/measures.jl")
-# include("measures/registry.jl")
+# scores, losses, etc:
+include("measures/measures.jl")
+include("measures/registry.jl")
 #
 # include("pipeline_static.jl")  # static transformer needed by pipeline.jl
 # include("machines.jl")

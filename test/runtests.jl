@@ -1,14 +1,24 @@
-include("models/test_models.jl")
+using Test
+
+# adds toy models in the environment + basic tests
+include("models/models.jl")
 
 @testset "utilities" begin
     @test include("utilities.jl")
+end
+
+@testset "distributions" begin
+    include("distributions.jl")
 end
 
 @testset "interface" begin
     @test include("interface/interface.jl")
 end
 
-
+# ---------------------------------------------------------------
+# XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+# XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
+# ---------------------------------------------------------------
 
 using Distributed
 addprocs(2)
@@ -40,10 +50,10 @@ print("\r                                           \r")
     @test include("computational_resources.jl")
 end
 
-@testset "model interface" begin
-    include("models.jl")
-    @test include("model_interface.jl")
-end
+# @testset "model interface" begin
+#     include("models.jl")
+#     @test include("model_interface.jl")
+# end
 
 @testset "one_dimensional_ranges" begin
   @test include("one_dimensional_ranges.jl")
@@ -51,10 +61,6 @@ end
 
 @testset "one_dimensional_range_methods" begin
   @test include("one_dimensional_range_methods.jl")
-end
-
-@testset "scientific trait" begin
-    @test include("scientific_trait.jl")
 end
 
 @testset "equality" begin

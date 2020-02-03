@@ -1,5 +1,5 @@
 """
-ConfusionMatrix{C}
+    ConfusionMatrix{C}
 
 Confusion matrix with `C ≥ 2` classes. Rows correspond to predicted values
 and columns to the ground truth.
@@ -10,7 +10,7 @@ struct ConfusionMatrix{C}
 end
 
 """
-ConfusionMatrix(m, labels)
+    ConfusionMatrix(m, labels)
 
 Instantiates a confusion matrix out of a square integer matrix `m`.
 Rows are the predicted class, columns the ground truth. See also
@@ -28,7 +28,7 @@ end
 Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
 
 """
-confusion_matrix(ŷ, y; rev=false)
+    confusion_matrix(ŷ, y; rev=false)
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements
 and the actual `y`. Rows are the predicted class, columns the ground truth.
@@ -55,7 +55,7 @@ function confusion_matrix(ŷ::VC, y::VC;
                           rev::Union{Nothing,Bool}=nothing,
                           perm::Union{Nothing,Vector{<:Integer}}=nothing,
                           warn::Bool=true
-                          ) where VC <: AbstractVector{<:CategoricalElement}
+                          ) where VC <: Vec{<:CategoricalElement}
     check_dimensions(ŷ, y)
     levels_ = levels(y)
     nc = length(levels_)
@@ -116,7 +116,8 @@ confmat = confusion_matrix
 
 splitw(w::Int) = (sp1 = div(w, 2); sp2 = w - sp1; (sp1, sp2))
 
-function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}) where C
+function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}
+                   ) where C
     width    = displaysize(stream)[2]
     cw       = 13
     textlim  = 9

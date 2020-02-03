@@ -1,13 +1,10 @@
-# If adding models from MLJModels for testing purposes, then do the
-# following in the interface file (eg, DecisionTree.jl):
-
-# - change `import ..DecisionTree` to `import DecisionTree`
-# - remove wrapping as module
-
-# load the models for testing:
 module Models
 
 using MLJModelInterface
+
+import MLJBase # needed for UnivariateFinite in ConstantClassifier
+
+const MMI = MLJModelInterface
 
 include("Constant.jl")
 # include("DecisionTree.jl")

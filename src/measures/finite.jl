@@ -30,7 +30,7 @@ end
 CrossEntropy(;eps=eps()) = CrossEntropy(eps)
 
 """
-cross_entropy(ŷ, y::AbstractVector{<:Finite})
+    cross_entropy(ŷ, y::Vec{<:Finite})
 
 Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie,
 probabilistic predictions) and an abstract vector of true observations
@@ -40,22 +40,25 @@ occur, according to the corresponding probabilistic prediction.
 For more information, run `info(cross_entropy)`.
 """
 cross_entropy = CrossEntropy()
-name(::Type{<:CrossEntropy}) = "cross_entropy"
-docstring(::Type{<:CrossEntropy}) =
-    "Cross entropy loss with probabilities clamped between eps and 1-eps; aliases: `cross_entropy`"
-target_scitype(::Type{<:CrossEntropy}) = AbstractVector{<:Finite}
-prediction_type(::Type{<:CrossEntropy}) = :probabilistic
-orientation(::Type{<:CrossEntropy}) = :loss
-reports_each_observation(::Type{<:CrossEntropy}) = true
-is_feature_dependent(::Type{<:CrossEntropy}) = false
-supports_weights(::Type{<:CrossEntropy}) = false
-distribution_type(::Type{<:CrossEntropy}) = UnivariateFinite
+
+metadata_measure(CrossEntropy;
+    name                     = "cross_entropy",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :probabilistic,
+    orientation              = :loss,
+    reports_each_observation = true,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "Cross entropy loss with probabilities " *
+                               "clamped between eps and 1-eps; aliases: " *
+                               "`cross_entropy`.",
+    distribution_type        = UnivariateFinite)
 
 # for single observation:
 _cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
-function (c::CrossEntropy)(ŷ::AbstractVector{<:UnivariateFinite},
-                          y::AbstractVector{<:CategoricalElement})
+function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
+                           y::Vec{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(_cross_entropy, ŷ, y, c.eps)
@@ -88,20 +91,20 @@ function BrierScore(; distribution=UnivariateFinite)
     return BrierScore{distribution}()
 end
 
-name(::Type{<:BrierScore{D}}) where D = "BrierScore($(string(D)))"
-docstring(::Type{<:BrierScore{D}}) where D =
-    "Brier proper scoring rule for distributions of type $D; "*
-    "aliases: `BrierScore($D)`"
-docstring(::Type{<:BrierScore{<:UnivariateFinite}}) =
-    "Brier proper scoring rule for `MultiClass` data; "*
-    "aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
-target_scitype(::Type{<:BrierScore{D}}) where D = AbstractVector{<:Finite}
-prediction_type(::Type{<:BrierScore}) = :probabilistic
-orientation(::Type{<:BrierScore}) = :score
-reports_each_observation(::Type{<:BrierScore}) = true
-is_feature_dependent(::Type{<:BrierScore}) = false
-supports_weights(::Type{<:BrierScore}) = true
-distribution_type(::Type{<:BrierScore{D}}) where D = UnivariateFinite
+metadata_measure(BrierScore;
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :probabilistic,
+    orientation              = :score,
+    reports_each_observation = true,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    distribution_type        = UnivariateFinite)
+
+# adjustments
+MMI.name(::Type{<:BrierScore{D}}) where D      = "BrierScore($(string(D)))"
+MMI.docstring(::Type{<:BrierScore{D}}) where D =
+    "Brier proper scoring rule for distributions of type $D; " *
+    "aliases: `BrierScore($D)`."
 
 # For single observations (no checks):
 
@@ -116,16 +119,14 @@ end
 # For multiple observations:
 
 # UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(
-    ŷ::AbstractVector{<:UnivariateFinite},
-    y::AbstractVector{<:CategoricalElement})
+function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
+                                            y::Vec{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(brier_score, ŷ, y)
 end
 
-function (score::BrierScore{<:UnivariateFinite})(
-    ŷ, y, w::AbstractVector{<:Real})
+function (score::BrierScore{<:UnivariateFinite})(ŷ, y, w::Vec{<:Real})
     check_dimensions(y, w)
     return w .* score(ŷ, y) ./ (sum(w)/length(y))
 end
@@ -150,9 +151,9 @@ const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be
 struct MisclassificationRate <: Measure end
 
 """
-misclassification_rate(ŷ, y)
-misclassification_rate(ŷ, y, w)
-misclassification_rate(conf_mat)
+    misclassification_rate(ŷ, y)
+    misclassification_rate(ŷ, y, w)
+    misclassification_rate(conf_mat)
 
 Returns the rate of misclassification of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
@@ -166,24 +167,25 @@ You can also equivalently use `mcr`.
 const misclassification_rate = MisclassificationRate()
 const mcr = misclassification_rate
 
-name(::Type{<:MisclassificationRate}) = "misclassification_rate"
-docstring(::Type{<:MisclassificationRate}) =
-    "misclassification rate; aliases: `misclassification_rate`, `mcr`"
-target_scitype(::Type{<:MisclassificationRate}) = AbstractVector{<:Finite}
-prediction_type(::Type{<:MisclassificationRate}) = :deterministic
-orientation(::Type{<:MisclassificationRate}) = :loss
-reports_each_observation(::Type{<:MisclassificationRate}) = false
-is_feature_dependent(::Type{<:MisclassificationRate}) = false
-supports_weights(::Type{<:MisclassificationRate}) = true
+metadata_measure(MisclassificationRate;
+    name                     = "misclassification_rate",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "misclassification rate; aliases: " *
+                               "`misclassification_rate`, `mcr`.")
 
 const MCR = MisclassificationRate
 
-(::MCR)(ŷ::AbstractVector{<:CategoricalElement},
-        y::AbstractVector{<:CategoricalElement}) = mean(y .!= ŷ)
+(::MCR)(ŷ::Vec{<:CategoricalElement},
+        y::Vec{<:CategoricalElement}) = mean(y .!= ŷ)
 
-(::MCR)(ŷ::AbstractVector{<:CategoricalElement},
-        y::AbstractVector{<:CategoricalElement},
-        w::AbstractVector{<:Real}) = sum((y .!= ŷ) .* w) / sum(w)
+(::MCR)(ŷ::Vec{<:CategoricalElement},
+        y::Vec{<:CategoricalElement},
+        w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / sum(w)
 
 (::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
@@ -191,9 +193,9 @@ const MCR = MisclassificationRate
 struct Accuracy <: Measure end
 
 """
-accuracy(ŷ, y)
-accuracy(ŷ, y, w)
-accuracy(conf_mat)
+    accuracy(ŷ, y)
+    accuracy(ŷ, y, w)
+    accuracy(conf_mat)
 
 Returns the accuracy of the (point) predictions `ŷ`,
 given true observations `y`, optionally weighted by the weights
@@ -208,25 +210,24 @@ const accuracy = Accuracy()
 (::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
 
 metadata_measure(Accuracy;
-    name="accuracy",
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=true,
-    docstring="accuracy; aliases: `accuracy`")
-
+    name                     = "accuracy",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "Classification accuracy; aliases: `accuracy`.")
 
 struct BalancedAccuracy <: Measure end
 
 const BACC = BalancedAccuracy
 
 """
-balanced_accuracy(ŷ, y [, w])
-bacc(ŷ, y [, w])
-bac(ŷ, y [, w])
-balanced_accuracy(conf_mat)
+    balanced_accuracy(ŷ, y [, w])
+    bacc(ŷ, y [, w])
+    bac(ŷ, y [, w])
+    balanced_accuracy(conf_mat)
 
 Return the balanced accuracy of the point prediction `ŷ`, given true
 observations `y`, optionally weighted by `w`. The balanced accuracy takes
@@ -240,16 +241,16 @@ const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
 const bac  = bacc
 
-function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
-                  y::AbstractVector{<:CategoricalElement})
+function (::BACC)(ŷ::Vec{<:CategoricalElement},
+                  y::Vec{<:CategoricalElement})
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
     return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
 end
 
-function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
-                  y::AbstractVector{<:CategoricalElement},
-                  w::AbstractVector{<:Real})
+function (::BACC)(ŷ::Vec{<:CategoricalElement},
+                  y::Vec{<:CategoricalElement},
+                  w::Vec{<:Real})
     levels_ = levels(y)
     ŵ = similar(w)
     @inbounds for i in eachindex(w)
@@ -259,15 +260,15 @@ function (::BACC)(ŷ::AbstractVector{<:CategoricalElement},
 end
 
 metadata_measure(BACC;
-    name="balanced_accuracy",
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=true,
-    docstring="balanced accuracy; aliases: "*
-              "`balanced_accuracy`, `bacc`, `bac`")
+    name                     = "balanced_accuracy",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "Balanced classification accuracy; aliases: "*
+                               "`balanced_accuracy`, `bacc`, `bac`.")
 
 
 ## Binary but order independent
@@ -277,9 +278,9 @@ struct MatthewsCorrelation <: Measure end
 const MCC = MatthewsCorrelation
 
 """
-matthews_correlation(ŷ, y)
-mcc(ŷ, y)
-matthews_correlation(conf_mat)
+    matthews_correlation(ŷ, y)
+    mcc(ŷ, y)
+    matthews_correlation(conf_mat)
 
 Return Matthews' correlation coefficient corresponding to the point
 prediction `ŷ`, given true observations `y`.
@@ -314,36 +315,36 @@ function (::MCC)(cm::ConfusionMatrix{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ::AbstractVector{<:CategoricalElement},
-         y::AbstractVector{<:CategoricalElement}) =
+(m::MCC)(ŷ::Vec{<:CategoricalElement},
+         y::Vec{<:CategoricalElement}) =
              confmat(ŷ, y, warn=false) |> m
 
 metadata_measure(MatthewsCorrelation;
-    name="matthews_correlation",
-    target_scitype=AbstractVector{<:Finite{2}},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false,
-    docstring="Matthew's correlation; aliases: `matthews_correlation`, `mcc`")
-
+    name                     = "matthews_correlation",
+    target_scitype           = Vec{<:Finite{2}},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "Matthew's correlation; aliases: " *
+                               "`matthews_correlation`, `mcc`")
 
 struct AUC <: Measure end
 
 """
-auc(ŷ, y)
+    auc(ŷ, y)
 
-Return the Area Under the (ROC) Curve for probabilistic prediction `ŷ` given true
-observations `y`.
+Return the Area Under the (ROC) Curve for probabilistic prediction `ŷ` given
+true observations `y`.
 $INVARIANT_LABEL_BINARY
 
 For more information, run `info(auc)`.
 """
 const auc = AUC()
 
-function (::AUC)(ŷ::AbstractVector{<:UnivariateFinite},
-                 y::AbstractVector{<:CategoricalElement})
+function (::AUC)(ŷ::Vec{<:UnivariateFinite},
+                 y::Vec{<:CategoricalElement})
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
     lab_pos = levels(y)[2]         # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
@@ -365,14 +366,14 @@ end
 
 
 metadata_measure(AUC;
-    name="auc",
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:probabilistic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false,
-    docstring = "area under the curve; aliases: `auc`")
+    name                     = "auc",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :probabilistic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "Area under the ROC curve; aliases: `auc`.")
 
 ## Binary and order dependent
 
@@ -448,81 +449,81 @@ const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:loss,
-    reports_each_observation=false,
-    aggregation=Sum(),
-    is_feature_dependent=false,
-    supports_weights=false)
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation              = Sum(),
+    is_feature_dependent     = false,
+    supports_weights         = false)
 
 metadata_measure.((FPR, FNR, FDR);
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:loss,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false)
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    aggregation=Sum(),
-    is_feature_dependent=false,
-    supports_weights=false)
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    aggregation              = Sum(),
+    is_feature_dependent     = false,
+    supports_weights         = false)
 
 metadata_measure.((TPR, TNR, Precision, FScore, NPV);
-    target_scitype=AbstractVector{<:Finite},
-    prediction_type=:deterministic,
-    orientation=:score,
-    reports_each_observation=false,
-    is_feature_dependent=false,
-    supports_weights=false)
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false)
 
 # adjustments
-name(::Type{<:TruePositive})  = "tp"
-docstring(::Type{<:TruePositive})  = "number of true positives; aliases: "*
-    "`truepositive`, `tp`"
-name(::Type{<:TrueNegative})  = "tn"
-docstring(::Type{<:TrueNegative})  = "number of true negatives; aliases: "*
-    "`truenegative`, `tn`"
-name(::Type{<:FalsePositive}) = "fp"
-docstring(::Type{<:FalsePositive}) = "number of false positives; aliases: "*
-    "`falsepositive`, `fp`"
-name(::Type{<:FalseNegative}) = "fn"
-docstring(::Type{<:FalseNegative}) = "number of false negatives; aliases: "*
-    "`falsenegative`, `fn`"
+MMI.name(::Type{<:TruePositive})       = "tp"
+MMI.docstring(::Type{<:TruePositive})  = "Number of true positives; " *
+                                         "aliases: `truepositive`, `tp`."
+MMI.name(::Type{<:TrueNegative})       = "tn"
+MMI.docstring(::Type{<:TrueNegative})  = "Number of true negatives; " *
+                                         "aliases: `truenegative`, `tn`."
+MMI.name(::Type{<:FalsePositive})      = "fp"
+MMI.docstring(::Type{<:FalsePositive}) = "Number of false positives; " *
+                                         "aliases: `falsepositive`, `fp`."
+MMI.name(::Type{<:FalseNegative})      = "fn"
+MMI.docstring(::Type{<:FalseNegative}) = "Number of false negatives; " *
+                                         "aliases: `falsenegative`, `fn`."
 
-name(::Type{<:TPR}) = "tpr"
-docstring(::Type{<:TPR}) = "true postive rate; aliases: "*
-    "`truepositive_rate`, `tpr`, `sensitivity`, `recall`, `hit_rate`"
-name(::Type{<:TNR}) = "tnr"
-docstring(::Type{<:TNR}) = "true negative rate; aliases: "*
-    "`truenegative_rate`, `tnr`, `specificity`, `selectivity`"
-name(::Type{<:FPR}) = "fpr"
-docstring(::Type{<:FPR}) = "false positive rate; aliases: "*
-    "`falsepositive_rate`, `fpr`, `fallout`"
-name(::Type{<:FNR}) = "fnr"
-docstring(::Type{<:FNR}) = "false negative rate; aliases: "*
-    "`falsenegative_rate`, `fnr`, `miss_rate`"
+MMI.name(::Type{<:TPR})      = "tpr"
+MMI.docstring(::Type{<:TPR}) = "True postive rate; aliases: " *
+                               "`truepositive_rate`, `tpr`, `sensitivity`, " *
+                               "`recall`, `hit_rate`."
+MMI.name(::Type{<:TNR})      = "tnr"
+MMI.docstring(::Type{<:TNR}) = "true negative rate; aliases: " *
+                               "`truenegative_rate`, `tnr`, `specificity`, " *
+                               "`selectivity`."
+MMI.name(::Type{<:FPR})      = "fpr"
+MMI.docstring(::Type{<:FPR}) = "false positive rate; aliases: " *
+                               "`falsepositive_rate`, `fpr`, `fallout`."
+MMI.name(::Type{<:FNR})      = "fnr"
+MMI.docstring(::Type{<:FNR}) = "false negative rate; aliases: " *
+                               "`falsenegative_rate`, `fnr`, `miss_rate`."
+MMI.name(::Type{<:FDR})      = "fdr"
+MMI.docstring(::Type{<:FDR}) = "false discovery rate; aliases: " *
+                               "`falsediscovery_rate`, `fdr`."
+MMI.name(::Type{<:NPV})      = "npv"
+MMI.docstring(::Type{<:NPV}) = "negative predictive value; aliases: " *
+                               "`negativepredictive_value`, `npv`."
 
-name(::Type{<:FDR}) = "fdr"
-docstring(::Type{<:FDR}) = "false discovery rate; aliases: "*
-    "`falsediscovery_rate`, `fdr`"
-name(::Type{<:NPV}) = "npv"
-docstring(::Type{<:NPV}) = "negative predictive value; aliases: "*
-    "`negativepredictive_value`, `npv`"
-
-name(::Type{<:Precision}) = "ppv"
-docstring(::Type{<:Precision}) = "precision; aliases: "*
-    "`precision`, `positivepredictive_value`, `ppv`"
-name(::Type{<:FScore{β}}) where β = "FScore($β)"
-name(::Type{<:FScore}) = "FScore(β)" # for registry
-docstring(::Type{<:FScore}) = "F_β score; aliases: "*
-    "`FScore(β)`, `f1=f1score=FScore(1)`"
-
+MMI.name(::Type{<:Precision})         = "ppv"
+MMI.docstring(::Type{<:Precision})    = "precision; aliases: `precision`, " *
+                                        "`positivepredictive_value`, `ppv`."
+MMI.name(::Type{<:FScore{β}}) where β = "FScore($β)"
+MMI.name(::Type{<:FScore})            = "FScore(β)" # for registry
+MMI.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
+                                        "`FScore(β)`, `f1=f1score=FScore(1)`"
 
 ## Internal functions on Confusion Matrix
 
@@ -581,12 +582,12 @@ Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
 ## ROC computation
 
 """
-_idx_unique_sorted(v)
+    _idx_unique_sorted(v)
 
-Internal function to return the index of unique elements in `v` under the assumption
-that the vector `v` is sorted in decreasing order.
+Internal function to return the index of unique elements in `v` under the
+assumption that the vector `v` is sorted in decreasing order.
 """
-function _idx_unique_sorted(v::AbstractVector{<:Real})
+function _idx_unique_sorted(v::Vec{<:Real})
     n    = length(v)
     idx  = ones(Int, n)
     p, h = 1, 1
@@ -604,11 +605,13 @@ function _idx_unique_sorted(v::AbstractVector{<:Real})
 end
 
 """
-tprs, fprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
+    tprs, fprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
 
-Return the ROC curve for a two-class probabilistic prediction `ŷ` given the ground  truth `y`.
-The true positive rates, false positive rates over a range of thresholds `ts` are returned.
-Note that if there are `k` unique scores, there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR and TPR are constant:
+Return the ROC curve for a two-class probabilistic prediction `ŷ` given the
+ground  truth `y`. The true positive rates, false positive rates over a range
+of thresholds `ts` are returned. Note that if there are `k` unique scores,
+there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR
+and TPR are constant:
 
 * [0.0 - thresh[1]]
 * [thresh[1] - thresh[2]]
@@ -619,8 +622,8 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
-function roc_curve(ŷ::AbstractVector{<:UnivariateFinite},
-                   y::AbstractVector{<:CategoricalElement})
+function roc_curve(ŷ::Vec{<:UnivariateFinite},
+                   y::Vec{<:CategoricalElement})
 
     n       = length(y)
     lab_pos = levels(y)[2]

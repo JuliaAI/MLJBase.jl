@@ -10,6 +10,9 @@ using ..Models
 include("data_utils.jl")
 
 include("model_api.jl")
-include("univariate_finite.jl")
+
+@test trait(rms) == :measure
 
 end
+
+true
