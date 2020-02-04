@@ -55,7 +55,7 @@ end
     @test include("composition/pipeline_static.jl")
     @test include("composition/networks.jl")
 
-    # XXX VERSION ≥ v"1.3.0-" && @test include("arrows.jl")
+    VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
 end
 
 
