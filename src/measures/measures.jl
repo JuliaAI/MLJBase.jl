@@ -58,28 +58,28 @@ aggregate(x::MeasureValue, measure) = x
 # y - target observations
 # w - per-observation weights
 
-value(measure, yhat, X, y, w) = value(measure, yhat, X, y, w,
-                                      Val(is_feature_dependent(measure)),
-                                      Val(supports_weights(measure)))
+function value(measure, yhat, X, y, w)
+    vfdep     = Val(is_feature_dependent(measure))
+    vsweights = Val(supports_weights(measure))
+    return value(measure, yhat, X, y, w, vfdep, vsweights)
+end
 
 
 ## DEFAULT EVALUATION INTERFACE
 
 #  is feature independent, weights not supported:
-value(measure, yhat, X, y, w, ::Val{false}, ::Val{false}) = measure(yhat, y)
+value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)
 
 #  is feature dependent:, weights not supported:
-value(measure, yhat, X, y, w, ::Val{true}, ::Val{false}) = measure(yhat, X, y)
-
+value(m, yhat, X, y, w, ::Val{true}, ::Val{false}) = m(yhat, X, y)
 
 #  is feature independent, weights supported:
-value(measure, yhat, X, y, w, ::Val{false}, ::Val{true}) = measure(yhat, y, w)
-value(measure, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = measure(yhat, y)
+value(m, yhat, X, y, w,         ::Val{false}, ::Val{true}) = m(yhat, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 
 #  is feature dependent, weights supported:
-value(measure, yhat, X, y, w, ::Val{true}, ::Val{true}) = measure(yhat, X, y, w)
-value(measure, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = measure(yhat, X, y)
-
+value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
 ## helper
 
@@ -89,7 +89,6 @@ function check_pools(ŷ, y)
               "in observations and predictions. ")
     return nothing
 end
-
 
 ## FOR BUILT-IN MEASURES
 
@@ -157,7 +156,6 @@ include("continuous.jl")
 include("confusion_matrix.jl")
 include("finite.jl")
 include("loss_functions_interface.jl")
-
 
 ## DEFAULT MEASURES
 default_measure(T, S) = nothing

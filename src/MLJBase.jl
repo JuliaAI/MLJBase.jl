@@ -3,12 +3,17 @@ module MLJBase
 # ===================================================================
 # IMPORTS
 
-import Base: ==, precision, getindex, setindex!, @__doc__
+import Base: ==, precision, getindex, setindex!
+import Base.+, Base.*
 
 # Scitype
 import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
 using MLJModelInterface
+import MLJModelInterface: fit, update, update_data, transform,
+                          inverse_transform, fitted_params, predict,
+                          predict_mode, predict_mean, predict_median,
+                          evaluate, clean!
 
 # Containers & data manipulation
 using Tables, PrettyTables
@@ -180,11 +185,10 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        truepositive, truenegative, falsepositive, falsenegative,
        truepositive_rate, truenegative_rate, falsepositive_rate,
        falsenegative_rate, negativepredicitive_value,
-       positivepredictive_value,
-       tp, tn, fp, fn, tpr, tnr, fpr, fnr,
+       positivepredictive_value, tpr, tnr, fpr, fnr,
        falsediscovery_rate, fdr, npv, ppv,
        recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, f1, fallout
+       specificity, selectivity, f1score, fallout
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
@@ -196,8 +200,8 @@ export pdf, mode, median, mean, shuffle!, categorical, shuffle,
 # ===================================================================
 ## CONSTANTS
 
-# the directory containing this file:
-const srcdir = dirname(@__FILE__)
+# the directory containing this file: (.../src/)
+const MODULE_DIR = dirname(@__FILE__)
 
 # horizontal space for field names in `MLJType` object display:
 const COLUMN_WIDTH = 24
@@ -215,86 +219,51 @@ const MMI = MLJModelInterface
 const FI  = FullInterface
 
 # ===================================================================
-## INCLUDE FILES
+# Computational Resource
+# default_resource allows to switch the mode of parallelization
+
+default_resource()    = DEFAULT_RESOURCE[]
+default_resource(res) = (DEFAULT_RESOURCE[] = res)
+
+# stub for @load (extended by MLJModels)
+macro load end
+
+# ===================================================================
+# Includes
 
 include("init.jl")
-
 include("utilities.jl")
+include("parameter_inspection.jl")
+include("equality.jl")
+include("show.jl")
+include("info_dict.jl")
 
-# extension & implementation of MLJModelInterface
-include("interface/interface.jl")
+include("interface/data_utils.jl")
+include("interface/model_api.jl")
+include("interface/univariate_finite.jl")
 
-# probability distributions and methods not provided by Distributions.jl
 include("distributions.jl")
 
+include("machines.jl")
+include("tasks.jl")      # To be deprecated
 
-#
-# # for inspecting (possibly nested) fields of MLJ objects:
-# include("parameter_inspection.jl")
-#
-# # equality for `MLJType` objects
-# include("equality.jl")
-#
-# # for displaying objects of `MLJType`:
-# include("show.jl")
-#
-# # methods to inspect/change default computational resource (mode of
-# # parallelizaion):
-# include("computational_resources.jl")
-#
-# # hyperparameter ranges (domains):
-# include("one_dimensional_ranges.jl")
-# include("one_dimensional_range_methods.jl")
-#
-# # model trait fallbacks
-# # XXX include("model_traits.jl")
-#
-# # convenience methods for manipulating categorical and tabular data
-# include("data.jl")
-#
-# # metadata utils:
-# include("metadata_utilities.jl")
-#
-# # macro to streamline model definitions
-# include("mlj_model_macro.jl")
-#
-# # probability distributions and methods not provided by
-# # Distributions.jl package:
-# include("distributions.jl")
-#
-# # assembles model traits into dictionaries:
-# include("info_dict.jl")
-#
-# # datasets:
-# include("datasets.jl")
-# include("datasets_synthetic.jl")
-#
-# # to be depreciated:
-# include("tasks.jl")
-#
-# scores, losses, etc:
+include("composition/networks.jl")
+include("composition/composites.jl")
+include("composition/pipelines.jl")
+include("composition/pipeline_static.jl")
+VERSION ≥ v"1.3.0-" && include("composition/arrows.jl")
+
+include("operations.jl")
+
+include("hyperparam/one_dimensional_ranges.jl")
+include("hyperparam/one_dimensional_range_methods.jl")
+include("hyperparam/resampling.jl")
+
+include("data/data.jl")
+include("data/datasets.jl")
+include("data/datasets_synthetic.jl")
+
 include("measures/measures.jl")
 include("measures/registry.jl")
-#
-# include("pipeline_static.jl")  # static transformer needed by pipeline.jl
-# include("machines.jl")
-# include("networks.jl")
-#
-# # overloading predict, transform, etc, to work with machines:
-# include("operations.jl")
-#
-# # building and exporting learning networks:
-# include("composites.jl")
-#
-# # macro for non-branching exported networks:
-# include("pipelines.jl")
-#
-# # arrow syntax for constructing learning networks:
-# VERSION ≥ v"1.3.0-" && include("arrows.jl")
-#
-# # resampling (Holdout, CV, etc)
-# include("resampling.jl")
-#
-# include("init.jl")
 
 end # module

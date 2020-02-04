@@ -167,5 +167,3 @@ metadata_model(KNNClassifier,
     weights=true,
     descr=KNNClassifierDescription
     )
-
-

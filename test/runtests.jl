@@ -1,24 +1,54 @@
 using Test
 
 # adds toy models in the environment + basic tests
-include("models/models.jl")
+include("_models/models.jl")
 
-@testset "utilities" begin
+@testset "misc" begin
     @test include("utilities.jl")
-end
-
-@testset "distributions" begin
-    include("distributions.jl")
+    @test include("distributions.jl")
+    @test include("parameter_inspection.jl")
+    @test include("equality.jl")
+    @test include("info_dict.jl")
+    @test include("static.jl")
 end
 
 @testset "interface" begin
     @test include("interface/interface.jl")
 end
 
-# ---------------------------------------------------------------
-# XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
-# XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX XXX
-# ---------------------------------------------------------------
+@testset "measures" begin
+    @test include("measures/measures.jl")
+end
+
+@testset "data" begin
+    @test include("data/data.jl")
+    @test include("data/datasets.jl")
+    @test include("data/datasets_synthetic.jl")
+end
+
+@testset "machines+composition" begin
+    @test include("machines.jl")
+    @test include("composition/composites.jl")
+    @test include("composition/pipelines.jl")
+    @test include("composition/pipeline_static.jl")
+    @test include("composition/networks.jl")
+
+    # XXX XXX XXX XXX XXX XXX XXX XXX
+    # XXX stopping here February 4 XXX
+    # XXX XXX XXX XXX XXX XXX XXX XXX
+
+    # XXX VERSION ≥ v"1.3.0-" && @test include("arrows.jl")
+end
+
+
+@testset "hyperparam" begin
+    @test include("hyperparam/one_dimensional_ranges.jl")
+    @test include("hyperparam/one_dimensional_range_methods.jl")
+    #XXX @test include("resampling.jl")
+end
+
+# ================================================
+# =================================================
 
 using Distributed
 addprocs(2)
@@ -48,93 +78,4 @@ print("\r                                           \r")
 
 @testset "computational resources" begin
     @test include("computational_resources.jl")
-end
-
-# @testset "model interface" begin
-#     include("models.jl")
-#     @test include("model_interface.jl")
-# end
-
-@testset "one_dimensional_ranges" begin
-  @test include("one_dimensional_ranges.jl")
-end
-
-@testset "one_dimensional_range_methods" begin
-  @test include("one_dimensional_range_methods.jl")
-end
-
-@testset "equality" begin
-    @test include("equality.jl")
-end
-
-@testset "Static type" begin
-    @test include("static.jl")
-end
-
-@testset "parameter inspection" begin
-    @test include("parameter_inspection.jl")
-end
-
-# OK
-@testset "distributions" begin
-    @test include("distributions.jl")
-end
-
-# OK
-@testset "info_dict" begin
-    @test include("info_dict.jl")
-end
-
-# OK
-@testset "data" begin
-    @test include("data.jl")
-end
-
-# OK
-@testset "datasets" begin
-    @test include("datasets.jl")
-    @test include("datasets_synthetic.jl")
-end
-
-@testset "measures" begin
-    @test include("measures/measures.jl")
-    @test include("measures/continuous.jl")
-    @test include("measures/finite.jl")
-    @test include("measures/loss_functions_interface.jl")
-end
-
-@testset "@mlj_model" begin
-    @test include("mlj_model_macro.jl")
-end
-
-@testset "metadatautils" begin
-    @test include("metadata_utilities.jl")
-end
-
-@testset "pipeline_static.jl" begin
-    @test include("pipeline_static.jl")
-end
-
-@testset "machines" begin
-    @test include("machines.jl")
-end
-
-@testset "networks" begin
-    @test include("networks.jl")
-end
-
-@testset "composites" begin
-    @test include("composites.jl")
-end
-
-@testset "pipelines" begin
-    @test include("pipelines.jl")
-end
-
-VERSION ≥ v"1.3.0-" && @testset "arrows" begin
-    @test include("arrows.jl")
-end
-
-@testset "resampling" begin
-    @test include("resampling.jl")
 end

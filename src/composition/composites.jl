@@ -1,14 +1,14 @@
 const SupervisedNetwork = Union{DeterministicNetwork,ProbabilisticNetwork}
 
-# to suppress inclusion in models():
-MLJBase.is_wrapper(::Type{DeterministicNetwork}) = true
-MLJBase.is_wrapper(::Type{ProbabilisticNetwork}) = true
+const GenericNetwork = Union{SupervisedNetwork,UnsupervisedNetwork}
 
+# to suppress inclusion in models():
+MMI.is_wrapper(::Type{DeterministicNetwork}) = true
+MMI.is_wrapper(::Type{ProbabilisticNetwork}) = true
 
 ## FALL-BACKS FOR LEARNING NETWORKS EXPORTED AS MODELS
 
-function MLJBase.update(model::Union{SupervisedNetwork,UnsupervisedNetwork},
-                        verbosity, yhat, cache, args...)
+function update(model::GenericNetwork, verb::Integer, yhat, cache, args...)
 
     # If any `model` field has been replaced (and not just mutated)
     # then we actually need to fit rather than update (which will
@@ -16,12 +16,11 @@ function MLJBase.update(model::Union{SupervisedNetwork,UnsupervisedNetwork},
     # created using a learning network export macro, the test used
     # below is perfect. In any other case it is at least conservative:
     network_model_ids = objectid.(models(yhat))
-    fields = [getproperty(model, name) for
-        name in fieldnames(typeof(model))]
-    submodels = filter(f->f isa Model, fields)
+    fields = [getproperty(model, name) for name in fieldnames(typeof(model))]
+    submodels    = filter(f->f isa Model, fields)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
-        return fit(model, verbosity, args...)
+        return fit(model, verb, args...)
     end
 
     is_anonymised = cache isa NamedTuple{(:sources, :data)}
@@ -33,7 +32,7 @@ function MLJBase.update(model::Union{SupervisedNetwork,UnsupervisedNetwork},
         end
     end
 
-    fit!(yhat; verbosity=verbosity)
+    fit!(yhat; verbosity=verb)
     if is_anonymised
         for s in sources
             rebind!(s, nothing)
@@ -43,20 +42,17 @@ function MLJBase.update(model::Union{SupervisedNetwork,UnsupervisedNetwork},
     return yhat, cache, nothing
 end
 
-MLJBase.predict(composite::SupervisedNetwork, fitresult, Xnew) =
-    fitresult(Xnew)
+predict(::SupervisedNetwork, fitres, Xnew)     = fitres(Xnew)
 
-MLJBase.transform(composite::UnsupervisedNetwork, fitresult, Xnew) =
-    fitresult(Xnew)
+transform(::UnsupervisedNetwork, fitres, Xnew) = fitres(Xnew)
 
 function fitted_params(yhat::Node)
-    machs = machines(yhat)
+    machs  = machines(yhat)
     fitted = [fitted_params(m) for m in machs]
     return (machines=machs, fitted_params=fitted)
 end
 
-fitted_params(composite::Union{SupervisedNetwork,UnsupervisedNetwork}, yhat) =
-    fitted_params(yhat)
+fitted_params(::GenericNetwork, yhat) = fitted_params(yhat)
 
 
 ## FOR EXPORTING LEARNING NETWORKS BY HAND
@@ -193,7 +189,7 @@ function fit_method(network, models...)
 
     network_Xs = sources(network, kind=:input)[1]
 
-    function fit(model::M, verbosity, args...) where M <: Supervised
+    function _fit(model::M, verb::Integer, args...) where M <: Supervised
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]
@@ -222,12 +218,12 @@ function fit_method(network, models...)
             throw(ArgumentError)
         end
 
-        fit!(yhat, verbosity=verbosity)
+        fit!(yhat, verbosity=verb)
 
         return fitresults(yhat)
     end
 
-    function fit(model::M, verbosity, X) where M <:Unsupervised
+    function _fit(model::M, verb::Integer, X) where M <:Unsupervised
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]
@@ -239,13 +235,12 @@ function fit_method(network, models...)
         Set([Xs]) == Set(sources(Xout)) ||
             error("Failed to replace learning network :input source ")
 
-        fit!(Xout, verbosity=verbosity)
+        fit!(Xout, verbosity=verb)
 
         return fitresults(Xout)
     end
 
-    return fit
-
+    return _fit
 end
 
 net_alert(message) = throw(ArgumentError("Learning network export error.\n"*
@@ -378,14 +373,14 @@ function from_network_(modl, modeltype_ex, fieldname_exs, model_exs,
     program1 = quote
 
         import MLJBase
-        
+        import MLJModelInterface
+
         mutable struct $modeltype_ex <: MLJBase.$kind
             $(fieldname_exs...)
         end
 
-        MLJBase.fit(model::$modeltype_ex, verbosity::Integer, $args...) =
-            MLJBase.fit_method(
-                $N_ex, $(model_exs...))(model, verbosity, $args...)
+        MLJModelInterface.fit(model::$modeltype_ex, verb::Integer, $args...) =
+            MLJBase.fit_method($N_ex, $(model_exs...))(model, verb, $args...)
 
     end
 
@@ -450,5 +445,3 @@ macro from_network(exs...)
         end)
 
 end
-
-

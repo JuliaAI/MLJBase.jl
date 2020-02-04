@@ -160,7 +160,7 @@ end
 
 # acts on scalars:
 function transform_to_int(
-    result::UnivariateDiscretizerResult{<:CategoricalElement{R}},
+    result::UnivariateDiscretizerResult{<:MLJBase.CategoricalElement},
     r::Real) where R
 
     k = R(1)
@@ -276,7 +276,7 @@ names of features to be standardized.
 
 """
 mutable struct Standardizer <: MLJBase.Unsupervised
-    features::Vector{Symbol} 
+    features::Vector{Symbol}
 end
 
 Standardizer(; features=Symbol[]) = Standardizer(features)

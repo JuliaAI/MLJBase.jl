@@ -27,7 +27,7 @@
 #
 # -------------------------------------------------------
 
-const DATA_DIR = joinpath(@__DIR__, "..", "data")
+const DATA_DIR = joinpath(MODULE_DIR, "..", "data")
 
 const COERCE_BOSTON = (:Chas => Count,)
 

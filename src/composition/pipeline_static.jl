@@ -22,19 +22,18 @@ mutable struct StaticTransformer <: MLJBase.Unsupervised
 end
 StaticTransformer(;f=identity) = StaticTransformer(f)
 
-MLJBase.fitted_params(::StaticTransformer) = NamedTuple()
-MLJBase.fit(::StaticTransformer, ::Integer, _) = nothing, nothing, NamedTuple()
-MLJBase.transform(model::StaticTransformer, fitresult, Xnew) = (model.f)(Xnew)
+fitted_params(::StaticTransformer) = NamedTuple()
+fit(::StaticTransformer, ::Integer, _) = nothing, nothing, NamedTuple()
+transform(model::StaticTransformer, fitresult, Xnew) = (model.f)(Xnew)
 
-metadata_model(StaticTransformer,
-               input=MLJBase.Table(Scientific),
-               output=MLJBase.Table(Scientific),
-               weights=false,
-               descr=STATIC_TRANSFORMER_DESCR,
-               path="MLJBase.StaticTransformer")
+MMI.metadata_model(StaticTransformer,
+        input   = Table(Scientific),
+        output  = Table(Scientific),
+        weights = false,
+        descr   = STATIC_TRANSFORMER_DESCR,
+        path    = "MLJBase.StaticTransformer")
 
-metadata_pkg(StaticTransformer,
-             name="MLJBase",
-             julia=true,
-             license="MIT")
-
+MMI.metadata_pkg(StaticTransformer,
+        name    = "MLJBase",
+        julia   = true,
+        license = "MIT")

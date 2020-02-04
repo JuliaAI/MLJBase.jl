@@ -3,6 +3,7 @@ module Utilities
 using Test
 using MLJBase
 using Random
+using ComputationalResources
 
 @test MLJBase.finaltypes(Union{Missing,Int}) == [Union{Missing,Int64}]
 @test MLJBase.finaltypes(Float64) == [Float64]
@@ -88,6 +89,13 @@ end
          2  "a"  "z";
          1  "b"  "z";
          2  "b"  "z"]
+end
+
+@testset "comp resources" begin
+    @test default_resource() == CPU1()
+    default_resource(ComputationalResources.CPUProcesses())
+    @test default_resource() == ComputationalResources.CPUProcesses()
+    default_resource(CPU1())
 end
 
 end # module

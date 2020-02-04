@@ -22,37 +22,36 @@ dummy2 = DummyModel(2, 9.5, 'k')
 super_model = SuperModel(0.5, dummy1, dummy2)
 
 @testset "constructors" begin
-    @test_throws ErrorException range(dummy_model, :K, lower=Inf,
+    @test_throws ArgumentError range(dummy_model, :K, lower=Inf,
                                       origin=1, unit=1)
-    @test_throws ErrorException range(dummy_model, :K, upper=-Inf,
+    @test_throws ArgumentError range(dummy_model, :K, upper=-Inf,
                                       origin=1, unit=1)
 
-    @test_throws ErrorException range(dummy_model, :K, lower=1)
-    @test_throws ErrorException range(dummy_model, :K, lower=1, upper=Inf)
-    @test_throws ErrorException range(dummy_model, :K, upper=1)
-    @test_throws ErrorException range(dummy_model, :K, upper=1, lower=-Inf)
+    @test_throws DomainError range(dummy_model, :K, lower=1)
+    @test_throws DomainError range(dummy_model, :K, lower=1, upper=Inf)
+    @test_throws DomainError range(dummy_model, :K, upper=1)
+    @test_throws DomainError range(dummy_model, :K, upper=1, lower=-Inf)
 
-    @test_throws ErrorException range(dummy_model, :K, lower=1, origin=2)
-    @test_throws ErrorException range(dummy_model, :K, lower=1, upper=Inf,
+    @test_throws DomainError range(dummy_model, :K, lower=1, origin=2)
+    @test_throws DomainError range(dummy_model, :K, lower=1, upper=Inf,
                                       origin=2)
-    @test_throws ErrorException range(dummy_model, :K, upper=1, origin=2)
-    @test_throws ErrorException range(dummy_model, :K, upper=1, lower=-Inf,
+    @test_throws DomainError range(dummy_model, :K, upper=1, origin=2)
+    @test_throws DomainError range(dummy_model, :K, upper=1, lower=-Inf,
                                       origin=2)
 
-    @test_throws ErrorException range(dummy_model, :K,
+    @test_throws DomainError range(dummy_model, :K,
                                       lower=3, unit=0, origin=4)
-    @test_throws ErrorException range(dummy_model, :K,
+    @test_throws DomainError range(dummy_model, :K,
                                       lower=3, unit=1, origin=2)
- 
-    @test_throws ErrorException range(dummy_model, :K, origin=2)
-    @test_throws ErrorException range(dummy_model, :K, unit=1)
-    @test_throws ErrorException range(dummy_model, :K)
 
+    @test_throws DomainError range(dummy_model, :K, origin=2)
+    @test_throws DomainError range(dummy_model, :K, unit=1)
+    @test_throws DomainError range(dummy_model, :K)
 
-    @test_throws ErrorException range(dummy_model, :kernel)
+    @test_throws ArgumentError range(dummy_model, :kernel)
 
-    @test_throws ErrorException range(dummy_model, :K, values=['c', 'd'])
-    @test_throws ErrorException range(Int, :K, values=['c', 'd'])
+    @test_throws ArgumentError range(dummy_model, :K, values=['c', 'd'])
+    @test_throws ArgumentError range(Int, :K, values=['c', 'd'])
 
 
     @test range(dummy_model, :K, values=[1, 7]) ==

@@ -1,10 +1,3 @@
-module TestContinuousMeasures
-
-using Test
-using MLJBase
-import Distributions
-using CategoricalArrays
-import Random.seed!
 seed!(1234)
 
 @testset "built-in regressor measures" begin
@@ -54,6 +47,3 @@ end
     MLJBase.supports_weights(::Type{typeof(weird)}) = true
     @test MLJBase.value(weird, yhat, X, y, w) ≈ mav(yhat, y, X.weight .* w)
 end
-
-end
-true

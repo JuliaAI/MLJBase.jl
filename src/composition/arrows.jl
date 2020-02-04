@@ -2,7 +2,6 @@
 # we need version ≥ 1.3 in order to make use of multiple dispatch
 # over abstract types
 
-
 # This allows implicit: data |> machine
 (mach::AbstractMachine{<:Unsupervised})(data) = transform(mach, data)
 (mach::AbstractMachine{<:Supervised})(data)   = predict(mach, data)

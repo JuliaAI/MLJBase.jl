@@ -108,7 +108,6 @@ end
 # machines.jl
 
 mutable struct NodalMachine{M<:Model} <: AbstractMachine{M}
-
     model::M
     previous_model::M # for remembering the model used in last call to `fit!`
     fitresult
@@ -157,7 +156,6 @@ Freeze the machine `mach` so that it will never be retrained (unless
 thawed).
 
 See also [`thaw!`](@ref).
-
 """
 function freeze!(machine::NodalMachine)
     machine.frozen = true
@@ -169,7 +167,6 @@ end
 Unfreeze the machine `mach` so that it can be retrained.
 
 See also [`freeze!`](@ref).
-
 """
 function thaw!(machine::NodalMachine)
     machine.frozen = false
@@ -181,7 +178,6 @@ end
 Check if a machine `mach` is stale.
 
 See also [`fit!`](@ref)
-
 """
 function is_stale(machine::NodalMachine)
     !isdefined(machine, :fitresult) ||
@@ -193,7 +189,6 @@ end
     state(mach)
 
 Return the state of a machine, `mach`.
-
 """
 state(machine::NodalMachine) = machine.state
 
@@ -201,7 +196,6 @@ state(machine::NodalMachine) = machine.state
 ## NODES
 
 struct Node{T<:Union{NodalMachine, Nothing}} <: AbstractNode
-
     operation   # that can be dispatched on a fit-result (eg, `predict`) or a static operation
     machine::T  # is `nothing` for static operations
     args::Tuple{Vararg{AbstractNode}}  # nodes where `operation` looks for its arguments
@@ -250,7 +244,6 @@ Return all nodes upstream of a node `N`, including `N` itself, in an
 order consistent with the extended directed acyclic graph of the
 network. Here "extended" means edges corresponding to training
 arguments are included.
-
 """
 nodes(X::Node) = AbstractNode[X.nodes..., X]
 nodes(S::Source) = AbstractNode[S, ]
@@ -259,7 +252,6 @@ nodes(S::Source) = AbstractNode[S, ]
     is_stale(N)
 
 Check if a node `N` is stale.
-
 """
 function is_stale(X::Node)
     (X.machine !== nothing && is_stale(X.machine)) ||
@@ -272,7 +264,6 @@ state(s::Source) = (state = 0, )
     state(N)
 
 Return the state of a node `N`
-
 """
 function state(W::Node)
     mach = W.machine
@@ -454,39 +445,37 @@ See also: [`source`](@ref), [`origins`](@ref).
 node = Node
 
 # unless no arguments are `AbstractNode`s, `machine` creates a
-# NodalTrainableModel, rather than a `Machine`:
-machine(model::Model, args::AbstractNode...) = NodalMachine(model, args...)
-machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
-machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
+# NodalTrainableModel, rather than a `Machine`; it is necessary to explicitly
+# type for the first two to avoid ambiguities
+machine(m::Unsupervised, a::AbstractNode...) = NodalMachine(m, a...)
+machine(m::Supervised,   a::AbstractNode...) = NodalMachine(m, a...)
+machine(model::Model, X, y::AbstractNode)    = NodalMachine(model, source(X), y)
+machine(model::Model, X::AbstractNode, y)    = NodalMachine(model, X, source(y))
 
-MLJModelInterface.matrix(X::AbstractNode) = node(matrix, X)
-table(X::AbstractNode) = node(table, X)
+MMI.matrix(X::AbstractNode)      = node(matrix, X)
+MMI.table(X::AbstractNode)       = node(table, X)
 Base.vcat(args::AbstractNode...) = node(vcat, args...)
 Base.hcat(args::AbstractNode...) = node(hcat, args...)
 
-Statistics.mean(X::AbstractNode) = node(v->mean.(v), X)
+Statistics.mean(X::AbstractNode)   = node(v->mean.(v), X)
 Statistics.median(X::AbstractNode) = node(v->median.(v), X)
-StatsBase.mode(X::AbstractNode) = node(v->mode.(v), X)
+StatsBase.mode(X::AbstractNode)    = node(v->mode.(v), X)
 
 Base.log(X::AbstractNode) = node(v->log.(v), X)
 Base.exp(X::AbstractNode) = node(v->exp.(v), X)
 
-import Base.+
 +(y1::AbstractNode, y2::AbstractNode) = node(+, y1, y2)
 +(y1, y2::AbstractNode) = node(+, y1, y2)
 +(y1::AbstractNode, y2) = node(+, y1, y2)
 
-import Base.*
 *(lambda::Real, y::AbstractNode) = node(y->lambda*y, y)
 
 """
     selectcols(X::AbstractNode, c)
 
 Returns `Node` object `N` such that `N() = selectcols(X(), c)`.
-
 """
-selectcols(X::AbstractNode, r) = node(XX->selectcols(XX, r),
-X)
+MMI.selectcols(X::AbstractNode, r) = node(XX->selectcols(XX, r), X)
 
 """
     selectrows(X::AbstractNode, r)
@@ -495,8 +484,7 @@ Returns a `Node` object `N` such that `N() = selectrows(X(), r)` (and
 `N(rows=s) = selectrows(X(rows=s), r)`).
 
 """
-selectrows(X::AbstractNode, r) = node(XX->selectrows(XX, r),
-X)
+MMI.selectrows(X::AbstractNode, r) = node(XX->selectrows(XX, r), X)
 
 # for accessing and setting model hyperparameters at node:
 getindex(n::Node{<:NodalMachine{<:Model}}, s::Symbol) =

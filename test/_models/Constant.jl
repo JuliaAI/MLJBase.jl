@@ -13,7 +13,7 @@ A regressor that, for any new input pattern, predicts the univariate
 probability distribution best fitting the training target data. Use
 `predict_mean` to predict the mean value instead.
 """
-struct ConstantRegressor{D} <: MMI.Probabilistic end
+struct ConstantRegressor{D} <: MLJBase.Probabilistic end
 
 function ConstantRegressor(; distribution_type=Distributions.Normal)
     model   = ConstantRegressor{distribution_type}()
@@ -22,38 +22,38 @@ function ConstantRegressor(; distribution_type=Distributions.Normal)
     return model
 end
 
-function MMI.clean!(model::ConstantRegressor{D}) where D
+function MLJBase.clean!(model::ConstantRegressor{D}) where D
     message = ""
     D <: Distributions.Sampleable ||
         error("$model.distribution_type is not a valid distribution_type.")
     return message
 end
 
-function MMI.fit(::ConstantRegressor{D}, verbosity::Int, X, y) where D
+function MLJBase.fit(::ConstantRegressor{D}, verbosity::Int, X, y) where D
     fitresult = Distributions.fit(D, y)
     cache     = nothing
     report    = NamedTuple()
     return fitresult, cache, report
 end
 
-MMI.fitted_params(::ConstantRegressor, fitresult) = (target_distribution=fitresult,)
+MLJBase.fitted_params(::ConstantRegressor, fitresult) = (target_distribution=fitresult,)
 
-MMI.predict(::ConstantRegressor, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MLJBase.predict(::ConstantRegressor, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
 
 ##
 ## THE CONSTANT DETERMINISTIC REGRESSOR (FOR TESTING)
 ##
 
-struct DeterministicConstantRegressor <: MMI.Deterministic end
+struct DeterministicConstantRegressor <: MLJBase.Deterministic end
 
-function MMI.fit(::DeterministicConstantRegressor, verbosity::Int, X, y)
+function MLJBase.fit(::DeterministicConstantRegressor, verbosity::Int, X, y)
     fitresult = mean(y)
     cache     = nothing
     report    = NamedTuple()
     return fitresult, cache, report
 end
 
-MMI.predict(::DeterministicConstantRegressor, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MLJBase.predict(::DeterministicConstantRegressor, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
 
 ##
 ## THE CONSTANT CLASSIFIER
@@ -68,27 +68,27 @@ training target data. So, `pdf(d, level)` is the proportion of levels
 in the training data coinciding with `level`. Use `predict_mode` to
 obtain the training target mode instead.
 """
-struct ConstantClassifier <: MMI.Probabilistic end
+struct ConstantClassifier <: MLJBase.Probabilistic end
 
 # here `args` is `y` or `y, w`:
-function MMI.fit(::ConstantClassifier, verbosity::Int, X, y, w=nothing)
+function MLJBase.fit(::ConstantClassifier, verbosity::Int, X, y, w=nothing)
     fitresult = Distributions.fit(MLJBase.UnivariateFinite, y, w)
     cache     = nothing
     report    = NamedTuple
     return fitresult, cache, report
 end
 
-MMI.fitted_params(::ConstantClassifier, fitresult) = (target_distribution=fitresult,)
+MLJBase.fitted_params(::ConstantClassifier, fitresult) = (target_distribution=fitresult,)
 
-MMI.predict(::ConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MLJBase.predict(::ConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
 
 ##
 ## DETERMINISTIC CONSTANT CLASSIFIER (FOR TESTING)
 ##
 
-struct DeterministicConstantClassifier <: MMI.Deterministic end
+struct DeterministicConstantClassifier <: MLJBase.Deterministic end
 
-function MMI.fit(::DeterministicConstantClassifier, verbosity::Int, X, y)
+function MLJBase.fit(::DeterministicConstantClassifier, verbosity::Int, X, y)
     # dump missing target values and make into a regular array:
     fitresult = mode(skipmissing(y) |> collect) # a CategoricalValue or CategoricalString
     cache     = nothing
@@ -96,7 +96,7 @@ function MMI.fit(::DeterministicConstantClassifier, verbosity::Int, X, y)
     return fitresult, cache, report
 end
 
-MMI.predict(::DeterministicConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MLJBase.predict(::DeterministicConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
 
 #
 # METADATA
@@ -112,29 +112,29 @@ metadata_pkg.((ConstantRegressor, ConstantClassifier,
               is_wrapper=false)
 
 metadata_model(ConstantRegressor,
-               input=MMI.Table(MMI.Scientific),
-               target=AbstractVector{MMI.Continuous},
+               input=MLJBase.Table(MLJBase.Scientific),
+               target=AbstractVector{MLJBase.Continuous},
                weights=false,
                descr="Constant regressor (Probabilistic).",
                path="MLJModels.ConstantRegressor")
 
 metadata_model(DeterministicConstantRegressor,
-               input=MMI.Table(MMI.Scientific),
-               target=AbstractVector{MMI.Continuous},
+               input=MLJBase.Table(MLJBase.Scientific),
+               target=AbstractVector{MLJBase.Continuous},
                weights=false,
                descr="Constant regressor (Deterministic).",
                path="MLJModels.DeterministicConstantRegressor")
 
 metadata_model(ConstantClassifier,
-               input=MMI.Table(MMI.Scientific),
-               target=AbstractVector{<:MMI.Finite},
+               input=MLJBase.Table(MLJBase.Scientific),
+               target=AbstractVector{<:MLJBase.Finite},
                weights=true,
                descr="Constant classifier (Probabilistic).",
                path="MLJModels.ConstantClassifier")
 
 metadata_model(DeterministicConstantClassifier,
-               input=MMI.Table(MMI.Scientific),
-               target=AbstractVector{<:MMI.Finite},
+               input=MLJBase.Table(MLJBase.Scientific),
+               target=AbstractVector{<:MLJBase.Finite},
                weights=false,
                descr="Constant classifier (Deterministic).",
                path="MLJModels.DeterministicConstantClassifier")

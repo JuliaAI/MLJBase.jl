@@ -188,11 +188,15 @@ function SupervisedTask(; data=nothing, is_probabilistic=false, target=nothing, 
                           verbosity=verbosity)
 end
 
+## machines with tasks
 
+# to be deprecated:
+machine(model::Model, task::SupervisedTask)   = machine(model, task.X, task.y)
+machine(model::Model, task::UnsupervisedTask) = machine(model, task.X)
 
 ## RUDIMENTARY TASK OPERATIONS
 
-nrows(task::MLJTask) = nrows(task.X)
+MLJModelInterface.nrows(task::MLJTask) = nrows(task.X)
 Base.eachindex(task::MLJTask) = Base.OneTo(nrows(task))
 nfeatures(task::MLJTask) = length(schema(task.X).names)
 

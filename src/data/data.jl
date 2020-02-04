@@ -1,13 +1,3 @@
-## POOR MAN'S TYPE CHECKS (HACK)
-
-# This is being used for temporary optimization of selectrows for:
-
-# - DataFrames
-
-# typename(X) = split(string(supertype(typeof(X)).name), '.')[end]
-# isdataframe(X) = typename(X) == "AbstractDataFrame"
-
-
 ## SPLITTING DATA SETS
 
 # Helper function for partitioning in the non-stratified case
@@ -20,7 +10,7 @@ function _partition(rows, fractions, ::Nothing)
     head     = 1
     for (i, p) in enumerate(fractions)
         n = round(Int, p * n_rows)
-        n == 0 && (@warn "A split has only one element"; n = 1)
+        iszero(n) && (@warn "A split has only one element."; n = 1)
         # update tail
         tail = head + n - 1
         # store

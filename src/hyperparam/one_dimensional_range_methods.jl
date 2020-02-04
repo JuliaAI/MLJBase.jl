@@ -15,41 +15,42 @@
 
 struct SCALE end
 Scale = SCALE()
-scale(s::Symbol) = Val(s)
+
+scale(s::Symbol)   = Val(s)
 scale(f::Function) = f
-MLJBase.transform(::SCALE, ::Val{:linear}, x) = x
-MLJBase.inverse_transform(::SCALE, ::Val{:linear}, x) = x
-MLJBase.transform(::SCALE, ::Val{:log}, x) = log(x)
-MLJBase.inverse_transform(::SCALE, ::Val{:log}, x) = exp(x)
-MLJBase.transform(::SCALE, ::Val{:logminus}, x) = log(-x)
-MLJBase.inverse_transform(::SCALE, ::Val{:logminus}, x) = -exp(x)
-MLJBase.transform(::SCALE, ::Val{:log10}, x) = log10(x)
-MLJBase.inverse_transform(::SCALE, ::Val{:log10}, x) = 10^x
-MLJBase.transform(::SCALE, ::Val{:log2}, x) = log2(x)
-MLJBase.inverse_transform(::SCALE, ::Val{:log2}, x) = 2^x
 
-MLJBase.transform(::SCALE, f::Function, x) = x            # not a typo!
-MLJBase.inverse_transform(::SCALE, f::Function, x) = f(x) # not a typo!
+transform(::SCALE, ::Val{:linear}, x) = x
+inverse_transform(::SCALE, ::Val{:linear}, x) = x
 
+transform(::SCALE, ::Val{:log}, x) = log(x)
+inverse_transform(::SCALE, ::Val{:log}, x) = exp(x)
 
-# SCALE INSPECTION (FOR EG PLOTTING)
+transform(::SCALE, ::Val{:logminus}, x) = log(-x)
+inverse_transform(::SCALE, ::Val{:logminus}, x) = -exp(x)
+
+transform(::SCALE, ::Val{:log10}, x) = log10(x)
+inverse_transform(::SCALE, ::Val{:log10}, x) = 10^x
+
+transform(::SCALE, ::Val{:log2}, x) = log2(x)
+inverse_transform(::SCALE, ::Val{:log2}, x) = 2^x
+
+transform(::SCALE, f::Function, x) = x            # not a typo!
+inverse_transform(::SCALE, f::Function, x) = f(x) # not a typo!
+
+## SCALE INSPECTION (FOR EG PLOTTING)
 
 """
-    MLJBase.scale(r::ParamRange)
+    scale(r::ParamRange)
 
-Return the scale associated with a `ParamRange` object `r`. The
-possible return values are: `:none` (for a `NominalRange`), `:linear`,
-`:log`, `:log10`, `:log2`, or `:custom` (if `r.scale` is a callable
-object).
-
+Return the scale associated with a `ParamRange` object `r`. The possible
+return values are: `:none` (for a `NominalRange`), `:linear`, `:log`, `:log10`,
+`:log2`, or `:custom` (if `r.scale` is a callable object).
 """
 scale(r::NominalRange) = :none
 scale(r::NumericRange) = :custom
-scale(r::NumericRange{B,T,Symbol}) where {B<:Boundedness,T} =
-    r.scale
+scale(r::NumericRange{B,T,Symbol}) where {B<:Boundedness,T} = r.scale
 
-
-## ITERATORS 
+## ITERATORS
 
 """
     MLJTuning.iterator(r::NominalRange, [,n, rng])
@@ -80,7 +81,6 @@ If a random number generator `rng` is specified, then the values are
 returned in random order (sampling without replacement), and otherwise
 they are returned in numeric order, or in the order provided to the
 range constructor, in the case of a `NominalRange`.
-
 """
 iterator(r::ParamRange, n::Integer, rng::AbstractRNG) =
     StatsBase.sample(rng, iterator(r, n), n, replace=false)

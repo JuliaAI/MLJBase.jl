@@ -1,6 +1,5 @@
 module TestComposites
 
-# using Revise
 using Test
 using MLJBase
 using ..Models
@@ -22,7 +21,6 @@ ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
 
 @testset "first test of hand-exported network" begin
-
     composite = SimpleDeterministicCompositeModel(model=ridge_model,
                                                   transformer=selector_model)
 
@@ -79,9 +77,6 @@ selector_model = FeatureSelector()
     yhat(MLJBase.selectrows(Xin, test))
 
 end
-
-import MLJBase
-using MLJScientificTypes
 
 mutable struct WrappedRidge <: DeterministicNetwork
     ridge

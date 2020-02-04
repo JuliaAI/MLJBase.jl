@@ -443,7 +443,6 @@ const fallout      = falsepositive_rate
 const specificity  = truenegative_rate
 const selectivity  = specificity
 const f1score      = FScore{1}()
-const f1           = f1score
 
 const balanced_accuracy = BACC()
 const bacc = balanced_accuracy
@@ -523,7 +522,7 @@ MMI.docstring(::Type{<:Precision})    = "precision; aliases: `precision`, " *
 MMI.name(::Type{<:FScore{β}}) where β = "FScore($β)"
 MMI.name(::Type{<:FScore})            = "FScore(β)" # for registry
 MMI.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
-                                        "`FScore(β)`, `f1=f1score=FScore(1)`"
+                                        "`FScore(β)`, `f1score=FScore(1)`"
 
 ## Internal functions on Confusion Matrix
 
