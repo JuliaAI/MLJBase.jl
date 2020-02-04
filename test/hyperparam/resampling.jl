@@ -10,6 +10,7 @@ using Test
 using MLJBase
 
 import MLJBase
+import Distributions
 import StatsBase
 import Random.seed!
 seed!(1234)
@@ -50,8 +51,8 @@ end
 @testset_accelerated "folds specified" accel (exclude=[CPUProcesses],) begin
     x1 = ones(10)
     x2 = ones(10)
-    X = (x1=x1, x2=x2)
-    y = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
+    X  = (x1=x1, x2=x2)
+    y  = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
 
     my_rms(yhat, y) = sqrt(mean((yhat -y).^2))
     my_mav(yhat, y) = abs.(yhat - y)
@@ -64,7 +65,7 @@ end
                   (1:8, 9:10)]
 
     model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
+    mach  = machine(model, X, y)
 
     # check detection of incompatible measure (cross_entropy):
     @test_throws ArgumentError evaluate!(mach, resampling=resampling,
@@ -188,16 +189,13 @@ end
     N = 30
     y = shuffle(vcat(fill(:a, N), fill(:b, 2N),
                         fill(:c, 3N), fill(:d, 4N))) |> categorical;
-    d = fit(UnivariateFinite, y)
+    d = Distributions.fit(MLJBase.UnivariateFinite, y)
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
-    @test all([fit(UnivariateFinite, y[fold]) ≈ d for fold in folds])
-
-
+    @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
 end
 
 @testset_accelerated "sample weights in evaluation" accel begin
-
     # cv:
     x1 = ones(4)
     x2 = ones(4)

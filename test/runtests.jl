@@ -1,7 +1,29 @@
-using Test
+using Distributed
+addprocs(2)
 
-# adds toy models in the environment + basic tests
-include("_models/models.jl")
+@everywhere begin
+    using MLJModelInterface
+    using MLJBase, Test
+    using Logging
+    using ComputationalResources
+end
+
+function include_everywhere(filepath)
+    include(filepath) # Load on Node 1 first, triggering any precompile
+    if nprocs() > 1
+        fullpath = joinpath(@__DIR__, filepath)
+        @sync for p in workers()
+            @async remotecall_wait(include, p, fullpath)
+        end
+    end
+end
+
+include("test_utilities.jl")
+
+# load Models module containing models implementations for testing:
+print("Loading some models for testing...")
+include_everywhere("_models/models.jl")
+print("\r                                           \r")
 
 @testset "misc" begin
     @test include("utilities.jl")
@@ -33,10 +55,6 @@ end
     @test include("composition/pipeline_static.jl")
     @test include("composition/networks.jl")
 
-    # XXX XXX XXX XXX XXX XXX XXX XXX
-    # XXX stopping here February 4 XXX
-    # XXX XXX XXX XXX XXX XXX XXX XXX
-
     # XXX VERSION ≥ v"1.3.0-" && @test include("arrows.jl")
 end
 
@@ -44,38 +62,5 @@ end
 @testset "hyperparam" begin
     @test include("hyperparam/one_dimensional_ranges.jl")
     @test include("hyperparam/one_dimensional_range_methods.jl")
-    #XXX @test include("resampling.jl")
-end
-
-# ================================================
-# =================================================
-
-using Distributed
-addprocs(2)
-
-@everywhere begin
-    using MLJBase, Test
-    using Logging
-    using ComputationalResources
-end
-
-function include_everywhere(filepath)
-    include(filepath) # Load on Node 1 first, triggering any precompile
-    if nprocs() > 1
-        fullpath = joinpath(@__DIR__, filepath)
-        @sync for p in workers()
-            @async remotecall_wait(include, p, fullpath)
-        end
-    end
-end
-
-include("test_utilities.jl")
-
-# load Models module containing models implementations for testing:
-print("Loading some models for testing...")
-include_everywhere("models.jl")
-print("\r                                           \r")
-
-@testset "computational resources" begin
-    @test include("computational_resources.jl")
+    @test include("hyperparam/resampling.jl")
 end
