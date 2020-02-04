@@ -155,7 +155,8 @@ end
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
                        acceleration=accel)
-    @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
+
+   @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
 
     shuffled = evaluate!(mach, resampling=CV(shuffle=true),
                           acceleration=accel) # using rms default
@@ -326,7 +327,7 @@ end
                    operation=predict_mode,
                    rows=rows, acceleration=accel)
 
-    @test e1.per_fold ≈ e2.per_fold
+   @test e1.per_fold ≈ e2.per_fold
 
     # resampler as machine with evaluation weights not specified:
     resampler = Resampler(model=model, resampling=CV();
