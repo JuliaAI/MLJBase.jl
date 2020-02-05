@@ -95,7 +95,8 @@ end
     y = rand(20)
 
     holdout = Holdout(fraction_train=0.75, rng=123)
-    model = Models.DeterministicConstantRegressor() mach = machine(model, X, y)
+    model = Models.DeterministicConstantRegressor()
+    mach = machine(model, X, y)
     result = evaluate!(mach, resampling=holdout,
                        measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
