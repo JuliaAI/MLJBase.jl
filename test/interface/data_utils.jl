@@ -95,16 +95,16 @@ end
     rt = Tables.rowtable(tt)
     ct = Tables.columntable(tt)
 
-    @test selectcols(nothing, 4:6) == nothing
-    @test selectcols(df, 4:6) == df[:,4:6]
-    @test selectcols(df, [:x1, :z]) == df[:,[:x1, :z]]
-    @test selectcols(df, :x2) == df.x2
-    @test selectcols(nothing, 4:6) == nothing
-    @test selectcols(df, 2) == df.x2
-    @test selectrows(df, 4:6) == selectrows(df[4:6, :], :)
-    @test selectrows(df, 1) == selectrows(df[1:1, :], :)
-    @test selectrows(nothing, 4:6) == nothing
-    @test MLJBase.select(df, 2, :x2) == [df[2, :x2]]
+    @test selectcols(nothing, 4:6)   == nothing
+    @test selectcols(df, 4:6)        == df[:,4:6]
+    @test selectcols(df, [:x1, :z])  == df[:,[:x1, :z]]
+    @test selectcols(df, :x2)        == df.x2
+    @test selectcols(nothing, 4:6)   == nothing
+    @test selectcols(df, 2)          == df.x2
+    @test selectrows(df, 4:6)        == selectrows(df[4:6, :], :)
+    @test selectrows(df, 1)          == selectrows(df[1:1, :], :)
+    @test selectrows(nothing, 4:6)   == nothing
+    @test MLJBase.select(df, 2, :x2) == df[2, :x2]
     @test MLJBase.select(nothing, 2, :x) == nothing
     s = schema(df)
     @test nrows(df) == size(df, 1)
@@ -112,14 +112,14 @@ end
     @test selectcols(tt, 4:6) == selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
     @test selectcols(tt, [:x1, :z]) == selectcols(TypedTables.Table(x1=tt.x1, z=tt.z), :)
     @test selectcols(tt, :x2) == tt.x2
-    @test selectcols(tt, 2) == tt.x2
+    @test selectcols(tt, 2)   == tt.x2
     @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
     @test nrows(tt) == length(tt.x1)
-    @test MLJBase.select(tt, 2, :x2) == [tt.x2[2]]
+    @test MLJBase.select(tt, 2, :x2) == tt.x2[2]
 
     @test selectrows(rt, 4:6) == rt[4:6]
-    @test selectrows(rt, :) == rt
-    @test selectrows(rt, 5) == rt[5,:]
+    @test selectrows(rt, :)   == rt
+    @test selectrows(rt, 5)   == rt[5,:]
 
     @test Tables.rowtable(selectrows(ct, 4:6)) == rt[4:6]
     @test selectrows(ct, :) == ct
@@ -128,24 +128,24 @@ end
     # vector accessors
     v = rand(Int, 4)
     @test selectrows(v, 2:3) == v[2:3]
-    @test selectrows(v, 2) == [v[2]]
-    @test nrows(v) == 4
+    @test selectrows(v, 2)   == [v[2]]
+    @test nrows(v)           == 4
 
     v = categorical(collect("asdfasdf"))
     @test selectrows(v, 2:3) == v[2:3]
-    @test selectrows(v, 2) == [v[2]]
+    @test selectrows(v, 2)   == [v[2]]
     @test nrows(v) == 8
 
     # matrix accessors
     A = rand(5, 10)
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
-    @test selectrows(A, 2) == A[2:2,:]
+    @test selectrows(A, 2)   == A[2:2,:]
 
     A = rand(5, 10) |> categorical
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
-    @test selectrows(A, 2) == A[2:2,:]
+    @test selectrows(A, 2)   == A[2:2,:]
 
     @test nrows(A) == 5
 

@@ -170,7 +170,7 @@ end
     @test MLJBase.project(nt, 1) == (a=5, )
 
     X = MLJBase.table((x=[1,2,3], y=[4,5,6]))
-    @test select(X, 1, :y) == [4]
+    @test select(X, 1, :y) == 4
 end
 
 end # module
