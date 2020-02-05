@@ -4,16 +4,16 @@ using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using ..TestUtilities
 
-@everywhere using ..Models
+@everywhere begin
+    using ..Models
+    import Random.seed!
+    seed!(1234)
+end
 
 using Test
 using MLJBase
-
-import MLJBase
 import Distributions
 import StatsBase
-import Random.seed!
-seed!(1234)
 
 @test CV(nfolds=6) == CV(nfolds=6)
 @test CV(nfolds=5) != CV(nfolds=6)
