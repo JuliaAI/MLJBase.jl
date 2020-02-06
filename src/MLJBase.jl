@@ -245,7 +245,6 @@ include("interface/univariate_finite.jl")
 include("distributions.jl")
 
 include("machines.jl")
-include("tasks.jl")      # To be deprecated
 
 include("composition/networks.jl")
 include("composition/composites.jl")
