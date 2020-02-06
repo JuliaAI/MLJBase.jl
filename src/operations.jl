@@ -33,8 +33,6 @@ for operation in (:predict, :predict_mean, :predict_mode,
         end
         $(operation)(machine::Machine; rows=:) =
             $(operation)(machine, selectrows(machine.args[1], rows))
-        $(operation)(machine::Machine, task::MLJTask) =
-            $(operation)(machine, task.X)
         $(operation)(machine::NodalMachine, args::AbstractNode...) =
             node($(operation), machine, args...)
     end
