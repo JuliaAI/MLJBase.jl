@@ -216,7 +216,7 @@ const Arr = AbstractArray
 const Vec = AbstractVector
 
 const MMI = MLJModelInterface
-const FI  = FullInterface
+const FI  = MLJModelInterface.FullInterface
 
 # ===================================================================
 # Computational Resource
