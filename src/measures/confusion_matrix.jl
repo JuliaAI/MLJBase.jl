@@ -20,7 +20,8 @@ function ConfusionMatrix(m::Matrix{Int}, labels::Vector{String})
     s = size(m)
     s[1] == s[2] || throw(ArgumentError("Expected a square matrix."))
     s[1] > 1 || throw(ArgumentError("Expected a matrix of size ≥ 2x2."))
-    length(labels) == s[1] || throw(ArgumentError("As many labels as classes must be provided."))
+    length(labels) == s[1] ||
+        throw(ArgumentError("As many labels as classes must be provided."))
     ConfusionMatrix{s[1]}(m, labels)
 end
 
@@ -40,16 +41,16 @@ The ordering follows that of `levels(y)`.
                classes.
 * `perm=[]`:   in the general case, this keyword allows to specify a permutation
                re-ordering the classes.
-* `warn=true`: whether to show a warning in case `y` does not have scientific type
-               `OrderedFactor{2}` (see note below).
+* `warn=true`: whether to show a warning in case `y` does not have scientific
+               type `OrderedFactor{2}` (see note below).
 
 ## Note
 
 To decrease the risk of unexpected errors, if `y` does not have scientific type
-`OrderedFactor{2}` (and so does not have a "natural ordering" negative-positive),
-a warning is shown indicating the current order unless the user specifies,
-explicitly either `rev` or `perm` in which case it's assumed the user is aware of
-the class ordering.
+`OrderedFactor{2}` (and so does not have a "natural ordering"
+negative-positive), a warning is shown indicating the current order unless the
+user explicitly specifies either `rev` or `perm` in which case it's assumed the
+user is aware of the class ordering.
 """
 function confusion_matrix(ŷ::VC, y::VC;
                           rev::Union{Nothing,Bool}=nothing,

@@ -42,6 +42,10 @@ end
     @test include("measures/measures.jl")
 end
 
+@testset "resampling" begin
+    @test include("resampling.jl")
+end
+
 @testset "data" begin
     @test include("data/data.jl")
     @test include("data/datasets.jl")
@@ -62,5 +66,4 @@ end
 @testset "hyperparam" begin
     @test include("hyperparam/one_dimensional_ranges.jl")
     @test include("hyperparam/one_dimensional_range_methods.jl")
-    @test include("hyperparam/resampling.jl")
 end

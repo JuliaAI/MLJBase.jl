@@ -254,9 +254,10 @@ VERSION ≥ v"1.3.0-" && include("composition/arrows.jl")
 
 include("operations.jl")
 
+include("resampling.jl")
+
 include("hyperparam/one_dimensional_ranges.jl")
 include("hyperparam/one_dimensional_range_methods.jl")
-include("hyperparam/resampling.jl")
 
 include("data/data.jl")
 include("data/datasets.jl")

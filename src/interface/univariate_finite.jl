@@ -10,6 +10,7 @@ struct UnivariateFinite{L,U,T<:Real} <: UnivariateFiniteSuper
     prob_given_class::LittleDict{U,T}
 end
 
+"""$(MMI.UNIVARIATE_FINITE_DOCSTRING)"""
 UnivariateFinite(a...) = MMI.UnivariateFinite(a...)
 
 # Fallbacks
