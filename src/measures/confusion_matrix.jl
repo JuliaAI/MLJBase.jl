@@ -106,7 +106,7 @@ function confusion_matrix(ŷ::VC, y::VC;
     @inbounds for i in eachindex(y)
         cmat[iperm[int(ŷ[i])], iperm[int(y[i])]] += 1
     end
-    return ConfusionMatrix(cmat, string.(levels_))
+    return ConfusionMatrix(cmat, string.(levels_[perm]))
 end
 
 # synonym
