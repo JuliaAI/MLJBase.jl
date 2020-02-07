@@ -12,7 +12,7 @@ color_on() = (global SHOW_COLOR=true;)
 """
     color_off()
 
-Suppress color and bold output at the REPL for displaying MLJ objects. 
+Suppress color and bold output at the REPL for displaying MLJ objects.
 
 """
 color_off() = (global SHOW_COLOR=false;)
@@ -107,7 +107,7 @@ function simple_repr(T)
     p_string = ""
     if length(parameters) == 1
         p = parameters[1]
-        if p isa DataType 
+        if p isa DataType
             p_string = simple_repr(p)
         elseif p isa Symbol
             p_string = string(":", p)
@@ -137,7 +137,7 @@ end
 
 # fallback:
 function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{false})
-    show(stream, MIME("text/plain"), object) 
+    show(stream, MIME("text/plain"), object)
 end
 
 # fallback for MLJType:
@@ -155,7 +155,7 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
     if current_depth == depth
         show(stream, object)
     else
-        prefix = split(string(coretype(typeof(object))), '.')[end]
+        prefix = MLJModelInterface.name(object)
         anti = max(length(prefix) - INDENT)
         print(stream, prefix, "(")
         first_item = true
@@ -188,14 +188,14 @@ Base.show(stream::IO, object::M, depth::Int) where M<:MLJType =
     show(stream, object, depth, Val(show_as_constructed(M)))
 Base.show(stream::IO, object::MLJType, depth::Int, ::Val{false}) =
     _recursive_show(stream, object, 1, depth)
-Base.show(stream::IO, object::MLJType, depth::Int, ::Val{true}) = 
+Base.show(stream::IO, object::MLJType, depth::Int, ::Val{true}) =
     fancy(stream, object, 0, 100, 0)
 
 # for convenience:
 Base.show(object::MLJType, depth::Int) = show(stdout, object, depth)
 
 
-""" 
+"""
     @more
 
 Entered at the REPL, equivalent to `show(ans, 100)`. Use to get a
@@ -206,7 +206,7 @@ macro more()
     esc(quote
         show(Main.ans, 100)
     end)
-end    
+end
 
 
 ## METHODS TO SUPRESS THE DISPLAY OF LARGE NON-BASETYPE OBJECTS
@@ -241,7 +241,7 @@ _show(stream::IO, object::MLJType) = println(stream, object)
 # _show for other types:
 
 istoobig(t::Tuple{Vararg{T}}) where T<:Union{Number,Symbol,Char,MLJType} =
-    length(t) > 5 
+    length(t) > 5
 function _show(stream::IO, t::Tuple)
     if !istoobig(t)
         show(stream, MIME("text/plain"), t)
@@ -252,7 +252,7 @@ function _show(stream::IO, t::Tuple)
 end
 
 istoobig(A::AbstractArray{T}) where T<:Union{Number,Symbol,Char,MLJType} =
-    maximum(size(A)) > 5 
+    maximum(size(A)) > 5
 function _show(stream::IO, A::AbstractArray)
     if !istoobig(A)
         show(stream, MIME("text/plain"), A)
@@ -285,7 +285,7 @@ function _show(stream::IO, v::Array{T, 1}) where T
     end
 end
 
-_show(stream::IO, T::DataType) = println(stream, T) 
+_show(stream::IO, T::DataType) = println(stream, T)
 
 _show(stream::IO, ::Nothing) = println(stream, "nothing")
 
@@ -307,13 +307,13 @@ field values (and so on, up to a depth of argument `depth`).
 unless `istoobig(f)` is false (the `istoobig` fall-back for arbitrary
 types being `true`). In the latter case, the long (ie,
 MIME"plain/text") form of `f` is shown. To override this behaviour,
-overload the `_show` method for the type in question. 
+overload the `_show` method for the type in question.
 
 """
 function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
     if depth == 0 || isempty(fieldnames(typeof(object)))
         println(stream, object)
-    elseif current_depth <= depth 
+    elseif current_depth <= depth
         fields = fieldnames(typeof(object))
         print(stream, "#"^current_depth, " ")
         show(stream, object)
@@ -346,18 +346,3 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
         end
     end
 end
-
-
-
-
-
-
-    
-    
-    
-    
-
-
-    
-
-

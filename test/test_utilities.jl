@@ -2,7 +2,7 @@ module TestUtilities
 
 using Test
 
-export @testset_accelerated
+export @testset_accelerated, include_everywhere
 
 using ComputationalResources
 using ComputationalResources: CPUProcesses
