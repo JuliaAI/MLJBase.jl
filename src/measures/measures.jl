@@ -30,7 +30,6 @@ is_feature_dependent(m) = is_feature_dependent(typeof(m))
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
 
-
 ## AGGREGATION
 
 abstract type AggregationMode end
@@ -59,28 +58,28 @@ aggregate(x::MeasureValue, measure) = x
 # y - target observations
 # w - per-observation weights
 
-value(measure, yhat, X, y, w) = value(measure, yhat, X, y, w,
-                                      Val(is_feature_dependent(measure)),
-                                      Val(supports_weights(measure)))
+function value(measure, yhat, X, y, w)
+    vfdep     = Val(is_feature_dependent(measure))
+    vsweights = Val(supports_weights(measure))
+    return value(measure, yhat, X, y, w, vfdep, vsweights)
+end
 
 
 ## DEFAULT EVALUATION INTERFACE
 
 #  is feature independent, weights not supported:
-value(measure, yhat, X, y, w, ::Val{false}, ::Val{false}) = measure(yhat, y)
+value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)
 
 #  is feature dependent:, weights not supported:
-value(measure, yhat, X, y, w, ::Val{true}, ::Val{false}) = measure(yhat, X, y)
-
+value(m, yhat, X, y, w, ::Val{true}, ::Val{false}) = m(yhat, X, y)
 
 #  is feature independent, weights supported:
-value(measure, yhat, X, y, w, ::Val{false}, ::Val{true}) = measure(yhat, y, w)
-value(measure, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = measure(yhat, y)
+value(m, yhat, X, y, w,         ::Val{false}, ::Val{true}) = m(yhat, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 
 #  is feature dependent, weights supported:
-value(measure, yhat, X, y, w, ::Val{true}, ::Val{true}) = measure(yhat, X, y, w)
-value(measure, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = measure(yhat, X, y)
-
+value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
 ## helper
 
@@ -90,7 +89,6 @@ function check_pools(ŷ, y)
               "in observations and predictions. ")
     return nothing
 end
-
 
 ## FOR BUILT-IN MEASURES
 
@@ -105,14 +103,52 @@ Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
     print(stream, "$(name(m)) (callable Measure)")
 Base.show(stream::IO, m::Measure) = print(stream, name(m))
 
-function MLJBase.info(M, ::Val{:measure_type})
+function MLJScientificTypes.info(M, ::Val{:measure_type})
     values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
 
-# overload info from ScientificTypes:
-MLJBase.info(m, ::Val{:measure}) = info(typeof(m))
+MLJScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
+
+"""
+    metadata_measure(T; kw...)
+
+Helper function to write the metadata for a single measure.
+"""
+function metadata_measure(T; name::String="",
+                          target_scitype=Unknown,
+                          prediction_type::Symbol=:unknown,
+                          orientation::Symbol=:unknown,
+                          reports_each_observation::Bool=true,
+                          aggregation=Mean(),
+                          is_feature_dependent::Bool=false,
+                          supports_weights::Bool=false,
+                          docstring::String="",
+                          distribution_type=missing)
+    pred_str        = "$prediction_type"
+    orientation_str = "$orientation"
+    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
+    ex = quote
+        if !isempty($name)
+            MMI.name(::Type{<:$T}) = $name
+        end
+        if !isempty($docstring)
+            MMI.docstring(::Type{<:$T}) = $docstring
+        end
+        # traits common with models
+        MMI.target_scitype(::Type{<:$T}) = $target_scitype
+        MMI.prediction_type(::Type{<:$T}) = Symbol($pred_str)
+        MMI.supports_weights(::Type{<:$T}) = $supports_weights
+        # traits specific to measures
+        orientation(::Type{<:$T}) = Symbol($orientation_str)
+        reports_each_observation(::Type{<:$T}) = $reports_each_observation
+        aggregation(::Type{<:$T}) = $aggregation
+        is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
+        distribution_type(::Type{<:$T}) = $dist
+    end
+    parentmodule(T).eval(ex)
+end
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
 
@@ -121,19 +157,25 @@ include("confusion_matrix.jl")
 include("finite.jl")
 include("loss_functions_interface.jl")
 
-
 ## DEFAULT MEASURES
 default_measure(T, S) = nothing
-default_measure(::Type{<:Deterministic},
-                ::Type{<:Union{AbstractVector{<:Continuous},
-                               AbstractVector{<:Count}}}) = rms
-default_measure(::Type{<:Deterministic},
-                ::Type{<:AbstractVector{<:Finite}}) = misclassification_rate
-# default_measure(::Type{Probabilistic},
-#                 ::Type{<:Union{AbstractVector{<:Continuous},
-#                                AbstractVector{<:Count}}}) = ???
-default_measure(::Type{<:Probabilistic},
-                ::Type{<:AbstractVector{<:Finite}}) = cross_entropy
 
-default_measure(M::Type{<:Supervised})= default_measure(M, target_scitype(M))
-default_measure(model::M) where M<:Supervised = default_measure(M)
+# Deterministic + Continuous / Count ==> RMS
+default_measure(::Type{<:Deterministic},
+                ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}}) = rms
+
+# Deterministic + Finite ==> Misclassification rate
+default_measure(::Type{<:Deterministic},
+                ::Type{<:Vec{<:Finite}}) = misclassification_rate
+
+# default_measure(::Type{Probabilistic},
+#                 ::Type{<:Union{Vec{<:Continuous},
+#                                Vec{<:Count}}}) = ???
+
+# Probabilistic + Finite ==> Cross entropy
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:Vec{<:Finite}}) = cross_entropy
+
+# Fallbacks
+default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
+default_measure(::M) where M <: Supervised = default_measure(M)

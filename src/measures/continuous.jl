@@ -1,6 +1,7 @@
 ## REGRESSOR METRICS (FOR DETERMINISTIC PREDICTIONS)
 
-mutable struct MAV<: Measure end
+mutable struct MAV <: Measure end
+
 """
     mav(ŷ, y)
     mav(ŷ, y, w)
@@ -10,20 +11,20 @@ Mean absolute error (also known as MAE).
 ``\\text{MAV} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or ``\\text{MAV} =  ∑ᵢwᵢ|yᵢ-ŷᵢ|/∑ᵢwᵢ``
 
 For more information, run `info(mav)`.
-
 """
 mav = MAV()
-name(::Type{<:MAV}) = "mav"
-docstring(::Type{<:MAV}) = "mean absolute value; aliases: `mav`"
-target_scitype(::Type{<:MAV}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:MAV}) = :deterministic
-orientation(::Type{<:MAV}) = :loss
-reports_each_observation(::Type{<:MAV}) = false
-is_feature_dependent(::Type{<:MAV}) = false
-supports_weights(::Type{<:MAV}) = true
 
-function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(MAV;
+    name                     = "mav",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "mean absolute value; aliases: `mav`.")
+
+function (::MAV)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -33,8 +34,8 @@ function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     return ret / length(y)
 end
 
-function (::MAV)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
-                 w::AbstractVector{<:Real})
+function (::MAV)(ŷ::Vec{<:Real}, y::Vec{<:Real},
+                 w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(y, w)
     ret = 0.0
@@ -47,7 +48,7 @@ end
 
 # synonym
 """
-mae(ŷ, y)
+    mae(ŷ, y)
 
 See also [`mav`](@ref).
 """
@@ -64,21 +65,21 @@ Root mean squared error:
 ``\\text{RMS} = \\sqrt{n^{-1}∑ᵢ|yᵢ-ŷᵢ|^2}`` or ``\\text{RMS} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 
 For more information, run `info(rms)`.
-
 """
 rms = RMS()
-name(::Type{<:RMS}) = "rms"
-docstring(::Type{<:RMS}) = "root mean squared; aliases: `rms`"
-target_scitype(::Type{<:RMS}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:RMS}) = :deterministic
-orientation(::Type{<:RMS}) = :loss
-reports_each_observation(::Type{<:RMS}) = false
-aggregation(::Type{<:RMS}) = RootMeanSquare()
-is_feature_dependent(::Type{<:RMS}) = false
-supports_weights(::Type{<:RMS}) = true
 
-function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(RMS;
+    name                     = "rms",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation              = RootMeanSquare(),
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "root mean squared; aliases: `rms`.")
+
+function (::RMS)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -88,8 +89,8 @@ function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
     return sqrt(ret / length(y))
 end
 
-function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
-                 w::AbstractVector{<:Real})
+function (::RMS)(ŷ::Vec{<:Real}, y::Vec{<:Real},
+                 w::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -100,6 +101,7 @@ function (::RMS)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
 end
 
 struct L2 <: Measure end
+
 """
     l2(ŷ, y)
     l2(ŷ, y, w)
@@ -107,31 +109,32 @@ struct L2 <: Measure end
 L2 per-observation loss.
 
 For more information, run `info(l2)`.
-
 """
 l2 = L2()
-name(::Type{<:L2}) = "l2"
-docstring(::Type{<:L2}) = "squared deviations; aliases: `l2`"
-target_scitype(::Type{<:L2}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:L2}) = :deterministic
-orientation(::Type{<:L2}) = :loss
-reports_each_observation(::Type{<:L2}) = true
-is_feature_dependent(::Type{<:L2}) = false
-supports_weights(::Type{<:L2}) = true
 
-function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(L2;
+    name                     = "l2",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = true,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "squared deviations; aliases: `l2`.")
+
+function (::L2)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     (check_dimensions(ŷ, y); (y - ŷ).^2)
 end
 
-function (::L2)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
-                w::AbstractVector{<:Real})
+function (::L2)(ŷ::Vec{<:Real}, y::Vec{<:Real},
+                w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
     return (y - ŷ).^2 .* w ./ (sum(w)/length(y))
 end
 
 struct L1 <: Measure end
+
 """
     l1(ŷ, y)
     l1(ŷ, y, w)
@@ -139,31 +142,32 @@ struct L1 <: Measure end
 L1 per-observation loss.
 
 For more information, run `info(l1)`.
-
 """
 l1 = L1()
-name(::Type{<:L1}) = "l1"
-docstring(::Type{<:L1}) = "absolute deviations; aliases: `l1`"
-target_scitype(::Type{<:L1}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:L1}) = :deterministic
-orientation(::Type{<:L1}) = :loss
-reports_each_observation(::Type{<:L1}) = true
-is_feature_dependent(::Type{<:L1}) = false
-supports_weights(::Type{<:L1}) = true
 
-function (::L1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(L1;
+    name                     = "l1",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = true,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "absolute deviations; aliases: `l1`.")
+
+function (::L1)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     (check_dimensions(ŷ, y); abs.(y - ŷ))
 end
 
-function (::L1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real},
-                w::AbstractVector{<:Real})
+function (::L1)(ŷ::Vec{<:Real}, y::Vec{<:Real},
+                w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
     return abs.(y - ŷ) .* w ./ (sum(w)/length(y))
 end
 
 struct RMSL <: Measure end
+
 """
     rmsl(ŷ, y)
 
@@ -174,21 +178,21 @@ Root mean squared logarithmic error:
 For more information, run `info(rmsl)`.
 
 See also [`rmslp1`](@ref).
-
 """
 rmsl = RMSL()
-name(::Type{<:RMSL}) = "rmsl"
-docstring(::Type{<:RMSL}) = "root mean square logarithm; aliases: `rmsl`"
-target_scitype(::Type{<:RMSL}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:RMSL}) = :deterministic
-orientation(::Type{<:RMSL}) = :loss
-reports_each_observation(::Type{<:RMSL}) = false
-aggregation(::Type{<:RMSL}) = RootMeanSquare()
-is_feature_dependent(::Type{<:RMSL}) = false
-supports_weights(::Type{<:RMSL}) = false
 
-function (::RMSL)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(RMSL;
+    name                     = "rmsl",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation              = RootMeanSquare(),
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "root mean square logarithm; aliases: `rmsl`.")
+
+function (::RMSL)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -211,19 +215,20 @@ For more information, run `info(rmslp1)`.
 See also [`rmsl`](@ref).
 """
 rmslp1 = RMSLP1()
-name(::Type{<:RMSLP1}) = "rmslp1"
-docstring(::Type{<:RMSLP1}) = "root mean squared logarithm plus one; "*
-    "aliases: `rmslp1`"
-target_scitype(::Type{<:RMSLP1}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:RMSLP1}) = :deterministic
-orientation(::Type{<:RMSLP1}) = :loss
-reports_each_observation(::Type{<:RMSLP1}) = false
-aggregation(::Type{<:RMSLP1}) = RootMeanSquare()
-is_feature_dependent(::Type{<:RMSLP1}) = false
-supports_weights(::Type{<:RMSLP1}) = false
 
-function (::RMSLP1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(RMSLP1;
+    name                     = "rmslp1",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation              = RootMeanSquare(),
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "root mean squared logarithm plus one; " *
+                               "aliases: `rmslp1`.")
+
+function (::RMSLP1)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     for i in eachindex(y)
@@ -234,6 +239,7 @@ function (::RMSLP1)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
 end
 
 struct RMSP <: Measure end
+
 """
     rmsp(ŷ, y)
 
@@ -245,21 +251,21 @@ where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
 of such indices.
 
 For more information, run `info(rmsp)`.
-
 """
 rmsp = RMSP()
-name(::Type{<:RMSP}) = "rmsp"
-docstring(::Type{<:RMSP}) = "root mean square proportions; aliases: `rmsp`"
-target_scitype(::Type{<:RMSP}) =
-    Union{AbstractVector{Continuous},AbstractVector{Count}}
-prediction_type(::Type{<:RMSP}) = :deterministic
-orientation(::Type{<:RMSP}) = :loss
-reports_each_observation(::Type{<:RMSP}) = false
-aggregation(::Type{<:RMSP}) = RootMeanSquare()
-is_feature_dependent(::Type{<:RMSP}) = false
-supports_weights(::Type{<:RMSP}) = false
 
-function (::RMSP)(ŷ::AbstractVector{<:Real}, y::AbstractVector{<:Real})
+metadata_measure(RMSP;
+    name                     = "rmsp",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation              = RootMeanSquare(),
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "root mean square proportions; aliases: `rmsp`.")
+
+function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = 0.0
     count = 0

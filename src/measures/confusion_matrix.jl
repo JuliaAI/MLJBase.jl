@@ -1,5 +1,5 @@
 """
-ConfusionMatrix{C}
+    ConfusionMatrix{C}
 
 Confusion matrix with `C ≥ 2` classes. Rows correspond to predicted values
 and columns to the ground truth.
@@ -10,7 +10,7 @@ struct ConfusionMatrix{C}
 end
 
 """
-ConfusionMatrix(m, labels)
+    ConfusionMatrix(m, labels)
 
 Instantiates a confusion matrix out of a square integer matrix `m`.
 Rows are the predicted class, columns the ground truth. See also
@@ -20,7 +20,8 @@ function ConfusionMatrix(m::Matrix{Int}, labels::Vector{String})
     s = size(m)
     s[1] == s[2] || throw(ArgumentError("Expected a square matrix."))
     s[1] > 1 || throw(ArgumentError("Expected a matrix of size ≥ 2x2."))
-    length(labels) == s[1] || throw(ArgumentError("As many labels as classes must be provided."))
+    length(labels) == s[1] ||
+        throw(ArgumentError("As many labels as classes must be provided."))
     ConfusionMatrix{s[1]}(m, labels)
 end
 
@@ -28,7 +29,7 @@ end
 Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
 
 """
-confusion_matrix(ŷ, y; rev=false)
+    confusion_matrix(ŷ, y; rev=false)
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements
 and the actual `y`. Rows are the predicted class, columns the ground truth.
@@ -40,22 +41,22 @@ The ordering follows that of `levels(y)`.
                classes.
 * `perm=[]`:   in the general case, this keyword allows to specify a permutation
                re-ordering the classes.
-* `warn=true`: whether to show a warning in case `y` does not have scientific type
-               `OrderedFactor{2}` (see note below).
+* `warn=true`: whether to show a warning in case `y` does not have scientific
+               type `OrderedFactor{2}` (see note below).
 
 ## Note
 
 To decrease the risk of unexpected errors, if `y` does not have scientific type
-`OrderedFactor{2}` (and so does not have a "natural ordering" negative-positive),
-a warning is shown indicating the current order unless the user specifies,
-explicitly either `rev` or `perm` in which case it's assumed the user is aware of
-the class ordering.
+`OrderedFactor{2}` (and so does not have a "natural ordering"
+negative-positive), a warning is shown indicating the current order unless the
+user explicitly specifies either `rev` or `perm` in which case it's assumed the
+user is aware of the class ordering.
 """
 function confusion_matrix(ŷ::VC, y::VC;
                           rev::Union{Nothing,Bool}=nothing,
                           perm::Union{Nothing,Vector{<:Integer}}=nothing,
                           warn::Bool=true
-                          ) where VC <: AbstractVector{<:CategoricalElement}
+                          ) where VC <: Vec{<:CategoricalElement}
     check_dimensions(ŷ, y)
     levels_ = levels(y)
     nc = length(levels_)
@@ -116,7 +117,8 @@ confmat = confusion_matrix
 
 splitw(w::Int) = (sp1 = div(w, 2); sp2 = w - sp1; (sp1, sp2))
 
-function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}) where C
+function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}
+                   ) where C
     width    = displaysize(stream)[2]
     cw       = 13
     textlim  = 9

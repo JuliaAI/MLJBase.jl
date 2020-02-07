@@ -28,8 +28,8 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
 end
 
 @testset "UnivariateFinite constructor" begin
-    dic=Dict(s=>0.1, q=> 0.2, f=> 0.7)
-    d = UnivariateFinite(dic)
+    dict = Dict(s=>0.1, q=> 0.2, f=> 0.7)
+    d    = UnivariateFinite(dict)
     @test classes(d) == [a, f, q, s]
     @test support(d) == [f, q, s]
     # levels!(v, reverse(levels(v)))
@@ -41,14 +41,13 @@ end
     @test mode(d) == f
     @test Set(unique(rand(d, 100))) == Set(support(d))
 
-    UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
-    @test_throws(ArgumentError,
-                 UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
-    @test_throws(ArgumentError,
-                 UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
+    @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
 
-    dic=Dict(S=>0.1, Q=> 0.2, F=> 0.7)
-    d = UnivariateFinite(dic)
+    @test_throws ArgumentError UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1])
+    @test_throws ArgumentError UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1))
+
+    dict = Dict(S=>0.1, Q=> 0.2, F=> 0.7)
+    d    = UnivariateFinite(dict)
     @test classes(d) == [A, F, Q, S]
     @test support(d) == [F, Q, S]
     # levels!(v, reverse(levels(v)))
@@ -60,11 +59,10 @@ end
     @test mode(d) == F
     @test Set(unique(rand(d, 100))) == Set(support(d))
 
-    UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
-    @test_throws(ArgumentError,
-                 UnivariateFinite(['F', 'Q', 'S'],  [0.7, 0.2, 0.1]))
-    @test_throws(ArgumentError,
-                 UnivariateFinite(Dict('F'=>0.7, 'Q'=>0.2, 'S'=>0.1)))
+    @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
+
+    @test_throws ArgumentError UnivariateFinite(['F', 'Q', 'S'],  [0.7, 0.2, 0.1])
+    @test_throws ArgumentError UnivariateFinite(Dict('F'=>0.7, 'Q'=>0.2, 'S'=>0.1))
 end
 
 @testset "Univariate mode" begin
@@ -79,13 +77,12 @@ end
 end
 
 @testset "UnivariateFinite methods" begin
-
     y = categorical(["yes", "no", "yes", "yes", "maybe"])
     yes = y[1]
     no = y[2]
     maybe = y[end]
     prob_given_class = Dict(yes=>0.7, no=>0.3)
-    d =UnivariateFinite(prob_given_class)
+    d = UnivariateFinite(prob_given_class)
     @test pdf(d, yes) ≈ 0.7
     @test pdf(d, no) ≈ 0.3
     @test pdf(d, maybe) ≈ 0
@@ -94,7 +91,7 @@ end
     d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
     sample = rand(d, 10^4)
     freq_given_class = Distributions.countmap(sample)
-    pairs  = collect(freq_given_class)
+    pairs = collect(freq_given_class)
     sort!(pairs, by=pair->pair[2], alg=QuickSort)
     sorted_classes = first.(pairs)
     @test sorted_classes == ['c', 'a', 'b', 'd']
@@ -128,13 +125,12 @@ end
     @test pdf(d, 'f') == 0
     @test pdf(d, f) == 0
     @test_throws ArgumentError pdf(d, 'j')
-
 end
 
 @testset "approx for UnivariateFinite" begin
     y = categorical(["yes", "no", "maybe"])
-    yes = y[1]
-    no = y[2]
+    yes   = y[1]
+    no    = y[2]
     maybe = y[3]
     @test(UnivariateFinite([yes, no, maybe], [0.1, 0.2, 0.7]) ≈
           UnivariateFinite([maybe, yes, no], [0.7, 0.1, 0.2]))
@@ -157,8 +153,8 @@ end
     @test pdf(d, 'a') ≈ 0.4*0.2
     @test pdf(d, 'b') ≈ 0.4*0.8 + 0.6*0.3
     @test pdf(d, 'c') ≈ 0.6*0.7
-end # module
-
 end
+
+end # module
 
 true

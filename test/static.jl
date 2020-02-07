@@ -8,7 +8,7 @@ mutable struct Scale <: MLJBase.Static
     scaling::Float64
 end
 
-function MLJBase.transform(s::Scale, _, X) 
+function MLJBase.transform(s::Scale, _, X)
     X isa AbstractVecOrMat && return X * s.scaling
     MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
 end

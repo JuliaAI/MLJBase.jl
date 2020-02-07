@@ -1,10 +1,3 @@
-module TestFiniteMeasures
-
-using Test
-using MLJBase
-import Distributions
-using CategoricalArrays
-import Random.seed!
 seed!(51803)
 
 @testset "built-in classifier measures" begin
@@ -252,15 +245,15 @@ end
                             1, 2, 2]), OrderedFactor)
     # check all constructors
     m = TruePositive()
-    @test m(ŷ, y) == tp(ŷ, y) == truepositive(ŷ, y)
+    @test m(ŷ, y) == truepositive(ŷ, y)
     m = TruePositive(rev=true)
-    @test m(ŷ, y) == tn(ŷ, y)
+    @test m(ŷ, y) == truenegative(ŷ, y)
     m = TrueNegative()
-    @test m(ŷ, y) == tn(ŷ, y) == truenegative(ŷ, y)
+    @test m(ŷ, y) == truenegative(ŷ, y)
     m = FalsePositive()
-    @test m(ŷ, y) == fp(ŷ, y) == falsepositive(ŷ, y)
+    @test m(ŷ, y) == falsepositive(ŷ, y)
     m = FalseNegative()
-    @test m(ŷ, y) == fn(ŷ, y) == falsenegative(ŷ, y)
+    @test m(ŷ, y) == falsenegative(ŷ, y)
     m = TruePositiveRate()
     @test m(ŷ, y) == tpr(ŷ, y) == truepositive_rate(ŷ, y)
     m = TrueNegativeRate()
@@ -276,7 +269,7 @@ end
     m = NPV()
     @test m(ŷ, y) == npv(ŷ, y)
     m = FScore{1}()
-    @test m(ŷ, y) == f1(ŷ, y) == f1score(ŷ, y)
+    @test m(ŷ, y) == f1score(ŷ, y)
     # check synonyms
     m = TPR()
     @test m(ŷ, y) == tpr(ŷ, y)
@@ -331,8 +324,5 @@ end
 end
 
 @testset "docstrings coverage" begin
-    @test info(BrierScore()).docstring == "Brier proper scoring rule for `MultiClass` data; aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
+    @test startswith(info(BrierScore()).docstring, "Brier proper scoring rule for distributions of type")
 end
-
-end
-true

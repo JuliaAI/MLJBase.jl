@@ -1,6 +1,5 @@
 module TestMachines
 
-# using Revise
 using MLJBase
 using Test
 using Statistics

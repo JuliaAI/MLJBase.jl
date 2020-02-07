@@ -1,3 +1,12 @@
+module TestMeasures
+
+using MLJBase, Test
+import Distributions
+using CategoricalArrays
+import Random.seed!
+using Statistics
+using LossFunctions
+
 @testset "aggregation" begin
     v = rand(5)
     @test aggregate(v, mav) ≈ mean(v)
@@ -13,6 +22,7 @@ end
     measures(m -> m.target_scitype <: AbstractVector{<:Finite} &&
              m.supports_weights)
     info(rms)
+    @test true
 end
 
 @testset "coverage" begin
@@ -25,7 +35,7 @@ end
     @test is_feature_dependent(auc) == false
 
     @test MLJBase.distribution_type(BrierScore{UnivariateFinite}) ==
-        UnivariateFinite
+        "MLJBase.UnivariateFinite"
 end
 
 mutable struct DRegressor <: Deterministic end
@@ -41,7 +51,7 @@ MLJBase.target_scitype(::Type{<:DClassifier}) =
     AbstractVector{<:Finite}
 
 mutable struct PClassifier <: Probabilistic end
-MLJBase.target_scitype(::Type{<:PClassifier}) = 
+MLJBase.target_scitype(::Type{<:PClassifier}) =
     AbstractVector{<:Finite}
 
 @testset "default_measure" begin
@@ -56,4 +66,9 @@ MLJBase.target_scitype(::Type{<:PClassifier}) =
     @test MLJBase.default_measure(PClassifier) == cross_entropy
 end
 
+include("continuous.jl")
+include("finite.jl")
+include("loss_functions_interface.jl")
+
+end
 true

@@ -1,19 +1,7 @@
-module TestLossFunctionsInterface
-
-# using Revise
-import MLJBase
-using Test
-using Statistics
-using LossFunctions
-import Random.seed!
-using CategoricalArrays
 seed!(1234)
 
-@testset "interface to LossFunctions.jl" begin
-
-    # losses for binary targets:
-
-    y =    categorical(["yes", "yes", "no", "yes"])
+@testset "LossFunctions.jl - binary" begin
+    y = categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
     dyes = MLJBase.UnivariateFinite([yes, no], [0.6, 0.4])
     dno =  MLJBase.UnivariateFinite([yes, no], [0.3, 0.7])
@@ -43,14 +31,17 @@ seed!(1234)
               L2MarginLoss(), ExpLoss(), SigmoidLoss(), DWDMarginLoss(0.9)]
         @test MLJBase.value(m, yhat, X, y, nothing) ≈ m(yhatm, ym)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-            value(m, yhatm, ym, AggMode.WeightedMean(w))
+                LossFunctions.value(m, yhatm, ym, AggMode.WeightedMean(w))
     end
+end
 
+@testset "LossFunctions.jl - continuous" begin
     # losses for continuous targets:
-
-    y  = randn(N)
+    N    = 10
+    y    = randn(N)
     yhat = randn(N)
-    
+    X    = nothing
+    w    = rand(N)
 
     for m in [LPDistLoss(0.5), L1DistLoss(), L2DistLoss(),
               HuberLoss(0.9), EpsilonInsLoss(0.9), L1EpsilonInsLoss(0.9),
@@ -58,13 +49,6 @@ seed!(1234)
 
         @test MLJBase.value(m, yhat, X, y, nothing) ≈ m(yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-            value(m, yhat, y, AggMode.WeightedMean(w))
+                LossFunctions.value(m, yhat, y, AggMode.WeightedMean(w))
     end
-
 end
-
-end
-
-true
-
-    
