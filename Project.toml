@@ -39,6 +39,10 @@ OrderedCollections = "^1.1"
 Parameters = "^0.12"
 PrettyTables = "^0.8"
 ProgressMeter = "^1.1"
+<<<<<<< HEAD
+=======
+ScientificTypes = "^0.7"
+>>>>>>> master
 StatsBase = "^0.32"
 Tables = "^0.2"
 julia = "1"
