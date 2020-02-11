@@ -1,3 +1,7 @@
+@testset "categorical" begin
+    x = 1:5
+    @test MLJModelInterface.categorical(x) == categorical(x)
+end
 @testset "int, classes, decoder" begin
     N = 10
     mix = shuffle(0:N - 1)
