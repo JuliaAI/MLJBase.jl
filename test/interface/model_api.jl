@@ -1,10 +1,8 @@
-include("models/Constant.jl")
+@testset "predict_*" begin
+    X = (x = rand(5),)
+    yfinite = categorical(collect("abaaa"))
+    ycont = float.(1:5)
 
-X = (x = rand(5),)
-yfinite = categorical(collect("abaaa"))
-ycont = float.(1:5)
-
-@testset "predict_mode, median, mean" begin
     clf = ConstantClassifier()
     fitresult, _, _ = MLJBase.fit(clf, 1, X, yfinite)
     @test predict_mode(clf, fitresult, X)[1] == 'a'
@@ -17,4 +15,3 @@ ycont = float.(1:5)
     @test predict_median(rgs, fitresult, X)[1] == 3
     @test_throws ArgumentError predict_mode(rgs, fitresult, X)
 end
-true

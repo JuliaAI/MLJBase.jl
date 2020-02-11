@@ -1,10 +1,3 @@
-module TestFiniteMeasures
-
-using Test
-using MLJBase
-import Distributions
-using CategoricalArrays
-import Random.seed!
 seed!(51803)
 
 @testset "built-in classifier measures" begin
@@ -15,15 +8,31 @@ seed!(51803)
     @test misclassification_rate(yhat, y, w) ≈ 4/15
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
-    d1 = UnivariateFinite(L, [0.1, 0.9])
-    d2 = UnivariateFinite(L, [0.4, 0.6])
-    d3 = UnivariateFinite(L, [0.2, 0.8])
+    d1 = UnivariateFinite(L, [0.1, 0.9]) # a
+    d2 = UnivariateFinite(L, [0.4, 0.6]) # b
+    d3 = UnivariateFinite(L, [0.2, 0.8]) # b
     yhat = [d1, d2, d3]
     @test mean(cross_entropy(yhat, y)) ≈ -(log(0.1) + log(0.6) + log(0.8))/3
+    # sklearn test
+    # >>> from sklearn.metrics import log_loss
+    # >>> log_loss(["spam", "ham", "ham", "spam","ham","ham"], [[.1, .9], [.9, .1], [.8, .2], [.35, .65], [0.2, 0.8], [0.3,0.7]])
+    # 0.6130097025803921
+    y2 = categorical(["spam", "ham", "ham", "spam", "ham", "ham"])
+    L2 = classes(y2[1])
+    yhat2 = [UnivariateFinite(L2, v) for v in (
+            [.1, .9], [.9, .1], [.8, .2], [.35, .65], [0.2, 0.8], [0.3,0.7]
+            )]
+    @test mean(cross_entropy(yhat2, y2)) ≈ 0.6130097025803921
+    # BrierScore
     scores = BrierScore()(yhat, y)
     @test scores ≈ [-1.62, -0.32, -0.08]
     wscores = BrierScore()(yhat, y, [1, 2, 7])
     @test wscores ≈ scores .* [0.3, 0.6, 2.1]
+    # sklearn test
+    # >>> from sklearn.metrics import brier_score_loss
+    # >>> brier_score_loss([1, 0, 0, 1, 0, 0], [.9, .1, .2, .65, 0.8, 0.7])
+    # 0.21875 NOTE: opposite orientation
+    @test -mean(BrierScore()(yhat2, y2)) / 2 ≈ 0.21875
 end
 
 @testset "confusion matrix" begin
@@ -236,15 +245,15 @@ end
                             1, 2, 2]), OrderedFactor)
     # check all constructors
     m = TruePositive()
-    @test m(ŷ, y) == tp(ŷ, y) == truepositive(ŷ, y)
+    @test m(ŷ, y) == truepositive(ŷ, y)
     m = TruePositive(rev=true)
-    @test m(ŷ, y) == tn(ŷ, y)
+    @test m(ŷ, y) == truenegative(ŷ, y)
     m = TrueNegative()
-    @test m(ŷ, y) == tn(ŷ, y) == truenegative(ŷ, y)
+    @test m(ŷ, y) == truenegative(ŷ, y)
     m = FalsePositive()
-    @test m(ŷ, y) == fp(ŷ, y) == falsepositive(ŷ, y)
+    @test m(ŷ, y) == falsepositive(ŷ, y)
     m = FalseNegative()
-    @test m(ŷ, y) == fn(ŷ, y) == falsenegative(ŷ, y)
+    @test m(ŷ, y) == falsenegative(ŷ, y)
     m = TruePositiveRate()
     @test m(ŷ, y) == tpr(ŷ, y) == truepositive_rate(ŷ, y)
     m = TrueNegativeRate()
@@ -260,7 +269,7 @@ end
     m = NPV()
     @test m(ŷ, y) == npv(ŷ, y)
     m = FScore{1}()
-    @test m(ŷ, y) == f1(ŷ, y) == f1score(ŷ, y)
+    @test m(ŷ, y) == f1score(ŷ, y)
     # check synonyms
     m = TPR()
     @test m(ŷ, y) == tpr(ŷ, y)
@@ -315,8 +324,5 @@ end
 end
 
 @testset "docstrings coverage" begin
-    @test info(BrierScore()).docstring == "Brier proper scoring rule for `MultiClass` data; aliases: `BrierScore()`, `BrierScore(UnivariateFinite)`"
+    @test startswith(info(BrierScore()).docstring, "Brier proper scoring rule for distributions of type")
 end
-
-end
-true

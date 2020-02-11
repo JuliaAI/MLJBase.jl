@@ -2,7 +2,7 @@ istransparent(::Any) = false
 istransparent(::MLJType) = true
 
 """
-    params(m)
+    params(m::MLJType)
 
 Recursively convert any transparent object `m` into a named tuple,
 keyed on the fields of `m`. An object is *transparent* if
@@ -22,8 +22,8 @@ Most objects of type `MLJType` are transparent.
 
 """
 params(m) = params(m, Val(istransparent(m)))
-params(m, ::Val{false}) = m 
-function params(m, ::Val{true}) 
+params(m, ::Val{false}) = m
+function params(m, ::Val{true})
     fields = fieldnames(typeof(m))
     NamedTuple{fields}(Tuple([params(getfield(m, field)) for field in fields]))
 end

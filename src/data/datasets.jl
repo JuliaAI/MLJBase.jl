@@ -27,7 +27,7 @@
 #
 # -------------------------------------------------------
 
-const DATA_DIR = joinpath(@__DIR__, "..", "data")
+const DATA_DIR = joinpath(MODULE_DIR, "..", "data")
 
 const COERCE_BOSTON = (:Chas => Count,)
 
@@ -153,7 +153,7 @@ function load_dataset(fname::String, coercions::Tuple)
     fpath = joinpath(DATA_DIR, fname)
     data_raw, data_header = readdlm(fpath, ',', header=true)
     data_table = Tables.table(data_raw; header=Symbol.(vec(data_header)))
-    return coerce(data_table, coercions...)
+    return coerce(data_table, coercions...; tight=true)
 end
 
 

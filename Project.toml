@@ -1,19 +1,25 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
-version = "0.8.4"
+version = "0.11.1"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+ComputationalResources = "ed09eef8-17a6-5b46-8889-db040fac31e3"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 InvertedIndices = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LossFunctions = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
+MLJModelInterface = "e80e1ace-859a-464e-9ed9-23947d8ae3ea"
+MLJScientificTypes = "2e2323e0-db8b-457b-ae0d-bdfb3bc63afd"
 Missings = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
 OrderedCollections = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 ScientificTypes = "321657f4-b219-11e9-178b-2701a2544e81"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
@@ -24,13 +30,18 @@ JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 
 [compat]
 CategoricalArrays = "^0.7.3"
-Distributions = "^0.21"
+ComputationalResources = "^0.3"
+Distributions = "^0.22"
 InvertedIndices = "^1"
 LossFunctions = "^0.5"
+MLJModelInterface = "^0.1"
+MLJScientificTypes = "^0.1"
 Missings = "^0.4"
 OrderedCollections = "^1.1"
 Parameters = "^0.12"
-ScientificTypes = "^0.2.6"
+PrettyTables = "^0.8"
+ProgressMeter = "^1.1"
+ScientificTypes = "^0.7"
 StatsBase = "^0.32"
 Tables = "^0.2"
 HTTP = ">= 0.8"
@@ -40,10 +51,14 @@ julia = "1"
 [extras]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
+NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 
 [targets]
-test = ["CSV", "DataFrames", "Distances", "Test", "TypedTables"]
+test = ["CSV", "DataFrames", "DecisionTree", "Distances", "Logging", "NearestNeighbors", "MultivariateStats", "Test", "TypedTables"]

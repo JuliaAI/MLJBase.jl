@@ -1,5 +1,9 @@
 ## THE CONSTANT REGRESSOR
 
+export ConstantClassifier, ConstantRegressor,
+       DeterministicConstantClassifier,
+       ProbabilisticConstantClassifer
+
 import Distributions
 
 """
@@ -9,20 +13,18 @@ A regressor that, for any new input pattern, predicts the univariate
 probability distribution best fitting the training target data. Use
 `predict_mean` to predict the mean value instead.
 """
-struct ConstantRegressor{D} <: MLJBase.Probabilistic
-    distribution_type::Type{D}
-end
+struct ConstantRegressor{D} <: MLJBase.Probabilistic end
 
 function ConstantRegressor(; distribution_type=Distributions.Normal)
-    model   = ConstantRegressor(distribution_type)
+    model   = ConstantRegressor{distribution_type}()
     message = clean!(model)
     isempty(message) || @warn message
     return model
 end
 
-function clean!(model::ConstantRegressor)
+function MLJBase.clean!(model::ConstantRegressor{D}) where D
     message = ""
-    MLJBase.isdistribution(model.distribution_type) ||
+    D <: Distributions.Sampleable ||
         error("$model.distribution_type is not a valid distribution_type.")
     return message
 end
@@ -96,9 +98,9 @@ end
 
 MLJBase.predict(::DeterministicConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
 
-##
-## METADATA
-##
+#
+# METADATA
+#
 
 metadata_pkg.((ConstantRegressor, ConstantClassifier,
                DeterministicConstantRegressor, DeterministicConstantClassifier),

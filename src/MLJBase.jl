@@ -1,112 +1,47 @@
-# Users of this module should first read the document
-# https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/
 module MLJBase
 
-export MLJType, Model, Supervised, Unsupervised, Static
-export Deterministic, Probabilistic, Interval
-export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-export fit, update, update_data, clean!
-export predict, predict_mean, predict_mode, predict_median, fitted_params
-export transform, inverse_transform, se, evaluate, best
-export info, info_dict
-export is_same_except
+# ===================================================================
+# IMPORTS
 
-export load_path, package_url, package_name, package_uuid  # model_traits.jl
-export input_scitype, supports_weights                     # model_traits.jl
-export target_scitype, output_scitype                      # model_traits.jl
-export is_pure_julia, is_wrapper, prediction_type          # model_traits.jl
-export params                                        # parameters.jl
-export reconstruct, int, decoder, classes            # data.jl
-export selectrows, selectcols, select, nrows         # data.jl
-export table, levels_seen, matrix, container_type    # data.jl
-export partition, unpack                             # data.jl
-export complement, restrict, corestrict              # data.jl
-export @set_defaults                                 # utilities.jl
-export @mlj_model                                    # mlj_model_macro.jl
-export metadata_model, metadata_pkg                  # metadata_utilities
-export HANDLE_GIVEN_ID, @more, @constant             # show.jl
-export color_on, color_off                           # show.jl
-export UnivariateFinite, average                     # distributions.jl
-export SupervisedTask, UnsupervisedTask, MLJTask     # tasks.jl
-export X_and_y, X_, y_, nrows, nfeatures             # tasks.jl
-export info                                          # info.jl
-export load_boston, load_ames, load_iris,
-       load_reduced_ames, load_crabs,
-       @load_boston, @load_ames, @load_iris,
-       @load_reduced_ames, @load_crabs               # datasets.jl
-export @load
+import Base: ==, precision, getindex, setindex!
+import Base.+, Base.*
 
-# MEASURES
-export measures # measures/registry.jl
-export orientation, reports_each_observation
-export is_feature_dependent, aggregation
-export aggregate
-export default_measure, value
-# -- continuous
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
-# -- confmat (measures/confusion_matrix)
-export confusion_matrix, confmat
-# -- finite (measures/finite)
-export cross_entropy, BrierScore,
-       misclassification_rate, mcr, accuracy,
-       balanced_accuracy, bacc, bac,
-       matthews_correlation, mcc
-# -- -- binary // order independent
-export auc, roc_curve, roc
-# -- -- binary // order dependent
-export TruePositive, TrueNegative, FalsePositive, FalseNegative,
-       TruePositiveRate, TrueNegativeRate, FalsePositiveRate, FalseNegativeRate,
-       FalseDiscoveryRate, Precision, NPV, FScore,
-       # standard synonyms
-       TPR, TNR, FPR, FNR,
-       FDR, PPV,
-       Recall, Specificity, BACC,
-       # defaults and their synonyms
-       truepositive, truenegative, falsepositive, falsenegative,
-       truepositive_rate, truenegative_rate, falsepositive_rate,
-       falsenegative_rate, negativepredicitive_value,
-       positivepredictive_value,
-       tp, tn, fp, fn, tpr, tnr, fpr, fnr,
-       falsediscovery_rate, fdr, npv, ppv,
-       recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, f1, fallout
+# Scitype
+import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
+using MLJScientificTypes
+using MLJModelInterface
+import MLJModelInterface: fit, update, update_data, transform,
+                          inverse_transform, fitted_params, predict,
+                          predict_mode, predict_mean, predict_median,
+                          evaluate, clean!
 
-# methods from other packages to be rexported:
-export pdf, mean, mode
-
-# re-export of ScientificTypes (`Table` not exported):
-export trait
-export Scientific, Found, Unknown, Finite, Infinite
-export OrderedFactor, Multiclass, Count, Continuous
-export Binary, ColorImage, GrayImage, Image
-export scitype, scitype_union, coerce, schema, elscitype
-
-# rexport from Random, Statistics, Distributions, CategoricalArrays,
-# InvertedIndices:
-export pdf, mode, median, mean, shuffle!, categorical, shuffle, levels, levels!
-export std, Not
-
-import Base.==, Base.precision, Base.getindex
-import Base: @__doc__
-
-using Tables, DelimitedFiles
-using OrderedCollections # already a dependency of StatsBase
+# Containers & data manipulation
+using Tables
+import PrettyTables
+using DelimitedFiles
+using OrderedCollections
 using CategoricalArrays
 import InvertedIndices: Not
 
-# to be extended:
-import StatsBase: fit, predict, fit!
-import Missings.levels
-import Distributions
-import Distributions: pdf, mode
+# Distributed computing
+using Distributed
+using ComputationalResources
+using ComputationalResources: CPUProcesses
+using ProgressMeter
 
-using ScientificTypes
-using LossFunctions
+# Operations & extensions
+import LossFunctions
+import LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
+import StatsBase
+import StatsBase: fit!, mode, countmap
+import Missings: levels
+import Distributions
+import Distributions: pdf
 
 # from Standard Library:
-
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
+<<<<<<< HEAD
 # to be used by the OpenML API
 export OpenML
 include("OpenML.jl")
@@ -119,166 +54,235 @@ const srcdir = dirname(@__FILE__)
 const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
+=======
+# ===================================================================
+## METHOD EXPORTS
 
-include("utilities.jl")
+# -------------------------------------------------------------------
+# re-exports from MLJModelInterface, (MLJ)ScientificTypes
+# NOTE: MLJBase does **not** re-export UnivariateFinite to avoid
+# ambiguities between the raw constructor (MLJBase.UnivariateFinite)
+# and the general method (MLJModelInterface.UnivariateFinite)
 
-## BASE TYPES
+# MLJ model hierarchy
+export MLJType, Model, Supervised, Unsupervised,
+       Probabilistic, Deterministic, Interval, Static,
+       UnivariateFinite
 
-abstract type MLJType end
-include("equality.jl") # equality for MLJType objects
+# model constructor + metadata
+export @mlj_model, metadata_pkg, metadata_model
 
-## ABSTRACT MODEL TYPES
+# model api
+export fit, update, update_data, transform, inverse_transform,
+       fitted_params, predict, predict_mode, predict_mean, predict_median,
+       evaluate, clean!
 
-# for storing hyperparameters:
-abstract type Model <: MLJType end
+# model traits
+export input_scitype, output_scitype, target_scitype,
+       is_pure_julia, package_name, package_license,
+       load_path, package_uuid, package_url,
+       is_wrapper, supports_weights, supports_online,
+       docstring, name, is_supervised,
+       prediction_type, implemented_methods, hyperparameters,
+       hyperparameter_types, hyperparameter_ranges
 
-abstract type Supervised <: Model end
-abstract type Unsupervised <: Model end
+# data operations
+export matrix, int, classes, decoder, table,
+       nrows, selectrows, selectcols, select
 
-# supervised models that `predict` probability distributions are of:
-abstract type Probabilistic <: Supervised end
+# re-exports from (MLJ)ScientificTypes
+export Scientific, Found, Unknown, Known, Finite, Infinite,
+       OrderedFactor, Multiclass, Count, Continuous, Textual,
+       Binary, ColorImage, GrayImage, Image, Table
+export scitype, scitype_union, elscitype, nonmissing, trait
+export coerce, coerce!, autotype, schema, info
 
-# supervised models that `predict` point-values are of:
-abstract type Deterministic <: Supervised end
+# -------------------------------------------------------------------
+# exports from MLJBase
 
-# supervised models that `predict` intervals:
-abstract type Interval <: Supervised end
+export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
+       best, @load
 
-# for static operations dependent on user-specified parameters:
-abstract type Static <: Unsupervised end
+# computational_resources.jl:
+export default_resource
 
-# for models that are "exported" learning networks (return a Node as
-# their fit-result; see MLJ docs:
-abstract type ProbabilisticNetwork <: Probabilistic end
-abstract type DeterministicNetwork <: Deterministic end
-abstract type UnsupervisedNetwork <: Unsupervised end
+# equality.jl:
+export is_same_except
+>>>>>>> ab9e18913e5626d5bf57ee9949e4b833facf4720
+
+# one_dimensional_ranges.jl:
+export ParamRange, NumericRange, NominalRange, iterator, scale
+
+# parameter_inspection.jl:
+export params # note this is *not* an extension of StatsBase.params
+
+# data.jl:
+export reconstruct, levels_seen, container_type,
+       partition, unpack, complement, restrict, corestrict
+
+# utilities.jl:
+export @set_defaults, flat_values, recursive_setproperty!,
+       recursive_getproperty, pretty, unwind
+
+# show.jl
+export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
+
+# distributions.jl:
+export average
+
+# tasks.jl:
+export SupervisedTask, UnsupervisedTask, MLJTask,
+       X_and_y, X_, y_, nfeatures
+
+# info_dict.jl:
+export info_dict
+
+# datasets.jl:
+export load_boston, load_ames, load_iris,
+       load_reduced_ames, load_crabs,
+       @load_boston, @load_ames, @load_iris,
+       @load_reduced_ames, @load_crabs
+
+# machines.jl:
+export machine, Machine, AbstractMachine, fit!, report
+
+# networks.jl:
+export NodalMachine,  machines, source, node,sources, origins,
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
+
+# datasets_synthetics.jl
+export make_blobs, make_moons, make_circles, make_regression
+
+# composites.jl:
+export machines, sources, anonymize!, @from_network, fitresults
+
+# pipelines.jl:
+export @pipeline
+
+# resampling.jl:
+export ResamplingStrategy, Holdout, CV, StratifiedCV,
+       evaluate!, Resampler, PerformanceEvaluation
+
+# -------------------------------------------------------------------
+# exports from MLJBase specific to Measure (these may go in their
+# specific MLJMeasureInterface package in some future)
+
+# measures/registry.jl:
+export measures, metadata_measure
+
+# measure/measures.jl:
+export orientation, reports_each_observation,
+       is_feature_dependent, aggregation,
+       aggregate, default_measure, value
+
+# measures/continuous.jl:
+export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
+
+# measures/confusion_matrix.jl:
+export confusion_matrix, confmat
+
+# measures/finite.jl
+export cross_entropy, BrierScore,
+       misclassification_rate, mcr, accuracy,
+       balanced_accuracy, bacc, bac,
+       matthews_correlation, mcc
+
+# measures/finite.jl -- binary order independent:
+export auc, roc_curve, roc
+
+# measures/finite.jl -- binary order dependent:
+export TruePositive, TrueNegative, FalsePositive, FalseNegative,
+       TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
+       FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
+       # standard synonyms
+       TPR, TNR, FPR, FNR, FDR, PPV,
+       Recall, Specificity, BACC,
+       # instances and their synonyms
+       truepositive, truenegative, falsepositive, falsenegative,
+       truepositive_rate, truenegative_rate, falsepositive_rate,
+       falsenegative_rate, negativepredicitive_value,
+       positivepredictive_value, tpr, tnr, fpr, fnr,
+       falsediscovery_rate, fdr, npv, ppv,
+       recall, sensitivity, hit_rate, miss_rate,
+       specificity, selectivity, f1score, fallout
+
+# -------------------------------------------------------------------
+# re-export from Random, StatsBase, Statistics, Distributions,
+# CategoricalArrays, InvertedIndices:
+export pdf, mode, median, mean, shuffle!, categorical, shuffle,
+       levels, levels!, std, Not
 
 
-## THE MODEL INTERFACE
+# ===================================================================
+## CONSTANTS
 
-# every model interface must implement a `fit` method of the form
-# `fit(model, verbosity::Integer, training_args...) -> fitresult, cache, report`
-# or, one the simplified versions
-# `fit(model, training_args...) -> fitresult`
-fit(model::Model, verbosity::Integer, args...) =
-    fit(model, args...), nothing, nothing
+# the directory containing this file: (.../src/)
+const MODULE_DIR = dirname(@__FILE__)
 
-# fallback for static transformations:
-fit(model::Static, verbosity::Integer, args...) = nothing, nothing, nothing
+# horizontal space for field names in `MLJType` object display:
+const COLUMN_WIDTH = 24
+# how deep to display fields of `MLJType` objects:
+const DEFAULT_SHOW_DEPTH = 0
+const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
+const INDENT = 4
 
-# each model interface may optionally overload the following refitting
-# method:
-update(model::Model, verbosity, fitresult, cache, args...) =
-    fit(model, verbosity, args...)
+const CategoricalElement = Union{CategoricalValue,CategoricalString}
 
-# fallbacks for supervised models that don't support sample weights:
-fit(model::Supervised, verbosity::Integer, X, y, w) =
-    fit(model, verbosity, X, y)
-update(model::Supervised, verbosity, fitresult, cache, X, y, w) =
-    update(model, verbosity, fitresult, cache, X, y)
+const Arr = AbstractArray
+const Vec = AbstractVector
 
-# stub for online learning method update method
-function update_data end
+const MMI = MLJModelInterface
+const FI  = MLJModelInterface.FullInterface
 
-# methods dispatched on a model and fit-result are called
-# *operations*.  Supervised models must implement a `predict`
-# operation (extending the `predict` method of StatsBase).
+# ===================================================================
+# Computational Resource
+# default_resource allows to switch the mode of parallelization
 
-# unsupervised methods must implement this operation:
-function transform end
+default_resource()    = DEFAULT_RESOURCE[]
+default_resource(res) = (DEFAULT_RESOURCE[] = res)
 
-# unsupervised methods may implement this operation:
-function inverse_transform end
-
-# this operation can be optionally overloaded to provide access to
-# fitted parameters (eg, coeficients of linear model):
-fitted_params(::Model, fitresult) = (fitresult=fitresult,)
-
-# probabilistic supervised models may also overload one or more of
-# `predict_mode`, `predict_median` and `predict_mean` defined below.
-
-# mode:
-predict_mode(model::Probabilistic, fitresult, Xnew) =
-    predict_mode(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mode(model, fitresult, Xnew, ::Any) =
-    mode.(predict(model, fitresult, Xnew))
-const BadModeTypes = Union{AbstractArray{Continuous},Table(Continuous)}
-predict_mode(model, fitresult, Xnew, ::Val{<:BadModeTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Continuous` targets. "))
-
-# mean:
-predict_mean(model::Probabilistic, fitresult, Xnew) =
-    predict_mean(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_mean(model, fitresult, Xnew, ::Any) =
-    mean.(predict(model, fitresult, Xnew))
-const BadMeanTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_mean(model, fitresult, Xnew, ::Val{<:BadMeanTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# median:
-predict_median(model::Probabilistic, fitresult, Xnew) =
-    predict_median(model, fitresult, Xnew, Val(target_scitype(model)))
-predict_median(model, fitresult, Xnew, ::Any) =
-    median.(predict(model, fitresult, Xnew))
-const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
-predict_median(model, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
-    throw(ArgumentError("Attempting to compute mode of predictions made "*
-                        "by a model expecting `Finite` targets. "))
-
-# operations implemented by some meta-models:
-function se end
-function evaluate end
-function best end
-
-# a model wishing invalid hyperparameters to be corrected with a
-# warning should overload this method (return value is the warning
-# message):
-clean!(model::Model) = ""
-
-
-## STUB FOR @load (extended by MLJModels)
-
+# stub for @load (extended by MLJModels)
 macro load end
 
+# ===================================================================
+# Includes
 
-## TRAITS
-
-"""
-
-    info(object)
-
-List the traits of an object, such as a model or a performance measure.
-
-"""
-info(object) = info(object, Val(ScientificTypes.trait(object)))
-
-
-include("model_traits.jl")
-
-# for unpacking the fields of MLJ objects:
-include("parameters.jl")
-
-# for displaying objects of `MLJType`:
+include("init.jl")
+include("utilities.jl")
+include("parameter_inspection.jl")
+include("equality.jl")
 include("show.jl")
+include("info_dict.jl")
 
-# convenience methods for manipulating categorical and tabular data
-include("data.jl")
+include("interface/data_utils.jl")
+include("interface/model_api.jl")
+include("interface/univariate_finite.jl")
 
-# metadata utils
-include("metadata_utilities.jl")
-
-# probability distributions and methods not provided by
-# Distributions.jl package:
 include("distributions.jl")
 
-include("info.jl")
-include("datasets.jl")
-include("tasks.jl")
+include("machines.jl")
+
+include("composition/networks.jl")
+include("composition/composites.jl")
+include("composition/pipelines.jl")
+include("composition/pipeline_static.jl")
+VERSION ≥ v"1.3.0-" && include("composition/arrows.jl")
+
+include("operations.jl")
+
+include("resampling.jl")
+
+include("hyperparam/one_dimensional_ranges.jl")
+include("hyperparam/one_dimensional_range_methods.jl")
+
+include("data/data.jl")
+include("data/datasets.jl")
+include("data/datasets_synthetic.jl")
+
 include("measures/measures.jl")
 include("measures/registry.jl")
 
+<<<<<<< HEAD
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
 
@@ -292,4 +296,6 @@ function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end
 
+=======
+>>>>>>> ab9e18913e5626d5bf57ee9949e4b833facf4720
 end # module
