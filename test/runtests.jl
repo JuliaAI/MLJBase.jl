@@ -3,7 +3,9 @@ addprocs(2)
 
 @everywhere begin
     using MLJModelInterface
-    using MLJBase, Test
+    using MLJBase
+    using Test
+    using CategoricalArrays
     using Logging
     using ComputationalResources
 end
