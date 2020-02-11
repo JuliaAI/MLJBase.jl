@@ -110,6 +110,17 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # to be used by the OpenML API
 using HTTP
 using JSON
+using DataFrames
+include("openml.jl")
+export getDatasetDescription, getOpenMLDataset,             #openml.jl
+       getDataframeFromOpenmlAPI, getDataQualitiesList      #openml.jl
+       getDataFeatures, getDataQualities, getListAndFilter  #openml.jl
+       #tagDatabase, untagDatabase,
+       #getListOfDatasetsWithUnprocessedQualities,
+       #deleteDataset
+       #getListUnprocessedDatasets, uploadDataset,
+       #uploadDatasetQualities, changeStatusDataset,
+       #updaloadDatasetFeatureDescription
 
 ## CONSTANTS
 
@@ -281,9 +292,6 @@ include("measures/registry.jl")
 
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
-
-# OpenML API
-include("openml.jl")
 
 
 function __init__()

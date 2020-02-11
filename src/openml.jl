@@ -3,8 +3,10 @@
 # https://github.com/openml/OpenML/tree/master/openml_OS/views/pages/api_new/v1/xsd
 # https://www.openml.org/api_docs#!/data/get_data_id
 
-using HTTP
-using JSON
+# To do:
+# - Save the file in a local folder
+# - Check downloaded files in local folder before downloading it again
+# - Use local stored file whenever possible
 
 api_url = "https://www.openml.org/api/v1/json"
 
@@ -35,18 +37,88 @@ function getDatasetDescription(id::Int; api_key::String="")
 end
 
 """
+Returns a DataFrame
+"""
+function getDataframeFromOpenmlAPI(id::Int)
+    response = getDatasetDescription(id)
+    arff_file = HTTP.request("GET", response["data_set_description"]["url"])
+    df = convertArffToDataFrame(arff_file)
+    return df
+end
+
+"""
+Returns a DataFrame from the HTTP.response requested to the OpenML API.
+"""
+function convertArffToDataFrame(response)
+    ##possible types in arff files are:
+    #real, numeric,
+    #date
+    #string
+    #nominal specifications, starting with {
+
+    data = String(response.body)
+    data2 = split(data, "\n")
+
+    featureNames = String[]
+    dataTypes = String[]
+    dataset = []
+
+    for line in data2
+        if length(line) > 0
+            if line[1:1] != "%"
+                d = []
+                if occursin("@attribute", lowercase(line))
+                    push!(featureNames, replace(split(line, " ")[2], "'" => ""))
+                    push!(dataTypes, split(line, " ")[3])
+                elseif occursin("@relation", lowercase(line))
+                    nothing
+                elseif occursin("@data", lowercase(line))
+                    # it means the data starts so we can create the data frame
+                    nothing
+                else
+                    values = split(line, ",")
+                    for i = 1:length(featureNames)
+                        if in(lowercase(dataTypes[i]), ["real","numeric"])
+                            push!(d, featureNames[i] => parse(Float64, values[i]))
+                        else
+                            # all the rest will be considered as String
+                            push!(d, featureNames[i] => values[i])
+                        end
+                    end
+                    push!(dataset, Dict(d))
+                    #d = Dict(featureNames[i] => values[i] for i = 1:length(featureNames))
+
+                end
+            end
+        end
+    end
+
+    df = DataFrame()
+    namelist  = Symbol.(featureNames)
+    for (i, name) in enumerate(namelist)
+        df[name] =  [dataset[j][String(name)] for j in 1:length(dataset)]
+    end
+
+    return df
+end
+
+"""
 Returns a list of all data qualities in the system.
 
+412 - Precondition failed. An error code and message are returned
 370 - No data qualities available. There are no data qualities in the system.
 """
 function getDataQualitiesList()
-    url = string(api_url, "data/qualities/list")
-    r = HTTP.request("GET", url)
-    if r.status == 200
-        return JSON.parse(String(r.body))
-    elseif r.status == 370
-        println("No data qualities available. There are no data qualities in the system.")
-
+    url = string(api_url, "/data/qualities/list")
+    try
+        r = HTTP.request("GET", url)
+        if r.status == 200
+            return JSON.parse(String(r.body))
+        elseif r.status == 370
+            println("No data qualities available. There are no data qualities in the system.")
+        end
+    catch e
+        return "Error occurred : $e"
     end
 end
 
@@ -140,7 +212,7 @@ Multiple qualities can be combined, as in
 """
 function getListAndFilter(filters::String; api_key::String = "")
     if api_key == ""
-        url = string(api_url, "/data/list/{$filters}")
+        url = string(api_url, "/data/list/$filters")
     end
     r = HTTP.request("GET", url)
     if r.status == 200
@@ -170,11 +242,12 @@ order : When there are multiple datasets still to process,
 this defines which ones to return. Options are 'normal' - the oldest
 datasets, or 'random'.
 
+412 - Precondition failed. An error code and message are returned.
 681 - No unprocessed datasets.
 """
 function getListUnprocessedDatasets(data_engine_id::String, order::String, api_key::String = "")
     if api_key == ""
-        url = string(api_url, "/data/unprocessed/{$data_engine_id}/{$order}")
+        url = string(api_url, "/data/unprocessed/$data_engine_id/$order")
     end
     r = HTTP.request("GET", url)
     if r.status == 200
@@ -379,6 +452,7 @@ function getListOfDatasetsWithUnprocessedQualities(data_engine_id::String, order
     r = HTTP.request("POST", url)
     if r.status == 200
         return JSON.parse(String(r.body))
+    end
 end
 
 """
@@ -389,10 +463,8 @@ function deleteDataset(id::Int; api_key::String)
     r = HTTP.request("DELETE", url)
     if r.status == 200
         return JSON.parse(String(r.body))
+    end
 end
-
-# Get data description
-
 
 # Flow API
 
