@@ -108,19 +108,8 @@ using LossFunctions
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # to be used by the OpenML API
-using HTTP
-using JSON
-using DataFrames
-include("openml.jl")
-export getDatasetDescription, getOpenMLDataset,             #openml.jl
-       getDataframeFromOpenmlAPI, getDataQualitiesList      #openml.jl
-       getDataFeatures, getDataQualities, getListAndFilter  #openml.jl
-       #tagDatabase, untagDatabase,
-       #getListOfDatasetsWithUnprocessedQualities,
-       #deleteDataset
-       #getListUnprocessedDatasets, uploadDataset,
-       #uploadDatasetQualities, changeStatusDataset,
-       #updaloadDatasetFeatureDescription
+export OpenML
+include("OpenML.jl")
 
 ## CONSTANTS
 

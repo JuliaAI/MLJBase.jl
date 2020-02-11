@@ -1,30 +1,27 @@
 using Test
 using HTTP
-import MLJBase
+import .OpenML
 
-response_test = MLJBase.getDatasetDescription(61)
+response_test = OpenML.load_Dataset_Description(61)
 @test typeof(response_test) <: Dict
 @test response_test["data_set_description"]["name"] == "iris"
 
-df_test = MLJBase.getDataframeFromOpenmlAPI(61)
-@test length(df_test) == 5
+df_test = OpenML.load(61)
+@test length(df_test) == 150
 
-arff_file_test = HTTP.request("GET", response_test["data_set_description"]["url"])
-df_test2 = MLJBase.convertArffToDataFrame(arff_file_test)
-@test length(df_test2) == 5
-
-dqlist_test = MLJBase.getDataQualitiesList()
+dqlist_test = OpenML.load_Data_Qualities_List()
 @test typeof(response_test) <: Dict
 
-dataFeatures_test = MLJBase.getDataFeatures(61)
-@test typeof(dataFeatures_test) <: Dict
+data_features_test = OpenML.load_Data_Features(61)
+@test typeof(data_features_test) <: Dict
+@test length(data_features_test["data_features"]["feature"]) == 5
 
-dataQualities_test = MLJBase.getDataQualities(61)
-@test typeof(dataQualities_test) <: Dict
+data_qualities_test = OpenML.load_Data_Qualities(61)
+@test typeof(data_qualities_test) <: Dict
 
 limit = 5
 offset = 8
-filters_test = MLJBase.getListAndFilter("limit/$limit/offset/$offset")
+filters_test = OpenML.load_List_And_Filter("limit/$limit/offset/$offset")
 @test length(filters_test["data"]["dataset"]) == limit
 @test length(filters_test["data"]["dataset"][1]) == offset
 
