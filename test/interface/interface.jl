@@ -3,7 +3,7 @@ module Interface
 using Test, Random, MLJBase,
       Tables, CategoricalArrays,
       OrderedCollections, DataFrames,
-      TypedTables
+      TypedTables, MLJModelInterface
 
 using ..Models
 

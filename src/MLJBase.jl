@@ -16,7 +16,8 @@ import MLJModelInterface: fit, update, update_data, transform,
                           evaluate, clean!
 
 # Containers & data manipulation
-using Tables, PrettyTables
+using Tables
+import PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
