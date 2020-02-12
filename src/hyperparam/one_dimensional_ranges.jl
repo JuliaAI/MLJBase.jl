@@ -50,7 +50,7 @@ hyperparameter `:atom` of `model`.
 Assuming `values == nothing`, this defines a `NumericRange` object for
 a `Real` field `hyper` of `model`.  Note that `r` is not directly
 iteratable but `iterator(r, n)` iterates over `n` values controlled by
-the various parameters (see more at [iterator](@ref).  The supported
+the various parameters (see more at [`iterator`](@ref).  The supported
 scales are `:linear`,` :log`, `:logminus`, `:log10`, `:log2`, or a
 function (see below).  Values for `Integer` types are rounded (with
 duplicate values removed, resulting in possibly less than `n` values).

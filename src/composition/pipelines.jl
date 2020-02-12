@@ -325,7 +325,7 @@ an `inverse` must also be given:
  performed on the output of the *final* model or static
  transformation in the pipeline.
 
-See also: [@from_network](@ref)
+See also: [`@from_network`](@ref)
 
 """
 macro pipeline(exs...)
