@@ -3,7 +3,7 @@ module OpenML
 using HTTP
 using JSON
 
-api_url = "https://www.openml.org/api/v1/json"
+const API_URL = "https://www.openml.org/api/v1/json"
 
 # Data API
 # The structures are based on these descriptions
@@ -24,7 +24,7 @@ information about the creator, URL to download it and more.
 112 - No access granted. This dataset is not shared with you.
 """
 function load_Dataset_Description(id::Int; api_key::String="")
-    url = string(api_url, "/data/$id")
+    url = string(API_URL, "/data/$id")
     try
         r = HTTP.request("GET", url)
         if r.status == 200
@@ -37,8 +37,10 @@ function load_Dataset_Description(id::Int; api_key::String="")
             println("No access granted. This dataset is not shared with you.")
         end
     catch e
-        return "Error occurred : $e"
+        println("Error occurred : $e")
+        return nothing
     end
+    return nothing
 end
 
 """
@@ -63,12 +65,12 @@ function convert_ARFF_to_rowtable(response)
                 elseif occursin("@relation", lowercase(line))
                     nothing
                 elseif occursin("@data", lowercase(line))
-                    # it means the data starts so we can create the data frame
+                    # it means the data starts
                     nothing
                 else
                     values = split(line, ",")
-                    for i = 1:length(featureNames)
-                        if in(lowercase(dataTypes[i]), ["real","numeric"])
+                    for i in eachindex(featureNames)
+                        if lowercase(dataTypes[i]) in ["real","numeric"]
                             push!(d, featureNames[i] => Meta.parse(values[i]))
                         else
                             # all the rest will be considered as String
@@ -102,7 +104,7 @@ Returns a list of all data qualities in the system.
 370 - No data qualities available. There are no data qualities in the system.
 """
 function load_Data_Qualities_List()
-    url = string(api_url, "/data/qualities/list")
+    url = string(API_URL, "/data/qualities/list")
     try
         r = HTTP.request("GET", url)
         if r.status == 200
@@ -111,8 +113,10 @@ function load_Data_Qualities_List()
             println("No data qualities available. There are no data qualities in the system.")
         end
     catch e
-        return "Error occurred : $e"
+        println("Error occurred : $e")
+        return nothing
     end
+    return nothing
 end
 
 """
@@ -125,21 +129,26 @@ Returns a list of all data qualities in the system.
 """
 function load_Data_Features(id::Int; api_key::String = "")
     if api_key == ""
-        url = string(api_url, "/data/features/$id")
+        url = string(API_URL, "/data/features/$id")
     end
-    r = HTTP.request("GET", url)
-    if r.status == 200
-        return JSON.parse(String(r.body))
-    elseif r.status == 271
-        println("Unknown dataset. Data set with the given data ID was not found (or is not shared with you).")
-    elseif r.status == 272
-        println("No features found. The dataset did not contain any features, or we could not extract them.")
-    elseif r.status == 273
-        println("Dataset not processed yet. The dataset was not processed yet, features are not yet available. Please wait for a few minutes.")
-    elseif r.status == 274
-        println("Dataset processed with error. The feature extractor has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, please contact the API admins.")
+    try
+        r = HTTP.request("GET", url)
+        if r.status == 200
+            return JSON.parse(String(r.body))
+        elseif r.status == 271
+            println("Unknown dataset. Data set with the given data ID was not found (or is not shared with you).")
+        elseif r.status == 272
+            println("No features found. The dataset did not contain any features, or we could not extract them.")
+        elseif r.status == 273
+            println("Dataset not processed yet. The dataset was not processed yet, features are not yet available. Please wait for a few minutes.")
+        elseif r.status == 274
+            println("Dataset processed with error. The feature extractor has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, please contact the API admins.")
+        end
+    catch e
+        println("Error occurred : $e")
+        return nothing
     end
-
+    return nothing
 end
 
 """
@@ -154,24 +163,30 @@ Returns the qualities of a dataset.
 """
 function load_Data_Qualities(id::Int; api_key::String = "")
     if api_key == ""
-        url = string(api_url, "/data/qualities/$id")
+        url = string(API_URL, "/data/qualities/$id")
     end
-    r = HTTP.request("GET", url)
-    if r.status == 200
-        return JSON.parse(String(r.body))
-    elseif r.status == 360
-        println("Please provide data set ID")
-    elseif r.status == 361
-        println("Unknown dataset. The data set with the given ID was not found in the database, or is not shared with you.")
-    elseif r.status == 362
-        println("No qualities found. The registered dataset did not contain any calculated qualities.")
-    elseif r.status == 363
-        println("Dataset not processed yet. The dataset was not processed yet, no qualities are available. Please wait for a few minutes.")
-    elseif r.status == 364
-        println("Dataset processed with error. The quality calculator has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, contact the support team.")
-    elseif r.status == 365
-        println("Interval start or end illegal. There was a problem with the interval start or end.")
+    try
+        r = HTTP.request("GET", url)
+        if r.status == 200
+            return JSON.parse(String(r.body))
+        elseif r.status == 360
+            println("Please provide data set ID")
+        elseif r.status == 361
+            println("Unknown dataset. The data set with the given ID was not found in the database, or is not shared with you.")
+        elseif r.status == 362
+            println("No qualities found. The registered dataset did not contain any calculated qualities.")
+        elseif r.status == 363
+            println("Dataset not processed yet. The dataset was not processed yet, no qualities are available. Please wait for a few minutes.")
+        elseif r.status == 364
+            println("Dataset processed with error. The quality calculator has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, contact the support team.")
+        elseif r.status == 365
+            println("Interval start or end illegal. There was a problem with the interval start or end.")
+        end
+    catch e
+        println("Error occurred : $e")
+        return nothing
     end
+    return nothing
 end
 
 """
@@ -205,20 +220,26 @@ Multiple qualities can be combined, as in
 """
 function load_List_And_Filter(filters::String; api_key::String = "")
     if api_key == ""
-        url = string(api_url, "/data/list/$filters")
+        url = string(API_URL, "/data/list/$filters")
     end
-    r = HTTP.request("GET", url)
-    if r.status == 200
-        return JSON.parse(String(r.body))
-    elseif r.status == 370
-        println("Illegal filter specified.")
-    elseif r.status == 371
-        println("Filter values/ranges not properly specified.")
-    elseif r.status == 372
-        println("No results. There where no matches for the given constraints.")
-    elseif r.status == 373
-        println("Can not specify an offset without a limit.")
+    try
+        r = HTTP.request("GET", url)
+        if r.status == 200
+            return JSON.parse(String(r.body))
+        elseif r.status == 370
+            println("Illegal filter specified.")
+        elseif r.status == 371
+            println("Filter values/ranges not properly specified.")
+        elseif r.status == 372
+            println("No results. There where no matches for the given constraints.")
+        elseif r.status == 373
+            println("Can not specify an offset without a limit.")
+        end
+    catch e
+        println("Error occurred : $e")
+        return nothing
     end
+    return nothing
 end
 
 # Flow API
