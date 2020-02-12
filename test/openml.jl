@@ -10,7 +10,7 @@ df_test = OpenML.load(61)
 @test length(df_test) == 150
 
 dqlist_test = OpenML.load_Data_Qualities_List()
-@test typeof(response_test) <: Dict
+@test typeof(dqlist_test["data_qualities_list"]) <: Dict
 
 data_features_test = OpenML.load_Data_Features(61)
 @test typeof(data_features_test) <: Dict
