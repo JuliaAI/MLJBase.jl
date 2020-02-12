@@ -41,20 +41,9 @@ import Distributions: pdf
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
-<<<<<<< HEAD
-# to be used by the OpenML API
+# OpenML API
 export OpenML
-include("OpenML.jl")
 
-## CONSTANTS
-
-# the directory containing this file:
-const srcdir = dirname(@__FILE__)
-# horizontal space for field names in `MLJType` object display:
-const COLUMN_WIDTH = 24
-# how deep to display fields of `MLJType` objects:
-const DEFAULT_SHOW_DEPTH = 0
-=======
 # ===================================================================
 ## METHOD EXPORTS
 
@@ -108,7 +97,6 @@ export default_resource
 
 # equality.jl:
 export is_same_except
->>>>>>> ab9e18913e5626d5bf57ee9949e4b833facf4720
 
 # one_dimensional_ranges.jl:
 export ParamRange, NumericRange, NominalRange, iterator, scale
@@ -282,10 +270,11 @@ include("data/datasets_synthetic.jl")
 include("measures/measures.jl")
 include("measures/registry.jl")
 
-<<<<<<< HEAD
 # mlj model macro to help define models
 include("mlj_model_macro.jl")
 
+# OpenML.org API functions
+include("OpenML.jl")
 
 function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:supervised_model] =
@@ -296,6 +285,4 @@ function __init__()
     ScientificTypes.TRAIT_FUNCTION_GIVEN_NAME[:measure_type] = is_measure_type
 end
 
-=======
->>>>>>> ab9e18913e5626d5bf57ee9949e4b833facf4720
 end # module
