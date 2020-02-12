@@ -148,6 +148,9 @@ export @pipeline
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
        evaluate!, Resampler, PerformanceEvaluation
 
+# openml.jl:
+export OpenML
+
 # -------------------------------------------------------------------
 # exports from MLJBase specific to Measure (these may go in their
 # specific MLJMeasureInterface package in some future)
@@ -266,5 +269,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/registry.jl")
+
+include("openml.jl")
 
 end # module
