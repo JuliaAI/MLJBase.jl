@@ -281,7 +281,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
                 [round3.(v) for v in e.per_fold])
     header = ["_.measure", "_.measurement", "_.per_fold"]
     PrettyTables.pretty_table(io, data, header;
-                              header_crayon=Crayon(bold=false),
+                              header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
     println(io, "_.per_observation = $(_short(e.per_observation))")
 end
@@ -798,4 +798,3 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-
