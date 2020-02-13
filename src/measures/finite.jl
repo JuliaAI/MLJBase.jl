@@ -503,7 +503,7 @@ $(docstring(TruePositive()))
     tp(ŷ, y)
 
 Number of true positives for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `TruePositive(rev=true)` instead of `tp`.
 
 For more information, run `info(tp)`.
@@ -520,7 +520,7 @@ $(docstring(TrueNegative()))
     tn(ŷ, y)
 
 Number of true negatives for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `TrueNegative(rev=true)` instead of `tn`.
 
 
@@ -537,7 +537,7 @@ $(docstring(FalsePositive()))
     fp(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `FalsePositive(rev=true)` instead of `fp`.
 
 
@@ -554,7 +554,7 @@ $(docstring(FalseNegative()))
     fn(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `FalseNegative(rev=true)` instead of `fn`.
 
 For more information, run `info(fn)`.
@@ -571,7 +571,7 @@ $(docstring(TruePositiveRate()))
     tpr(ŷ, y)
 
 True positive rate for observations `ŷ` and ground truth `y`. Assigns
-`true` to first element of `levels(y)`. To reverse roles, use
+`false` to first element of `levels(y)`. To reverse roles, use
 `TPR(rev=true)` instead of `tpr`.
 
 For more information, run `info(tpr)`.
@@ -593,7 +593,7 @@ $(docstring(TrueNegativeRate()))
     tpr(ŷ, y)
 
 True negative rate for observations `ŷ` and ground truth `y`. Assigns
-`true` to first element of `levels(y)`. To reverse roles, use
+`false` to first element of `levels(y)`. To reverse roles, use
 `TNR(rev=true)` instead of `tnr`.
 
 For more information, run `info(tnr)`.
@@ -614,7 +614,7 @@ $(docstring(FalsePositiveRate()))
     fpr(ŷ, y)
 
 False positive rate for observations `ŷ` and ground truth `y`. Assigns
-`true` to first element of `levels(y)`. To reverse roles, use
+`false` to first element of `levels(y)`. To reverse roles, use
 `FPR(rev=true)` instead of `fpr`.
 
 """
@@ -631,7 +631,7 @@ $(docstring(FalseNegativeRate()))
     fnr(ŷ, y)
 
 False negative rate for observations `ŷ` and ground truth `y`. Assigns
-`true` to first element of `levels(y)`. To reverse roles, use
+`false` to first element of `levels(y)`. To reverse roles, use
 `FNR(rev=true)` instead of `fnr`.
 
 For more information, run `info(fnr)`.
@@ -650,7 +650,7 @@ $(docstring(FalseDiscoveryRate()))
     fdr(ŷ, y)
 
 False discovery rate for observations `ŷ` and ground truth `y`. Assigns
-`true` to first element of `levels(y)`. To reverse roles, use
+`false` to first element of `levels(y)`. To reverse roles, use
 `FDR(rev=true)` instead of `fdr`.
 
 For more information, run `info(fdr)`.
@@ -669,7 +669,7 @@ $(docstring(NPV()))
     npv(ŷ, y)
 
 Negative predictive value for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `NPV(rev=true)` instead of `npv`.
 
 For more information, run `info(npv)`.
@@ -686,7 +686,7 @@ $(docstring(Precision()))
     ppv(ŷ, y)
 
 Positive predictive value for observations `ŷ` and ground truth
-`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
 use `Precision(rev=true)` instead of `ppv`.
 
 For more information, run `info(ppv)`.
