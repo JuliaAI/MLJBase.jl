@@ -47,13 +47,15 @@ hyperparameter `:atom` of `model`.
     r = range(model, :hyper; upper=nothing, lower=nothing,
               scale=nothing, values=nothing)
 
-Assuming `values == nothing`, this defines a `NumericRange` object for
-a `Real` field `hyper` of `model`.  Note that `r` is not directly
-iteratable but `iterator(r, n)` iterates over `n` values controlled by
-the various parameters (see more at [iterator](@ref).  The supported
-scales are `:linear`,` :log`, `:logminus`, `:log10`, `:log2`, or a
-function (see below).  Values for `Integer` types are rounded (with
-duplicate values removed, resulting in possibly less than `n` values).
+Assuming `values` is not specified, this defines a `NumericRange`
+object for a `Real` field `hyper` of `model`.  Note that `r` is not
+directly iteratable but `iterator(r, n)` iterates over `n` values
+controlled by the various parameters (see more at [`iterator`](@ref)).
+The supported scales are `:linear`,` :log`, `:logminus`, `:log10`,
+`:log2`, or a function (see below).
+
+The iterator values for `Integer` types are rounded (with duplicate
+values removed, resulting in possibly less than `n` values).
 
 If `scale` is unspecified, it is set to `:linear`, `:log`,
 `:logminus`, or `:linear`, according to whether the interval `(lower,

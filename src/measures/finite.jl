@@ -75,6 +75,12 @@ Given an abstract vector of distributions `ŷ` and an abstract vector
 of true observations `y`, return the corresponding Brier (aka
 quadratic) scores.
 
+*Warning.* `BrierScore` defines a true *score* (bigger is better). In
+Brier's original 1950 paper, and some other places, it is defined as a
+loss, despite the name. The binary case is *not* treated as special in
+MLJ, so that the score may differ by a factor of two in the binary
+case from usage elsewhere. The precise formula used is given below.
+
 Currently only `distribution=UnivariateFinite` is supported, which is
 applicable to superivised models with `Finite` target scitype. In this
 case, if `p(y)` is the predicted probability for a *single*
@@ -101,7 +107,7 @@ metadata_measure(BrierScore;
     distribution_type        = UnivariateFinite)
 
 # adjustments
-MMI.name(::Type{<:BrierScore{D}}) where D      = "BrierScore($(string(D)))"
+MMI.name(::Type{<:BrierScore{D}}) where D      = "BrierScore{$(string(D))}"
 MMI.docstring(::Type{<:BrierScore{D}}) where D =
     "Brier proper scoring rule for distributions of type $D; " *
     "aliases: `BrierScore($D)`."
@@ -271,7 +277,7 @@ metadata_measure(BACC;
                                "`balanced_accuracy`, `bacc`, `bac`.")
 
 
-## Binary but order independent
+## BINARY BUT ORDER-DEPENDENT
 
 struct MatthewsCorrelation <: Measure end
 
@@ -379,73 +385,37 @@ metadata_measure(AUC;
 
 const CM2 = ConfusionMatrix{2}
 
+"""
+    fb = FScore{β}(rev=nothing)
+ 
+One-parameter generalization, `F_β`, of the F-measure or balanced F-score.
+
+[Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)
+
+    fb(ŷ, y)
+
+Evaluate `F_β` on observations ,`ŷ`, given ground truth values, `y`.
+
+By default, the second element of `levels(y)` is designated as `true`,
+unless `rev=true`.
+
+For more information, run `info(FScore)`.
+
+"""
+struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
+
+FScore{β}(; rev=nothing) where β = FScore{β}(rev)
+const f1score      = FScore{1}()
+
 for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
-          :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate, :FalseNegativeRate, :FalseDiscoveryRate, :Precision, :NPV)
+          :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate,
+          :FalseNegativeRate, :FalseDiscoveryRate, :Precision, :NPV)
     ex = quote
         struct $M <: Measure rev::Union{Nothing,Bool} end
         $M(; rev=nothing) = $M(rev)
     end
     eval(ex)
 end
-
-# synonyms
-const TPR = TruePositiveRate
-const TNR = TrueNegativeRate
-const FPR = FalsePositiveRate
-const FNR = FalseNegativeRate
-
-const FDR = FalseDiscoveryRate
-const PPV = Precision
-
-const Recall      = TPR
-const Specificity = TNR
-
-struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
-
-FScore{β}(; rev=nothing) where β = FScore{β}(rev)
-
-## Names and synonyms
-# NOTE: nothing for precision as there is Base.precision
-
-const truepositive  = TruePositive()
-const truenegative  = TrueNegative()
-const falsepositive = FalsePositive()
-const falsenegative = FalseNegative()
-
-const tp = truepositive
-const tn = truenegative
-const fp = falsepositive
-const fn = falsenegative
-
-const truepositive_rate  = TPR()
-const truenegative_rate  = TNR()
-const falsepositive_rate = FPR()
-const falsenegative_rate = FNR()
-
-const tpr = truepositive_rate
-const tnr = truenegative_rate
-const fpr = falsepositive_rate
-const fnr = falsenegative_rate
-
-const falsediscovery_rate = FDR()
-
-const fdr = falsediscovery_rate
-const negativepredictive_value = NPV()
-const positivepredictive_value = Precision()
-const npv = NPV()
-const ppv = precision
-
-const recall       = truepositive_rate
-const sensitivity  = recall
-const hit_rate     = recall
-const miss_rate    = falsenegative_rate
-const fallout      = falsepositive_rate
-const specificity  = truenegative_rate
-const selectivity  = specificity
-const f1score      = FScore{1}()
-
-const balanced_accuracy = BACC()
-const bacc = balanced_accuracy
 
 metadata_measure.((FalsePositive, FalseNegative);
     target_scitype           = Vec{<:Finite},
@@ -456,7 +426,7 @@ metadata_measure.((FalsePositive, FalseNegative);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-metadata_measure.((FPR, FNR, FDR);
+metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
     target_scitype           = Vec{<:Finite},
     prediction_type          = :deterministic,
     orientation              = :loss,
@@ -473,7 +443,7 @@ metadata_measure.((TruePositive, TrueNegative);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-metadata_measure.((TPR, TNR, Precision, FScore, NPV);
+metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, FScore, NPV);
     target_scitype           = Vec{<:Finite},
     prediction_type          = :deterministic,
     orientation              = :score,
@@ -495,36 +465,239 @@ MMI.name(::Type{<:FalseNegative})      = "fn"
 MMI.docstring(::Type{<:FalseNegative}) = "Number of false negatives; " *
                                          "aliases: `falsenegative`, `fn`."
 
-MMI.name(::Type{<:TPR})      = "tpr"
-MMI.docstring(::Type{<:TPR}) = "True postive rate; aliases: " *
+MMI.name(::Type{<:TruePositiveRate})      = "tpr"
+MMI.docstring(::Type{<:TruePositiveRate}) = "True postive rate; aliases: " *
                                "`truepositive_rate`, `tpr`, `sensitivity`, " *
                                "`recall`, `hit_rate`."
-MMI.name(::Type{<:TNR})      = "tnr"
-MMI.docstring(::Type{<:TNR}) = "true negative rate; aliases: " *
+MMI.name(::Type{<:TrueNegativeRate})      = "tnr"
+MMI.docstring(::Type{<:TrueNegativeRate}) = "true negative rate; aliases: " *
                                "`truenegative_rate`, `tnr`, `specificity`, " *
                                "`selectivity`."
-MMI.name(::Type{<:FPR})      = "fpr"
-MMI.docstring(::Type{<:FPR}) = "false positive rate; aliases: " *
+MMI.name(::Type{<:FalsePositiveRate})      = "fpr"
+MMI.docstring(::Type{<:FalsePositiveRate}) = "false positive rate; aliases: " *
                                "`falsepositive_rate`, `fpr`, `fallout`."
-MMI.name(::Type{<:FNR})      = "fnr"
-MMI.docstring(::Type{<:FNR}) = "false negative rate; aliases: " *
+MMI.name(::Type{<:FalseNegativeRate})      = "fnr"
+MMI.docstring(::Type{<:FalseNegativeRate}) = "false negative rate; aliases: " *
                                "`falsenegative_rate`, `fnr`, `miss_rate`."
-MMI.name(::Type{<:FDR})      = "fdr"
-MMI.docstring(::Type{<:FDR}) = "false discovery rate; aliases: " *
-                               "`falsediscovery_rate`, `fdr`."
+MMI.name(::Type{<:FalseDiscoveryRate})      = "fdr"
+MMI.docstring(::Type{<:FalseDiscoveryRate}) = "false discovery rate; "*
+                               "aliases: `falsediscovery_rate`, `fdr`."
 MMI.name(::Type{<:NPV})      = "npv"
 MMI.docstring(::Type{<:NPV}) = "negative predictive value; aliases: " *
                                "`negativepredictive_value`, `npv`."
 
 MMI.name(::Type{<:Precision})         = "ppv"
-MMI.docstring(::Type{<:Precision})    = "precision; aliases: `precision`, " *
-                                        "`positivepredictive_value`, `ppv`."
+MMI.docstring(::Type{<:Precision})    = "positive predictive value "*
+  "(aka precision); aliases: `ppv`, `Precision()`, `positivepredictive_value`. "
+
 MMI.name(::Type{<:FScore{β}}) where β = "FScore($β)"
 MMI.name(::Type{<:FScore})            = "FScore(β)" # for registry
 MMI.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
                                         "`FScore(β)`, `f1score=FScore(1)`"
 
-## Internal functions on Confusion Matrix
+"""
+    tp
+
+$(docstring(TruePositive()))
+
+    tp(ŷ, y)
+
+Number of true positives for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `TruePositive(rev=true)` instead of `tp`.
+
+For more information, run `info(tp)`.
+
+"""
+const tp = TruePositive()
+const truepositive  = TruePositive()
+
+"""
+    tn
+
+$(docstring(TrueNegative()))
+
+    tn(ŷ, y)
+
+Number of true negatives for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `TrueNegative(rev=true)` instead of `tn`.
+
+
+For more information, run `info(tn)`.
+"""
+const tn = TrueNegative()
+const truenegative  = TrueNegative()
+
+"""
+    fp
+
+$(docstring(FalsePositive()))
+
+    fp(ŷ, y)
+
+Number of false positives for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `FalsePositive(rev=true)` instead of `fp`.
+
+
+For more information, run `info(fp)`.
+"""
+const fp = FalsePositive()
+const falsepositive = FalsePositive()
+
+"""
+    fn
+
+$(docstring(FalseNegative()))
+
+    fn(ŷ, y)
+
+Number of false positives for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `FalseNegative(rev=true)` instead of `fn`.
+
+For more information, run `info(fn)`.
+
+"""
+const fn = FalseNegative()
+const falsenegative = FalseNegative()
+
+"""
+    tpr
+
+$(docstring(TruePositiveRate()))
+
+    tpr(ŷ, y)
+
+True positive rate for observations `ŷ` and ground truth `y`. Assigns
+`true` to first element of `levels(y)`. To reverse roles, use
+`TPR(rev=true)` instead of `tpr`.
+
+For more information, run `info(tpr)`.
+
+"""
+const tpr = TruePositiveRate()
+const TPR = TruePositiveRate
+const truepositive_rate  = TPR()
+const recall = TPR()
+const Recall = TPR
+const sensitivity  = recall
+const hit_rate     = recall
+
+"""
+    tnr
+
+$(docstring(TrueNegativeRate()))
+
+    tpr(ŷ, y)
+
+True negative rate for observations `ŷ` and ground truth `y`. Assigns
+`true` to first element of `levels(y)`. To reverse roles, use
+`TNR(rev=true)` instead of `tnr`.
+
+For more information, run `info(tnr)`.
+
+"""
+const tnr = TrueNegativeRate()
+const TNR = TrueNegativeRate
+const truenegative_rate  = TNR()
+const Specificity = TNR
+const specificity  = truenegative_rate
+const selectivity  = specificity
+
+"""
+    fpr
+
+$(docstring(FalsePositiveRate()))
+
+    fpr(ŷ, y)
+
+False positive rate for observations `ŷ` and ground truth `y`. Assigns
+`true` to first element of `levels(y)`. To reverse roles, use
+`FPR(rev=true)` instead of `fpr`.
+
+"""
+const fpr = FalsePositiveRate()
+const FPR = FalsePositiveRate
+const falsepositive_rate = FPR()
+const fallout      = falsepositive_rate
+
+"""
+    fnr
+
+$(docstring(FalseNegativeRate()))
+
+    fnr(ŷ, y)
+
+False negative rate for observations `ŷ` and ground truth `y`. Assigns
+`true` to first element of `levels(y)`. To reverse roles, use
+`FNR(rev=true)` instead of `fnr`.
+
+For more information, run `info(fnr)`.
+
+"""
+const fnr = FalseNegativeRate()
+const FNR = FalseNegativeRate
+const falsenegative_rate = FNR()
+
+
+"""
+    fdr
+
+$(docstring(FalseDiscoveryRate()))
+
+    fdr(ŷ, y)
+
+False discovery rate for observations `ŷ` and ground truth `y`. Assigns
+`true` to first element of `levels(y)`. To reverse roles, use
+`FDR(rev=true)` instead of `fdr`.
+
+For more information, run `info(fdr)`.
+
+"""
+const fdr = FalseDiscoveryRate()
+const FDR = FalseDiscoveryRate
+const falsediscovery_rate = FDR()
+const miss_rate    = falsenegative_rate
+
+"""
+    npv
+
+$(docstring(NPV()))
+
+    npv(ŷ, y)
+
+Negative predictive value for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `NPV(rev=true)` instead of `npv`.
+
+For more information, run `info(npv)`.
+
+"""
+const npv = NPV()
+const negativepredictive_value = NPV()
+
+"""
+    ppv
+
+$(docstring(Precision()))
+
+    ppv(ŷ, y)
+
+Positive predictive value for observations `ŷ` and ground truth
+`y`. Assigns `true` to first element of `levels(y)`. To reverse roles,
+use `Precision(rev=true)` instead of `ppv`.
+
+For more information, run `info(ppv)`.
+
+"""
+const ppv = Precision()
+const positivepredictive_value = Precision()
+const PPV = Precision
+
+
+## INTERNAL FUNCTIONS ON CONFUSION MATRIX
 
 _tp(m::CM2) = m[2,2]
 _tn(m::CM2) = m[1,1]
@@ -578,7 +751,7 @@ Base.precision(m::CM2) = m |> Precision()
 Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
 
 
-## ROC computation
+## ROC COMPUTATION
 
 """
     _idx_unique_sorted(v)
