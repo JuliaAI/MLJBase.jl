@@ -390,7 +390,7 @@ const CM2 = ConfusionMatrix{2}
  
 One-parameter generalization, `F_β`, of the F-measure or balanced F-score.
 
-[Wikipedia entry]([https://en.wikipedia.org/wiki/F1_score])
+[Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)
 
     fb(ŷ, y)
 
