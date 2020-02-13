@@ -188,6 +188,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        falsenegative_rate, negativepredicitive_value,
        positivepredictive_value, tpr, tnr, fpr, fnr,
        falsediscovery_rate, fdr, npv, ppv,
+       fn, fp, tn, tp,
        recall, sensitivity, hit_rate, miss_rate,
        specificity, selectivity, f1score, fallout
 
