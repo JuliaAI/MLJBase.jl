@@ -142,6 +142,18 @@ end
                                    :Entry=>Continuous,
                                    :Cens=>Multiclass))
 
+    # shuffling: 
+    small = (x=collect(1:5), y = collect("abcde")) 
+    x, y = unpack(small, ==(:x), ==(:y); shuffle=true, rng=1)
+    @test x == [5, 1, 4, 2, 3]
+    @test y == ['e', 'a', 'd', 'b', 'c']
+    x, y = unpack(small, ==(:x), ==(:y); rng=1)
+    @test x == [5, 1, 4, 2, 3]
+    @test y == ['e', 'a', 'd', 'b', 'c']
+    Random.seed!(3)
+    @test unpack(small, ==(:x), ==(:y); shuffle=true) ==
+        unpack(small, ==(:x), ==(:y); rng=3)
+
 end
 
 @testset "restrict and corestrict" begin
