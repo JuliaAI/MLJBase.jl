@@ -29,7 +29,7 @@ metadata_measure(CrossEntropy;
 
 $(docstring(CrossEntropy()))
 
-    ce = CrossEntropy(; eps=eps())
+    CrossEntropy(; eps=eps())
     ce(ŷ, y)
 
 Given an abstract vector of distributions `ŷ` and an abstract vector
@@ -43,7 +43,7 @@ predicted probability zero, probablities are clipped between `eps` and
 If `sᵢ` is the predicted probability for the true class `yᵢ` then
 the score for that example is given by
 
-``-log(clamp(sᵢ, eps, 1-eps))``
+    -log(clamp(sᵢ, eps, 1-eps))
 
 For more information, run `info(cross_entropy)`.
 """
@@ -434,13 +434,13 @@ const CM2 = ConfusionMatrix{2}
 """
     FScore{β}(rev=nothing)
  
-One-parameter generalization, `F_β`, of the F-measure or balanced F-score.
+One-parameter generalization, ``F_β``, of the F-measure or balanced F-score.
 
 [Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)
 
     FScore{β}(ŷ, y)
 
-Evaluate `F_β` on observations ,`ŷ`, given ground truth values, `y`.
+Evaluate ``F_β`` score on observations ,`ŷ`, given ground truth values, `y`.
 
 By default, the second element of `levels(y)` is designated as
 `true`. To reverse roles, use `FScore{β}(rev=true)` instead of
@@ -858,10 +858,10 @@ of thresholds `ts` are returned. Note that if there are `k` unique scores,
 there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR
 and TPR are constant:
 
-* [0.0 - thresh[1]]
-* [thresh[1] - thresh[2]]
+* `[0.0 - thresh[1]]`
+* `[thresh[1] - thresh[2]]`
 * ...
-* [thresh[k] - 1]
+* `[thresh[k] - 1]`
 
 consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 
