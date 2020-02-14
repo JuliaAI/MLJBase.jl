@@ -35,7 +35,7 @@ end
     @test is_feature_dependent(auc) == false
 
     @test MLJBase.distribution_type(BrierScore{UnivariateFinite}) ==
-        "MLJBase.UnivariateFinite"
+        MLJBase.UnivariateFinite
 end
 
 mutable struct DRegressor <: Deterministic end
