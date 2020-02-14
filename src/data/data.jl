@@ -152,7 +152,14 @@ julia> Z
  20.0
 ```
 """
-function unpack(X, tests...; wrap_singles=false, pairs...)
+function unpack(X, tests...;
+                wrap_singles=false,
+                shuffle=nothing,
+                rng=nothing, pairs...)
+
+    shuffle, rng = shuffle_and_rng(shuffle, rng)
+
+    shuffle && (X = selectrows(X, Random.shuffle(rng, 1:nrows(X))))
 
     if isempty(pairs)
         Xfixed = X
