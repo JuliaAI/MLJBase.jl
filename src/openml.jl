@@ -54,7 +54,8 @@ function convert_ARFF_to_rowtable(response)
 
     featureNames = String[]
     dataTypes = String[]
-    named_tuples = []
+    # TODO: make this more performant by anticipating types?
+    named_tuples = [] # `Any` type here bad
     for line in data2
         if length(line) > 0
             if line[1:1] != "%"
@@ -82,20 +83,31 @@ function convert_ARFF_to_rowtable(response)
             end
         end
     end
-    return named_tuples
+    return identity.(named_tuples) # not performant; see above
 end
 
 """
-Returns a Vector of NamedTuples from and ID.
-The ID must be of a dataset from
-https://www.openml.org/search?type=data
+    OpenML.load(id)
+
+Load the OpenML dataset with specified `id`, from those listed on the 
+[OpenML site](https://www.openml.org/search?type=data).
+
+Returns a "row table", ie a `Vector` of `NamedTuple`s. Such tables are
+compatible with the
+[Tables.jl](https://github.com/JuliaData/Tables.jl) interface and can
+therefore be readily converted to other compatible formats. For example:
+
+    rowtable = OpenML.load(61);
+    df = DataFrame(rowtable);
+    df2 = coerce(df, :class=>Multiclass)
+
 """
 function load(id::Int)
     response = load_Dataset_Description(id)
     arff_file = HTTP.request("GET", response["data_set_description"]["url"])
-    rt = convert_ARFF_to_rowtable(arff_file)
-    return rt
+    return convert_ARFF_to_rowtable(arff_file)
 end
+
 
 """
 Returns a list of all data qualities in the system.
