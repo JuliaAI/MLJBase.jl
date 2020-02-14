@@ -170,13 +170,13 @@ export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
 export confusion_matrix, confmat
 
 # measures/finite.jl
-export cross_entropy, BrierScore,
+export cross_entropy, BrierScore, brier_score,
        misclassification_rate, mcr, accuracy,
        balanced_accuracy, bacc, bac,
        matthews_correlation, mcc
 
 # measures/finite.jl -- binary order independent:
-export auc, roc_curve, roc
+export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- binary order dependent:
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
@@ -187,13 +187,17 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        Recall, Specificity, BACC,
        # instances and their synonyms
        truepositive, truenegative, falsepositive, falsenegative,
+       true_positive, true_negative, false_positive, false_negative,
        truepositive_rate, truenegative_rate, falsepositive_rate,
-       falsenegative_rate, negativepredicitive_value,
-       positivepredictive_value, tpr, tnr, fpr, fnr,
-       falsediscovery_rate, fdr, npv, ppv,
-       fn, fp, tn, tp,
+       true_positive_rate, true_negative_rate, false_positive_rate,
+       falsenegative_rate, negativepredictive_value,
+       false_negative_rate, negative_predictive_value,
+       positivepredictive_value, positive_predictive_value,
+       tpr, tnr, fpr, fnr,
+       falsediscovery_rate, false_discovery_rate, fdr, npv, ppv,
        recall, sensitivity, hit_rate, miss_rate,
        specificity, selectivity, f1score, fallout
+
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
