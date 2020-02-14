@@ -89,14 +89,16 @@ end
 """
     OpenML.load(id)
 
-Load the OpenML dataset with specified `id`, from those listed on the 
+Load the OpenML dataset with specified `id`, from those listed on the
 [OpenML site](https://www.openml.org/search?type=data).
 
-Returns a "row table", ie a `Vector` of `NamedTuple`s. Such tables are
-compatible with the
+Returns a "row table", i.e., a `Vector` of identically typed
+`NamedTuple`s. A row table is compatible with the
 [Tables.jl](https://github.com/JuliaData/Tables.jl) interface and can
-therefore be readily converted to other compatible formats. For example:
+therefore be readily converted to other compatible formats. For
+example:
 
+    using DataFrames
     rowtable = OpenML.load(61);
     df = DataFrame(rowtable);
     df2 = coerce(df, :class=>Multiclass)
