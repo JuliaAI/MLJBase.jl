@@ -553,6 +553,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     X = mach.args[1]
     y = mach.args[2]
+    #nargs =length(mach.args)
 
     nfolds = length(resampling)
 
@@ -560,15 +561,36 @@ function evaluate!(mach::Machine, resampling, weights,
 
     function get_measurements(k)
         train, test = resampling[k]
-        fit!(mach; rows=train, verbosity=verbosity-1, force=force)
+        #fit!(mach; rows=train, verbosity=verbosity-1, force=force)
+
+        Xtrain = selectrows(X, train)
+        ytrain = selectrows(y, train)
+        
+        if weights != nothing
+            # if nargs >2 
+            #     wtrain = mach.args[3][train]
+            # else 
+            wtrain = weights[train]
+            #end
+        else
+            wtrain=nothing
+        end
+        fitresult, =fit(mach.model, verbosity, Xtrain, ytrain, wtrain)
+
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
-        if weights == nothing
-            wtest = nothing
-        else
+        
+        if weights != nothing
+            # if nargs >2 
+            #     wtest = mach.args[3][test]
+            # else 
             wtest = weights[test]
+            #end
+        else
+            wtest=nothing
         end
-        yhat = operation(mach, Xtest)
+
+        yhat = operation(mach.model, fitresult, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
     end
