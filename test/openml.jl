@@ -3,9 +3,11 @@ module TestOpenml
 using Test
 using HTTP
 using MLJBase
+import Tables.istable
 
 response_test = OpenML.load_Dataset_Description(61)
 ntp_test = OpenML.load(61)
+@test istable(ntp_test)
 dqlist_test = OpenML.load_Data_Qualities_List()
 data_features_test = OpenML.load_Data_Features(61)
 data_qualities_test = OpenML.load_Data_Qualities(61)

@@ -2,44 +2,14 @@
 ## CLASSIFICATION METRICS (PROBABILISTIC PREDICTIONS)
 # >> CrossEntropy
 # >> BriersScore
-# ---------------------------------------------------
 
-"""
-    ce = CrossEntropy(; eps=eps())
-    ce(ŷ, y)
-
-Given an abstract vector of distributions `ŷ` and an abstract vector
-of true observations `y`, return the corresponding Cross-Entropy
-loss (aka log loss) scores.
-
-Since the score is undefined in the case of the true observation has
-predicted probability zero, probablities are clipped between `eps` and `1-eps`
-where `eps` can be specified.
-
-If `sᵢ` is the predicted probability for the true class `yᵢ` then
-the score for that example is given by
-
-``-log(clamp(sᵢ, eps, 1-eps))``
-
-For more information, run `info(cross_entropy)`.
-"""
+# -----------------------------------------------------
+# cross entropy
 
 struct CrossEntropy{R} <: Measure where R <: AbstractFloat
     eps::R
 end
 CrossEntropy(;eps=eps()) = CrossEntropy(eps)
-
-"""
-    cross_entropy(ŷ, y::Vec{<:Finite})
-
-Given an abstract vector of `UnivariateFinite` distributions `ŷ` (ie,
-probabilistic predictions) and an abstract vector of true observations
-`y`, return the negative log-probability that each observation would
-occur, according to the corresponding probabilistic prediction.
-
-For more information, run `info(cross_entropy)`.
-"""
-cross_entropy = CrossEntropy()
 
 metadata_measure(CrossEntropy;
     name                     = "cross_entropy",
@@ -54,6 +24,31 @@ metadata_measure(CrossEntropy;
                                "`cross_entropy`.",
     distribution_type        = UnivariateFinite)
 
+"""
+    cross_entropy
+
+$(docstring(CrossEntropy()))
+
+    CrossEntropy(; eps=eps())
+    ce(ŷ, y)
+
+Given an abstract vector of distributions `ŷ` and an abstract vector
+of true observations `y`, return the corresponding Cross-Entropy
+loss (aka log loss) scores.
+
+Since the score is undefined in the case of the true observation has
+predicted probability zero, probablities are clipped between `eps` and
+`1-eps` where `eps` can be specified.
+
+If `sᵢ` is the predicted probability for the true class `yᵢ` then
+the score for that example is given by
+
+    -log(clamp(sᵢ, eps, 1-eps))
+
+For more information, run `info(cross_entropy)`.
+"""
+cross_entropy = CrossEntropy()
+
 # for single observation:
 _cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
@@ -64,22 +59,44 @@ function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
     return broadcast(_cross_entropy, ŷ, y, c.eps)
 end
 
+# -----------------------------------------------------
+# brier score
+
 # TODO: support many distributions/samplers D below:
+
 struct BrierScore{D} <: Measure end
 
+# As this measure is parametric, the use of `metadata_measure` is not
+# appropriate.
+
+MLJModelInterface.name(::Type{<:BrierScore{D}}) where D =
+    "BrierScore{$(string(D))}"
+MLJModelInterface.docstring(::Type{<:BrierScore{D}}) where D =
+    "Brier proper scoring rule for distributions of type $D; "*
+    "aliases: `BrierScore{$D}`"
+MLJModelInterface.docstring(::Type{<:BrierScore{<:UnivariateFinite}}) =
+    "Brier proper scoring rule for `MultiClass` or `OrderedFactor` data; "*
+    "aliases: `BrierScore()`, `BrierScore{UnivariateFinite}`"
+MLJModelInterface.docstring(::Type{BrierScore}) =
+    "Brier proper scoring rule for various distribution types; " *
+    "use `brier_score` for `BrierScore{UnivariateFinite}` "*
+"(`Multiclass` or `OrderedFactor` targets)."
+MLJModelInterface.target_scitype(::Type{<:BrierScore{D}}) where D =
+    AbstractVector{<:Finite}
+MLJModelInterface.prediction_type(::Type{<:BrierScore}) = :probabilistic
+orientation(::Type{<:BrierScore}) = :score
+reports_each_observation(::Type{<:BrierScore}) = true
+is_feature_dependent(::Type{<:BrierScore}) = false
+MLJModelInterface.supports_weights(::Type{<:BrierScore}) = true
+distribution_type(::Type{<:BrierScore{D}}) where D =
+    UnivariateFinite
+
 """
-    brier = BrierScore(; distribution=UnivariateFinite)
-    brier(ŷ, y)
+    BrierScore(; distribution=UnivariateFinite)(ŷ, y)
 
-Given an abstract vector of distributions `ŷ` and an abstract vector
-of true observations `y`, return the corresponding Brier (aka
-quadratic) scores.
-
-*Warning.* `BrierScore` defines a true *score* (bigger is better). In
-Brier's original 1950 paper, and some other places, it is defined as a
-loss, despite the name. The binary case is *not* treated as special in
-MLJ, so that the score may differ by a factor of two in the binary
-case from usage elsewhere. The precise formula used is given below.
+Given an abstract vector of distributions `ŷ` of type `distribution`,
+and an abstract vector of true observations `y`, return the
+corresponding Brier (aka quadratic) scores.
 
 Currently only `distribution=UnivariateFinite` is supported, which is
 applicable to superivised models with `Finite` target scitype. In this
@@ -89,7 +106,17 @@ Brier score for that observation is given by
 
 ``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
 
-For more information, run `info(brier_score)`.
+Note that `BrierScore()=BrierScore{UnivariateFinite}` has the alias
+`brier_score`.
+
+*Warning.* `BrierScore` defines a true *score* (bigger is better). In
+Brier's original 1950 paper, and many other places, it is defined as a
+loss, despite the name. Moreover, the present implementation does not
+treat the binary case as special, so that the score may differ, in
+that case, by a factor of two from usage elsewhere.
+
+For more information, run `info(BrierScore)`.
+
 """
 function BrierScore(; distribution=UnivariateFinite)
     distribution == UnivariateFinite ||
@@ -97,25 +124,10 @@ function BrierScore(; distribution=UnivariateFinite)
     return BrierScore{distribution}()
 end
 
-metadata_measure(BrierScore;
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :probabilistic,
-    orientation              = :score,
-    reports_each_observation = true,
-    is_feature_dependent     = false,
-    supports_weights         = true,
-    distribution_type        = UnivariateFinite)
-
-# adjustments
-MMI.name(::Type{<:BrierScore{D}}) where D      = "BrierScore{$(string(D))}"
-MMI.docstring(::Type{<:BrierScore{D}}) where D =
-    "Brier proper scoring rule for distributions of type $D; " *
-    "aliases: `BrierScore($D)`."
-
 # For single observations (no checks):
 
 # UnivariateFinite:
-function brier_score(d::UnivariateFinite, y)
+function _brier_score(d::UnivariateFinite, y)
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     offset = 1 + sum(pvec.^2)
@@ -129,7 +141,7 @@ function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
                                             y::Vec{<:CategoricalElement})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(brier_score, ŷ, y)
+    return broadcast(_brier_score, ŷ, y)
 end
 
 function (score::BrierScore{<:UnivariateFinite})(ŷ, y, w::Vec{<:Real})
@@ -137,41 +149,23 @@ function (score::BrierScore{<:UnivariateFinite})(ŷ, y, w::Vec{<:Real})
     return w .* score(ŷ, y) ./ (sum(w)/length(y))
 end
 
+const brier_score = BrierScore()
 
-# ---------------------------------------------------
+
+# ============================================================
 ## CLASSIFICATION METRICS (DETERMINISTIC PREDICTIONS)
-# ==> MisclassificationRate / MCR
-# ==> Accuracy
-# Binary only
-# = order independent
-# ==> AUC
-# = order dependent
-# ==> Recall
-# ==> Precision
-# ---------------------------------------------------
 
 const INVARIANT_LABEL_MULTICLASS = "This metric is invariant to class labelling and can be used for multiclass classification."
 const INVARIANT_LABEL_BINARY = "This metric is invariant to class labelling and can be used only for binary classification."
 const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be used for binary classification."
 
+# ==============================================================
+## MULTICLASS
+
+# ---------------------------------------------------
+# misclassification rate
+
 struct MisclassificationRate <: Measure end
-
-"""
-    misclassification_rate(ŷ, y)
-    misclassification_rate(ŷ, y, w)
-    misclassification_rate(conf_mat)
-
-Returns the rate of misclassification of the (point) predictions `ŷ`,
-given true observations `y`, optionally weighted by the weights
-`w`. All three arguments must be abstract vectors of the same length.
-A confusion matrix can also be passed as argument.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(misclassification_rate)`.
-You can also equivalently use `mcr`.
-"""
-const misclassification_rate = MisclassificationRate()
-const mcr = misclassification_rate
 
 metadata_measure(MisclassificationRate;
     name                     = "misclassification_rate",
@@ -184,6 +178,26 @@ metadata_measure(MisclassificationRate;
     docstring                = "misclassification rate; aliases: " *
                                "`misclassification_rate`, `mcr`.")
 
+"""
+    misclassification_rate
+
+$(docstring(MisclassificationRate()))
+
+    misclassification_rate(ŷ, y)
+    misclassification_rate(ŷ, y, w)
+    misclassification_rate(conf_mat)
+
+Returns the rate of misclassification of the (point) predictions `ŷ`,
+given true observations `y`, optionally weighted by the weights
+`w`. All three arguments must be abstract vectors of the same length.
+A confusion matrix can also be passed as argument.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(misclassification_rate)`.
+
+"""
+const misclassification_rate = MisclassificationRate()
+const mcr = misclassification_rate
 const MCR = MisclassificationRate
 
 (::MCR)(ŷ::Vec{<:CategoricalElement},
@@ -195,25 +209,10 @@ const MCR = MisclassificationRate
 
 (::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
+# -------------------------------------------------------------
+# accuracy
 
 struct Accuracy <: Measure end
-
-"""
-    accuracy(ŷ, y)
-    accuracy(ŷ, y, w)
-    accuracy(conf_mat)
-
-Returns the accuracy of the (point) predictions `ŷ`,
-given true observations `y`, optionally weighted by the weights
-`w`. All three arguments must be abstract vectors of the same length.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(accuracy)`.
-"""
-const accuracy = Accuracy()
-
-(::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
-(::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
 
 metadata_measure(Accuracy;
     name                     = "accuracy",
@@ -225,14 +224,51 @@ metadata_measure(Accuracy;
     supports_weights         = true,
     docstring                = "Classification accuracy; aliases: `accuracy`.")
 
-struct BalancedAccuracy <: Measure end
+"""
+    accuracy
 
-const BACC = BalancedAccuracy
+$(docstring(Accuracy()))
+
+    accuracy(ŷ, y)
+    accuracy(ŷ, y, w)
+    accuracy(conf_mat)
+
+Returns the accuracy of the (point) predictions `ŷ`,
+given true observations `y`, optionally weighted by the weights
+`w`. All three arguments must be abstract vectors of the same length.
+$INVARIANT_LABEL_MULTICLASS
+
+For more information, run `info(accuracy)`.
 
 """
+const accuracy = Accuracy()
+
+(::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
+(::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
+
+
+# -----------------------------------------------------------
+# balanced accuracy
+
+struct BalancedAccuracy <: Measure end
+
+metadata_measure(BalancedAccuracy;
+    name                     = "balanced_accuracy",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = true,
+    docstring                = "Balanced classification accuracy; aliases: "*
+                               "`balanced_accuracy`, `bacc`, `bac`.")
+
+"""
+    balanced_accuracy
+
+$(docstring(BalancedAccuracy()))
+
     balanced_accuracy(ŷ, y [, w])
-    bacc(ŷ, y [, w])
-    bac(ŷ, y [, w])
     balanced_accuracy(conf_mat)
 
 Return the balanced accuracy of the point prediction `ŷ`, given true
@@ -242,10 +278,12 @@ All  three arguments must have the same length.
 $INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(balanced_accuracy)`.
+
 """
-const balanced_accuracy = BACC()
+const balanced_accuracy = BalancedAccuracy()
 const bacc = balanced_accuracy
 const bac  = bacc
+const BACC = BalancedAccuracy
 
 function (::BACC)(ŷ::Vec{<:CategoricalElement},
                   y::Vec{<:CategoricalElement})
@@ -265,27 +303,31 @@ function (::BACC)(ŷ::Vec{<:CategoricalElement},
     return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
 end
 
-metadata_measure(BACC;
-    name                     = "balanced_accuracy",
-    target_scitype           = Vec{<:Finite},
+# ==================================================================
+## BINARY AND ORDER-INDEPENDENT
+
+# ------------------------------------------------------------------
+# Matthew's correlation
+
+struct MatthewsCorrelation <: Measure end
+
+metadata_measure(MatthewsCorrelation;
+    name                     = "matthews_correlation",
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
     is_feature_dependent     = false,
-    supports_weights         = true,
-    docstring                = "Balanced classification accuracy; aliases: "*
-                               "`balanced_accuracy`, `bacc`, `bac`.")
-
-
-## BINARY BUT ORDER-DEPENDENT
-
-struct MatthewsCorrelation <: Measure end
-
-const MCC = MatthewsCorrelation
+    supports_weights         = false,
+    docstring                = "Matthew's correlation; aliases: " *
+                               "`matthews_correlation`, `mcc`")
 
 """
+    matthews_correlation
+
+$(docstring(MatthewsCorrelation()))
+
     matthews_correlation(ŷ, y)
-    mcc(ŷ, y)
     matthews_correlation(conf_mat)
 
 Return Matthews' correlation coefficient corresponding to the point
@@ -293,9 +335,11 @@ prediction `ŷ`, given true observations `y`.
 $INVARIANT_LABEL_MULTICLASS
 
 For more information, run `info(matthews_correlation)`.
+
 """
-const matthews_correlation = MCC()
+const matthews_correlation = MatthewsCorrelation()
 const mcc = matthews_correlation
+const MCC = MatthewsCorrelation
 
 function (::MCC)(cm::ConfusionMatrix{C}) where C
     # http://rk.kvl.dk/introduction/index.html
@@ -325,28 +369,37 @@ end
          y::Vec{<:CategoricalElement}) =
              confmat(ŷ, y, warn=false) |> m
 
-metadata_measure(MatthewsCorrelation;
-    name                     = "matthews_correlation",
-    target_scitype           = Vec{<:Finite{2}},
-    prediction_type          = :deterministic,
+# ---------------------------------------------------------
+# area under the ROC curve
+
+struct AUC <: Measure end
+
+metadata_measure(AUC;
+    name                     = "area_under_curve",
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :probabilistic,
     orientation              = :score,
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
-    docstring                = "Matthew's correlation; aliases: " *
-                               "`matthews_correlation`, `mcc`")
-
-struct AUC <: Measure end
+    docstring                = "Area under the ROC curve; "*
+       "aliases: `area_under_curve`, `auc`")
 
 """
-    auc(ŷ, y)
+    area_under_curve
 
-Return the Area Under the (ROC) Curve for probabilistic prediction `ŷ` given
-true observations `y`.
+$(docstring(AUC()))
+
+    area_under_curve(ŷ, y)
+
+Return the area under the receiver operator characteristic (curve),
+for probabilistic predictions `ŷ`, given ground truth `y`.
 $INVARIANT_LABEL_BINARY
 
-For more information, run `info(auc)`.
+For more information, run `info(area_under_curve)`.
+
 """
+const area_under_curve = AUC()
 const auc = AUC()
 
 function (::AUC)(ŷ::Vec{<:UnivariateFinite},
@@ -370,34 +423,28 @@ function (::AUC)(ŷ::Vec{<:UnivariateFinite},
     return auc / (n_neg * n_pos)
 end
 
-
-metadata_measure(AUC;
-    name                     = "auc",
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :probabilistic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Area under the ROC curve; aliases: `auc`.")
-
-## Binary and order dependent
+# ==========================================================================
+## BINARY AND ORDER DEPENDENT
 
 const CM2 = ConfusionMatrix{2}
 
+# --------------------------------------------------------------------------
+# F_β-Score
+
 """
-    fb = FScore{β}(rev=nothing)
+    FScore{β}(rev=nothing)
  
-One-parameter generalization, `F_β`, of the F-measure or balanced F-score.
+One-parameter generalization, ``F_β``, of the F-measure or balanced F-score.
 
 [Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)
 
-    fb(ŷ, y)
+    FScore{β}(ŷ, y)
 
-Evaluate `F_β` on observations ,`ŷ`, given ground truth values, `y`.
+Evaluate ``F_β`` score on observations ,`ŷ`, given ground truth values, `y`.
 
-By default, the second element of `levels(y)` is designated as `true`,
-unless `rev=true`.
+By default, the second element of `levels(y)` is designated as
+`true`. To reverse roles, use `FScore{β}(rev=true)` instead of
+`FScore{β}`.
 
 For more information, run `info(FScore)`.
 
@@ -405,7 +452,24 @@ For more information, run `info(FScore)`.
 struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
 
 FScore{β}(; rev=nothing) where β = FScore{β}(rev)
+
+metadata_measure(FScore;
+    target_scitype           = Vec{<:Finite},
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false)
+
+MLJModelInterface.name(::Type{<:FScore{β}}) where β = "FScore{$β}"
+MLJModelInterface.name(::Type{FScore})            = "FScore" # for registry
+MLJModelInterface.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
+                                        "`FScore{β}`, `f1score=FScore{1}`"
 const f1score      = FScore{1}()
+
+
+# -------------------------------------------------------------------------
+# truepositive, true_negative, etc
 
 for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
           :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate,
@@ -443,7 +507,7 @@ metadata_measure.((TruePositive, TrueNegative);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, FScore, NPV);
+metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, NPV);
     target_scitype           = Vec{<:Finite},
     prediction_type          = :deterministic,
     orientation              = :score,
@@ -452,131 +516,133 @@ metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, FScore, NPV);
     supports_weights         = false)
 
 # adjustments
-MMI.name(::Type{<:TruePositive})       = "tp"
+MMI.name(::Type{<:TruePositive})       = "true_positive"
 MMI.docstring(::Type{<:TruePositive})  = "Number of true positives; " *
-                                         "aliases: `truepositive`, `tp`."
-MMI.name(::Type{<:TrueNegative})       = "tn"
+                                         "aliases: `true_positive`, `truepositive`."
+MMI.name(::Type{<:TrueNegative})       = "true_negative"
 MMI.docstring(::Type{<:TrueNegative})  = "Number of true negatives; " *
-                                         "aliases: `truenegative`, `tn`."
-MMI.name(::Type{<:FalsePositive})      = "fp"
+                                         "aliases: `true_negative`, `truenegative`."
+MMI.name(::Type{<:FalsePositive})      = "false_positive"
 MMI.docstring(::Type{<:FalsePositive}) = "Number of false positives; " *
-                                         "aliases: `falsepositive`, `fp`."
-MMI.name(::Type{<:FalseNegative})      = "fn"
+                                         "aliases: `false_positive`, `falsepositive`."
+MMI.name(::Type{<:FalseNegative})      = "false_negative"
 MMI.docstring(::Type{<:FalseNegative}) = "Number of false negatives; " *
-                                         "aliases: `falsenegative`, `fn`."
+                                         "aliases: `false_negative`, `falsenegative`."
 
-MMI.name(::Type{<:TruePositiveRate})      = "tpr"
-MMI.docstring(::Type{<:TruePositiveRate}) = "True postive rate; aliases: " *
-                               "`truepositive_rate`, `tpr`, `sensitivity`, " *
+MMI.name(::Type{<:TruePositiveRate})      = "true_positive_rate"
+MMI.docstring(::Type{<:TruePositiveRate}) = "True positive rate; aliases: " *
+                               "`true_positive_rate`, `truepositive_rate`, `tpr`, `sensitivity`, " *
                                "`recall`, `hit_rate`."
-MMI.name(::Type{<:TrueNegativeRate})      = "tnr"
+MMI.name(::Type{<:TrueNegativeRate})      = "true_negative_rate"
 MMI.docstring(::Type{<:TrueNegativeRate}) = "true negative rate; aliases: " *
-                               "`truenegative_rate`, `tnr`, `specificity`, " *
+                               "`true_negative_rate`, `truenegative_rate`, `tnr`, `specificity`, " *
                                "`selectivity`."
-MMI.name(::Type{<:FalsePositiveRate})      = "fpr"
+MMI.name(::Type{<:FalsePositiveRate})      = "false_positive_rate"
 MMI.docstring(::Type{<:FalsePositiveRate}) = "false positive rate; aliases: " *
-                               "`falsepositive_rate`, `fpr`, `fallout`."
-MMI.name(::Type{<:FalseNegativeRate})      = "fnr"
+                               "`false_positive_rate`, `falsepositive_rate`, `fpr`, `fallout`."
+MMI.name(::Type{<:FalseNegativeRate})      = "false_negative_rate"
 MMI.docstring(::Type{<:FalseNegativeRate}) = "false negative rate; aliases: " *
-                               "`falsenegative_rate`, `fnr`, `miss_rate`."
-MMI.name(::Type{<:FalseDiscoveryRate})      = "fdr"
+                               "`false_negative_rate`, `falsenegative_rate`, `fnr`, `miss_rate`."
+MMI.name(::Type{<:FalseDiscoveryRate})      = "false_discovery_rate"
 MMI.docstring(::Type{<:FalseDiscoveryRate}) = "false discovery rate; "*
-                               "aliases: `falsediscovery_rate`, `fdr`."
-MMI.name(::Type{<:NPV})      = "npv"
+                               "aliases: `false_discovery_rate`, `falsediscovery_rate`, `fdr`."
+MMI.name(::Type{<:NPV})      = "negative_predictive_value"
 MMI.docstring(::Type{<:NPV}) = "negative predictive value; aliases: " *
-                               "`negativepredictive_value`, `npv`."
+                               "`negative_predictive_value`, `negativepredictive_value`, `npv`."
 
-MMI.name(::Type{<:Precision})         = "ppv"
+MMI.name(::Type{<:Precision})         = "positive_predictive_value"
 MMI.docstring(::Type{<:Precision})    = "positive predictive value "*
-  "(aka precision); aliases: `ppv`, `Precision()`, `positivepredictive_value`. "
-
-MMI.name(::Type{<:FScore{β}}) where β = "FScore($β)"
-MMI.name(::Type{<:FScore})            = "FScore(β)" # for registry
-MMI.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
-                                        "`FScore(β)`, `f1score=FScore(1)`"
+  "(aka precision); aliases: `positive_predictive_value`, `ppv`, `Precision()`, `positivepredictive_value`. "
 
 """
-    tp
+    true_positive
 
 $(docstring(TruePositive()))
 
-    tp(ŷ, y)
+    true_positive(ŷ, y)
 
 Number of true positives for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `TruePositive(rev=true)` instead of `tp`.
+use `TruePositive(rev=true)` instead of `true_positive`.
 
-For more information, run `info(tp)`.
+For more information, run `info(true_positive)`.
 
 """
+const true_positive = TruePositive()
 const tp = TruePositive()
 const truepositive  = TruePositive()
 
 """
-    tn
+    true_negative
 
 $(docstring(TrueNegative()))
 
-    tn(ŷ, y)
+    true_negative(ŷ, y)
 
 Number of true negatives for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `TrueNegative(rev=true)` instead of `tn`.
+use `TrueNegative(rev=true)` instead of `true_negative`.
 
 
-For more information, run `info(tn)`.
+For more information, run `info(true_negative)`.
+
 """
+const true_negative = TrueNegative()
 const tn = TrueNegative()
 const truenegative  = TrueNegative()
 
 """
-    fp
+    false_positive
 
 $(docstring(FalsePositive()))
 
-    fp(ŷ, y)
+    false_positive(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalsePositive(rev=true)` instead of `fp`.
+use `FalsePositive(rev=true)` instead of `false_positive`.
 
 
-For more information, run `info(fp)`.
+For more information, run `info(false_positive)`.
+
 """
+const false_positive = FalsePositive()
 const fp = FalsePositive()
 const falsepositive = FalsePositive()
 
 """
-    fn
+    false_negative
 
 $(docstring(FalseNegative()))
 
-    fn(ŷ, y)
+    false_negative(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalseNegative(rev=true)` instead of `fn`.
+use `FalseNegative(rev=true)` instead of `false_negative`.
 
-For more information, run `info(fn)`.
+For more information, run `info(false_negative)`.
 
 """
+const false_negative = FalseNegative()
 const fn = FalseNegative()
 const falsenegative = FalseNegative()
 
 """
-    tpr
+    true_positive_rate
 
 $(docstring(TruePositiveRate()))
 
-    tpr(ŷ, y)
+    true_positive_rate(ŷ, y)
 
 True positive rate for observations `ŷ` and ground truth `y`. Assigns
 `false` to first element of `levels(y)`. To reverse roles, use
-`TPR(rev=true)` instead of `tpr`.
+`TruePositiveRate(rev=true)` instead of `true_positive_rate`.
 
-For more information, run `info(tpr)`.
+For more information, run `info(true_positive_rate)`.
 
 """
+const true_positive_rate = TruePositiveRate()
 const tpr = TruePositiveRate()
 const TPR = TruePositiveRate
 const truepositive_rate  = TPR()
@@ -586,19 +652,20 @@ const sensitivity  = recall
 const hit_rate     = recall
 
 """
-    tnr
+    true_negative_rate
 
 $(docstring(TrueNegativeRate()))
 
-    tpr(ŷ, y)
+    true_negative_rate(ŷ, y)
 
 True negative rate for observations `ŷ` and ground truth `y`. Assigns
 `false` to first element of `levels(y)`. To reverse roles, use
-`TNR(rev=true)` instead of `tnr`.
+`TrueNegativeRate(rev=true)` instead of `true_negative_rate`.
 
-For more information, run `info(tnr)`.
+For more information, run `info(true_negative_rate)`.
 
 """
+const true_negative_rate = TrueNegativeRate()
 const tnr = TrueNegativeRate()
 const TNR = TrueNegativeRate
 const truenegative_rate  = TNR()
@@ -607,91 +674,97 @@ const specificity  = truenegative_rate
 const selectivity  = specificity
 
 """
-    fpr
+    false_positive_rate
 
 $(docstring(FalsePositiveRate()))
 
-    fpr(ŷ, y)
+    false_positive_rate(ŷ, y)
 
 False positive rate for observations `ŷ` and ground truth `y`. Assigns
 `false` to first element of `levels(y)`. To reverse roles, use
-`FPR(rev=true)` instead of `fpr`.
+`FalsePositiveRate(rev=true)` instead of `false_positive_rate`.
+
+For more information, run `info(false_positive_rate)`.
 
 """
+const false_positive_rate = FalsePositiveRate()
 const fpr = FalsePositiveRate()
 const FPR = FalsePositiveRate
 const falsepositive_rate = FPR()
 const fallout      = falsepositive_rate
 
 """
-    fnr
+    false_negative_rate
 
 $(docstring(FalseNegativeRate()))
 
-    fnr(ŷ, y)
+    false_negative_rate(ŷ, y)
 
 False negative rate for observations `ŷ` and ground truth `y`. Assigns
 `false` to first element of `levels(y)`. To reverse roles, use
-`FNR(rev=true)` instead of `fnr`.
+`FalseNegativeRate(rev=true)` instead of `false_negative_rate`.
 
-For more information, run `info(fnr)`.
+For more information, run `info(false_negative_rate)`.
 
 """
+const false_negative_rate = FalseNegativeRate()
 const fnr = FalseNegativeRate()
 const FNR = FalseNegativeRate
 const falsenegative_rate = FNR()
 
-
 """
-    fdr
+    false_discovery_rate
 
 $(docstring(FalseDiscoveryRate()))
 
-    fdr(ŷ, y)
+    false_discovery_rate(ŷ, y)
 
 False discovery rate for observations `ŷ` and ground truth `y`. Assigns
 `false` to first element of `levels(y)`. To reverse roles, use
-`FDR(rev=true)` instead of `fdr`.
+`FalseDiscoveryRate(rev=true)` instead of `false_discovery_rate`.
 
-For more information, run `info(fdr)`.
+For more information, run `info(false_discovery_rate)`.
 
 """
+const false_discovery_rate = FalseDiscoveryRate()
 const fdr = FalseDiscoveryRate()
 const FDR = FalseDiscoveryRate
 const falsediscovery_rate = FDR()
 const miss_rate    = falsenegative_rate
 
 """
-    npv
+    negative_predictive_value
 
 $(docstring(NPV()))
 
-    npv(ŷ, y)
+    negative_predictive_value(ŷ, y)
 
 Negative predictive value for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `NPV(rev=true)` instead of `npv`.
+use `NPV(rev=true)` instead of `negative_predictive_value`.
 
-For more information, run `info(npv)`.
+For more information, run `info(negative_predictive_value)`.
 
 """
+const negative_predictive_value = NPV()
 const npv = NPV()
 const negativepredictive_value = NPV()
 
 """
-    ppv
+    positive_predictive_value
 
 $(docstring(Precision()))
 
-    ppv(ŷ, y)
+    positive_predictive_value(ŷ, y)
 
 Positive predictive value for observations `ŷ` and ground truth
 `y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `Precision(rev=true)` instead of `ppv`.
+use `Precision(rev=true)` instead of `positive_predictive_value`.
 
-For more information, run `info(ppv)`.
+For more information, run `info(positive_predictive_value)`.
 
 """
+const positive_predictive_value = Precision()
 const ppv = Precision()
 const positivepredictive_value = Precision()
 const PPV = Precision
@@ -785,10 +858,10 @@ of thresholds `ts` are returned. Note that if there are `k` unique scores,
 there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR
 and TPR are constant:
 
-* [0.0 - thresh[1]]
-* [thresh[1] - thresh[2]]
+* `[0.0 - thresh[1]]`
+* `[thresh[1] - thresh[2]]`
 * ...
-* [thresh[k] - 1]
+* `[thresh[k] - 1]`
 
 consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 

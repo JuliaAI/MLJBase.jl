@@ -212,10 +212,10 @@ end
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
         m == accuracy    && (@test e.name == "accuracy")
-        m == recall      && (@test e.name == "tpr")
-        m isa Precision  && (@test e.name == "ppv")
-        m == f1score     && (@test e.name == "FScore(1)")
-        m == specificity && (@test e.name == "tnr")
+        m == recall      && (@test e.name == "true_positive_rate")
+        m isa Precision  && (@test e.name == "positive_predictive_value")
+        m == f1score     && (@test e.name == "FScore{1}")
+        m == specificity && (@test e.name == "true_negative_rate")
         @test e.target_scitype == AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
@@ -228,7 +228,7 @@ end
         end
     end
     e = info(auc)
-    @test e.name == "auc"
+    @test e.name == "area_under_curve"
     @test e.target_scitype == AbstractVector{<:Finite}
     @test e.prediction_type == :probabilistic
     @test e.reports_each_observation == false
@@ -324,5 +324,5 @@ end
 end
 
 @testset "docstrings coverage" begin
-    @test startswith(info(BrierScore()).docstring, "Brier proper scoring rule for distributions of type")
+    @test startswith(info(BrierScore()).docstring, "Brier proper scoring rule")
 end
