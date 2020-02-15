@@ -553,7 +553,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     X = mach.args[1]
     y = mach.args[2]
-    #nargs =length(mach.args)
+    nargs =length(mach.args)
 
     nfolds = length(resampling)
 
