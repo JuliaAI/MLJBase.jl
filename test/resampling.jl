@@ -297,8 +297,7 @@ end
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   weights = fill(1, 5), acceleration=accel)
-    #@test e.measurement[1] ≈ 1/2
-    @test e.measurement[1] ≈ 1 #This corresponds to the results i get using CPU1().
+    @test e.measurement[1] ≈ 1/2 #weights from evaluate! doesn't affect fitresult.
     @test_throws(DimensionMismatch,
                  evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                            operation=predict_mode,
