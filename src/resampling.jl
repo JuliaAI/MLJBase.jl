@@ -566,26 +566,18 @@ function evaluate!(mach::Machine, resampling, weights,
         Xtrain = selectrows(X, train)
         ytrain = selectrows(y, train)
         
-        if weights != nothing
-            # if nargs >2 
-            #     wtrain = mach.args[3][train]
-            # else 
-            wtrain = weights[train]
-            #end
-        else
+        if nargs == 3 
+            wtrain = mach.args[3][train]
+        else 
             wtrain=nothing
         end
-        fitresult, =fit(mach.model, verbosity, Xtrain, ytrain, wtrain)
+        fitresult, = fit(mach.model, verbosity, Xtrain, ytrain, wtrain)
 
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
         
-        if weights != nothing
-            # if nargs >2 
-            #     wtest = mach.args[3][test]
-            # else 
+        if weights != nothing 
             wtest = weights[test]
-            #end
         else
             wtest=nothing
         end
