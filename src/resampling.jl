@@ -570,6 +570,7 @@ function evaluate!(mach::Machine, resampling, weights,
             wtest = weights[test]
         end
         yhat = operation(mach, Xtest)
+        @show yhat Xtest ytest wtest
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
     end
