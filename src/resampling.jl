@@ -383,10 +383,11 @@ end
               measure=nothing,
               weights=nothing,
               operation=predict,
-              n = 1,
+              repeats = 1,
               acceleration=default_resource(),
               force=false,
-              verbosity=1)
+              verbosity=1,
+              check_measure=true)
 
 Estimate the performance of a machine `mach` wrapping a supervised
 model in data, using the specified `resampling` strategy (defaulting
