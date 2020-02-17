@@ -13,8 +13,9 @@ end
     ConfusionMatrix(m, labels)
 
 Instantiates a confusion matrix out of a square integer matrix `m`.
-Rows are the predicted class, columns the ground truth. See also
-the [wikipedia article](https://en.wikipedia.org/wiki/Confusion_matrix).
+Rows are the predicted class, columns the ground truth. See also the
+[wikipedia article](https://en.wikipedia.org/wiki/Confusion_matrix).
+
 """
 function ConfusionMatrix(m::Matrix{Int}, labels::Vector{String})
     s = size(m)
@@ -46,17 +47,25 @@ The ordering follows that of `levels(y)`.
 
 ## Note
 
-To decrease the risk of unexpected errors, if `y` does not have scientific type
-`OrderedFactor{2}` (and so does not have a "natural ordering"
-negative-positive), a warning is shown indicating the current order unless the
-user explicitly specifies either `rev` or `perm` in which case it's assumed the
-user is aware of the class ordering.
+To decrease the risk of unexpected errors, if `y` does not have
+scientific type `OrderedFactor{2}` (and so does not have a "natural
+ordering" negative-positive), a warning is shown indicating the
+current order unless the user explicitly specifies either `rev` or
+`perm` in which case it's assumed the user is aware of the class
+ordering.
+
+The `confusion_matrix` is a measure (although neither a score nor a
+loss) and so may be specified as such in calls to `evaluate`,
+`evaluate!`, although not in `TunedModel`s.  In this case, however,
+there no way to specify an ordering different from `levels(y)`, where
+`y` is the target. 
+
 """
-function confusion_matrix(ŷ::VC, y::VC;
+function confusion_matrix(ŷ::Vec{<:CategoricalElement}, y::Vec{<:CategoricalElement};
                           rev::Union{Nothing,Bool}=nothing,
                           perm::Union{Nothing,Vector{<:Integer}}=nothing,
-                          warn::Bool=true
-                          ) where VC <: Vec{<:CategoricalElement}
+                          warn::Bool=true)
+
     check_dimensions(ŷ, y)
     levels_ = levels(y)
     nc = length(levels_)
@@ -171,4 +180,33 @@ function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}
     # 2.d final line
     "└" * "─"^cw * "┴" * ("─"^cw * "┴")^(C-1) * ("─"^cw * "┘") |> wline
     write(stream, take!(iob))
+end
+
+
+## MAKE CONFUSION MATRIX A MEASURE
+
+const Confusion = typeof(confusion_matrix)
+
+is_measure(::Confusion) = true
+is_measure_type(::Type{Confusion}) = true
+
+MLJModelInterface.name(::Type{Confusion}) = "confusion_matrix"
+MLJModelInterface.target_scitype(::Type{Confusion}) =
+    AbstractVector{<:Finite}
+MLJModelInterface.supports_weights(::Type{Confusion}) = false
+MLJModelInterface.prediction_type(::Type{Confusion}) = :deterministic
+MLJModelInterface.docstring(::Type{Confusion}) =
+    "confusion matrix; aliases: confusion_matrix, confmat. "
+orientation(::Type{Confusion}) = :other
+reports_each_observation(::Type{Confusion}) = false
+is_feature_dependent(::Type{Confusion}) = false
+aggregation(::Type{Confusion}) = Sum()
+
+# aggregation:
+Base.round(m::MLJBase.ConfusionMatrix; kws...) = m
+function Base.:+(m1::ConfusionMatrix, m2::ConfusionMatrix)
+    if m1.labels != m2.labels
+        throw(ArgumentError("Confusion matrix labels must agree"))
+    end
+    ConfusionMatrix(m1.mat + m2.mat, m1.labels)
 end

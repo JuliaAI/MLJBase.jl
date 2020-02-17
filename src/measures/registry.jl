@@ -16,6 +16,8 @@ const LOSSFUNCTIONS_MEASURE_TYPES =
 
 const MEASURE_TYPES = vcat(LOCAL_MEASURE_TYPES, LOSSFUNCTIONS_MEASURE_TYPES)
 
+push!(MEASURE_TYPES, Confusion)
+
 const MeasureProxy = NamedTuple{Tuple(MEASURE_TRAITS)}
 
 Base.show(stream::IO, p::MeasureProxy) =
