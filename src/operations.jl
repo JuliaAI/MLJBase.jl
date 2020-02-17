@@ -21,7 +21,7 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::AbstractMachine, ) and transform(::AbstractMachine, )
 
-for operation in (:predict, :predict_mean, :predict_mode,
+for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                   :transform, :inverse_transform)
     ex = quote
         function $(operation)(machine::AbstractMachine, args...)
