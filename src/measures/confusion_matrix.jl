@@ -54,6 +54,12 @@ current order unless the user explicitly specifies either `rev` or
 `perm` in which case it's assumed the user is aware of the class
 ordering.
 
+The `confusion_matrix` is a measure (although neither a score nor a
+loss) and so may be specified as such in calls to `evaluate`,
+`evaluate!`, although not in `TunedModel`s.  In this case, however,
+there no way to specify an ordering different from `levels(y)`, where
+`y` is the target. 
+
 """
 function confusion_matrix(ŷ::Vec{<:CategoricalElement}, y::Vec{<:CategoricalElement};
                           rev::Union{Nothing,Bool}=nothing,
