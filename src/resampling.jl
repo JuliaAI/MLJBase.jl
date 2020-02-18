@@ -579,7 +579,7 @@ function evaluate!(mach::Machine, resampling, weights,
         return ret
     end
 
-    measurements_flat = if acceleration isa CPUProcesses
+    if acceleration isa CPUProcesses
         ## TODO: progress meter for distributed case
         if verbosity > 0
             @info "Distributing cross-validation computation " *

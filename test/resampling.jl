@@ -1,11 +1,11 @@
-module TestResampling
+#module TestResampling
 
 using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
-using ..TestUtilities
+using .TestUtilities
 
 @everywhere begin
-    using ..Models
+    using .Models
     import Random.seed!
     seed!(1234)
 end
@@ -48,7 +48,7 @@ import StatsBase
                             predict, override)
 end
 
-@testset_accelerated "folds specified" accel (exclude=[CPUProcesses],) begin
+@testset_accelerated "folds specified" accel (exclude=[CPUThreads],) begin
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
@@ -76,16 +76,14 @@ end
 
     v = [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    # XXX Please fix these tests as they are currently non-deterministic
-
-    # @test result.per_fold[1] ≈ v
-    # @test result.per_fold[2] ≈ v
-    # @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
-    # @test ismissing(result.per_observation[1])
-    # @test result.per_observation[2][1] ≈ [1/2, 1/2]
-    # @test result.per_observation[2][2] ≈ [3/4, 3/4]
-    # @test result.measurement[1] ≈ mean(v)
-    # @test result.measurement[2] ≈ mean(v)
+    @test result.per_fold[1] ≈ v
+    @test result.per_fold[2] ≈ v
+    @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
+    @test ismissing(result.per_observation[1])
+    @test result.per_observation[2][1] ≈ [1/2, 1/2]
+    @test result.per_observation[2][2] ≈ [3/4, 3/4]
+    @test result.measurement[1] ≈ mean(v)
+    @test result.measurement[2] ≈ mean(v)
 end
 
 @testset "repeated resampling" begin
@@ -147,7 +145,7 @@ end
                           acceleration=accel).measurement[1]
 end
 
-@testset_accelerated "cv" accel begin
+@testset_accelerated "cv" accel (exclude=[CPUThreads],) begin
     x1 = ones(10)
     x2 = ones(10)
     X = (x1=x1, x2=x2)
@@ -160,8 +158,7 @@ end
     result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
                        acceleration=accel)
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
+    @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
 
     shuffled = evaluate!(mach, resampling=CV(shuffle=true),
                           acceleration=accel) # using rms default
@@ -201,7 +198,7 @@ end
     @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
 end
 
-@testset_accelerated "sample weights in evaluation" accel begin
+@testset_accelerated "sample weights in evaluation" accel (exclude=[CPUThreads],) begin
     # cv:
     x1 = ones(4)
     x2 = ones(4)
@@ -214,11 +211,10 @@ end
     e = evaluate!(mach, resampling=cv, measure=l1,
                   weights=w, verbosity=0, acceleration=accel).measurement[1]
 
-    # XXX Please fix this as currently non-deterministic
-    # @test e ≈ (1/3 + 13/14)/2
+    @test e ≈ (1/3 + 13/14)/2
 end
 
-@testset_accelerated "resampler as machine" accel (exclude=[CPUProcesses],) begin
+@testset_accelerated "resampler as machine" accel begin
     N = 50
     X = (x1=rand(N), x2=rand(N), x3=rand(N))
     y = X.x1 -2X.x2 + 0.05*rand(N)
@@ -273,7 +269,7 @@ struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
     @test e.measurement[1] ≈ 1.0
 end
 
-@testset_accelerated "sample weights in training and evaluation" accel begin
+@testset_accelerated "sample weights in training and evaluation" accel (exclude=[CPUThreads],) begin
     yraw = ["Perry", "Antonia", "Perry", "Antonia", "Skater"]
     X = (x=rand(5),)
     y = categorical(yraw)
@@ -334,8 +330,7 @@ end
                    operation=predict_mode,
                    rows=rows, acceleration=accel)
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test e1.per_fold ≈ e2.per_fold
+    @test e1.per_fold ≈ e2.per_fold
 
     # resampler as machine with evaluation weights not specified:
     resampler = Resampler(model=model, resampling=CV();
@@ -349,8 +344,7 @@ end
                    measure=misclassification_rate,
                    operation=predict_mode, acceleration=accel).measurement[1]
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test e1 ≈ e2
+    @test e1 ≈ e2
 
     # resampler as machine with evaluation weights specified:
     weval = rand(3N);
@@ -368,8 +362,8 @@ end
                    weights=weval, acceleration=accel).measurement[1]
 
     # XXX Please fix this test as currently non-deterministic
-    # @test e1 ≈ e2
+    @test e1 ≈ e2
 end
 
-end
+#end
 true
