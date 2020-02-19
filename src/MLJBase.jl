@@ -28,6 +28,9 @@ using Distributed
 using ComputationalResources
 using ComputationalResources: CPUProcesses
 using ProgressMeter
+@static if VERSION >= v"1.3.0-DEV.573"
+    import .Threads
+end
 
 # Operations & extensions
 import LossFunctions

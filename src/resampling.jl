@@ -291,8 +291,19 @@ function Base.show(io::IO, e::PerformanceEvaluation)
     print(io, "PerformanceEvaluation$summary")
 end
 
-
+# ===============================================================
 ## EVALUATION METHODS
+
+# ---------------------------------------------------------------
+# Helpers
+
+function actual_rows(rows, N, verbosity)
+    unspecified_rows = (rows === nothing)
+    _rows = unspecified_rows ? (1:N) : rows
+    unspecified_rows ||
+        @info "Creating subsamples from a subset of all rows. "
+    return _rows
+end
 
 function _check_measure(model, measure, y, operation, override)
 
@@ -376,6 +387,9 @@ function _process_weights_measures(weights, measures, mach,
     return _weights, _measures
 
 end
+
+# --------------------------------------------------------------
+# User interface points: `evaluate!` and `evaluate`
 
 """
     evaluate!(mach,
@@ -517,13 +531,16 @@ See the machine version `evaluate!` for the complete list of options.
 evaluate(model::Supervised, args...; kwargs...) =
     evaluate!(machine(model, args...); kwargs...)
 
-const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
-const TrainTestPair = Tuple{AbstractRow,AbstractRow}
-const TrainTestPairs = AbstractVector{<:TrainTestPair}
+# --------------------------------------------------------------
+# Resource-specific methods to distribute a function over
+# processes/threads.
 
-function _evaluate!(func, ::CPU1, nfolds, channel)
+# Here `func` is always going to be `get_measurements`; see later
+
+# machines has only one element:
+function _evaluate!(func, machines, ::CPU1, nfolds, channel)
     generator = (begin
-                     r = func(k)
+                     r = func(machines[1], k)
                      put!(channel, true)
                      r
                  end for k in 1:nfolds)
@@ -531,28 +548,46 @@ function _evaluate!(func, ::CPU1, nfolds, channel)
     put!(channel, false)
     return ret
 end
-function _evaluate!(func, ::CPUProcesses, nfolds, channel)
+
+# machines has only one element:
+function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel)
     ret =  @distributed vcat for k in 1:nfolds
-        r = func(k)
+        r = func(machines[1], k)
         put!(channel, true)
         r
     end
     put!(channel, false)
     return ret
 end
+
 @static if VERSION >= v"1.3.0-DEV.573"
-    function _evaluate!(func, ::CPUThreads, nfolds, channel)
-        task_vec = [Threads.@spawn begin
-                                       r=func(k)
-                                       put!(channel, true)
-                                       r
-                                   end
-                    for k in 1:nfolds]
-        ret = reduce(vcat, fetch.(task_vec))
-        put!(channel, false)
-        return ret
+# one machine for each thread; cycle through available threads:
+function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
+
+    nfolds
+    results = Vector{Any}(undef, nfolds)
+    nthreads = Threads.nthreads()
+    j = 0
+    while j < nfolds
+        Δj = min(nthreads, nfolds - j)
+        Threads.@threads for k in (j + 1):(j + Δj)
+            id = mod(k - 1, nthreads) + 1
+            results[k] = func(machines[id], k)
+            put!(channel, true)
+        end
+        j += Δj
     end
+    put!(channel, false)
+    return reduce(vcat, results)
 end
+end
+
+# ------------------------------------------------------------
+# Core `evaluation` method, operating on train-test pairs
+
+const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
+const TrainTestPair = Tuple{AbstractRow,AbstractRow}
+const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
@@ -573,6 +608,13 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
+    machines = [mach,]
+    @static if VERSION >= v"1.3.0-DEV.573"
+        clones = [machine(mach.model, mach.args...)
+                  for i in 1:(Threads.nthreads() - 1)]
+        append!(machines, clones)
+    end
+
     # set up progress meter and a remote channel for communication
     p = Progress(nfolds,
                  dt=0,
@@ -582,7 +624,7 @@ function evaluate!(mach::Machine, resampling, weights,
                  color=:yellow)
     channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
 
-    function get_measurements(k)
+    function get_measurements(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
         Xtest = selectrows(X, test)
@@ -613,6 +655,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
         @async global measurements_flat =
             _evaluate!(get_measurements,
+                       machines,
                        acceleration,
                        nfolds,
                        channel)
@@ -659,14 +702,9 @@ function evaluate!(mach::Machine, resampling, weights,
 
 end
 
-function actual_rows(rows, N, verbosity)
-    unspecified_rows = (rows === nothing)
-    _rows = unspecified_rows ? (1:N) : rows
-    unspecified_rows || @info "Creating subsamples from a subset of all rows. "
-    return _rows
-end
+# ----------------------------------------------------------------
+# Evaluation when `resampling` is a ResamplingStrategy
 
-# Evaluation when resampling is a ResamplingStrategy:
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
                    weights, rows, verbosity, repeats, args...)
 
@@ -683,7 +721,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
 
 end
 
-
+# ====================================================================
 ## RESAMPLER - A MODEL WRAPPER WITH `evaluate` OPERATION
 
 """

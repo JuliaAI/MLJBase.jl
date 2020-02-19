@@ -16,37 +16,45 @@ using Test
 using MLJBase
 import Distributions
 import StatsBase
-
-@testset_accelerated "dispatch of resources and progress meter" accel begin
-    
-    @everywhere begin
-        nfolds = 6
-        nmeasures = 2
-        func(k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
-    end
-
-    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
-    p = Progress(nfolds, dt=0)
-        
-    @sync begin
-        
-        # printing the progress bar
-        @async while take!(channel)
-            next!(p)
-        end
-        
-        @async begin
-            global result =
-                MLJBase._evaluate!(func, accel, nfolds, channel)
-        end
-    end
-    
-    @test result ==
-        [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
-    
-    close(channel)
-
+@static if VERSION >= v"1.3.0-DEV.573"
+    using .Threads
 end
+
+# @testset_accelerated "dispatch of resources and progress meter" accel begin
+
+#     @everywhere begin
+#         nfolds = 6
+#         nmeasures = 2
+#         func(mach, k) = (sleep(0.01*rand()); fill(1:(k - mach), nmeasures))
+#     end
+                         
+#     machines = [0,]
+#     @static if VERSION >= v"1.3.0-DEV.573"
+#         append!(machines, fill(0, nthreads() - 1))
+#     end                     
+                                                  
+#     channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+#     p = Progress(nfolds, dt=0)
+        
+#     @sync begin
+        
+#         # printing the progress bar
+#         @async while take!(channel)
+#             next!(p)
+#         end
+        
+#         @async begin
+#             global result =
+#                 MLJBase._evaluate!(func, machines, accel, nfolds, channel)
+#         end
+#     end
+
+#     @test result ==
+#         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
+    
+#     close(channel)
+
+# end
 
 
 # @test CV(nfolds=6) == CV(nfolds=6)
@@ -82,7 +90,7 @@ end
 #                             predict, override)
 # end
 
-@testset_accelerated "folds specified" accel (exclude=[CPUThreads],) begin
+@testset_accelerated "folds specified" accel begin
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
@@ -180,7 +188,7 @@ end
 #                           acceleration=accel).measurement[1]
 # end
 
-@testset_accelerated "cv" accel (exclude=[CPUThreads],) begin
+@testset_accelerated "cv" accel begin
     x1 = ones(10)
     x2 = ones(10)
     X = (x1=x1, x2=x2)
@@ -233,7 +241,7 @@ end
 #     @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
 # end
 
-@testset_accelerated "sample weights in evaluation" accel (exclude=[CPUThreads],) begin
+@testset_accelerated "sample weights in evaluation" accel begin
     # cv:
     x1 = ones(4)
     x2 = ones(4)
@@ -304,7 +312,7 @@ struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
     @test e.measurement[1] ≈ 1.0
 end
 
-@testset_accelerated "sample weights in training and evaluation" accel (exclude=[CPUThreads],) begin
+@testset_accelerated "sample weights in training and evaluation" accel begin
     yraw = ["Perry", "Antonia", "Perry", "Antonia", "Skater"]
     X = (x=rand(5),)
     y = categorical(yraw)
