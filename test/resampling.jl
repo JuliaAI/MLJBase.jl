@@ -1,19 +1,61 @@
-module TestResampling
+#module TestResampling
 
 using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
-using ..TestUtilities
+using .TestUtilities
+using ProgressMeter
 
 @everywhere begin
-    using ..Models
+    using .Models
     import Random.seed!
     seed!(1234)
+    const verb = 0
 end
 
 using Test
 using MLJBase
 import Distributions
 import StatsBase
+@static if VERSION >= v"1.3.0-DEV.573"
+    using .Threads
+end
+
+@testset_accelerated "dispatch of resources and progress meter" accel begin
+
+    X = (x = [1, ],)
+    y = [2.0, ]
+
+    @everywhere begin
+        nfolds = 6
+        nmeasures = 2
+        func(mach, k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
+    end
+                         
+    machines = Dict(1 => machine(ConstantRegressor(), X, y))
+                                                  
+    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+    p = Progress(nfolds, dt=0)
+        
+    @sync begin
+        
+        # printing the progress bar
+        t1 = @async while take!(channel)
+            next!(p)
+        end
+        
+        t2 = @async begin
+            global result =
+                MLJBase._evaluate!(func, machines, accel, nfolds, channel)
+        end
+    end
+
+    @test result ==
+        [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
+    
+    close(channel)
+
+end
+
 
 @test CV(nfolds=6) == CV(nfolds=6)
 @test CV(nfolds=5) != CV(nfolds=6)
@@ -48,7 +90,7 @@ import StatsBase
                             predict, override)
 end
 
-@testset_accelerated "folds specified" accel (exclude=[CPUProcesses],) begin
+@testset_accelerated "folds specified" accel begin
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
@@ -70,22 +112,21 @@ end
     # check detection of incompatible measure (cross_entropy):
     @test_throws ArgumentError evaluate!(mach, resampling=resampling,
                                          measure=[cross_entropy, rmslp1],
+                                         verbosity=verb,
                                          acceleration=accel)
-    result = evaluate!(mach, resampling=resampling,
+    result = evaluate!(mach, resampling=resampling, verbosity=verb,
                        measure=[my_rms, my_mav, rmslp1], acceleration=accel)
 
     v = [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    # XXX Please fix these tests as they are currently non-deterministic
-
-    # @test result.per_fold[1] ≈ v
-    # @test result.per_fold[2] ≈ v
-    # @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
-    # @test ismissing(result.per_observation[1])
-    # @test result.per_observation[2][1] ≈ [1/2, 1/2]
-    # @test result.per_observation[2][2] ≈ [3/4, 3/4]
-    # @test result.measurement[1] ≈ mean(v)
-    # @test result.measurement[2] ≈ mean(v)
+    @test result.per_fold[1] ≈ v
+    @test result.per_fold[2] ≈ v
+    @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
+    @test ismissing(result.per_observation[1])
+    @test result.per_observation[2][1] ≈ [1/2, 1/2]
+    @test result.per_observation[2][2] ≈ [3/4, 3/4]
+    @test result.measurement[1] ≈ mean(v)
+    @test result.measurement[2] ≈ mean(v)
 end
 
 @testset "repeated resampling" begin
@@ -97,7 +138,7 @@ end
     holdout = Holdout(fraction_train=0.75, rng=123)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=holdout,
+    result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
     @test unique(per_fold) |> length == 6
@@ -106,7 +147,7 @@ end
     cv = CV(nfolds=3, rng=123)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=cv,
+    result = evaluate!(mach, resampling=cv, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
     @test unique(per_fold) |> length == 18
@@ -123,26 +164,26 @@ end
     holdout = Holdout(fraction_train=0.75)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=holdout,
+    result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], acceleration=accel)
-    result = evaluate!(mach, verbosity=0, resampling=holdout,
+    result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        acceleration=accel)
     result.measurement[1] ≈ 2/3
 
     # test direct evaluation of a model + data:
-    result = evaluate(model, X, y, verbosity=0,
+    result = evaluate(model, X, y, verbosity=1,
                       resampling=holdout, measure=rms)
     @test result.measurement[1] ≈ 2/3
 
     X = (x=rand(100),)
     y = rand(100)
     mach = machine(model, X, y)
-    evaluate!(mach, verbosity=0,
+    evaluate!(mach, verbosity=verb, 
               resampling=Holdout(shuffle=true, rng=123), acceleration=accel)
-    e1 = evaluate!(mach, verbosity=0,
+    e1 = evaluate!(mach, verbosity=verb,
                    resampling=Holdout(shuffle=true),
                    acceleration=accel).measurement[1]
-    @test e1 != evaluate!(mach, verbosity=0,
+    @test e1 != evaluate!(mach, verbosity=verb,
                           resampling=Holdout(),
                           acceleration=accel).measurement[1]
 end
@@ -158,12 +199,11 @@ end
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
-                       acceleration=accel)
+                       acceleration=accel, verbosity=verb)
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
+    @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    shuffled = evaluate!(mach, resampling=CV(shuffle=true),
+    shuffled = evaluate!(mach, resampling=CV(shuffle=true), verbosity=verb,
                           acceleration=accel) # using rms default
     @test shuffled.measurement[1] != result.measurement[1]
 end
@@ -211,14 +251,13 @@ end
     cv=CV(nfolds=2)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
-    e = evaluate!(mach, resampling=cv, measure=l1,
-                  weights=w, verbosity=0, acceleration=accel).measurement[1]
+    e = evaluate!(mach, resampling=cv, measure=l1, 
+                  weights=w, verbosity=verb, acceleration=accel).measurement[1]
 
-    # XXX Please fix this as currently non-deterministic
-    # @test e ≈ (1/3 + 13/14)/2
+    @test e ≈ (1/3 + 13/14)/2
 end
 
-@testset_accelerated "resampler as machine" accel (exclude=[CPUProcesses],) begin
+@testset_accelerated "resampler as machine" accel begin
     N = 50
     X = (x1=rand(N), x2=rand(N), x3=rand(N))
     y = X.x1 -2X.x2 + 0.05*rand(N)
@@ -231,14 +270,14 @@ end
     e1=evaluate(resampling_machine).measurement[1]
     mach = machine(ridge_model, X, y)
     @test e1 ≈  evaluate!(mach, resampling=holdout,
-                          measure=mav, verbosity=0,
+                          measure=mav, verbosity=verb,
                           acceleration=accel).measurement[1]
     ridge_model.lambda=1.0
     fit!(resampling_machine, verbosity=2)
     e2=evaluate(resampling_machine).measurement[1]
     @test e1 != e2
     resampler.weights = rand(N)
-    fit!(resampling_machine, verbosity=0)
+    fit!(resampling_machine, verbosity=verb)
     e3=evaluate(resampling_machine).measurement[1]
     @test e3 != e2
 
@@ -283,33 +322,35 @@ end
     mach = machine(ConstantClassifier(), X, y)
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel)
+                  acceleration=accel, verbosity=verb)
     @test e.measurement[1] ≈ 1.0
 
     # with weights in training and evaluation:
     mach = machine(ConstantClassifier(), X, y, w)
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel)
+                  acceleration=accel, verbosity=verb)
     @test e.measurement[1] ≈ 1/3
 
     # with weights in training but overriden in evaluation:
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
-                  weights = fill(1, 5), acceleration=accel)
+                  weights = fill(1, 5), acceleration=accel, verbosity=verb)
     @test e.measurement[1] ≈ 1/2
 
     @test_throws(DimensionMismatch,
                  evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                            operation=predict_mode,
                            measure=misclassification_rate,
-                           weights = fill(1, 100), acceleration=accel))
+                           weights = fill(1, 100), acceleration=accel,
+                           verbosity=verb))
 
     @test_throws(ArgumentError,
                  evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                            operation=predict_mode,
                            measure=misclassification_rate,
-                           weights = fill('a', 5), acceleration=accel))
+                           weights = fill('a', 5), acceleration=accel,
+                           verbosity=verb))
 
     # resampling on a subset of all rows:
     model = @load KNNClassifier
@@ -326,16 +367,15 @@ end
     mach1 = machine(model, Xsmall, ysmall, wsmall)
     e1 = evaluate!(mach1, resampling=CV(),
                    measure=misclassification_rate,
-                   operation=predict_mode, acceleration=accel)
+                   operation=predict_mode, acceleration=accel, verbosity=verb)
 
     mach2 = machine(model, X, y, w)
     e2 = evaluate!(mach2, resampling=CV(),
                    measure=misclassification_rate,
                    operation=predict_mode,
-                   rows=rows, acceleration=accel)
+                   rows=rows, acceleration=accel, verbosity=verb)
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test e1.per_fold ≈ e2.per_fold
+    @test e1.per_fold ≈ e2.per_fold
 
     # resampler as machine with evaluation weights not specified:
     resampler = Resampler(model=model, resampling=CV();
@@ -347,10 +387,10 @@ end
     mach = machine(model, X, y, w)
     e2 = evaluate!(mach, resampling=CV();
                    measure=misclassification_rate,
-                   operation=predict_mode, acceleration=accel).measurement[1]
+                   operation=predict_mode,
+                   acceleration=accel, verbosity=verb).measurement[1]
 
-    # XXX Please fix these tests as they are currently non-deterministic
-    # @test e1 ≈ e2
+    @test e1 ≈ e2
 
     # resampler as machine with evaluation weights specified:
     weval = rand(3N);
@@ -363,13 +403,13 @@ end
     e1   = evaluate(resampling_machine).measurement[1]
     mach = machine(model, X, y, w)
     e2   = evaluate!(mach, resampling=CV();
-                   measure=misclassification_rate,
-                   operation=predict_mode,
-                   weights=weval, acceleration=accel).measurement[1]
+                     measure=misclassification_rate,
+                     operation=predict_mode,
+                     weights=weval,
+                     acceleration=accel, verbosity=verb).measurement[1]
 
-    # XXX Please fix this test as currently non-deterministic
-    # @test e1 ≈ e2
+    @test e1 ≈ e2
 end
 
-end
+#end
 true

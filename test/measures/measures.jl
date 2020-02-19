@@ -69,6 +69,7 @@ end
 include("continuous.jl")
 include("finite.jl")
 include("loss_functions_interface.jl")
+include("confusion_matrix.jl")
 
 end
 true
