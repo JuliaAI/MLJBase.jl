@@ -1,3 +1,4 @@
+# ==================================================================
 ## RESAMPLING STRATEGIES
 
 abstract type ResamplingStrategy <: MLJType end
@@ -9,14 +10,13 @@ function ==(s1::S, s2::S) where S <: ResamplingStrategy
     return all(getfield(s1, fld) == getfield(s2, fld) for fld in fieldnames(S))
 end
 
-# fallbacks:
+# fallbacks for method to be implemented by each new strategy:
 train_test_pairs(s::ResamplingStrategy, rows, X, y, w) =
     train_test_pairs(s, rows, X, y)
 train_test_pairs(s::ResamplingStrategy, rows, X, y) =
     train_test_pairs(s, rows, y)
 train_test_pairs(s::ResamplingStrategy, rows, y) =
     train_test_pairs(s, rows)
-
 
 # Helper to interpret rng, shuffle in case either is `nothing` or if
 # `rng` is an integer:
@@ -35,6 +35,9 @@ function shuffle_and_rng(shuffle, rng)
 
     return shuffle, rng
 end
+
+# ----------------------------------------------------------------
+# Holdout
 
 """
     holdout = Holdout(; fraction_train=0.7,
@@ -83,6 +86,8 @@ function train_test_pairs(holdout::Holdout, rows)
 
 end
 
+# ----------------------------------------------------------------
+# Cross-validation (vanilla)
 
 """
     cv = CV(; nfolds=6,  shuffle=nothing, rng=nothing)
@@ -153,6 +158,9 @@ function train_test_pairs(cv::CV, rows)
 
     return ret
 end
+
+# ----------------------------------------------------------------
+# Cross-validation (stratified; for `Finite` targets)
 
 """
     stratified_cv = StratifiedCV(; nfolds=6,
@@ -265,8 +273,8 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 
 end
 
-
-## EVALUATION TYPE
+# ================================================================
+## EVALUATION RESULT TYPE
 
 const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
                                :per_fold, :per_observation)}
@@ -291,8 +299,19 @@ function Base.show(io::IO, e::PerformanceEvaluation)
     print(io, "PerformanceEvaluation$summary")
 end
 
-
+# ===============================================================
 ## EVALUATION METHODS
+
+# ---------------------------------------------------------------
+# Helpers
+
+function actual_rows(rows, N, verbosity)
+    unspecified_rows = (rows === nothing)
+    _rows = unspecified_rows ? (1:N) : rows
+    unspecified_rows ||
+        @info "Creating subsamples from a subset of all rows. "
+    return _rows
+end
 
 function _check_measure(model, measure, y, operation, override)
 
@@ -376,6 +395,9 @@ function _process_weights_measures(weights, measures, mach,
     return _weights, _measures
 
 end
+
+# --------------------------------------------------------------
+# User interface points: `evaluate!` and `evaluate`
 
 """
     evaluate!(mach,
@@ -517,30 +539,65 @@ See the machine version `evaluate!` for the complete list of options.
 evaluate(model::Supervised, args...; kwargs...) =
     evaluate!(machine(model, args...); kwargs...)
 
+# -------------------------------------------------------------------
+# Resource-specific methods to distribute a function parameterized by
+# fold number `k` over processes/threads.
+
+# Here `func` is always going to be `get_measurements`; see later
+
+# machines has only one element:
+function _evaluate!(func, machines, ::CPU1, nfolds, channel)
+    generator = (begin
+                     r = func(machines[1], k)
+                     put!(channel, true)
+                     r
+                 end for k in 1:nfolds)
+    ret = reduce(vcat, generator)
+    put!(channel, false)
+    return ret
+end
+
+# machines has only one element:
+function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel)
+    ret =  @distributed vcat for k in 1:nfolds
+        r = func(machines[1], k)
+        put!(channel, true)
+        r
+    end
+    put!(channel, false)
+    return ret
+end
+
+@static if VERSION >= v"1.3.0-DEV.573"
+# one machine for each thread; cycle through available threads:
+function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
+    nthreads = Threads.nthreads()
+    tasks = map(1:nfolds) do k
+        Threads.@spawn begin
+            id = Threads.threadid()
+            if !haskey(machines, id)
+                machines[id] =
+                    machine(machines[1].model, machines[1].args...)
+            end
+            r = func(machines[id], k)
+            put!(channel, true)
+            r
+        end
+    end
+    ret = reduce(vcat, fetch.(tasks))
+    put!(channel, false)
+    return ret
+end
+end
+
+# ------------------------------------------------------------
+# Core `evaluation` method, operating on train-test pairs
+
 const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
-function _evaluate!(func::Function, res::CPU1, nfolds, verbosity)
-    p = Progress(nfolds + 1, dt=0, desc="Evaluating over $nfolds folds: ",
-                 barglyphs=BarGlyphs("[=> ]"), barlen=25, color=:yellow)
-    verbosity > 0 && next!(p)
-    return reduce(vcat, (func(k, p, verbosity) for k in 1:nfolds))
-end
-function _evaluate!(func::Function, res::CPUProcesses, nfolds, verbosity)
-    # TODO: use pmap here ?:
-    return @distributed vcat for k in 1:nfolds
-        func(k)
-    end
-end
-@static if VERSION >= v"1.3.0-DEV.573"
-    function _evaluate!(func::Function, res::CPUThreads, nfolds, verbosity)
-        task_vec = [Threads.@spawn func(k) for k in 1:nfolds]
-        return reduce(vcat, fetch.(task_vec))
-    end
-end
-
-# Evaluation when resampling is a TrainTestPairs (core evaluator):
+# Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
                    measures, operation, acceleration, force)
@@ -559,7 +616,21 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
-    function get_measurements(k)
+    # For multithreading we need a clone of `mach` for each thread
+    # doing work. These are instantiated as needed except for
+    # threadid=1.
+    machines = Dict(1 => mach)
+
+    # set up progress meter and a remote channel for communication
+    p = Progress(nfolds,
+                 dt=0,
+                 desc="Evaluating over $nfolds folds: ",
+                 barglyphs=BarGlyphs("[=> ]"),
+                 barlen=25,
+                 color=:yellow)
+    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+
+    function get_measurements(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
         Xtest = selectrows(X, test)
@@ -572,22 +643,31 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-    end
-    function get_measurements(k, p, verbosity) # p = progress meter
-        ret = get_measurements(k)
-        verbosity > 0 && next!(p)
-        return ret
+        put!(channel, true)
     end
 
-    measurements_flat = if acceleration isa CPUProcesses
-        ## TODO: progress meter for distributed case
+    if acceleration isa CPUProcesses
         if verbosity > 0
-            @info "Distributing cross-validation computation " *
+            @info "Distributing evaluations " *
                   "among $(nworkers()) workers."
         end
     end
-    measurements_flat =
-        _evaluate!(get_measurements, acceleration, nfolds, verbosity)
+
+    @sync begin
+        # printing the progress bar
+        @async while take!(channel)
+            verbosity < 1 || next!(p)
+        end
+
+        @async global measurements_flat =
+            _evaluate!(get_measurements,
+                       machines,
+                       acceleration,
+                       nfolds,
+                       channel)
+    end
+
+    close(channel)
 
     # in the following rows=folds, columns=measures:
     measurements_matrix = permutedims(
@@ -628,14 +708,9 @@ function evaluate!(mach::Machine, resampling, weights,
 
 end
 
-function actual_rows(rows, N, verbosity)
-    unspecified_rows = (rows === nothing)
-    _rows = unspecified_rows ? (1:N) : rows
-    unspecified_rows || @info "Creating subsamples from a subset of all rows. "
-    return _rows
-end
+# ----------------------------------------------------------------
+# Evaluation when `resampling` is a ResamplingStrategy
 
-# Evaluation when resampling is a ResamplingStrategy:
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
                    weights, rows, verbosity, repeats, args...)
 
@@ -652,7 +727,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
 
 end
 
-
+# ====================================================================
 ## RESAMPLER - A MODEL WRAPPER WITH `evaluate` OPERATION
 
 """
@@ -751,14 +826,20 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
 end
 
-# in special case of holdout, we can reuse the underlying model's
-# machine, provided the training_fraction has not changed:
+# in special case of non-shuffled, non-repeated holdout, we can reuse
+# the underlying model's machine, provided the training_fraction has
+# not changed:
 function MLJBase.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
     old_mach, old_resampling = cache
 
-    if old_resampling.fraction_train == resampler.resampling.fraction_train
+    reusable = !resampler.resampling.shuffle &&
+        resampler.repeats == 1 &&
+        old_resampling.fraction_train ==
+        resampler.resampling.fraction_train 
+
+    if reusable
         mach = old_mach
     else
         mach = machine(resampler.model, args...)

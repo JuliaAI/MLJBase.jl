@@ -1,5 +1,13 @@
 using Distributed
-addprocs(2)
+addprocs()
+
+@info "nprocs() = $(nprocs())"
+@static if VERSION >= v"1.3.0-DEV.573"
+    import .Threads
+    @info "nthreads() = $(Threads.nthreads())"
+else
+    @info "Running julia $(VERSION). Multithreading tests excluded. "
+end
 
 @everywhere begin
     using MLJModelInterface

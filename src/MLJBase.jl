@@ -28,6 +28,7 @@ using Distributed
 using ComputationalResources
 using ComputationalResources: CPUProcesses
 using ProgressMeter
+import .Threads
 
 # Operations & extensions
 import LossFunctions
