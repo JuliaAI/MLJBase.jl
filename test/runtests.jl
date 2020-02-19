@@ -1,5 +1,5 @@
 using Distributed
-addprocs(5)
+addprocs(4)
 
 @everywhere begin
     using MLJModelInterface

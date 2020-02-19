@@ -521,26 +521,40 @@ const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
-function _evaluate!(func::Function, res::CPU1, nfolds, verbosity)
-    p = Progress(nfolds + 1, dt=0, desc="Evaluating over $nfolds folds: ",
-                 barglyphs=BarGlyphs("[=> ]"), barlen=25, color=:yellow)
-    verbosity > 0 && next!(p)
-    return reduce(vcat, (func(k, p, verbosity) for k in 1:nfolds))
+function _evaluate!(func, ::CPU1, nfolds, channel)
+    generator = (begin
+                     r = func(k)
+                     put!(channel, true)
+                     r
+                 end for k in 1:nfolds)
+    ret = reduce(vcat, generator)
+    put!(channel, false)
+    return ret
 end
-function _evaluate!(func::Function, res::CPUProcesses, nfolds, verbosity)
-    # TODO: use pmap here ?:
-    return @distributed vcat for k in 1:nfolds
-        func(k)
+function _evaluate!(func, ::CPUProcesses, nfolds, channel)
+    ret =  @distributed vcat for k in 1:nfolds
+        r = func(k)
+        put!(channel, true)
+        r
     end
+    put!(channel, false)
+    return ret
 end
 @static if VERSION >= v"1.3.0-DEV.573"
-    function _evaluate!(func::Function, res::CPUThreads, nfolds, verbosity)
-        task_vec = [Threads.@spawn func(k) for k in 1:nfolds]
-        return reduce(vcat, fetch.(task_vec))
+    function _evaluate!(func, ::CPUThreads, nfolds, channel)
+        task_vec = [Threads.@spawn begin
+                                       r=func(k)
+                                       put!(channel, true)
+                                       r
+                                   end
+                    for k in 1:nfolds]
+        ret = reduce(vcat, fetch.(task_vec))
+        put!(channel, false)
+        return ret
     end
 end
 
-# Evaluation when resampling is a TrainTestPairs (core evaluator):
+# Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
                    measures, operation, acceleration, force)
@@ -559,6 +573,15 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
+    # set up progress meter and a remote channel for communication
+    p = Progress(nfolds,
+                 dt=0,
+                 desc="Evaluating over a total of $nfolds folds: ",
+                 barglyphs=BarGlyphs("[=> ]"),
+                 barlen=25,
+                 color=:yellow)
+    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+
     function get_measurements(k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
@@ -572,22 +595,30 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-    end
-    function get_measurements(k, p, verbosity) # p = progress meter
-        ret = get_measurements(k)
-        verbosity > 0 && next!(p)
-        return ret
+        put!(channel, true)
     end
 
     if acceleration isa CPUProcesses
-        ## TODO: progress meter for distributed case
         if verbosity > 0
             @info "Distributing cross-validation computation " *
                   "among $(nworkers()) workers."
         end
     end
-    measurements_flat =
-        _evaluate!(get_measurements, acceleration, nfolds, verbosity)
+
+    @sync begin
+        # printing the progress bar
+        @async while take!(channel)
+            verbosity < 1 || next!(p)
+        end
+
+        @async global measurements_flat =
+            _evaluate!(get_measurements,
+                       acceleration,
+                       nfolds,
+                       channel)
+    end
+
+    close(channel)
 
     # in the following rows=folds, columns=measures:
     measurements_matrix = permutedims(

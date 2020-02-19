@@ -25,15 +25,15 @@ function testset_accelerated(name::String, var, ex; exclude=[])
     for res in resources
         if any(x->typeof(res)<:x, exclude)
             push!(final_ex.args, quote
-                $var = $res
-                @testset $(name*" (accelerated with $(typeof(res).name))") begin
-                    @test_broken false
-                end
+               $var = $res
+               @testset $(name*" (accelerated with $(typeof(res).name))") begin
+                   @test_broken false
+               end
             end)
         else
             push!(final_ex.args, quote
-                $var = $res
-                @testset $(name*" (accelerated with $(typeof(res).name))") $ex
+               $var = $res
+               @testset $(name*" (accelerated with $(typeof(res).name))") $ex
             end)
         end
     end
