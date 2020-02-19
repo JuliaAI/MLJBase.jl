@@ -1,5 +1,7 @@
 using Distributed
-addprocs(4)
+addprocs()
+
+@info "nprocs() = $(nprocs())"
 
 @everywhere begin
     using MLJModelInterface
