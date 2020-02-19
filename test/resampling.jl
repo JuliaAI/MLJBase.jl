@@ -22,16 +22,16 @@ end
 
 @testset_accelerated "dispatch of resources and progress meter" accel begin
 
+    X = (x = [1, ],)
+    y = [2.0, ]
+
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = (sleep(0.01*rand()); fill(1:(k - mach), nmeasures))
+        func(mach, k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
     end
                          
-    machines = [0,]
-    @static if VERSION >= v"1.3.0-DEV.573"
-        append!(machines, fill(0, nthreads() - 1))
-    end                     
+    machines = Dict(1 => machine(ConstantRegressor(), X, y))
                                                   
     channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
     p = Progress(nfolds, dt=0)
@@ -39,11 +39,11 @@ end
     @sync begin
         
         # printing the progress bar
-        @async while take!(channel)
+        t1 = @async while take!(channel)
             next!(p)
         end
         
-        @async begin
+        t2 = @async begin
             global result =
                 MLJBase._evaluate!(func, machines, accel, nfolds, channel)
         end

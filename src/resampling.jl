@@ -1,3 +1,4 @@
+# ==================================================================
 ## RESAMPLING STRATEGIES
 
 abstract type ResamplingStrategy <: MLJType end
@@ -9,14 +10,13 @@ function ==(s1::S, s2::S) where S <: ResamplingStrategy
     return all(getfield(s1, fld) == getfield(s2, fld) for fld in fieldnames(S))
 end
 
-# fallbacks:
+# fallbacks for method to be implemented by each new strategy:
 train_test_pairs(s::ResamplingStrategy, rows, X, y, w) =
     train_test_pairs(s, rows, X, y)
 train_test_pairs(s::ResamplingStrategy, rows, X, y) =
     train_test_pairs(s, rows, y)
 train_test_pairs(s::ResamplingStrategy, rows, y) =
     train_test_pairs(s, rows)
-
 
 # Helper to interpret rng, shuffle in case either is `nothing` or if
 # `rng` is an integer:
@@ -35,6 +35,9 @@ function shuffle_and_rng(shuffle, rng)
 
     return shuffle, rng
 end
+
+# ----------------------------------------------------------------
+# Holdout
 
 """
     holdout = Holdout(; fraction_train=0.7,
@@ -83,6 +86,8 @@ function train_test_pairs(holdout::Holdout, rows)
 
 end
 
+# ----------------------------------------------------------------
+# Cross-validation (vanilla)
 
 """
     cv = CV(; nfolds=6,  shuffle=nothing, rng=nothing)
@@ -153,6 +158,9 @@ function train_test_pairs(cv::CV, rows)
 
     return ret
 end
+
+# ----------------------------------------------------------------
+# Cross-validation (stratified; for `Finite` targets)
 
 """
     stratified_cv = StratifiedCV(; nfolds=6,
@@ -265,8 +273,8 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 
 end
 
-
-## EVALUATION TYPE
+# ================================================================
+## EVALUATION RESULT TYPE
 
 const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
                                :per_fold, :per_observation)}
@@ -531,9 +539,9 @@ See the machine version `evaluate!` for the complete list of options.
 evaluate(model::Supervised, args...; kwargs...) =
     evaluate!(machine(model, args...); kwargs...)
 
-# --------------------------------------------------------------
-# Resource-specific methods to distribute a function over
-# processes/threads.
+# -------------------------------------------------------------------
+# Resource-specific methods to distribute a function parameterized by
+# fold number `k` over processes/threads.
 
 # Here `func` is always going to be `get_measurements`; see later
 
@@ -563,22 +571,22 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
-
-    nfolds
-    results = Vector{Any}(undef, nfolds)
     nthreads = Threads.nthreads()
-    j = 0
-    while j < nfolds
-        Δj = min(nthreads, nfolds - j)
-        Threads.@threads for k in (j + 1):(j + Δj)
-            id = mod(k - 1, nthreads) + 1
-            results[k] = func(machines[id], k)
+    tasks = map(1:nfolds) do k
+        Threads.@spawn begin
+            id = Threads.threadid()
+            if !haskey(machines, id)
+                machines[id] =
+                    machine(machines[1].model, machines[1].args...)
+            end
+            r = func(machines[id], k)
             put!(channel, true)
+            r
         end
-        j += Δj
     end
+    ret = reduce(vcat, fetch.(tasks))
     put!(channel, false)
-    return reduce(vcat, results)
+    return ret
 end
 end
 
@@ -608,17 +616,15 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
-    machines = [mach,]
-    @static if VERSION >= v"1.3.0-DEV.573"
-        clones = [machine(mach.model, mach.args...)
-                  for i in 1:(Threads.nthreads() - 1)]
-        append!(machines, clones)
-    end
+    # For multithreading we need a clone of `mach` for each thread
+    # doing work. These are instantiated as needed except for
+    # threadid=1.
+    machines = Dict(1 => mach)
 
     # set up progress meter and a remote channel for communication
     p = Progress(nfolds,
                  dt=0,
-                 desc="Evaluating over a total of $nfolds folds: ",
+                 desc="Evaluating over $nfolds folds: ",
                  barglyphs=BarGlyphs("[=> ]"),
                  barlen=25,
                  color=:yellow)
@@ -642,7 +648,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     if acceleration isa CPUProcesses
         if verbosity > 0
-            @info "Distributing cross-validation computation " *
+            @info "Distributing evaluations " *
                   "among $(nworkers()) workers."
         end
     end
@@ -820,14 +826,20 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
 end
 
-# in special case of holdout, we can reuse the underlying model's
-# machine, provided the training_fraction has not changed:
+# in special case of non-shuffled, non-repeated holdout, we can reuse
+# the underlying model's machine, provided the training_fraction has
+# not changed:
 function MLJBase.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
     old_mach, old_resampling = cache
 
-    if old_resampling.fraction_train == resampler.resampling.fraction_train
+    reusable = !resampler.resampling.shuffle &&
+        resampler.repeats == 1 &&
+        old_resampling.fraction_train ==
+        resampler.resampling.fraction_train 
+
+    if reusable
         mach = old_mach
     else
         mach = machine(resampler.model, args...)
