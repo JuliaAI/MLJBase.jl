@@ -5,7 +5,7 @@ seed!(51803)
     yhat = categorical(collect("asdfaadfaasssdf"))
     w = 1:15
     @test misclassification_rate(yhat, y) ≈ 0.2
-    @test misclassification_rate(yhat, y, w) ≈ 4/15
+    @test misclassification_rate(yhat, y, w) ≈ (6*1 + 11*1 + 15*1) / 15
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
     d1 = UnivariateFinite(L, [0.1, 0.9]) # a
