@@ -50,7 +50,8 @@ scale(r::NominalRange) = :none
 scale(r::NumericRange) = :custom
 scale(r::NumericRange{B,T,Symbol}) where {B<:Boundedness,T} = r.scale
 
-## ITERATORS
+
+## ITERATOR METHOD (FOR GENERATING A 1D GRID)
 
 """
     MLJTuning.iterator(r::NominalRange, [,n, rng])
@@ -61,9 +62,9 @@ In the first case iteration is over all `values` stored in the range
 (or just the first `n`, if `n` is specified). In the second case, the iteration
 is over approximately `n` ordered values, generated as follows:
 
-First, exacltly `n` values are generated between `U` and `L`, with a
-spacing determined by `r.scale`, where `U` and `L` are given by the
-following table:
+First, exactly `n` values are generated between `U` and `L`, with a
+uniform spacing determined by `r.scale`, where `U` and `L` are given
+by the following table:
 
 | `r.lower`   | `r.upper`  | `L`                 | `U`                 |
 |-------------|------------|---------------------|---------------------|
@@ -142,3 +143,49 @@ function iterator(L, U, s, n)
     end
     return inverse_transformed
 end
+
+
+## SAMPLER (FOR RANDOM SAMPLING A 1D RANGE)
+
+struct NumericSampler{T,D<:Distributions.Sampleable} <: MLJType
+    distribution::D
+    NumericSampler(::Type{T}, d::D) where {T,D} = new{T,D}(d)
+end
+
+### Numeric case
+
+struct NumericSampler{T,D<:Distributions.Sampleable} <: MLJType
+    distribution::D
+    NumericSampler(::Type{T}, d::D) where {T,D} = new{T,D}(d)
+end
+
+sampler(r::NumericRange{<:Any,T},
+        d::Distributions.UnivariateDistribution) where T =
+            NumericSampler(T, Distributions.truncated(d, r.lower, r.upper))
+
+# fallback:
+Base.rand(rng::AbstractRNG, s::NumericSampler, dims::Integer...) =
+    rand(rng, s.distribution, dims...)
+
+# round for integer ranges:
+Base.rand(s::Sampler{I}, dims::Integer...) where I<:Integer =
+    map(x -> round(I, x), rand(s.distribution, dims...))
+Base.rand(rng::AbstractRNG, s::Sampler{I}, dims::Integer...) where I<:Integer =
+    map(x -> round(I, x), rand(rng, s.distribution, dims...))
+
+### Nominal case:
+
+struct NominalSampler{T,D<:Distributions.Sampleable} <: MLJType
+    distribution::D
+    values::Vector{T}
+    NumericSampler(::Type{T}, d::D, values) where {T,D} = new{T,D}(d, values)
+end
+
+sampler(r::NominalRange{T},
+        probs::AbstractVector{<:Real}) where T =
+            NominalSampler(T, D.Categorical(probs), r.values)
+
+Base.rand(s::NominalSampler, dims::Integer...) where I<:Integer =
+    broadcast(idx -> s.values[idx], rand(s.distribution, dims...))
+
+

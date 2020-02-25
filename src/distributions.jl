@@ -16,7 +16,6 @@ construct `d`, equal to `get.(classes(d))`.
 """
 levels(d::UnivariateFinite)  = d.decoder.pool.levels
 
-
 # get the internal integer representations of the support
 raw_support(d::UnivariateFinite) =
     sort!(collect(keys(d.prob_given_class)))

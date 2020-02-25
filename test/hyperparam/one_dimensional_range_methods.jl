@@ -3,6 +3,8 @@ module TestOneDimensionalRangeIterators
 using Test
 using MLJBase
 using Random
+import Distributions
+using Statistics
 Random.seed!(123)
 
 mutable struct DummyModel <: Deterministic
@@ -76,5 +78,47 @@ end
 
 end
 
-end
+const D = Distributions
+
+@testset begin "sampler: NumericRange; distr specified"
+
+    @testset  "integers" begin
+        r = range(Int, :dummy, lower=11, upper=13)
+        d = D.Uniform(1, 20)
+        
+        s = sampler(r, d)
+        
+        Random.seed!(1)
+        dict = D.countmap(rand(s, 1000))
+        eleven, twelve, thirteen = map(x -> dict[x], 11:13)
+        @test eleven == 271 && twelve == 486 && thirteen == 243
+        
+        rng = Random.MersenneTwister(1)
+        dict = D.countmap(rand(rng, s, 1000))
+        eleven, twelve, thirteen = map(x -> dict[x], 11:13)
+        @test eleven == 271 && twelve == 486 && thirteen == 243
+    end
+
+    @testset "right-unbounded floats" begin
+        r = range(Float64, :dummy, lower=0.2, upper = Inf,
+                  origin=5, unit=1) # origin and unit not relevant here
+        s = sampler(r, D.Normal())
+
+        Random.seed!(1)
+        v = rand(s, 1000)
+        @test all(x >= 3 for x in v)
+        @test abs(minimum(v)/0.2 - 1) <= 0.01
+
+        rng = Random.MersenneTwister(1)
+        @test rand(rng, s, 1000) == v 
+
+        q = quantile(v, 0.0:0.1:1.0)
+        Random.seed!(1)
+        v2 = filter(x -> x>=0.2, rand(D.Normal(), 3000))[1:1000]
+        q2 = quantile(v2, 0.0:0.1:1.0)
+        @test all(x -> x≈1.0, q ./ q2)
+    end
+
+
+    
 true

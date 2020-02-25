@@ -54,7 +54,8 @@ function abbreviated(n)
     return as_string[1]*"…"*as_string[end-1:end]
 end
 
-"""return abbreviated object id (as string)  or it's registered handle (as string) if this exists"""
+"""return abbreviated object id (as string) or it's registered handle
+(as string) if this exists"""
 function handle(X)
     id = objectid(X)
     if id in keys(HANDLE_GIVEN_ID)
@@ -119,7 +120,6 @@ end
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
-    id = objectid(object)
     repr = simple_repr(typeof(object))
     str = "$repr @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))

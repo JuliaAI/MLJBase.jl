@@ -97,7 +97,7 @@ export default_resource
 export is_same_except
 
 # one_dimensional_ranges.jl:
-export ParamRange, NumericRange, NominalRange, iterator, scale
+export ParamRange, NumericRange, NominalRange, iterator, sampler, scale
 
 # parameter_inspection.jl:
 export params # note this is *not* an extension of StatsBase.params
