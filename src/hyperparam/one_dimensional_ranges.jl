@@ -1,6 +1,6 @@
 ## PARAMETER RANGES
 
-abstract type ParamRange <: MLJType end
+abstract type ParamRange{T} <: MLJType end
 
 Base.isempty(::ParamRange) = false
 
@@ -13,7 +13,7 @@ abstract type   LeftUnbounded <: Unbounded end
 abstract type  RightUnbounded <: Unbounded end
 abstract type DoublyUnbounded <: Unbounded end
 
-struct NumericRange{B<:Boundedness,T,D} <: ParamRange
+struct NumericRange{B<:Boundedness,T,D} <: ParamRange{T}
     field::Union{Symbol,Expr}
     lower::Union{T,Float64}     # Float64 to allow for -Inf
     upper::Union{T,Float64}     # Float64 to allow for Inf
@@ -22,12 +22,23 @@ struct NumericRange{B<:Boundedness,T,D} <: ParamRange
     scale::D
 end
 
-struct NominalRange{T} <: ParamRange
+struct NominalRange{T} <: ParamRange{T}
     field::Union{Symbol,Expr}
     values::Tuple{Vararg{T}}
 end
 
-MLJBase.show_as_constructed(::Type{<:ParamRange}) = true
+function Base.show(stream::IO,
+                   ::MIME"text/plain",
+                   r::ParamRange{T}) where T
+    if r.field isa Expr
+        fstr = ":($(r.field))"
+    else
+        fstr = ":$(r.field)"
+    end
+    repr = "$(typeof(r).name)($T, $fstr, ... )"
+    print(stream, repr)
+    return nothing
+end
 
 """
     r = range(model, :hyper; values=nothing)
