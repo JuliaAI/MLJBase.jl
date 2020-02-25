@@ -128,6 +128,7 @@ function Base.show(stream::IO, object::MLJType)
     else
         print(stream, str)
     end
+    return nothing
 end
 
 # longer versions of showing objects
@@ -180,6 +181,7 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
             printstyled(IOContext(stream, :color=> SHOW_COLOR), description, bold=false, color=:blue)
         end
     end
+    return nothing
 end
 
 
@@ -218,7 +220,8 @@ istoobig(::Union) = false
 istoobig(::Number) = false
 istoobig(::Char) = false
 istoobig(::Function) = false
-istoobig(s::Symbol) = false
+istoobig(::Symbol) = false
+istoobig(::Distributions.Distribution) = false
 istoobig(str::AbstractString) = length(str) > 50
 
 ## THE `_show` METHOD
@@ -345,4 +348,5 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
             end
         end
     end
+    return nothing
 end
