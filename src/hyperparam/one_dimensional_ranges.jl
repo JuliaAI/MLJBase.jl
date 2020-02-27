@@ -13,7 +13,7 @@ abstract type   LeftUnbounded <: Unbounded end
 abstract type  RightUnbounded <: Unbounded end
 abstract type DoublyUnbounded <: Unbounded end
 
-struct NumericRange{B<:Boundedness,T,D} <: ParamRange{T}
+struct NumericRange{T,B<:Boundedness,D} <: ParamRange{T}
     field::Union{Symbol,Expr}
     lower::Union{T,Float64}     # Float64 to allow for -Inf
     upper::Union{T,Float64}     # Float64 to allow for Inf
@@ -22,9 +22,9 @@ struct NumericRange{B<:Boundedness,T,D} <: ParamRange{T}
     scale::D
 end
 
-struct NominalRange{T} <: ParamRange{T}
+struct NominalRange{T,N} <: ParamRange{T}
     field::Union{Symbol,Expr}
-    values::Tuple{Vararg{T}}
+    values::NTuple{N,T}
 end
 
 function Base.show(stream::IO,
@@ -153,7 +153,7 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
         end
     end
     scale isa Symbol && (D = Symbol)
-    return NumericRange{B,T,D}(field, lower, upper, origin, unit, scale)
+    return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
 end
 
 nominal_range(T, field, values) = throw(ArgumentError(
@@ -163,5 +163,5 @@ nominal_range(T, field, ::Nothing) = throw(ArgumentError(
     "You must specify values=... for a nominal parameter."))
 
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
-    return NominalRange{T}(field, Tuple(values))
+    return NominalRange{T,length(values)}(field, Tuple(values))
 end

@@ -7,6 +7,8 @@ import Distributions
 using Statistics
 Random.seed!(123)
 
+const Dist = Distributions
+
 mutable struct DummyModel <: Deterministic
     K::Int
     metric::Float64
@@ -78,23 +80,73 @@ end
 
 end
 
-const D = Distributions
+# use of @testset causes problems with eval below
+# https://discourse.julialang.org/t/wrapping-tests-involving-eval-in-testset/35257
+# @testset "fitting distributions to NumericRange objects" begin
 
-@testset begin "sampler: NumericRange; distr specified"
+    # characterizations
+
+    l = rand()
+    u = max(l, rand())
+    r = range(Int, :dummy, lower=l, upper=u)
+    for D in [:Arcsine, :Uniform, :Biweight, :Cosine, :Epanechnikov,
+              :SymTriangularDist, :Triweight]
+        eval(quote
+             d = Dist.fit(Dist.$D, r)
+             @test minimum(d) ≈ l
+             @test maximum(d) ≈ u
+             end
+             )
+    end
+
+    o = randn()
+    s = rand()
+    r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
+    for D in [:Cauchy, :Gumbel, :Normal, :Laplace]
+        eval(quote
+             d = Dist.fit(Dist.$D, r)
+             @test Dist.location(d) ≈ o
+             @test Dist.scale(d) ≈ s
+             end
+             )
+    end
+
+    o = rand()
+    s = o/(1 + rand())
+    r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
+    for D in [:Normal, :Gamma, :InverseGaussian, :LogNormal, :Logistic]
+        eval(quote
+             d = Dist.fit(Dist.$D, r)
+             @test mean(d) ≈ o
+             @test std(d) ≈ s
+             end
+             )
+    end
+
+    # truncation
+
+    r = range(Int, :dummy, lower=l, upper=u)
+    d = Dist.fit(Dist.Normal, r)
+    @test minimum(d) == l
+    @test maximum(d) == u
+
+#end
+
+@testset "NumericSampler - distribution instance specified"  begin
 
     @testset  "integers" begin
         r = range(Int, :dummy, lower=11, upper=13)
-        d = D.Uniform(1, 20)
-        
-        s = sampler(r, d)
-        
-        Random.seed!(1)
-        dict = D.countmap(rand(s, 1000))
+        d = Dist.Uniform(1, 20)
+
+        s = MLJBase.sampler(r, d)
+
+        Random.seed!(1);
+        dict = Dist.countmap(rand(s, 1000))
         eleven, twelve, thirteen = map(x -> dict[x], 11:13)
         @test eleven == 271 && twelve == 486 && thirteen == 243
-        
-        rng = Random.MersenneTwister(1)
-        dict = D.countmap(rand(rng, s, 1000))
+
+        rng = Random.MersenneTwister(1);
+        dict = Dist.countmap(rand(rng, s, 1000))
         eleven, twelve, thirteen = map(x -> dict[x], 11:13)
         @test eleven == 271 && twelve == 486 && thirteen == 243
     end
@@ -102,23 +154,67 @@ const D = Distributions
     @testset "right-unbounded floats" begin
         r = range(Float64, :dummy, lower=0.2, upper = Inf,
                   origin=5, unit=1) # origin and unit not relevant here
-        s = sampler(r, D.Normal())
+        s = MLJBase.sampler(r, Dist.Normal())
 
-        Random.seed!(1)
+        Random.seed!(1);
         v = rand(s, 1000)
-        @test all(x >= 3 for x in v)
+        @test all(x >= 0.2 for x in v)
         @test abs(minimum(v)/0.2 - 1) <= 0.01
 
-        rng = Random.MersenneTwister(1)
-        @test rand(rng, s, 1000) == v 
+        rng = Random.MersenneTwister(1);
+        @test rand(rng, s, 1000) == v
 
         q = quantile(v, 0.0:0.1:1.0)
-        Random.seed!(1)
-        v2 = filter(x -> x>=0.2, rand(D.Normal(), 3000))[1:1000]
+        Random.seed!(1);
+        v2 = filter(x -> x>=0.2, rand(Dist.Normal(), 3000))[1:1000]
         q2 = quantile(v2, 0.0:0.1:1.0)
         @test all(x -> x≈1.0, q ./ q2)
     end
 
+end
 
+@testset "NumericSampler - distribution type specified"  begin
+
+    r = range(Int, :k, lower=2, upper=6, origin=4.5, unit=1.2) 
+    s = MLJBase.sampler(r, Dist.Normal)
+    v1 = rand(MersenneTwister(1), s, 50)
+    d = Dist.truncated(Dist.Normal(r.origin, r.unit), r.lower, r.upper)
+    v2 = map(x -> round(Int, x), rand(MersenneTwister(1), d, 50))
+    @test v1 == v2
+
+end
+
+@testset "NominalSampler" begin
+
+    r = range(Char, :(model.dummy), values=collect("cab"))
     
+    @testset "probability vector specified" begin
+        s = MLJBase.sampler(r, [0.1, 0.2, 0.7])
+        Random.seed!(1);
+        dict = Dist.countmap(rand(s, 1000))
+        c, a, b = map(x -> dict[x], collect("cab"))
+        @test a == 186 && b == 699 && c == 115
+        
+        rng = Random.MersenneTwister(1);
+        dict = Dist.countmap(rand(rng, s, 1000))
+        c, a, b = map(x -> dict[x], collect("cab"))
+        @test a == 186 && b == 699 && c == 115
+    end
+    
+    @testset "probability vector unspecified (uniform)" begin
+        s = MLJBase.sampler(r)
+        Random.seed!(1);
+        dict = Dist.countmap(rand(s, 1000))
+        c, a, b = map(x -> dict[x], collect("cab"))
+        @test a == 306 && b == 356 && c == 338
+        
+        rng = Random.MersenneTwister(1);
+        dict = Dist.countmap(rand(rng, s, 1000))
+        c, a, b = map(x -> dict[x], collect("cab"))
+        @test a == 306 && b == 356 && c == 338
+    end
+    
+end
+end
+
 true

@@ -38,6 +38,7 @@ import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
 import Distributions: pdf
+const Dist = Distributions
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
