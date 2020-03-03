@@ -30,7 +30,7 @@ end
 
 include("test_utilities.jl")
 
-# load Models module containing models implementations for testing:
+# load Models module containing model implementations for testing:
 print("Loading some models for testing...")
 include_everywhere("_models/models.jl")
 print("\r                                           \r")

@@ -22,7 +22,7 @@ metadata_measure(MAE;
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = true,
-    docstring                = "mean absolute error.")
+    docstring                = "mean absolute error; aliases: `mae`, `mav`")
 
 function (::MAE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)

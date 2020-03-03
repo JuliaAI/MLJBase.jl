@@ -254,7 +254,9 @@ end
     e = evaluate!(mach, resampling=cv, measure=l1,
                   weights=w, verbosity=verb, acceleration=accel).measurement[1]
 
-    @test e ≈ (1/3 + 13/14)/2
+    efold1 = mean([1*1, 1*0])
+    efold2 = mean([3*3/2, 4*1/2])
+    @test e ≈ mean([efold1, efold2])
 end
 
 @testset_accelerated "resampler as machine" accel begin
@@ -330,7 +332,7 @@ end
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1/3
+    @test e.measurement[1] ≈ mean([10*0, 5*1])
 
     # with weights in training but overriden in evaluation:
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
