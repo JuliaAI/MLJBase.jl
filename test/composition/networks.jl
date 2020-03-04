@@ -186,6 +186,20 @@ end
     @test (λ * bs)() == λ * b
 end
 
+struct MyTransformer <: Static
+    ftr::Symbol
+end
+
+MLJBase.transform(transf::MyTransformer, verbosity, X) =
+    selectcols(X, transf.ftr)
+
+@testset "nodal machine constructor for static transformers" begin
+    X = (x1=rand(3), x2=[1, 2, 3])
+    mach = machine(MyTransformer(:x2), X)
+    fit!(mach)
+    @test transform(mach, X) == [1, 2, 3]
+end
+
 end
 
 true

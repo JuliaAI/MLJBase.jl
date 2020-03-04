@@ -59,7 +59,7 @@ broadcast_mode(v) = mode.(v)
 
     # with learned target transformation:
     models = [f, k]
-    lin = MLJBase.linear_learning_network(Xs, ys, nothing, u, nothing, 
+    lin = MLJBase.linear_learning_network(Xs, ys, nothing, u, nothing,
                                       models...) |> MLJBase.tree
     @test lin.operation == inverse_transform
     @test lin.model == u
@@ -347,7 +347,8 @@ pred2 = predict(p_)
 @test pred1 ≈ pred2
 
 # and another:
-X = (age =    [23, 45, 34, 25, 67],
+age = [23, 45, 34, 25, 67]
+X = (age = age,
      gender = categorical(['m', 'm', 'f', 'm', 'f']))
 height = [67.0, 81.5, 55.6, 90.0, 61.1]
 p = @pipeline Pipe9(X -> coerce(X, :age=>Continuous),
@@ -356,6 +357,21 @@ p = @pipeline Pipe9(X -> coerce(X, :age=>Continuous),
                     target = UnivariateStandardizer())
 fit!(machine(p, X, height))
 
+
+# STATIC TRANSFORMERS IN PIPELINES
+
+struct MyTransformer <: Static
+    ftr::Symbol
+end
+
+MLJBase.transform(transf::MyTransformer, verbosity, X) =
+    selectcols(X, transf.ftr)
+
+p99 = @pipeline Pipe99(X -> coerce(X, :age=>Continuous),
+                       hot = OneHotEncoder(),
+                       selector = MyTransformer(:age))
+
+@test transform(fit!(machine(p99, X)), X) == float.(age)
 
 end
 true
