@@ -13,6 +13,7 @@ Mean absolute error.
 For more information, run `info(mae)`.
 """
 mae = MAE()
+mav = MAE()
 
 metadata_measure(MAE;
     name                     = "mae",
