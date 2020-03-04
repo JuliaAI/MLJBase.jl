@@ -432,5 +432,8 @@ posterior = predict(mach, rows=1:div(N,2))[1]
 @test abs(pdf(posterior, 'b')/(2*pdf(posterior, 'a'))  - 1) < 0.15
 @test abs(pdf(posterior, 'b')/(4*pdf(posterior, 'c'))  - 1) < 0.15
 
+composite_with_no_fields = @from_network CompositeWithNoFields() <= yhat
+mach = fit!(machine(composite_with_no_fields, X, y))
+
 end
 true
