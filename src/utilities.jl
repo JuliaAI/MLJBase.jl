@@ -19,10 +19,9 @@ using as default values those listed in `args`. These must include a
 value for every field, and in the order appearing in
 `fieldnames(ModelType)`.
 
-The constructor created calls `MLJBase.clean!(model)` on the
-instantiated object `model` and calls `@warn messsage` if `messsage =
-MLJBase.clean!(model)` is non-empty. Note that `MLJBase.clean!` has a
-trivial fallback defined for all subtypes of `MLJBase.Model`.
+The constructor does not call `MLJBase.clean!(model)` on the
+instantiated object `model`. This method is for internal use only (by
+`@from_network macro`) as it is depreciated by `@mlj_model` macro. 
 
 ### Example
 
@@ -62,6 +61,7 @@ end
 function set_defaults_(mod, T_ex, values)
     T = mod.eval(T_ex)
     fields = fieldnames(T)
+    isempty(fields) && return nothing
     length(fields) == length(values) ||
         error("Provide the same number of default values as fields. ")
 
@@ -74,6 +74,7 @@ function set_defaults_(mod, T_ex, values)
     end
     mod.eval(program)
 
+    return nothing
 end
 
 """

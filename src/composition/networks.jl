@@ -448,6 +448,7 @@ node = Node
 # NodalTrainableModel, rather than a `Machine`; it is necessary to explicitly
 # type for the first two to avoid ambiguities
 machine(m::Unsupervised, a::AbstractNode...) = NodalMachine(m, a...)
+machine(m::Static, a::AbstractNode...) = NodalMachine(m, a...)
 machine(m::Supervised,   a::AbstractNode...) = NodalMachine(m, a...)
 machine(model::Model, X, y::AbstractNode)    = NodalMachine(model, source(X), y)
 machine(model::Model, X::AbstractNode, y)    = NodalMachine(model, X, source(y))
