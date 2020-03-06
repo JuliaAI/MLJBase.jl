@@ -164,7 +164,7 @@ for D in [
     :SymTriangularDist, :Triweight, :Cauchy, :Gumbel,
     :Normal, :Laplace, :Logistic, :Gamma, :InverseGaussian,
     :LogNormal]
-    
+
     @eval is_range_fittable(::Type{<:Dist.$D}) = true
 end
 
@@ -174,9 +174,9 @@ end
     Distributions.fit(D, r::MLJBase.NumericRange)
 
 Fit and return a distribution `d` of type `D` to the one-dimensional
-range `r`. 
+range `r`.
 
-Only types `D` in the table below are supported. 
+Only types `D` in the table below are supported.
 
 The distribution `d` is constructed in two stages. First the
 attributes `r.origin` and `r.unit` are used to fit a distributon `d0`
@@ -189,6 +189,9 @@ Distribution type `D`  | Characterization of `d0`
 `Arcsine`, `Uniform`, `Biweight`, `Cosine`, `Epanechnikov`, `SymTriangularDist`, `Triweight` |   `minimum(d) = r.lower`, `maximum(d) = r.upper`
 `Normal`, `Gamma`, `InverseGaussian`, `Logistic`, `LogNormal` | `mean(d) = r.origin`, `std(d) = r.unit`
 `Cauchy`, `Gumbel`, `Laplace`, (`Normal`) | `Dist.location(d) = r.origin`, `Dist.scale(d)  = r.unit`
+`Poisson` | `Dist.mean(d) = r.unit`
+
+Here `Dist = Distributions`.
 
 """
 Dist.fit(::Type{D}, r::NumericRange) where D =
@@ -197,8 +200,6 @@ Dist.fit(::Type{D}, r::NumericRange) where D =
 
 
 ### Continuous support
-
-#### two-parameters
 
 ##### bounded
 
@@ -252,6 +253,13 @@ function Dist.fit(::Type{<:Dist.LogNormal}, r::NumericRange)
     return _truncated(Dist.LogNormal(mu, sig), r)
 end
 
+### Discrete support
+
+# Poisson:
+function Dist.fit(::Type{<:Dist.Poisson}, r::NumericRange)
+    _truncated(Dist.Poisson(r.unit), r)
+end
+
 
 ## SAMPLER (FOR RANDOM SAMPLING A 1D RANGE)
 
@@ -272,7 +280,7 @@ length as `r.values`.
 
 The argument `d`, can be either an arbitrary instance of
 `UnivariateDistribution` from the Distributions.jl package, or one of
-the Distributions.jl types specified in the table below. 
+the Distributions.jl types specified in the table below.
 
 If `d` is an *instance*, then sampling is from a truncated form of the
 supplied distribution `d`, the truncation bounds being `r.lower` and
@@ -294,21 +302,21 @@ automatically generated using `Distributions.fit(d, r)`.
       'b' => 205
       'c' => 688
 
-    r = range(Int, :k, lower=2, upper=6) # numeric but discrete 
+    r = range(Int, :k, lower=2, upper=6) # numeric but discrete
     s = sampler(r, Normal)
     samples = rand(s, 1000);
     UnicodePlots.histogram(samples)
-               ┌                                        ┐ 
-    [2.0, 2.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 119                        
-    [2.5, 3.0) ┤ 0                                        
-    [3.0, 3.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 296   
-    [3.5, 4.0) ┤ 0                                        
-    [4.0, 4.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 275     
-    [4.5, 5.0) ┤ 0                                        
-    [5.0, 5.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 221            
-    [5.5, 6.0) ┤ 0                                        
-    [6.0, 6.5) ┤▇▇▇▇▇▇▇▇▇▇▇ 89                            
-               └                                        ┘ 
+               ┌                                        ┐
+    [2.0, 2.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 119
+    [2.5, 3.0) ┤ 0
+    [3.0, 3.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 296
+    [3.5, 4.0) ┤ 0
+    [4.0, 4.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 275
+    [4.5, 5.0) ┤ 0
+    [5.0, 5.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 221
+    [5.5, 6.0) ┤ 0
+    [6.0, 6.5) ┤▇▇▇▇▇▇▇▇▇▇▇ 89
+               └                                        ┘
 
 """
 function sampler end
@@ -380,7 +388,3 @@ Base.rand(rng::AbstractRNG,
 
 #using Plots
 #plotly()
-
-
-    
-

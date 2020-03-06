@@ -80,9 +80,7 @@ end
 
 end
 
-# use of @testset causes problems with eval below
-# https://discourse.julialang.org/t/wrapping-tests-involving-eval-in-testset/35257
-# @testset "fitting distributions to NumericRange objects" begin
+@testset "fitting distributions to NumericRange objects" begin
 
     # characterizations
 
@@ -92,9 +90,9 @@ end
     for D in [:Arcsine, :Uniform, :Biweight, :Cosine, :Epanechnikov,
               :SymTriangularDist, :Triweight]
         eval(quote
-             d = Dist.fit(Dist.$D, r)
-             @test minimum(d) ≈ l
-             @test maximum(d) ≈ u
+             d = Dist.fit(Dist.$D, $r)
+             @test minimum(d) ≈ $l
+             @test maximum(d) ≈ $u
              end
              )
     end
@@ -104,9 +102,9 @@ end
     r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
     for D in [:Cauchy, :Gumbel, :Normal, :Laplace]
         eval(quote
-             d = Dist.fit(Dist.$D, r)
-             @test Dist.location(d) ≈ o
-             @test Dist.scale(d) ≈ s
+             d = Dist.fit(Dist.$D, $r)
+             @test Dist.location(d) ≈ $o
+             @test Dist.scale(d) ≈ $s
              end
              )
     end
@@ -116,12 +114,16 @@ end
     r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
     for D in [:Normal, :Gamma, :InverseGaussian, :LogNormal, :Logistic]
         eval(quote
-             d = Dist.fit(Dist.$D, r)
-             @test mean(d) ≈ o
-             @test std(d) ≈ s
+             d = Dist.fit(Dist.$D, $r)
+             @test mean(d) ≈ $o
+             @test std(d) ≈ $s
              end
              )
     end
+
+    r = range(Float64, :dummy, lower=-Inf, upper=Inf, unit=s, origin=o,)
+    d = Dist.fit(Dist.Poisson, r)
+    @test mean(d) ≈ s
 
     # truncation
 
@@ -130,7 +132,7 @@ end
     @test minimum(d) == l
     @test maximum(d) == u
 
-#end
+end
 
 @testset "NumericSampler - distribution instance specified"  begin
 
