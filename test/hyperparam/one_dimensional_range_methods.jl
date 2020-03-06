@@ -78,6 +78,11 @@ end
     @test iterator(rr, rng) == ['b', 'a', 'g', 'c', 'e', 'f', 'd']
     @test iterator(rr, 3, rng) == ['b', 'c', 'a']
 
+    # with callable as scale:
+    r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
+    expecting = map(x->round(Int,10^x), range(1,2,length=10))
+    @test iterator(r, 10) == expecting
+
 end
 
 @testset "fitting distributions to NumericRange objects" begin
@@ -173,11 +178,18 @@ end
         @test all(x -> x≈1.0, q ./ q2)
     end
 
+    @testset "sampling using callable scale" begin
+        r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
+        s = sampler(r, Dist.Uniform)
+        expecting = map(x->round(Int,10^x), range(1,2,length=10))
+        @test iterator(r, 10) == expecting
+    end
+
 end
 
 @testset "NumericSampler - distribution type specified"  begin
 
-    r = range(Int, :k, lower=2, upper=6, origin=4.5, unit=1.2) 
+    r = range(Int, :k, lower=2, upper=6, origin=4.5, unit=1.2)
     s = MLJBase.sampler(r, Dist.Normal)
     v1 = rand(MersenneTwister(1), s, 50)
     d = Dist.truncated(Dist.Normal(r.origin, r.unit), r.lower, r.upper)
@@ -189,33 +201,33 @@ end
 @testset "NominalSampler" begin
 
     r = range(Char, :(model.dummy), values=collect("cab"))
-    
+
     @testset "probability vector specified" begin
         s = MLJBase.sampler(r, [0.1, 0.2, 0.7])
         Random.seed!(1);
         dict = Dist.countmap(rand(s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
         @test a == 186 && b == 699 && c == 115
-        
+
         rng = Random.MersenneTwister(1);
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
         @test a == 186 && b == 699 && c == 115
     end
-    
+
     @testset "probability vector unspecified (uniform)" begin
         s = MLJBase.sampler(r)
         Random.seed!(1);
         dict = Dist.countmap(rand(s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
         @test a == 306 && b == 356 && c == 338
-        
+
         rng = Random.MersenneTwister(1);
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
         @test a == 306 && b == 356 && c == 338
     end
-    
+
 end
 end
 
