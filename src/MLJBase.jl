@@ -37,7 +37,7 @@ import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
-import Distributions: pdf
+import Distributions: pdf, sampler
 const Dist = Distributions
 
 # from Standard Library:
@@ -98,7 +98,7 @@ export default_resource
 export is_same_except
 
 # one_dimensional_ranges.jl:
-export ParamRange, NumericRange, NominalRange, iterator, sampler, scale
+export ParamRange, NumericRange, NominalRange, iterator, scale
 
 # parameter_inspection.jl:
 export params # note this is *not* an extension of StatsBase.params
@@ -204,7 +204,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
-export pdf, mode, median, mean, shuffle!, categorical, shuffle,
+export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
        levels, levels!, std, Not
 
 

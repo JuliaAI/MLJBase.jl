@@ -280,6 +280,7 @@ end
 
 ## SAMPLER (FOR RANDOM SAMPLING A 1D RANGE)
 
+const SAMPLER_DOCSTRING =
 """
     sampler(r::NominalRange, probs::AbstractVector{<:Real})
     sampler(r::NumericRange{T}, d)
@@ -341,8 +342,6 @@ in the special case `r.scale` is a callable object `f`. In that case,
                └                                        ┘
 
 """
-function sampler end
-
 
 ### Numeric case
 
@@ -353,13 +352,15 @@ struct NumericSampler{T,D<:Distributions.Sampleable,S} <: MLJType
 end
 
 # constructor for distribution *instances*:
-sampler(r::NumericRange{T},
-        d::Distributions.UnivariateDistribution) where T =
-            NumericSampler(T, _truncated(d, r), r.scale)
+SAMPLER_DOCSTRING
+Distributions.sampler(r::NumericRange{T},
+                      d::Distributions.UnivariateDistribution) where T =
+                          NumericSampler(T, _truncated(d, r), r.scale)
 
 # constructor for distribution *types*:
-sampler(r::NumericRange, D::Type{<:Dist.UnivariateDistribution}) =
-    sampler(r, Dist.fit(D, r))
+Distributions.sampler(r::NumericRange,
+                      D::Type{<:Dist.UnivariateDistribution}) =
+                          sampler(r, Dist.fit(D, r))
 
 # rand fallbacks (non-integer ranges):
 Base.rand(s::NumericSampler, dims::Integer...) =
@@ -398,7 +399,7 @@ struct NominalSampler{T,N,D<:Distributions.Sampleable} <: MLJType
 end
 
 # constructor for probability vectors:
-function sampler(r::NominalRange{T},
+function Distributions.sampler(r::NominalRange{T},
                  probs::AbstractVector{<:Real}) where T
     length(probs) == length(r.values) ||
         error("Length of probability vector must match number "*
@@ -407,7 +408,7 @@ function sampler(r::NominalRange{T},
 end
 
 # constructor for uniform sampling:
-function sampler(r::NominalRange{T,N}) where {T, N}
+function Distributions.sampler(r::NominalRange{T,N}) where {T, N}
     return sampler(r, fill(1/N, N))
 end
 
