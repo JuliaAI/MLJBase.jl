@@ -37,7 +37,8 @@ import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
-import Distributions: pdf
+import Distributions: pdf, sampler
+const Dist = Distributions
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
@@ -203,7 +204,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
-export pdf, mode, median, mean, shuffle!, categorical, shuffle,
+export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
        levels, levels!, std, Not
 
 

@@ -1,5 +1,3 @@
-const Dist = Distributions
-
 # Extend Distributions type hiearchy to account for non-euclidean supports
 abstract type NonEuclidean <: Dist.ValueSupport end
 

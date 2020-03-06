@@ -16,7 +16,6 @@ construct `d`, equal to `get.(classes(d))`.
 """
 levels(d::UnivariateFinite)  = d.decoder.pool.levels
 
-
 # get the internal integer representations of the support
 raw_support(d::UnivariateFinite) =
     sort!(collect(keys(d.prob_given_class)))
@@ -294,6 +293,4 @@ end
 #     return Dist.Normal(μ, σ)
 # end
 
-# hack for issue #809 in Dist.jl:
-Distributions.fit(::Type{Dist.Normal{T}}, args...) where T =
-    Dist.fit(Dist.Normal, args...)
+

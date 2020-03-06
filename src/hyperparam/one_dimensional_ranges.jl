@@ -1,6 +1,6 @@
 ## PARAMETER RANGES
 
-abstract type ParamRange <: MLJType end
+abstract type ParamRange{T} <: MLJType end
 
 Base.isempty(::ParamRange) = false
 
@@ -13,7 +13,7 @@ abstract type   LeftUnbounded <: Unbounded end
 abstract type  RightUnbounded <: Unbounded end
 abstract type DoublyUnbounded <: Unbounded end
 
-struct NumericRange{B<:Boundedness,T,D} <: ParamRange
+struct NumericRange{T,B<:Boundedness,D} <: ParamRange{T}
     field::Union{Symbol,Expr}
     lower::Union{T,Float64}     # Float64 to allow for -Inf
     upper::Union{T,Float64}     # Float64 to allow for Inf
@@ -22,40 +22,50 @@ struct NumericRange{B<:Boundedness,T,D} <: ParamRange
     scale::D
 end
 
-struct NominalRange{T} <: ParamRange
+struct NominalRange{T,N} <: ParamRange{T}
     field::Union{Symbol,Expr}
-    values::Tuple{Vararg{T}}
+    values::NTuple{N,T}
 end
 
-MLJBase.show_as_constructed(::Type{<:ParamRange}) = true
+function Base.show(stream::IO,
+                   ::MIME"text/plain",
+                   r::ParamRange{T}) where T
+    if r.field isa Expr
+        fstr = ":($(r.field))"
+    else
+        fstr = ":$(r.field)"
+    end
+    repr = "$(typeof(r).name)($T, $fstr, ... )"
+    print(stream, repr)
+    return nothing
+end
 
 """
     r = range(model, :hyper; values=nothing)
 
-Defines a `NominalRange` object for a field `hyper` of `model`,
-assuming the field value does not subtype `Real`. Note that `r` is not
-directly iterable but `iterator(r)` iterates over `values`.
+Define a one-dimensional `NominalRange` object for a field `hyper` of
+`model`. Note that `r` is not directly iterable but `iterator(r)`
+is. 
 
-The specific type of the hyperparameter is automatically determined
-from the current value at `model`. To override, specify a type in
-place of `model`.
+The behaviour of range methods depends on the type of the value of the
+hyperparameter at `model` during range construction. To override (or
+if `model` is not available) specify a type in place of `model`.
 
 A nested hyperparameter is specified using dot notation. For example,
-`:(atom.max_depth)` specifies the `:max_depth` hyperparameter of the
-hyperparameter `:atom` of `model`.
+`:(atom.max_depth)` specifies the `max_depth` hyperparameter of
+the submodel `model.atom`.
 
     r = range(model, :hyper; upper=nothing, lower=nothing,
               scale=nothing, values=nothing)
 
-Assuming `values` is not specified, this defines a `NumericRange`
-object for a `Real` field `hyper` of `model`.  Note that `r` is not
-directly iteratable but `iterator(r, n)` iterates over `n` values
-controlled by the various parameters (see more at [`iterator`](@ref)).
-The supported scales are `:linear`,` :log`, `:logminus`, `:log10`,
-`:log2`, or a function (see below).
+Assuming `values` is not specified, define a one-dimensional
+`NumericRange` object for a `Real` field `hyper` of `model`.  Note
+that `r` is not directly iteratable but `iterator(r, n)`is an iterator
+of length `n`. To generate random elements from `r`, instead apply
+`rand` methods to `sampler(r)`. The supported scales are `:linear`,`
+:log`, `:logminus`, `:log10`, `:log2`, or a callable object.
 
-The iterator values for `Integer` types are rounded (with duplicate
-values removed, resulting in possibly less than `n` values).
+A nested hyperparameter is specified using dot notation (see above).
 
 If `scale` is unspecified, it is set to `:linear`, `:log`,
 `:logminus`, or `:linear`, according to whether the interval `(lower,
@@ -66,13 +76,8 @@ allowed.
 If `values` is specified, the other keyword arguments are ignored and
 a `NominalRange` object is returned (see above).
 
-To override the automatically detected hyperparameter type, substitute
-a type in place of `model`.
+See also: [`iterator`](@ref), [`sampler`](@ref)
 
-If a function `f` is provided as `scale`, then
-`iterator(r, n)` iterates over the values `[f(x1), f(x2), ... ,
-f(xn)]`, where `x1, x2, ..., xn` are linearly spaced between `lower`
-and `upper`.
 """
 function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
                     values=nothing, lower=nothing, upper=nothing,
@@ -142,7 +147,7 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
         end
     end
     scale isa Symbol && (D = Symbol)
-    return NumericRange{B,T,D}(field, lower, upper, origin, unit, scale)
+    return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
 end
 
 nominal_range(T, field, values) = throw(ArgumentError(
@@ -152,5 +157,5 @@ nominal_range(T, field, ::Nothing) = throw(ArgumentError(
     "You must specify values=... for a nominal parameter."))
 
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
-    return NominalRange{T}(field, Tuple(values))
+    return NominalRange{T,length(values)}(field, Tuple(values))
 end

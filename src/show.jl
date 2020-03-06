@@ -54,7 +54,8 @@ function abbreviated(n)
     return as_string[1]*"…"*as_string[end-1:end]
 end
 
-"""return abbreviated object id (as string)  or it's registered handle (as string) if this exists"""
+"""return abbreviated object id (as string) or it's registered handle
+(as string) if this exists"""
 function handle(X)
     id = objectid(X)
     if id in keys(HANDLE_GIVEN_ID)
@@ -105,12 +106,15 @@ function simple_repr(T)
     repr = string(T.name.name)
     parameters = T.parameters
     p_string = ""
-    if length(parameters) == 1
+    if length(parameters) > 0
         p = parameters[1]
         if p isa DataType
             p_string = simple_repr(p)
         elseif p isa Symbol
             p_string = string(":", p)
+        end
+        if length(parameters) > 1
+            p_string *= ",…"
         end
     end
     isempty(p_string) || (repr *= "{"*p_string*"}")
@@ -119,7 +123,6 @@ end
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
-    id = objectid(object)
     repr = simple_repr(typeof(object))
     str = "$repr @ $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
@@ -128,6 +131,7 @@ function Base.show(stream::IO, object::MLJType)
     else
         print(stream, str)
     end
+    return nothing
 end
 
 # longer versions of showing objects
@@ -180,6 +184,7 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
             printstyled(IOContext(stream, :color=> SHOW_COLOR), description, bold=false, color=:blue)
         end
     end
+    return nothing
 end
 
 
@@ -218,7 +223,8 @@ istoobig(::Union) = false
 istoobig(::Number) = false
 istoobig(::Char) = false
 istoobig(::Function) = false
-istoobig(s::Symbol) = false
+istoobig(::Symbol) = false
+istoobig(::Distributions.Distribution) = false
 istoobig(str::AbstractString) = length(str) > 50
 
 ## THE `_show` METHOD
@@ -345,4 +351,5 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
             end
         end
     end
+    return nothing
 end

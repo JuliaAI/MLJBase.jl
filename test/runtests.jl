@@ -72,7 +72,6 @@ end
     VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
 end
 
-
 @testset "hyperparam" begin
     @test include("hyperparam/one_dimensional_ranges.jl")
     @test include("hyperparam/one_dimensional_range_methods.jl")
