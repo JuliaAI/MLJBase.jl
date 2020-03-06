@@ -172,18 +172,6 @@ function _truncated(d::Dist.Distribution, r::NumericRange)
     end
 end
 
-### Trait
-
-is_range_fittable(::Type) = false
-
-for D in [
-    :Arcsine, :Uniform, :Biweight, :Cosine, :Epanechnikov,
-    :SymTriangularDist, :Triweight, :Cauchy, :Gumbel,
-    :Normal, :Laplace, :Logistic, :Gamma, :InverseGaussian,
-    :LogNormal]
-
-    @eval is_range_fittable(::Type{<:Dist.$D}) = true
-end
 
 ### Fallback and docstring
 
@@ -211,9 +199,10 @@ Distribution type `D`  | Characterization of `d0`
 Here `Dist = Distributions`.
 
 """
-Dist.fit(::Type{D}, r::NumericRange) where D =
-    error("Cannot automatically generate an instance of type `$D`. "*
-          "Try passing an explicit instance, or a supported type. ")
+Dist.fit(::Type{D}, r::NumericRange) where D<:Distributions.Distribution =
+    throw(ArgumentError("Fitting distributions of type `$D` to "*
+          "`NumericRange` objects is unsupported. "*
+          "Try passing an explicit instance, or a supported type. "))
 
 
 ### Continuous support
@@ -361,7 +350,7 @@ Distributions.sampler(r::NumericRange,
 
 # rand fallbacks (non-integer ranges):
 Base.rand(s::NumericSampler, dims::Integer...) =
-    s.scale.(r.rand(s.distribution, dims...))
+    s.scale.(rand(s.distribution, dims...))
 Base.rand(rng::AbstractRNG, s::NumericSampler, dims::Integer...) =
     s.scale.(rand(rng, s.distribution, dims...))
 Base.rand(s::NumericSampler{<:Any,<:Dist.Sampleable,Symbol},

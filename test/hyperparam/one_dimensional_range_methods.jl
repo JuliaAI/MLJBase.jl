@@ -37,6 +37,8 @@ p2 = range(dummy_model, :kernel, values=['c', 'd'])
 p3 = range(super_model, :lambda, lower=0.1, upper=1, scale=:log2)
 p4 = range(dummy_model, :K, lower=1, upper=3, scale=x->2x)
 
+[p4, p4]
+
 @testset "scale transformations" begin
     @test transform(MLJBase.Scale, scale(:log), ℯ) == 1
     @test inverse_transform(MLJBase.Scale, scale(:log), 1) == float(ℯ)
@@ -137,6 +139,10 @@ end
     @test minimum(d) == l
     @test maximum(d) == u
 
+    # unsupported distributions
+
+    @test_throws ArgumentError Dist.fit(Dist.Beta, r)
+
 end
 
 @testset "NumericSampler - distribution instance specified"  begin
@@ -178,11 +184,25 @@ end
         @test all(x -> x≈1.0, q ./ q2)
     end
 
-    @testset "sampling using callable scale" begin
+    @testset "sampler using callable scale" begin
+
         r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
         s = sampler(r, Dist.Uniform)
-        expecting = map(x->round(Int,10^x), range(1,2,length=10))
-        @test iterator(r, 10) == expecting
+        Random.seed!(123)
+        v = rand(s, 100)
+        @test issubset(v, 10:100)
+        rng = MersenneTwister(123)
+        @test rand(rng, s, 100) == v
+
+        r = range(Float64, :dummy, lower=1, upper=2, scale=x->10^x)
+        s = sampler(r, Dist.Uniform)
+        Random.seed!(1)
+        v = rand(s, 1000)
+        @test abs(minimum(v) - 10) < 0.02
+        @test abs(maximum(v) - 100) < 0.02
+        rng = MersenneTwister(1)
+        @test rand(rng, s, 1000) == v
+
     end
 
 end
