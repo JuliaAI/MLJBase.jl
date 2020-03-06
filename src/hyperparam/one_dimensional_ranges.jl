@@ -43,32 +43,29 @@ end
 """
     r = range(model, :hyper; values=nothing)
 
-Defines a `NominalRange` object for a field `hyper` of `model`. Note
-that `r` is not directly iterable but `iterator(r)` iterates over
-`values`.
+Define a one-dimensional `NominalRange` object for a field `hyper` of
+`model`. Note that `r` is not directly iterable but `iterator(r)`
+is. 
 
-The specific type of the hyperparameter is automatically determined
-from the current value at `model`. To override (or if `model` is not
-available) specify a type in place of `model`.
+The behaviour of range methods depends on the type of the value of the
+hyperparameter at `model` during range construction. To override (or
+if `model` is not available) specify a type in place of `model`.
 
 A nested hyperparameter is specified using dot notation. For example,
-`:(atom.max_depth)` specifies the `:max_depth` hyperparameter of the
-hyperparameter `:atom` of `model`.
+`:(atom.max_depth)` specifies the `max_depth` hyperparameter of
+the submodel `model.atom`.
 
     r = range(model, :hyper; upper=nothing, lower=nothing,
               scale=nothing, values=nothing)
 
-Assuming `values` is not specified, this defines a `NumericRange`
-object for a `Real` field `hyper` of `model`.  Note that `r` is not
-directly iteratable but `iterator(r, n)` iterates over `n` values
-controlled by the various parameters (see more at [`iterator`](@ref)).
-The supported scales are `:linear`,` :log`, `:logminus`, `:log10`,
-`:log2`, or a callable object.
+Assuming `values` is not specified, define a one-dimensional
+`NumericRange` object for a `Real` field `hyper` of `model`.  Note
+that `r` is not directly iteratable but `iterator(r, n)`is an iterator
+of length `n`. To generate random elements from `r`, instead apply
+`rand` methods to `sampler(r)`. The supported scales are `:linear`,`
+:log`, `:logminus`, `:log10`, `:log2`, or a callable object.
 
 A nested hyperparameter is specified using dot notation (see above).
-
-The iterator values for `Integer` types are rounded (with duplicate
-values removed, resulting in possibly less than `n` values).
 
 If `scale` is unspecified, it is set to `:linear`, `:log`,
 `:logminus`, or `:linear`, according to whether the interval `(lower,
@@ -78,6 +75,8 @@ allowed.
 
 If `values` is specified, the other keyword arguments are ignored and
 a `NominalRange` object is returned (see above).
+
+See also: [`iterator`](@ref), [`sampler`](@ref)
 
 """
 function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};

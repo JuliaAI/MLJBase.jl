@@ -64,18 +64,18 @@ iteration is over approximately `n` ordered values, generated as
 follows:
 
 (i) First, exactly `n` values are generated between `U` and `L`, with a
-spacing determined by `r.scale` (uniform if `scale=:linear) where `U`
+spacing determined by `r.scale` (uniform if `scale=:linear`) where `U`
 and `L` are given by the following table:
 
 | `r.lower`   | `r.upper`  | `L`                 | `U`                 |
 |-------------|------------|---------------------|---------------------|
 | finite      | finite     | `r.lower`           | `r.upper`           |
 | `-Inf`      | finite     | `r.upper - 2r.unit` | `r.upper`           |
-| finite      | `Inf`      | `r.lower`           | `r.lower + 2r.unit  |
-| `-Inf`      | `Inf`      | `r.origin - r.unit` | `r.origin + r.unit  |
+| finite      | `Inf`      | `r.lower`           | `r.lower + 2r.unit` |
+| `-Inf`      | `Inf`      | `r.origin - r.unit` | `r.origin + r.unit` |
 
 (ii) If a callable `f` is provided as `scale`, then a uniform spacing
-is always applied in (i) but `f` is broadcase over the results. (Unlike
+is always applied in (i) but `f` is broadcast over the results. (Unlike
 ordinary scales, this alters the effective range of values generated,
 instead of just altering the spacing.)
 
@@ -144,7 +144,7 @@ end
 
 # if scale `s` is a callable (the fallback):
 function iterator(L, U, s, n)
-    return s.(range(L, U, length=n))
+    return s.(range(L, stop=U, length=n))
     return inverse_transformed
 end
 
@@ -280,7 +280,15 @@ end
 
 ## SAMPLER (FOR RANDOM SAMPLING A 1D RANGE)
 
-const SAMPLER_DOCSTRING =
+### Numeric case
+
+struct NumericSampler{T,D<:Distributions.Sampleable,S} <: MLJType
+    distribution::D
+    scale::S
+    NumericSampler(::Type{T}, d::D, s::S) where {T,D,S} = new{T,D,S}(d,s)
+end
+
+# constructor for distribution *instances*:
 """
     sampler(r::NominalRange, probs::AbstractVector{<:Real})
     sampler(r::NumericRange{T}, d)
@@ -342,17 +350,6 @@ in the special case `r.scale` is a callable object `f`. In that case,
                └                                        ┘
 
 """
-
-### Numeric case
-
-struct NumericSampler{T,D<:Distributions.Sampleable,S} <: MLJType
-    distribution::D
-    scale::S
-    NumericSampler(::Type{T}, d::D, s::S) where {T,D,S} = new{T,D,S}(d,s)
-end
-
-# constructor for distribution *instances*:
-SAMPLER_DOCSTRING
 Distributions.sampler(r::NumericRange{T},
                       d::Distributions.UnivariateDistribution) where T =
                           NumericSampler(T, _truncated(d, r), r.scale)
