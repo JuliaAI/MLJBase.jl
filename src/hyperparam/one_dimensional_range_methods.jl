@@ -145,7 +145,6 @@ end
 # if scale `s` is a callable (the fallback):
 function iterator(L, U, s, n)
     return s.(range(L, stop=U, length=n))
-    return inverse_transformed
 end
 
 # if scale is a symbol:
