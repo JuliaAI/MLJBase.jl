@@ -12,8 +12,8 @@ Mean absolute error.
 
 For more information, run `info(mae)`.
 """
-mae = MAE()
-mav = MAE()
+const mae = MAE()
+const mav = MAE()
 
 metadata_measure(MAE;
     name                     = "mae",
@@ -58,7 +58,7 @@ Root mean squared error:
 
 For more information, run `info(rms)`.
 """
-rms = RMS()
+const rms = RMS()
 
 metadata_measure(RMS;
     name                     = "rms",
@@ -102,7 +102,7 @@ L2 per-observation loss.
 
 For more information, run `info(l2)`.
 """
-l2 = L2()
+const l2 = L2()
 
 metadata_measure(L2;
     name                     = "l2",
@@ -136,7 +136,7 @@ L1 per-observation loss.
 
 For more information, run `info(l1)`.
 """
-l1 = L1()
+const l1 = L1()
 
 metadata_measure(L1;
     name                     = "l1",
@@ -173,7 +173,7 @@ For more information, run `info(rmsl)`.
 
 See also [`rmslp1`](@ref).
 """
-rmsl = RMSL()
+const rmsl = RMSL()
 
 metadata_measure(RMSL;
     name                     = "rmsl",
@@ -208,7 +208,7 @@ For more information, run `info(rmslp1)`.
 
 See also [`rmsl`](@ref).
 """
-rmslp1 = RMSLP1()
+const rmslp1 = RMSLP1()
 
 metadata_measure(RMSLP1;
     name                     = "rmslp1",
@@ -246,7 +246,7 @@ of such indices.
 
 For more information, run `info(rmsp)`.
 """
-rmsp = RMSP()
+const rmsp = RMSP()
 
 metadata_measure(RMSP;
     name                     = "rmsp",
