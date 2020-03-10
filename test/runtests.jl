@@ -39,7 +39,6 @@ print("\r                                           \r")
     @test include("utilities.jl")
     @test include("distributions.jl")
     @test include("parameter_inspection.jl")
-    @test include("equality.jl")
     @test include("info_dict.jl")
     @test include("static.jl")
 end
