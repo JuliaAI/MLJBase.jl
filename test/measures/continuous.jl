@@ -4,14 +4,14 @@ seed!(1234)
     y    = [1, 2, 3, 4]
     yhat = [4, 3, 2, 1]
     w = [1, 2, 4, 3]
-    @test isapprox(mav(yhat, y), 2)
-    @test isapprox(mav(yhat, y, w), 9/5)
+    @test isapprox(mae(yhat, y), 2)
+    @test isapprox(mae(yhat, y, w), (1*3 + 2*1 + 4*1 + 3*3)/4)
     @test isapprox(rms(yhat, y), sqrt(5))
-    @test isapprox(rms(yhat, y, w), sqrt(21/5))
+    @test isapprox(rms(yhat, y, w), sqrt((1*3^2 + 2*1^2 + 4*1^2 + 3*3^2)/4))
     @test isapprox(mean(l1(yhat, y)), 2)
-    @test isapprox(mean(l1(yhat, y, w)), 9/5)
+    @test isapprox(mean(l1(yhat, y, w)), mae(yhat, y, w))
     @test isapprox(mean(l2(yhat, y)), 5)
-    @test isapprox(mean(l2(yhat, y, w)), 21/5)
+    @test isapprox(mean(l2(yhat, y, w)), rms(yhat, y, w)^2)
 
     yhat = y .+ 1
     @test isapprox(rmsl(yhat, y),
@@ -28,22 +28,22 @@ end
     y = rand(5)
     w = rand(5)
 
-    @test MLJBase.value(mav, yhat, nothing, y, nothing) ≈ mav(yhat, y)
-    @test MLJBase.value(mav, yhat, nothing, y, w) ≈ mav(yhat, y, w)
+    @test MLJBase.value(mae, yhat, nothing, y, nothing) ≈ mae(yhat, y)
+    @test MLJBase.value(mae, yhat, nothing, y, w) ≈ mae(yhat, y, w)
 
     spooky(yhat, y) = abs.(yhat - y) |> mean
-    @test MLJBase.value(spooky, yhat, nothing, y, nothing) ≈ mav(yhat, y)
+    @test MLJBase.value(spooky, yhat, nothing, y, nothing) ≈ mae(yhat, y)
 
-    cool(yhat, y, w) = abs.(yhat - y) .* w ./ (sum(w)/length(y)) |> mean
+    cool(yhat, y, w) = abs.(yhat - y) .* w |> mean
     MLJBase.supports_weights(::Type{typeof(cool)}) = true
-    @test MLJBase.value(cool, yhat, nothing, y, w) ≈ mav(yhat, y, w)
+    @test MLJBase.value(cool, yhat, nothing, y, w) ≈ mae(yhat, y, w)
 
-    funky(yhat, X, y) = X.weight .* abs.(yhat - y) ./ (sum(X.weight)/length(y)) |> mean
+    funky(yhat, X, y) = X.weight .* abs.(yhat - y) |> mean
     MLJBase.is_feature_dependent(::Type{typeof(funky)}) = true
-    @test MLJBase.value(funky, yhat, X, y, nothing) ≈ mav(yhat, y, X.weight)
+    @test MLJBase.value(funky, yhat, X, y, nothing) ≈ mae(yhat, y, X.weight)
 
-    weird(yhat, X, y, w) = w .* X.weight .* abs.(yhat - y) ./ sum(w .* X.weight) |> sum
+    weird(yhat, X, y, w) = w .* X.weight .* abs.(yhat - y) |> mean
     MLJBase.is_feature_dependent(::Type{typeof(weird)}) = true
     MLJBase.supports_weights(::Type{typeof(weird)}) = true
-    @test MLJBase.value(weird, yhat, X, y, w) ≈ mav(yhat, y, X.weight .* w)
+    @test MLJBase.value(weird, yhat, X, y, w) ≈ mae(yhat, y, X.weight .* w)
 end
