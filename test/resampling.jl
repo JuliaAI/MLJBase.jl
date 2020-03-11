@@ -30,19 +30,19 @@ end
         nmeasures = 2
         func(mach, k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
     end
-                         
+
     machines = Dict(1 => machine(ConstantRegressor(), X, y))
-                                                  
+
     channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
     p = Progress(nfolds, dt=0)
-        
+
     @sync begin
-        
+
         # printing the progress bar
         t1 = @async while take!(channel)
             next!(p)
         end
-        
+
         t2 = @async begin
             global result =
                 MLJBase._evaluate!(func, machines, accel, nfolds, channel)
@@ -51,7 +51,7 @@ end
 
     @test result ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
-    
+
     close(channel)
 
 end
@@ -97,8 +97,8 @@ end
     y  = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
 
     my_rms(yhat, y) = sqrt(mean((yhat -y).^2))
-    my_mav(yhat, y) = abs.(yhat - y)
-    MLJBase.reports_each_observation(::typeof(my_mav)) = true
+    my_mae(yhat, y) = abs.(yhat - y)
+    MLJBase.reports_each_observation(::typeof(my_mae)) = true
 
     resampling = [(3:10, 1:2),
                   ([1, 2, 5, 6, 7, 8, 9, 10], 3:4),
@@ -115,7 +115,7 @@ end
                                          verbosity=verb,
                                          acceleration=accel)
     result = evaluate!(mach, resampling=resampling, verbosity=verb,
-                       measure=[my_rms, my_mav, rmslp1], acceleration=accel)
+                       measure=[my_rms, my_mae, rmslp1], acceleration=accel)
 
     v = [1/2, 3/4, 1/2, 3/4, 1/2]
 
@@ -178,7 +178,7 @@ end
     X = (x=rand(100),)
     y = rand(100)
     mach = machine(model, X, y)
-    evaluate!(mach, verbosity=verb, 
+    evaluate!(mach, verbosity=verb,
               resampling=Holdout(shuffle=true, rng=123), acceleration=accel)
     e1 = evaluate!(mach, verbosity=verb,
                    resampling=Holdout(shuffle=true),
@@ -251,10 +251,12 @@ end
     cv=CV(nfolds=2)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
-    e = evaluate!(mach, resampling=cv, measure=l1, 
+    e = evaluate!(mach, resampling=cv, measure=l1,
                   weights=w, verbosity=verb, acceleration=accel).measurement[1]
 
-    @test e ≈ (1/3 + 13/14)/2
+    efold1 = mean([1*1, 1*0])
+    efold2 = mean([3*3/2, 4*1/2])
+    @test e ≈ mean([efold1, efold2])
 end
 
 @testset_accelerated "resampler as machine" accel begin
@@ -264,13 +266,13 @@ end
 
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
-    resampler = Resampler(resampling=holdout, model=ridge_model, measure=mav)
+    resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae)
     resampling_machine = machine(resampler, X, y)
     @test_logs((:info, r"^Training"), fit!(resampling_machine))
     e1=evaluate(resampling_machine).measurement[1]
     mach = machine(ridge_model, X, y)
     @test e1 ≈  evaluate!(mach, resampling=holdout,
-                          measure=mav, verbosity=verb,
+                          measure=mae, verbosity=verb,
                           acceleration=accel).measurement[1]
     ridge_model.lambda=1.0
     fit!(resampling_machine, verbosity=2)
@@ -330,7 +332,7 @@ end
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1/3
+    @test e.measurement[1] ≈ mean([10*0, 5*1])
 
     # with weights in training but overriden in evaluation:
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),

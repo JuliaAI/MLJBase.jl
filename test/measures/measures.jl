@@ -9,7 +9,7 @@ using LossFunctions
 
 @testset "aggregation" begin
     v = rand(5)
-    @test aggregate(v, mav) ≈ mean(v)
+    @test aggregate(v, mae) ≈ mean(v)
     @test aggregate(v, TruePositive()) ≈ sum(v)
     @test aggregate(v, rms) ≈ sqrt(mean(v.^2))
     λ = rand()

@@ -4,21 +4,16 @@
 
 info_dict(model::Model) = info_dict(typeof(model))
 
-info_dict(M::Type{<:Supervised}) =
-    info_dict(M, MLJModelInterface.SUPERVISED_TRAITS)
-
-info_dict(M::Type{<:Unsupervised}) =
-    info_dict(M, MLJModelInterface.UNSUPERVISED_TRAITS)
-
-function info_dict(M::Type{<:Model}, traits)
+function info_dict(M::Type{<:Model})
     message = "$M has a bad trait declaration.\n"
     is_pure_julia(M) isa Bool ||
         error(message * "`is_pure_julia($M)` must return true or false")
-    :supports_weights in traits && !(supports_weights(M) isa Bool) &&
-        error(message * "`supports_weights($M)` must return true, false or missing. ")
-    :is_wrapper in traits && !(is_wrapper(M) isa Bool) &&
+    supports_weights(M) isa Bool ||
+        error(message * "`supports_weights($M)` must return true, "*
+              "false or missing. ")
+    is_wrapper(M) isa Bool ||
         error(message * "`is_wrapper($M)` must return true, false. ")
 
     return LittleDict{Symbol,Any}(trait => eval(:($trait))(M)
-                                  for trait in traits)
+                                  for trait in MLJModelInterface.MODEL_TRAITS)
 end

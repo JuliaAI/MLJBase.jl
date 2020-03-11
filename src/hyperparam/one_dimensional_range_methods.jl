@@ -54,8 +54,8 @@ scale(r::NumericRange{T,B,Symbol}) where {B<:Boundedness,T} = r.scale
 ## ITERATOR METHOD (FOR GENERATING A 1D GRID)
 
 """
-    iterator(r::NominalRange, [,n, rng])
-    iterator(r::NumericRange, n, [, rng])
+    iterator([rng, ], r::NominalRange, [,n])
+    iterator([rng, ], r::NumericRange, n)
 
 Return an iterator (currently a vector) for a `ParamRange` object `r`.
 In the first case iteration is over all `values` stored in the range
@@ -90,14 +90,13 @@ they are returned in numeric order, or in the order provided to the
 range constructor, in the case of a `NominalRange`.
 
 """
-iterator(r::ParamRange, n::Integer, rng::AbstractRNG) =
-    StatsBase.sample(rng, iterator(r, n), n, replace=false)
+iterator(rng::AbstractRNG, r::ParamRange, args...) =
+    Random.shuffle(rng, iterator(r, args...))
 
+iterator(r::NominalRange, ::Nothing) = iterator(r)
 iterator(r::NominalRange, n::Integer) =
     collect(r.values[1:min(n, length(r.values))])
 iterator(r::NominalRange) = collect(r.values)
-iterator(r::NominalRange, rng::AbstractRNG) =
-    iterator(r, length(r.values), rng)
 
 # nominal range, top level dispatch
 
