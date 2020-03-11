@@ -93,6 +93,7 @@ range constructor, in the case of a `NominalRange`.
 iterator(rng::AbstractRNG, r::ParamRange, args...) =
     Random.shuffle(rng, iterator(r, args...))
 
+iterator(r::NominalRange, ::Nothing) = iterator(r)
 iterator(r::NominalRange, n::Integer) =
     collect(r.values[1:min(n, length(r.values))])
 iterator(r::NominalRange) = collect(r.values)
