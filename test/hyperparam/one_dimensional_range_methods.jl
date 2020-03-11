@@ -76,9 +76,12 @@ end
 
     # random:
     rng = MersenneTwister(123)
-    @test iterator(p1, 5, rng) == [10, 6, 1, 2, 3]
-    @test iterator(rr, rng) == ['b', 'a', 'g', 'c', 'e', 'f', 'd']
-    @test iterator(rr, 3, rng) == ['b', 'c', 'a']
+    @test iterator(rng, p1, 5) == [1, 6, 2, 3, 10]
+    @test iterator(rng, p1, 5) != [1, 6, 2, 3, 10]
+    @test iterator(rng, rr) == ['g', 'f', 'a', 'e', 'c', 'd', 'b']
+    @test iterator(rng, rr) != ['g', 'f', 'a', 'e', 'c', 'd', 'b']
+    @test iterator(rng, rr, 3) == ['a', 'c', 'b']
+    @test iterator(rng, rr, 3) != ['a', 'c', 'b']
 
     # with callable as scale:
     r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
