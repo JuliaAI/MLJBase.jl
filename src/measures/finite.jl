@@ -109,11 +109,12 @@ Brier score for that observation is given by
 Note that `BrierScore()=BrierScore{UnivariateFinite}` has the alias
 `brier_score`.
 
-*Warning.* `BrierScore` defines a true *score* (bigger is better). In
-Brier's original 1950 paper, and many other places, it is defined as a
-loss, despite the name. Moreover, the present implementation does not
-treat the binary case as special, so that the score may differ, in
-that case, by a factor of two from usage elsewhere.
+*Warning.* Here `BrierScore` is a "score" in the sense that bigger is
+better (with `0` optimal, and all other values negative). In Brier's
+original 1950 paper, and many other places, it has the opposite sign,
+despite the name. Moreover, the present implementation does not treat
+the binary case as special, so that the score may differ, in that
+case, by a factor of two from usage elsewhere.
 
 For more information, run `info(BrierScore)`.
 
@@ -205,7 +206,7 @@ const MCR = MisclassificationRate
 
 (::MCR)(ŷ::Vec{<:CategoricalElement},
         y::Vec{<:CategoricalElement},
-        w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / sum(w)
+        w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
 
 (::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
@@ -433,7 +434,7 @@ const CM2 = ConfusionMatrix{2}
 
 """
     FScore{β}(rev=nothing)
- 
+
 One-parameter generalization, ``F_β``, of the F-measure or balanced F-score.
 
 [Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)

@@ -122,14 +122,15 @@ cases (i), (ii) or (iii), `MLJBase.fit` is called. Otherwise
 `MLJBase.update` is called.
 
 A machine `mach` is *stale* if `mach.model` has changed since the last
-time a fit-result was computed, or if if one of its training arguments
+time a fit-result was computed, or if one of its training arguments
 is `stale`. A node `N` is stale if `N.machine` is stale or one of its
-arguments is stale. Source nodes are never stale.
+arguments is stale. `Source` nodes are never stale.
 
 Note that a nodal machine obtains its training data by *calling* its
 node arguments on the specified `rows` (rather than *indexing* its arguments
 on those rows) and that this calling is a recursive operation on nodes
 upstream of those arguments.
+
 """
 function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
     # special case

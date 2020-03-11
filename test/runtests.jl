@@ -30,7 +30,7 @@ end
 
 include("test_utilities.jl")
 
-# load Models module containing models implementations for testing:
+# load Models module containing model implementations for testing:
 print("Loading some models for testing...")
 include_everywhere("_models/models.jl")
 print("\r                                           \r")
@@ -39,7 +39,6 @@ print("\r                                           \r")
     @test include("utilities.jl")
     @test include("distributions.jl")
     @test include("parameter_inspection.jl")
-    @test include("equality.jl")
     @test include("info_dict.jl")
     @test include("static.jl")
 end
@@ -71,7 +70,6 @@ end
 
     VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
 end
-
 
 @testset "hyperparam" begin
     @test include("hyperparam/one_dimensional_ranges.jl")

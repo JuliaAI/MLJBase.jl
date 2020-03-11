@@ -13,7 +13,7 @@ using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
                           inverse_transform, fitted_params, predict,
                           predict_mode, predict_mean, predict_median,
-                          evaluate, clean!
+                          evaluate, clean!, is_same_except
 
 # Containers & data manipulation
 using Tables
@@ -37,7 +37,8 @@ import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
-import Distributions: pdf
+import Distributions: pdf, sampler
+const Dist = Distributions
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
@@ -55,6 +56,9 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 export MLJType, Model, Supervised, Unsupervised,
        Probabilistic, Deterministic, Interval, Static,
        UnivariateFinite
+
+# MLJType equality
+export is_same_except
 
 # model constructor + metadata
 export @mlj_model, metadata_pkg, metadata_model
@@ -92,9 +96,6 @@ export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
 
 # computational_resources.jl:
 export default_resource
-
-# equality.jl:
-export is_same_except
 
 # one_dimensional_ranges.jl:
 export ParamRange, NumericRange, NominalRange, iterator, scale
@@ -203,7 +204,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
-export pdf, mode, median, mean, shuffle!, categorical, shuffle,
+export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
        levels, levels!, std, Not
 
 
@@ -244,7 +245,6 @@ macro load end
 include("init.jl")
 include("utilities.jl")
 include("parameter_inspection.jl")
-include("equality.jl")
 include("show.jl")
 include("info_dict.jl")
 

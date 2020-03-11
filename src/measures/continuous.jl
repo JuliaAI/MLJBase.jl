@@ -1,59 +1,51 @@
 ## REGRESSOR METRICS (FOR DETERMINISTIC PREDICTIONS)
 
-mutable struct MAV <: Measure end
+struct MAE <: Measure end
 
 """
-    mav(ŷ, y)
-    mav(ŷ, y, w)
+    mae(ŷ, y)
+    mae(ŷ, y, w)
 
-Mean absolute error (also known as MAE).
+Mean absolute error.
 
-``\\text{MAV} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or ``\\text{MAV} =  ∑ᵢwᵢ|yᵢ-ŷᵢ|/∑ᵢwᵢ``
+``\\text{MAE} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or ``\\text{MAE} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 
-For more information, run `info(mav)`.
+For more information, run `info(mae)`.
 """
-mav = MAV()
+const mae = MAE()
+const mav = MAE()
 
-metadata_measure(MAV;
-    name                     = "mav",
+metadata_measure(MAE;
+    name                     = "mae",
     target_scitype           = Union{Vec{Continuous},Vec{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = true,
-    docstring                = "mean absolute value; aliases: `mav`.")
+    docstring                = "mean absolute error; aliases: `mae`, `mav`")
 
-function (::MAV)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::MAE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = y[i] - ŷ[i]
-        ret += abs(dev)
+        dev = abs(y[i] - ŷ[i])
+        ret += dev
     end
     return ret / length(y)
 end
 
-function (::MAV)(ŷ::Vec{<:Real}, y::Vec{<:Real},
+function (::MAE)(ŷ::Vec{<:Real}, y::Vec{<:Real},
                  w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(y, w)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = w[i]*(y[i] - ŷ[i])
-        ret += abs(dev)
+        dev = abs(y[i] - ŷ[i])
+        ret += w[i]*dev
     end
-    return ret / sum(w)
+    return ret / length(y)
 end
-
-# synonym
-"""
-    mae(ŷ, y)
-
-See also [`mav`](@ref).
-"""
-const mae = mav
-
 
 struct RMS <: Measure end
 """
@@ -66,7 +58,7 @@ Root mean squared error:
 
 For more information, run `info(rms)`.
 """
-rms = RMS()
+const rms = RMS()
 
 metadata_measure(RMS;
     name                     = "rms",
@@ -81,10 +73,10 @@ metadata_measure(RMS;
 
 function (::RMS)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = y[i] - ŷ[i]
-        ret += dev * dev
+        dev = (y[i] - ŷ[i])^2
+        ret += dev
     end
     return sqrt(ret / length(y))
 end
@@ -92,12 +84,12 @@ end
 function (::RMS)(ŷ::Vec{<:Real}, y::Vec{<:Real},
                  w::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = y[i] - ŷ[i]
-        ret += w[i]*dev*dev
+        dev = (y[i] - ŷ[i])^2
+        ret += w[i]*dev
     end
-    return sqrt(ret / sum(w))
+    return sqrt(ret / length(y))
 end
 
 struct L2 <: Measure end
@@ -110,7 +102,7 @@ L2 per-observation loss.
 
 For more information, run `info(l2)`.
 """
-l2 = L2()
+const l2 = L2()
 
 metadata_measure(L2;
     name                     = "l2",
@@ -123,14 +115,15 @@ metadata_measure(L2;
     docstring                = "squared deviations; aliases: `l2`.")
 
 function (::L2)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    (check_dimensions(ŷ, y); (y - ŷ).^2)
+    check_dimensions(ŷ, y)
+    return (y - ŷ).^2
 end
 
 function (::L2)(ŷ::Vec{<:Real}, y::Vec{<:Real},
                 w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
-    return (y - ŷ).^2 .* w ./ (sum(w)/length(y))
+    return w .* (y - ŷ).^2
 end
 
 struct L1 <: Measure end
@@ -143,7 +136,7 @@ L1 per-observation loss.
 
 For more information, run `info(l1)`.
 """
-l1 = L1()
+const l1 = L1()
 
 metadata_measure(L1;
     name                     = "l1",
@@ -156,14 +149,15 @@ metadata_measure(L1;
     docstring                = "absolute deviations; aliases: `l1`.")
 
 function (::L1)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    (check_dimensions(ŷ, y); abs.(y - ŷ))
+    check_dimensions(ŷ, y)
+    return abs.(y - ŷ)
 end
 
 function (::L1)(ŷ::Vec{<:Real}, y::Vec{<:Real},
                 w::Vec{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
-    return abs.(y - ŷ) .* w ./ (sum(w)/length(y))
+    return w .* abs.(y - ŷ)
 end
 
 struct RMSL <: Measure end
@@ -179,7 +173,7 @@ For more information, run `info(rmsl)`.
 
 See also [`rmslp1`](@ref).
 """
-rmsl = RMSL()
+const rmsl = RMSL()
 
 metadata_measure(RMSL;
     name                     = "rmsl",
@@ -194,10 +188,10 @@ metadata_measure(RMSL;
 
 function (::RMSL)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = log(y[i]) - log(ŷ[i])
-        ret += dev * dev
+        dev = (log(y[i]) - log(ŷ[i]))^2
+        ret += dev
     end
     return sqrt(ret / length(y))
 end
@@ -214,7 +208,7 @@ For more information, run `info(rmslp1)`.
 
 See also [`rmsl`](@ref).
 """
-rmslp1 = RMSLP1()
+const rmslp1 = RMSLP1()
 
 metadata_measure(RMSLP1;
     name                     = "rmslp1",
@@ -230,10 +224,10 @@ metadata_measure(RMSLP1;
 
 function (::RMSLP1)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     for i in eachindex(y)
-        dev = log(y[i] + 1) - log(ŷ[i] + 1)
-        ret += dev * dev
+        dev = (log(y[i] + 1) - log(ŷ[i] + 1))^2
+        ret += dev
     end
     return sqrt(ret / length(y))
 end
@@ -252,7 +246,7 @@ of such indices.
 
 For more information, run `info(rmsp)`.
 """
-rmsp = RMSP()
+const rmsp = RMSP()
 
 metadata_measure(RMSP;
     name                     = "rmsp",
@@ -267,14 +261,14 @@ metadata_measure(RMSP;
 
 function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    ret = 0.0
+    ret = zero(eltype(y))
     count = 0
     for i in eachindex(y)
-        if y[i] != 0.0
-            dev = (y[i] - ŷ[i])/y[i]
-            ret += dev * dev
+        if y[i] != zero(eltype(y))
+            dev = ((y[i] - ŷ[i]) / y[i])^2
+            ret += dev
             count += 1
         end
     end
-    return sqrt(ret/count)
+    return sqrt(ret / count)
 end
