@@ -22,6 +22,7 @@ using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
 import InvertedIndices: Not
+import JLSO
 
 # Distributed computing
 using Distributed
@@ -66,7 +67,7 @@ export @mlj_model, metadata_pkg, metadata_model
 # model api
 export fit, update, update_data, transform, inverse_transform,
        fitted_params, predict, predict_mode, predict_mean, predict_median,
-       evaluate, clean!
+       evaluate, clean!, save, restore
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
