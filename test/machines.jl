@@ -125,23 +125,33 @@ end
     report = mach.report
     pred = predict(mach, Xnew)
     MLJBase.save(io, mach; compression=:none)
+    # commented out for travis testing:
     # MLJBase.save(filename, mach)
-    seekstart(io)
 
-    # test restoring data:
-    for input in [filename, io]
-        eval(quote
-             m = machine($input)
-             p = predict(m, $Xnew)
-             @test m.model == $model
-             @test m.report == $report
-             @test p ≈ $pred
-             m = machine($input, $X, $y)
-             fit!(m)
-             p = predict(m, $Xnew)
-             @test p ≈ $pred
-             end)
-    end
+    # test restoring data from filename:
+    m = machine(filename)
+    p = predict(m, Xnew)
+    @test m.model == model
+    @test m.report == report
+    @test p ≈ pred
+    m = machine(filename, X, y)
+    fit!(m)
+    p = predict(m, Xnew)
+    @test p ≈ pred
+
+    # test restoring data from io:
+    seekstart(io)
+    m = machine(io)
+    p = predict(m, Xnew)
+    @test m.model == model
+    @test m.report == report
+    @test p ≈ pred
+    seekstart(io)
+    m = machine(io, X, y)
+    fit!(m)
+    p = predict(m, Xnew)
+    @test p ≈ pred
+
 end
 
 end # module

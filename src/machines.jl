@@ -253,7 +253,7 @@ the example below. Data may be optionally passed to the constructor
 for retraining on new data using the saved model.
 
 
-### Example
+### Example 1
 
     using MLJ
     tree = @load DecisionTreeClassifier
@@ -269,6 +269,13 @@ for retraining on new data using the saved model.
 
     fit!(mach2) # saved learned parameters are over-written
     predict(mach2, X) # not same as above
+
+    # using a buffer:
+    io = IOBuffer()
+    MLJ.save(io, mach)
+    seekstart(io)
+    predict_only_mach = machine(io)
+    predict(predict_only_mach, X)
 
 """
 function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
