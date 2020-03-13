@@ -222,6 +222,55 @@ report(mach::AbstractMachine) = mach.report
 ## SERIALIZATION
 
 # saving:
+"""
+    MLJ.save(filename, mach::Machine; kwargs...)
+    MLJ.save(io, mach::Machine; kwargs...)
+
+    MLJBase.save(filename, mach::Machine; kwargs...)
+    MLJBase.save(io, mach::Machine; kwargs...)
+
+Serialize the machine `mach` to a file with path `filename`, or to an
+input/output stream `io` (at least `IOBuffer` instances are
+supported). 
+
+The format is JLSO (a wrapper for julia native or BSON serialization)
+unless a custom format has been implemented for the model type of
+`mach.model`. The keyword arguments `kwargs` are passed to
+the format-specific serializer, which in the JSLO case include these:
+
+keyword        | values                        | default
+---------------|-------------------------------|-------------------------
+`format`       | `:julia_serialize`, `:BSON`   | `:julia_serialize`
+`compression`  | `:gzip`, `:none`              | `:none`
+
+See (see
+[https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
+for details.
+
+
+Machines are de-serialized using the `machine` constructor as shown in
+the example below. Data may be optionally passed to the constructor
+for retraining on new data using the saved model.
+
+
+### Example
+
+    using MLJ
+    tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    MLJ.save("tree.jlso", compression=:none)
+    mach_predict_only = machine("tree.jlso")
+    predict(mach_predict_only, X)
+
+    mach2 = machine("tree.jlso", selectrows(X, 1:100), y[1:100])
+    predict(mach2, X) # same as above
+
+    fit!(mach2) # saved learned parameters are over-written
+    predict(mach2, X) # not same as above
+
+"""
 function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
     isdefined(mach, :fitresult)  ||
         error("Cannot save an untrained machine. ")

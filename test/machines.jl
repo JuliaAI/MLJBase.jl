@@ -136,6 +136,10 @@ end
              @test m.model == $model
              @test m.report == $report
              @test p ≈ $pred
+             m = machine($input, $X, $y)
+             fit!(m)
+             p = predict(m, $Xnew)
+             @test p ≈ $pred
              end)
     end
 end
