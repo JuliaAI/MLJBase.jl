@@ -42,7 +42,7 @@ MLJModelInterface.save(file, model, fitresult, report; kwargs...) =
               :model => model,
               :fitresult => fitresult,
               :report => report; kwargs...)
-function MLJModelInterface.restore(file)
+function MLJModelInterface.restore(file; kwargs...)
     dict = JLSO.load(file)
     return dict[:model], dict[:fitresult], dict[:report]
 end

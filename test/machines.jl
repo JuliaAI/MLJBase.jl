@@ -79,5 +79,38 @@ end
     @test all([pdf(d1, c) ≈ pdf(d2, c) for c in MLJBase.classes(d1)])
 end
 
+@testset "serialization" begin
+    model = @load DecisionTreeRegressor
+
+    X = (a = Float64[98, 53, 93, 67, 90, 68],
+         b = Float64[64, 43, 66, 47, 16, 66],)
+    Xnew = (a = Float64[82, 49, 16],
+            b = Float64[36, 13, 36],)
+    y =  [59.1, 28.6, 96.6, 83.3, 59.1, 48.0]
+
+    mach =machine(model, X, y)
+    filename = joinpath(@__DIR__, "machine.jlso")
+    io = IOBuffer()
+    @test_throws Exception MLJBase.save(io, mach; compression=:none)
+
+    fit!(mach)
+    report = mach.report
+    pred = predict(mach, Xnew)
+    MLJBase.save(io, mach; compression=:none)
+    # MLJBase.save(filename, mach)
+    seekstart(io)
+
+    # test restoring data:
+    for input in [filename, io]
+        eval(quote
+             m = machine($input)
+             p = predict(m, $Xnew)
+             @test m.model == $model
+             @test m.report == $report
+             @test p ≈ $pred
+             end)
+    end
+end
+
 end # module
 true

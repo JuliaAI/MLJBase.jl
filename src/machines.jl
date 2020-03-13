@@ -16,52 +16,56 @@ mutable struct Machine{M<:Model} <: AbstractMachine{M}
     end
 end
 
-# automatically detect type parameter:
 Machine(model::M, args...) where M <: Model = Machine{M}(model, args...)
 
 # public constructors for supervised models
 function machine(model::Supervised, args...)
     # check arguments
     nargs = length(args)
-    if nargs == 2
-        X, y = args
-    elseif nargs == 3
-        supports_weights(model) ||
-            @info("$(typeof(model)) does not support sample weights and " *
-                  "the supplied weights will be ignored in training.\n" *  "However, supplied weights will be passed to " *
-                  "weight-supporting measures on calls to `evaluate!` " *
-                  "and in tuning. ")
-        X, y, w = args
-        w isa AbstractVector{<:Real} ||
-            throw(ArgumentError("Weights must be real."))
-        nrows(w) == nrows(y) ||
-            throw(DimensionMismatch("Weights and target differ in length."))
-    else
-        throw(ArgumentError("Use `machine(model, X, y)` or " *
-                            "`machine(model, X, y, w)` for a supervised " *
-                            "model."))
+    if nargs != 0
+        if nargs == 2
+            X, y = args
+        elseif nargs == 3
+            supports_weights(model) ||
+                @info("$(typeof(model)) does not support sample weights and " *
+                      "the supplied weights will be ignored in training.\n" *
+                      "However, supplied weights will be passed to " *
+                      "weight-supporting measures on calls to `evaluate!` " *
+                      "and in tuning. ")
+            X, y, w = args
+            w isa AbstractVector{<:Real} ||
+                throw(ArgumentError("Weights must be real."))
+            nrows(w) == nrows(y) ||
+                throw(DimensionMismatch("Weights and target differ in length."))
+        else
+            throw(ArgumentError("Use `machine(model, X, y)` or " *
+                                "`machine(model, X, y, w)` for a supervised " *
+                                "model."))
+        end
+
+        # checks on input type:
+        input_scitype(model) <: Unknown ||
+            scitype(X) <: input_scitype(model) ||
+            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
+            "`machine(model, X, y, w)` is incompatible with " *
+            "`model`:\nscitype(X) = $(scitype(X))\n" *
+            "input_scitype(model) = $(input_scitype(model))."
+
+        # checks on target type:
+        target_scitype(model) <: Unknown ||
+            scitype(y) <: target_scitype(model) ||
+            @warn "The scitype of `y`, in `machine(model, X, y)` " *
+            "or `machine(model, X, y, w)` is incompatible with " *
+            "`model`:\nscitype(y) = $(scitype(y))\n" *
+            "target_scitype(model) = $(target_scitype(model))."
+
+        # checks on dimension matching:
+        nrows(X) == nrows(y) ||
+            throw(DimensionMismatch("Differing number of observations "*
+                                    "in input and target. "))
+
     end
 
-    # checks on input type:
-    input_scitype(model) <: Unknown ||
-        scitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-                  "`machine(model, X, y, w)` is incompatible with " *
-                  "`model`:\nscitype(X) = $(scitype(X))\n" *
-                  "input_scitype(model) = $(input_scitype(model))."
-
-    # checks on target type:
-    target_scitype(model) <: Unknown ||
-        scitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y)` " *
-                  "or `machine(model, X, y, w)` is incompatible with " *
-                  "`model`:\nscitype(y) = $(scitype(y))\n" *
-                  "target_scitype(model) = $(target_scitype(model))."
-
-    # checks on dimension matching:
-    nrows(X) == nrows(y) ||
-        throw(DimensionMismatch("Differing number of observations "*
-                                "in input and target. "))
     # construct and return
     return Machine(model, args...)
 end
@@ -70,7 +74,7 @@ end
 function machine(model::Unsupervised, args...)
     # check arguments
     nargs = length(args)
-    length(args) == 1 ||
+    length(args) in [0, 1] ||
         throw(ArgumentError("Wrong number of arguments. Use " *
                             "`machine(model, X)` for an unsupervised model."))
     X = args[1]
@@ -133,11 +137,19 @@ upstream of those arguments.
 
 """
 function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
-    # special case
+
     if mach isa NodalMachine && mach.frozen
         verbosity < 0 || @warn "$mach not trained as it is frozen."
         return mach
     end
+
+    # catch machines with no arguments (no data):
+    mach isa Machine{<:Supervised} ||
+        mach isa Machine{<:Unsupervised} &&
+        !(mach isa Machine{<:Static}) &&
+        isempty(mach.args) &&
+        error("This machine is not bound to any data and so "*
+              "cannot be trained. ")
 
     warning = clean!(mach.model)
     isempty(warning) || verbosity < 0 || @warn warning
@@ -200,3 +212,22 @@ is_stale(mach::Machine) =
 
 params(mach::AbstractMachine) = params(mach.model)
 report(mach::AbstractMachine) = mach.report
+
+
+## SERIALIZATION
+
+# saving:
+function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
+    isdefined(mach, :fitresult)  ||
+        error("Cannot save an untrained machine. ")
+    MMI.save(file, mach.model, mach.fitresult, mach.report; kwargs...)
+end
+
+# restoring:
+function machine(file::Union{String,IO}, args...; kwargs...)
+    model, fitresult, report = MMI.restore(file; kwargs...)
+    mach = machine(model, args...)
+    mach.fitresult = fitresult
+    mach.report = report
+    return mach
+end

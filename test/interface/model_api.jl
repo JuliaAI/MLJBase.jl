@@ -43,14 +43,13 @@ end
 
     # save to buffer:
     io = IOBuffer()
-    save(io, model, fitresult, report, compression=:none)
+    MLJBase.save(io, model, fitresult, report, compression=:none)
     seekstart(io)
 
     # test restoring data:
     for input in [filename, io]
         eval(quote
-             @show $input
-             m, f, r = restore($input)
+             m, f, r = MLJBase.restore($input)
              p = predict(m, f, $Xnew)
              @test m == $model
              @test r == $report
@@ -63,4 +62,3 @@ end
 end
 
 true
-NamedTuple{(),Tuple{}}(())

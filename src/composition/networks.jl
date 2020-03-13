@@ -124,12 +124,13 @@ mutable struct NodalMachine{M<:Model} <: AbstractMachine{M}
         # check number of arguments for model subtypes:
         !(M <: Supervised) || length(args) > 1 ||
             throw(error("Wrong number of arguments. " *
-                        "You must provide target(s) for supervised models."))
+                        "Use `machine(model, X, y)` or "*
+                        "`machine(model, X, y, w)` for supervised models."))
 
         if M <: Unsupervised && !(M <: Static)
             length(args) == 1 ||
                 throw(error("Wrong number of arguments. " *
-                            "Use NodalMachine(model, X) for an "*
+                            "Use `machine(model, X)` for an "*
                             "unsupervised model."))
         end
 
@@ -447,11 +448,14 @@ node = Node
 # unless no arguments are `AbstractNode`s, `machine` creates a
 # NodalTrainableModel, rather than a `Machine`; it is necessary to explicitly
 # type for the first two to avoid ambiguities
-machine(m::Unsupervised, a::AbstractNode...) = NodalMachine(m, a...)
-machine(m::Static, a::AbstractNode...) = NodalMachine(m, a...)
-machine(m::Supervised,   a::AbstractNode...) = NodalMachine(m, a...)
-machine(model::Model, X, y::AbstractNode)    = NodalMachine(model, source(X), y)
-machine(model::Model, X::AbstractNode, y)    = NodalMachine(model, X, source(y))
+machine(m::Unsupervised, a1::AbstractNode, a::AbstractNode...) =
+    NodalMachine(m, a1, a...)
+machine(m::Static, a1::AbstractNode, a::AbstractNode...) =
+    NodalMachine(m, a...)
+machine(m::Supervised, a1::AbstractNode, a::AbstractNode...) =
+    NodalMachine(m, a1, a...)
+machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
+machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
 
 MMI.matrix(X::AbstractNode)      = node(matrix, X)
 MMI.table(X::AbstractNode)       = node(table, X)
