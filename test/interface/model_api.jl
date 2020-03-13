@@ -1,6 +1,9 @@
+module TestModelAPI
+
 using Test
+using MLJBase
 import MLJModelInterface
-using .Models
+using ..Models
 
 @testset "predict_*" begin
     X = (x = rand(5),)
@@ -33,15 +36,31 @@ end
     pred = predict(model, fitresult, Xnew)
     filename = joinpath(@__DIR__, "test.jlso")
 
+    # save to file:
     # To avoid complications to travis tests (ie, writing to file) the
     # next line was run once and then commented out:
-    # MLJModelInterface.save(filename, model, fitresult, report)
+    # save(filename, model, fitresult, report)
+
+    # save to buffer:
+    io = IOBuffer()
+    save(io, model, fitresult, report, compression=:none)
+    seekstart(io)
 
     # test restoring data:
-    m, f, r = MLJModelInterface.restore(joinpath(filename))
-    p = predict(m, f, Xnew)
-    @test m == model
-    @test r == report
-    @test p ≈ pred
+    for input in [filename, io]
+        eval(quote
+             @show $input
+             m, f, r = restore($input)
+             p = predict(m, f, $Xnew)
+             @test m == $model
+             @test r == $report
+             @test p ≈ $pred
+             end)
+    end
 
 end
+
+end
+
+true
+NamedTuple{(),Tuple{}}(())

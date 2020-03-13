@@ -36,12 +36,13 @@ MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
     getfield.(methodswith(M), :name)
 
 # serialization fallbacks:
-MLJModelInterface.save(filename::String, model, fitresult, report) =
-    JLSO.save(filename,
+# Here `file` can be `String` or `IO` (eg, `file=IOBuffer()`).
+MLJModelInterface.save(file, model, fitresult, report; kwargs...) =
+    JLSO.save(file,
               :model => model,
               :fitresult => fitresult,
-              :report => report)
-function MLJModelInterface.restore(filename::String)
-    dict = JLSO.load(filename)
+              :report => report; kwargs...)
+function MLJModelInterface.restore(file)
+    dict = JLSO.load(file)
     return dict[:model], dict[:fitresult], dict[:report]
 end
