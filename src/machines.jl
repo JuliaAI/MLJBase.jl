@@ -68,7 +68,7 @@ end
 
 function check(model::Unsupervised, args...)
     nargs = length(args)
-    nargs in [0,1] ||
+    nargs <= 1 ||
         throw(ArgumentError("Wrong number of arguments. Use " *
                             "`machine(model, X)` for an unsupervised model "*
                             "(or `Machine(model)` if there are no learned "*
