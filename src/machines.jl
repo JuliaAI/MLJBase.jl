@@ -260,7 +260,7 @@ for retraining on new data using the saved model.
     X, y = @load_iris
     mach = fit!(machine(tree, X, y))
 
-    MLJ.save("tree.jlso", compression=:none)
+    MLJ.save("tree.jlso", mach, compression=:none)
     mach_predict_only = machine("tree.jlso")
     predict(mach_predict_only, X)
 
