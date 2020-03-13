@@ -39,6 +39,8 @@ mach = machine(UnivariateStandardizer(), float.(1:5))
 @test_logs (:info, r"Training") fit!(mach)
 @test isempty(params(mach))
 
+@test_throws Exception machine(tree)
+
 # test a frozen NodalMachine
 stand = machine(Standardizer(), source((x1=rand(10),)))
 freeze!(stand)
@@ -77,6 +79,32 @@ end
     d1 = predict(mach)[1]
     d2 = MLJBase.UnivariateFinite([y[1], y[2], y[4]], [1/3, 1/4, 5/12])
     @test all([pdf(d1, c) ≈ pdf(d2, c) for c in MLJBase.classes(d1)])
+end
+
+mutable struct Scale <: MLJBase.Static
+    scaling::Float64
+end
+
+function MLJBase.transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X * s.scaling
+    MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
+end
+
+function MLJBase.inverse_transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X / s.scaling
+    MLJBase.table(MLJBase.matrix(X) / s.scaling, prototype=X)
+end
+
+@testset "static transformer machines" begin
+    s = Scale(2)
+    X = randn(2, 3)
+    Xt = MLJBase.table(X)
+
+    mach = Machine(Scale(2))
+    fit!(mach) # no-op
+    R  = transform(mach, X)
+    IR = inverse_transform(mach, R)
+    @test IR ≈ X
 end
 
 @testset "serialization" begin

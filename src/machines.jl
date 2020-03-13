@@ -16,79 +16,84 @@ mutable struct Machine{M<:Model} <: AbstractMachine{M}
     end
 end
 
+
+## CONSTRUCTORS
+
 Machine(model::M, args...) where M <: Model = Machine{M}(model, args...)
 
-# public constructors for supervised models
-function machine(model::Supervised, args...)
-    # check arguments
+function check(model::Supervised, args...)
     nargs = length(args)
-    if nargs != 0
-        if nargs == 2
-            X, y = args
-        elseif nargs == 3
-            supports_weights(model) ||
-                @info("$(typeof(model)) does not support sample weights and " *
-                      "the supplied weights will be ignored in training.\n" *
-                      "However, supplied weights will be passed to " *
-                      "weight-supporting measures on calls to `evaluate!` " *
-                      "and in tuning. ")
-            X, y, w = args
-            w isa AbstractVector{<:Real} ||
-                throw(ArgumentError("Weights must be real."))
-            nrows(w) == nrows(y) ||
-                throw(DimensionMismatch("Weights and target differ in length."))
-        else
-            throw(ArgumentError("Use `machine(model, X, y)` or " *
-                                "`machine(model, X, y, w)` for a supervised " *
-                                "model."))
-        end
-
-        # checks on input type:
-        input_scitype(model) <: Unknown ||
-            scitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-            "`machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(X) = $(scitype(X))\n" *
-            "input_scitype(model) = $(input_scitype(model))."
-
-        # checks on target type:
-        target_scitype(model) <: Unknown ||
-            scitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y)` " *
-            "or `machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(y) = $(scitype(y))\n" *
-            "target_scitype(model) = $(target_scitype(model))."
-
-        # checks on dimension matching:
-        nrows(X) == nrows(y) ||
-            throw(DimensionMismatch("Differing number of observations "*
-                                    "in input and target. "))
-
+    if nargs == 2
+        X, y = args
+    elseif nargs == 3
+        supports_weights(model) ||
+            @info("$(typeof(model)) does not support sample weights and " *
+                  "the supplied weights will be ignored in training.\n" *
+                  "However, supplied weights will be passed to " *
+                  "weight-supporting measures on calls to `evaluate!` " *
+                  "and in tuning. ")
+        X, y, w = args
+        w isa AbstractVector{<:Real} ||
+            throw(ArgumentError("Weights must be real."))
+        nrows(w) == nrows(y) ||
+            throw(DimensionMismatch("Weights and target differ in length."))
+    else
+        throw(ArgumentError("Use `machine(model, X, y)` or " *
+                            "`machine(model, X, y, w)` for a supervised " *
+                            "model."))
     end
 
-    # construct and return
-    return Machine(model, args...)
-end
-
-# public constructors for unsupervised models
-function machine(model::Unsupervised, args...)
-    # check arguments
-    nargs = length(args)
-    length(args) in [0, 1] ||
-        throw(ArgumentError("Wrong number of arguments. Use " *
-                            "`machine(model, X)` for an unsupervised model."))
-    X = args[1]
-    # check input scitype
+    # checks on input type:
     input_scitype(model) <: Unknown ||
         scitype(X) <: input_scitype(model) ||
+        @warn "The scitype of `X`, in `machine(model, X, y)` or " *
+        "`machine(model, X, y, w)` is incompatible with " *
+        "`model`:\nscitype(X) = $(scitype(X))\n" *
+        "input_scitype(model) = $(input_scitype(model))."
+
+    # checks on target type:
+    target_scitype(model) <: Unknown ||
+        scitype(y) <: target_scitype(model) ||
+        @warn "The scitype of `y`, in `machine(model, X, y)` " *
+        "or `machine(model, X, y, w)` is incompatible with " *
+        "`model`:\nscitype(y) = $(scitype(y))\n" *
+        "target_scitype(model) = $(target_scitype(model))."
+
+    # checks on dimension matching:
+    nrows(X) == nrows(y) ||
+        throw(DimensionMismatch("Differing number of observations "*
+                                "in input and target. "))
+    return nothing
+end
+
+function check(model::Unsupervised, args...)
+    nargs = length(args)
+    nargs in [0,1] ||
+        throw(ArgumentError("Wrong number of arguments. Use " *
+                            "`machine(model, X)` for an unsupervised model "*
+                            "(or `Machine(model)` if there are no learned "*
+                            "parameters). "))
+    if nargs == 1
+        X = args[1]
+        # check input scitype
+        input_scitype(model) <: Unknown ||
+            scitype(X) <: input_scitype(model) ||
             @warn "The scitype of `X`, in `machine(model, X)` is "*
-                  "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
-                  "input_scitype(model) = $(input_scitype(model))."
-    # construct and return
+        "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
+            "input_scitype(model) = $(input_scitype(model))."
+    end
+    return nothing
+end
+
+function machine(model::Model, args...)
+    isempty(args) &&
+        error("`machine(model)` is ambiguous. Use `Machine(model)` or "*
+              "`NodalMachine(model)` (for machines in a learning network). ")
+    check(model, args...)
     return Machine(model, args...)
 end
 
-machine(model::Static, args...) = Machine(model, args...)
+# machine(model::Static, args...) = Machine(model, args...)
 
 # Note: The following method is written to fit `NodalMachine`s
 # defined in networks.jl, in addition to `Machine`s defined above.
@@ -226,7 +231,8 @@ end
 # restoring:
 function machine(file::Union{String,IO}, args...; kwargs...)
     model, fitresult, report = MMI.restore(file; kwargs...)
-    mach = machine(model, args...)
+    isempty(args) || check(model, args...)
+    mach = Machine(model, args...)
     mach.fitresult = fitresult
     mach.report = report
     return mach
