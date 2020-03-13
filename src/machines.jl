@@ -253,7 +253,7 @@ the example below. Data may be optionally passed to the constructor
 for retraining on new data using the saved model.
 
 
-### Example 1
+### Example
 
     using MLJ
     tree = @load DecisionTreeClassifier
