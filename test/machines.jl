@@ -39,8 +39,6 @@ mach = machine(UnivariateStandardizer(), float.(1:5))
 @test_logs (:info, r"Training") fit!(mach)
 @test isempty(params(mach))
 
-@test_throws Exception machine(tree)
-
 # test a frozen NodalMachine
 stand = machine(Standardizer(), source((x1=rand(10),)))
 freeze!(stand)
@@ -100,11 +98,12 @@ end
     X = randn(2, 3)
     Xt = MLJBase.table(X)
 
-    mach = Machine(Scale(2))
+    mach = machine(Scale(2))
     fit!(mach) # no-op
     R  = transform(mach, X)
     IR = inverse_transform(mach, R)
     @test IR ≈ X
+
 end
 
 @testset "serialization" begin

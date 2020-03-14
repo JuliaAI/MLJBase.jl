@@ -71,8 +71,8 @@ function check(model::Unsupervised, args...)
     nargs <= 1 ||
         throw(ArgumentError("Wrong number of arguments. Use " *
                             "`machine(model, X)` for an unsupervised model "*
-                            "(or `Machine(model)` if there are no learned "*
-                            "parameters). "))
+                            "(or `Machine(model)` if there are no training "*
+                            "arguments (\"static\" tranformers"))
     if nargs == 1
         X = args[1]
         # check input scitype
@@ -86,9 +86,9 @@ function check(model::Unsupervised, args...)
 end
 
 function machine(model::Model, args...)
-    isempty(args) &&
-        error("`machine(model)` is ambiguous. Use `Machine(model)` or "*
-              "`NodalMachine(model)` (for machines in a learning network). ")
+    # isempty(args) &&
+    #     error("`machine(model)` is ambiguous. Use `Machine(model)` or "*
+    #           "`NodalMachine(model)` (for machines in a learning network). ")
     check(model, args...)
     return Machine(model, args...)
 end
