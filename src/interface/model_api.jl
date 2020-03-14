@@ -31,9 +31,18 @@ predict_median(m, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
     throw(ArgumentError("Attempting to compute median of predictions made "*
                         "by a model expecting `Finite` targets. "))
 
-# # operations implemented by some meta-models:
-# function evaluate end
-
 # not in MLJModelInterface as methodswith requires InteractiveUtils
-MMI.implemented_methods(::FI, M::Type{<:MLJType}) =
+MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
     getfield.(methodswith(M), :name)
+
+# serialization fallbacks:
+# Here `file` can be `String` or `IO` (eg, `file=IOBuffer()`).
+MLJModelInterface.save(file, model, fitresult, report; kwargs...) =
+    JLSO.save(file,
+              :model => model,
+              :fitresult => fitresult,
+              :report => report; kwargs...)
+function MLJModelInterface.restore(file; kwargs...)
+    dict = JLSO.load(file)
+    return dict[:model], dict[:fitresult], dict[:report]
+end

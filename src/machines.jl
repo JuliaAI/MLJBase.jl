@@ -16,19 +16,20 @@ mutable struct Machine{M<:Model} <: AbstractMachine{M}
     end
 end
 
-# automatically detect type parameter:
+
+## CONSTRUCTORS
+
 Machine(model::M, args...) where M <: Model = Machine{M}(model, args...)
 
-# public constructors for supervised models
-function machine(model::Supervised, args...)
-    # check arguments
+function check(model::Supervised, args...)
     nargs = length(args)
     if nargs == 2
         X, y = args
     elseif nargs == 3
         supports_weights(model) ||
             @info("$(typeof(model)) does not support sample weights and " *
-                  "the supplied weights will be ignored in training.\n" *  "However, supplied weights will be passed to " *
+                  "the supplied weights will be ignored in training.\n" *
+                  "However, supplied weights will be passed to " *
                   "weight-supporting measures on calls to `evaluate!` " *
                   "and in tuning. ")
         X, y, w = args
@@ -45,46 +46,54 @@ function machine(model::Supervised, args...)
     # checks on input type:
     input_scitype(model) <: Unknown ||
         scitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-                  "`machine(model, X, y, w)` is incompatible with " *
-                  "`model`:\nscitype(X) = $(scitype(X))\n" *
-                  "input_scitype(model) = $(input_scitype(model))."
+        @warn "The scitype of `X`, in `machine(model, X, y)` or " *
+        "`machine(model, X, y, w)` is incompatible with " *
+        "`model`:\nscitype(X) = $(scitype(X))\n" *
+        "input_scitype(model) = $(input_scitype(model))."
 
     # checks on target type:
     target_scitype(model) <: Unknown ||
         scitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y)` " *
-                  "or `machine(model, X, y, w)` is incompatible with " *
-                  "`model`:\nscitype(y) = $(scitype(y))\n" *
-                  "target_scitype(model) = $(target_scitype(model))."
+        @warn "The scitype of `y`, in `machine(model, X, y)` " *
+        "or `machine(model, X, y, w)` is incompatible with " *
+        "`model`:\nscitype(y) = $(scitype(y))\n" *
+        "target_scitype(model) = $(target_scitype(model))."
 
     # checks on dimension matching:
     nrows(X) == nrows(y) ||
         throw(DimensionMismatch("Differing number of observations "*
                                 "in input and target. "))
-    # construct and return
-    return Machine(model, args...)
+    return nothing
 end
 
-# public constructors for unsupervised models
-function machine(model::Unsupervised, args...)
-    # check arguments
+function check(model::Unsupervised, args...)
     nargs = length(args)
-    length(args) == 1 ||
+    nargs <= 1 ||
         throw(ArgumentError("Wrong number of arguments. Use " *
-                            "`machine(model, X)` for an unsupervised model."))
-    X = args[1]
-    # check input scitype
-    input_scitype(model) <: Unknown ||
-        scitype(X) <: input_scitype(model) ||
+                            "`machine(model, X)` for an unsupervised model "*
+                            "(or `Machine(model)` if there are no training "*
+                            "arguments (\"static\" tranformers"))
+    if nargs == 1
+        X = args[1]
+        # check input scitype
+        input_scitype(model) <: Unknown ||
+            scitype(X) <: input_scitype(model) ||
             @warn "The scitype of `X`, in `machine(model, X)` is "*
-                  "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
-                  "input_scitype(model) = $(input_scitype(model))."
-    # construct and return
+        "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
+            "input_scitype(model) = $(input_scitype(model))."
+    end
+    return nothing
+end
+
+function machine(model::Model, args...)
+    # isempty(args) &&
+    #     error("`machine(model)` is ambiguous. Use `Machine(model)` or "*
+    #           "`NodalMachine(model)` (for machines in a learning network). ")
+    check(model, args...)
     return Machine(model, args...)
 end
 
-machine(model::Static, args...) = Machine(model, args...)
+# machine(model::Static, args...) = Machine(model, args...)
 
 # Note: The following method is written to fit `NodalMachine`s
 # defined in networks.jl, in addition to `Machine`s defined above.
@@ -133,11 +142,19 @@ upstream of those arguments.
 
 """
 function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
-    # special case
+
     if mach isa NodalMachine && mach.frozen
         verbosity < 0 || @warn "$mach not trained as it is frozen."
         return mach
     end
+
+    # catch machines with no arguments (no data):
+    mach isa Machine{<:Supervised} ||
+        mach isa Machine{<:Unsupervised} &&
+        !(mach isa Machine{<:Static}) &&
+        isempty(mach.args) &&
+        error("This machine is not bound to any data and so "*
+              "cannot be trained. ")
 
     warning = clean!(mach.model)
     isempty(warning) || verbosity < 0 || @warn warning
@@ -200,3 +217,86 @@ is_stale(mach::Machine) =
 
 params(mach::AbstractMachine) = params(mach.model)
 report(mach::AbstractMachine) = mach.report
+
+
+## SERIALIZATION
+
+# saving:
+"""
+    MLJ.save(filename, mach::AbstractMachine; kwargs...)
+    MLJ.save(io, mach::Machine; kwargs...)
+
+    MLJBase.save(filename, mach::AbstractMachine; kwargs...)
+    MLJBase.save(io, mach::Machine; kwargs...)
+
+Serialize the machine `mach` to a file with path `filename`, or to an
+input/output stream `io` (at least `IOBuffer` instances are
+supported).
+
+The format is JLSO (a wrapper for julia native or BSON serialization)
+unless a custom format has been implemented for the model type of
+`mach.model`. The keyword arguments `kwargs` are passed to
+the format-specific serializer, which in the JSLO case include these:
+
+keyword        | values                        | default
+---------------|-------------------------------|-------------------------
+`format`       | `:julia_serialize`, `:BSON`   | `:julia_serialize`
+`compression`  | `:gzip`, `:none`              | `:none`
+
+See (see
+[https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
+for details.
+
+Machines are de-serialized using the `machine` constructor as shown in
+the example below. Data (or nodes) may be optionally passed to the
+constructor for retraining on new data using the saved model.
+
+
+### Example
+
+    using MLJ
+    tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    MLJ.save("tree.jlso", mach, compression=:none)
+    mach_predict_only = machine("tree.jlso")
+    predict(mach_predict_only, X)
+
+    mach2 = machine("tree.jlso", selectrows(X, 1:100), y[1:100])
+    predict(mach2, X) # same as above
+
+    fit!(mach2) # saved learned parameters are over-written
+    predict(mach2, X) # not same as above
+
+    # using a buffer:
+    io = IOBuffer()
+    MLJ.save(io, mach)
+    seekstart(io)
+    predict_only_mach = machine(io)
+    predict(predict_only_mach, X)
+
+!!! warning "Only load files from trusted sources"
+    Maliciously constructed JLSO files, like pickles, and most other
+    general purpose serialization formats, can allow for arbitrary code
+    execution during loading. This means it is possible for someone
+    to use a JLSO file that looks like a serialized MLJ machine as a
+    [Trojan
+    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
+"""
+function MMI.save(file, mach::AbstractMachine; verbosity=1, kwargs...)
+    isdefined(mach, :fitresult)  ||
+        error("Cannot save an untrained machine. ")
+    MMI.save(file, mach.model, mach.fitresult, mach.report; kwargs...)
+end
+
+# restoring:
+function machine(file::Union{String,IO}, args...; kwargs...)
+    model, fitresult, report = MMI.restore(file; kwargs...)
+    isempty(args) || check(model, args...)
+    mach = Machine(model, args...)
+    mach.fitresult = fitresult
+    mach.report = report
+    return mach
+end
