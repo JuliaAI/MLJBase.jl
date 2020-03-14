@@ -223,15 +223,15 @@ report(mach::AbstractMachine) = mach.report
 
 # saving:
 """
-    MLJ.save(filename, mach::Machine; kwargs...)
+    MLJ.save(filename, mach::AbstractMachine; kwargs...)
     MLJ.save(io, mach::Machine; kwargs...)
 
-    MLJBase.save(filename, mach::Machine; kwargs...)
+    MLJBase.save(filename, mach::AbstractMachine; kwargs...)
     MLJBase.save(io, mach::Machine; kwargs...)
 
 Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
-supported). 
+supported).
 
 The format is JLSO (a wrapper for julia native or BSON serialization)
 unless a custom format has been implemented for the model type of
@@ -247,10 +247,9 @@ See (see
 [https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
 for details.
 
-
 Machines are de-serialized using the `machine` constructor as shown in
-the example below. Data may be optionally passed to the constructor
-for retraining on new data using the saved model.
+the example below. Data (or nodes) may be optionally passed to the
+constructor for retraining on new data using the saved model.
 
 
 ### Example
@@ -276,13 +275,17 @@ for retraining on new data using the saved model.
     seekstart(io)
     predict_only_mach = machine(io)
     predict(predict_only_mach, X)
+
 !!! warning "Only load files from trusted sources"
-    Maliciously constructed JLSO files, like pickles, and most other general purpose
-    serialization formats can allow for arbitrary code execution during loading.
-    This means it is possible for someone to use a JLSO file that looks like a serialized
-    MLJ machine as a [Trojan horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+    Maliciously constructed JLSO files, like pickles, and most other
+    general purpose serialization formats, can allow for arbitrary code
+    execution during loading. This means it is possible for someone
+    to use a JLSO file that looks like a serialized MLJ machine as a
+    [Trojan
+    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
 """
-function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
+function MMI.save(file, mach::AbstractMachine; verbosity=1, kwargs...)
     isdefined(mach, :fitresult)  ||
         error("Cannot save an untrained machine. ")
     MMI.save(file, mach.model, mach.fitresult, mach.report; kwargs...)

@@ -40,6 +40,16 @@ seed!(1234)
     @test rms(yhat(selectrows(X, test)), y[test]) < 0.3
     @test MLJBase.is_stale(knn1) == false
 
+    fit!(yhat)
+    pred = yhat()
+
+    # test serialization of NodalMachine:
+    io = IOBuffer()
+    MLJBase.save(io, knn1)
+    seekstart(io)
+    mach = fit!(machine(io, Xtrain, ytrain))
+    @test predict(mach) ≈ pred
+
 end
 
 @testset "network #2" begin
