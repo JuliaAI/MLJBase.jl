@@ -276,7 +276,11 @@ for retraining on new data using the saved model.
     seekstart(io)
     predict_only_mach = machine(io)
     predict(predict_only_mach, X)
-
+!!! warning "Only load files from trusted sources"
+    Maliciously constructed JLSO files, like pickles, and most other general purpose
+    serialization formats can allow for arbitrary code execution during loading.
+    This means it is possible for someone to use a JLSO file that looks like a serialized
+    MLJ machine as a [Trojan horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 """
 function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
     isdefined(mach, :fitresult)  ||
