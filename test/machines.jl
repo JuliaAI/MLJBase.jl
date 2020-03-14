@@ -79,5 +79,79 @@ end
     @test all([pdf(d1, c) ≈ pdf(d2, c) for c in MLJBase.classes(d1)])
 end
 
+mutable struct Scale <: MLJBase.Static
+    scaling::Float64
+end
+
+function MLJBase.transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X * s.scaling
+    MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
+end
+
+function MLJBase.inverse_transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X / s.scaling
+    MLJBase.table(MLJBase.matrix(X) / s.scaling, prototype=X)
+end
+
+@testset "static transformer machines" begin
+    s = Scale(2)
+    X = randn(2, 3)
+    Xt = MLJBase.table(X)
+
+    mach = machine(Scale(2))
+    fit!(mach) # no-op
+    R  = transform(mach, X)
+    IR = inverse_transform(mach, R)
+    @test IR ≈ X
+
+end
+
+@testset "serialization" begin
+    model = @load DecisionTreeRegressor
+
+    X = (a = Float64[98, 53, 93, 67, 90, 68],
+         b = Float64[64, 43, 66, 47, 16, 66],)
+    Xnew = (a = Float64[82, 49, 16],
+            b = Float64[36, 13, 36],)
+    y =  [59.1, 28.6, 96.6, 83.3, 59.1, 48.0]
+
+    mach =machine(model, X, y)
+    filename = joinpath(@__DIR__, "machine.jlso")
+    io = IOBuffer()
+    @test_throws Exception MLJBase.save(io, mach; compression=:none)
+
+    fit!(mach)
+    report = mach.report
+    pred = predict(mach, Xnew)
+    MLJBase.save(io, mach; compression=:none)
+    # commented out for travis testing:
+    # MLJBase.save(filename, mach)
+
+    # test restoring data from filename:
+    m = machine(filename)
+    p = predict(m, Xnew)
+    @test m.model == model
+    @test m.report == report
+    @test p ≈ pred
+    m = machine(filename, X, y)
+    fit!(m)
+    p = predict(m, Xnew)
+    @test p ≈ pred
+
+    # test restoring data from io:
+    seekstart(io)
+    m = machine(io)
+    p = predict(m, Xnew)
+    @test m.model == model
+    @test m.report == report
+    @test p ≈ pred
+    seekstart(io)
+    m = machine(io, X, y)
+    fit!(m)
+    p = predict(m, Xnew)
+    @test p ≈ pred
+
+end
+
 end # module
 true

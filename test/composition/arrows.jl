@@ -105,5 +105,42 @@ end
     @test length(p̂) == 500
 end
 
+
+@testset "functions and static transfomers" begin
+    x1 = rand(30)
+    x2 = rand(30)
+    x3 = rand(30)
+    y = exp.(x1 - x2 -2x3 + 0.1*rand(30))
+    X = (x1=x1, x2=x2, x3=x3)
+
+    f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
+
+    knn = @load KNNRegressor
+
+    Xs = source(X)
+    ys = source(y, kind=:target)
+
+    f(X::AbstractNode) = node(f, X)
+    W = Xs |> f |> Standardizer()
+    z = ys |> UnivariateBoxCoxTransformer()
+    zhat = (W, z) |> knn
+    yhat = zhat |> inverse_transform(z)
+    fit!(yhat)
+    pred = yhat()
+
+    mutable struct MyTransformer <: Static
+        ftr::Symbol
+    end
+    MLJBase.transform(transf::MyTransformer, verbosity, X) =
+        (a=selectcols(X, transf.ftr), b=selectcols(X, :x2))
+    inserter = MyTransformer(:x1)
+    W = Xs |> inserter |> Standardizer()
+    z = ys |> UnivariateBoxCoxTransformer()
+    zhat = (W, z) |> knn
+    yhat = zhat |> inverse_transform(z)
+    fit!(yhat)
+    @test yhat() ≈ pred
+end
+
 end
 true
