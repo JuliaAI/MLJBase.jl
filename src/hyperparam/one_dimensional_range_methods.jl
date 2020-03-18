@@ -404,7 +404,9 @@ Base.rand(rng::AbstractRNG,
     broadcast(idx -> s.values[idx], rand(rng, s.distribution, dims...))
 
 
+## SCALE METHOD FOR SAMPLERS
 
-
-#using Plots
-#plotly()
+# these mimick the definitions for 1D ranges above:
+scale(::Any) = :none
+scale(::NumericSampler) = :custom
+scale(s::NumericSampler{<:Any,<:Distributions.Sampleable,Symbol}) = s.scale
