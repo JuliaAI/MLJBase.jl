@@ -278,6 +278,7 @@ end
 # constructor for distribution *instances*:
 """
     sampler(r::NominalRange, probs::AbstractVector{<:Real})
+    sampler(r::NominalRange)
     sampler(r::NumericRange{T}, d)
 
 Construct an object `s` which can be used to generate random samples
@@ -289,11 +290,12 @@ the following calls:
     rand(rng, s [, n])  # to specify an RNG
 
 The argument `probs` can be any probability vector with the same
-length as `r.values`.
+length as `r.values`. The second `sampler` method above calls the
+first with a uniform `probs` vector.
 
 The argument `d`, can be either an arbitrary instance of
 `UnivariateDistribution` from the Distributions.jl package, or one of
-the Distributions.jl types specified in the table below.
+the Distributions.jl types specified in the table below. 
 
 If `d` is an *instance*, then sampling is from a truncated form of the
 supplied distribution `d`, the truncation bounds being `r.lower` and
