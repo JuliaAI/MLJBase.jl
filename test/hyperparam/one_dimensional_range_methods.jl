@@ -252,6 +252,21 @@ end
     end
 
 end
+
+struct MySampler end
+Base.rand(rng::AbstractRNG, ::MySampler) = rand(rng)
+
+
+@testset "scale(s) for s a sampler" begin
+    @test scale(MySampler()) == :none
+    r = range(Char, :(model.dummy), values=collect("cab"))
+    @test scale(MLJBase.sampler(r, [0.1, 0.2, 0.7])) == :none
+    r1 = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
+    @test scale(MLJBase.sampler(r1, Dist.Uniform)) == :custom
+    r2 = range(Int, :k, lower=2, upper=6, origin=4.5, unit=1.2, scale=:log2)
+    @test scale(MLJBase.sampler(r2, Dist.Normal)) == :log2
+end
+
 end
 
 true
