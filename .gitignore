@@ -4,3 +4,6 @@ Manifest.toml
 #*
 .DS_Store
 sandbox/
+/docs/build/
+/docs/site/
+/docs/Manifest.toml
