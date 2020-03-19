@@ -1,13 +1,4 @@
-## MLJBase
-
-Repository for developers that provides core functionality for the
-[MLJ](https://github.com/alan-turing-institute/MLJ.jl) machine
-learning framework.
-
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/dev)
-[![Build Status](https://travis-ci.com/alan-turing-institute/MLJBase.jl.svg?branch=master)](https://travis-ci.com/alan-turing-institute/MLJBase.jl)
-[![Coverage](http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master)](http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
+# MLJBase.jl
 
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
 framework for combining and tuning machine learning models. This

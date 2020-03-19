@@ -19,9 +19,9 @@ const API_URL = "https://www.openml.org/api/v1/json"
 Returns information about a dataset. The information includes the name,
 information about the creator, URL to download it and more.
 
-110 - Please provide data_id.
-111 - Unknown dataset. Data set description with data_id was not found in the database.
-112 - No access granted. This dataset is not shared with you.
+- 110 - Please provide data_id.
+- 111 - Unknown dataset. Data set description with data_id was not found in the database.
+- 112 - No access granted. This dataset is not shared with you.
 """
 function load_Dataset_Description(id::Int; api_key::String="")
     url = string(API_URL, "/data/$id")
@@ -98,11 +98,12 @@ Returns a "row table", i.e., a `Vector` of identically typed
 therefore be readily converted to other compatible formats. For
 example:
 
-    using DataFrames
-    rowtable = OpenML.load(61);
-    df = DataFrame(rowtable);
-    df2 = coerce(df, :class=>Multiclass)
-
+```julia
+using DataFrames
+rowtable = OpenML.load(61);
+df = DataFrame(rowtable);
+df2 = coerce(df, :class=>Multiclass)
+```
 """
 function load(id::Int)
     response = load_Dataset_Description(id)
@@ -114,8 +115,8 @@ end
 """
 Returns a list of all data qualities in the system.
 
-412 - Precondition failed. An error code and message are returned
-370 - No data qualities available. There are no data qualities in the system.
+- 412 - Precondition failed. An error code and message are returned
+- 370 - No data qualities available. There are no data qualities in the system.
 """
 function load_Data_Qualities_List()
     url = string(API_URL, "/data/qualities/list")
@@ -136,10 +137,10 @@ end
 """
 Returns a list of all data qualities in the system.
 
-271 - Unknown dataset. Data set with the given data ID was not found (or is not shared with you).
-272 - No features found. The dataset did not contain any features, or we could not extract them.
-273 - Dataset not processed yet. The dataset was not processed yet, features are not yet available. Please wait for a few minutes.
-274 - Dataset processed with error. The feature extractor has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, please contact the API admins.
+- 271 - Unknown dataset. Data set with the given data ID was not found (or is not shared with you).
+- 272 - No features found. The dataset did not contain any features, or we could not extract them.
+- 273 - Dataset not processed yet. The dataset was not processed yet, features are not yet available. Please wait for a few minutes.
+- 274 - Dataset processed with error. The feature extractor has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, please contact the API admins.
 """
 function load_Data_Features(id::Int; api_key::String = "")
     if api_key == ""
@@ -168,12 +169,12 @@ end
 """
 Returns the qualities of a dataset.
 
-360 - Please provide data set ID
-361 - Unknown dataset. The data set with the given ID was not found in the database, or is not shared with you.
-362 - No qualities found. The registered dataset did not contain any calculated qualities.
-363 - Dataset not processed yet. The dataset was not processed yet, no qualities are available. Please wait for a few minutes.
-364 - Dataset processed with error. The quality calculator has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, contact the support team.
-365 - Interval start or end illegal. There was a problem with the interval start or end.
+- 360 - Please provide data set ID
+- 361 - Unknown dataset. The data set with the given ID was not found in the database, or is not shared with you.
+- 362 - No qualities found. The registered dataset did not contain any calculated qualities.
+- 363 - Dataset not processed yet. The dataset was not processed yet, no qualities are available. Please wait for a few minutes.
+- 364 - Dataset processed with error. The quality calculator has run into an error while processing the dataset. Please check whether it is a valid supported file. If so, contact the support team.
+- 365 - Interval start or end illegal. There was a problem with the interval start or end.
 """
 function load_Data_Qualities(id::Int; api_key::String = "")
     if api_key == ""
@@ -227,10 +228,10 @@ specific value or a range in the form 'low..high'.
 Multiple qualities can be combined, as in
 'number_instances/0..50/number_features/0..10'.
 
-370 - Illegal filter specified.
-371 - Filter values/ranges not properly specified.
-372 - No results. There where no matches for the given constraints.
-373 - Can not specify an offset without a limit.
+- 370 - Illegal filter specified.
+- 371 - Filter values/ranges not properly specified.
+- 372 - No results. There where no matches for the given constraints.
+- 373 - Can not specify an offset without a limit.
 """
 function load_List_And_Filter(filters::String; api_key::String = "")
     if api_key == ""
