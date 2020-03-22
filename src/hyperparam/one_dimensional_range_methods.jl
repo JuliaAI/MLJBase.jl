@@ -181,11 +181,10 @@ range `r`.
 
 Only types `D` in the table below are supported.
 
-The distribution `d` is constructed in two stages. First the
-attributes `r.origin` and `r.unit` are used to fit a distributon `d0`
-characterized by the conditions in the second column of the
-table. Then `d0` is truncated between `r.lower` and `r.upper` to
-obtain `d`.
+The distribution `d` is constructed in two stages. First, a
+distributon `d0`, characterized by the conditions in the second column
+of the table, is fit to `r`. Then `d0` is truncated between `r.lower`
+and `r.upper` to obtain `d`.
 
 Distribution type `D`  | Characterization of `d0`
 :----------------------|:-------------------------
