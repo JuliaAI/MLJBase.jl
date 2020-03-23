@@ -262,8 +262,9 @@ include("composition/networks.jl")
 include("composition/composites.jl")
 include("composition/pipelines.jl")
 include("composition/pipeline_static.jl")
-VERSION ≥ v"1.3.0-" && include("composition/arrows.jl")
-
+@static if VERSION ≥ v"1.3.0-"
+    include("composition/arrows.jl")
+end
 include("operations.jl")
 
 include("resampling.jl")
