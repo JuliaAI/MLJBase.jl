@@ -14,6 +14,9 @@ function info_dict(M::Type{<:Model})
     is_wrapper(M) isa Bool ||
         error(message * "`is_wrapper($M)` must return true, false. ")
 
-    return LittleDict{Symbol,Any}(trait => eval(:($trait))(M)
-                                  for trait in MLJModelInterface.MODEL_TRAITS)
+    dd = DefaultDict{Symbol, Any}(passkey=true) do key
+        getfield(MLJBase, key)(M)
+    end
+
+    return dd
 end

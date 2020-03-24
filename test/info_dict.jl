@@ -3,8 +3,8 @@ module TestInfo
 using MLJBase
 import MLJBase.info_dict
 using Test
-using OrderedCollections
 using LossFunctions
+using DataStructures
 
 mutable struct DummyProb <: Probabilistic
     an_int::Int
@@ -93,8 +93,11 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                  range(Float64, :a_float, lower=1, upper=2),
                  range(Vector{Float64}, :a_vector, values=[[1.0], [2.0]]),
                  nothing))
-    @test info_dict(DummyProb) == d
-    @test info_dict(DummyProb(42, 3.14, [1.0, 2.0], :cow)) == d
+    result = info_dict(DummyProb)
+    @test all(result[k] == v for (k, v) in d)
+
+    result = info_dict(DummyProb(42, 3.14, [1.0, 2.0], :cow))
+    @test all(result[k] == v for (k, v) in d)
 end
 
 @testset "info on deterministic models" begin
@@ -120,8 +123,10 @@ end
             :hyperparameters       => (),
             :hyperparameter_ranges => ())
 
-    @test info_dict(DummyDeterm)   == d
-    @test info_dict(DummyDeterm()) == d
+    result = info_dict(DummyDeterm)
+    @test all(result[k] == v for (k, v) in d)
+    result = info_dict(DummyDeterm())
+    @test all(result[k] == v for (k, v) in d)
 end
 
 @testset "info on interval models" begin
@@ -147,8 +152,10 @@ end
             :hyperparameters => (),
             :hyperparameter_ranges => ())
 
-    @test info_dict(DummyInt)   == d
-    @test info_dict(DummyInt()) == d
+    result = info_dict(DummyInt)
+    @test all(result[k] == v for (k, v) in d)
+    result = info_dict(DummyInt())
+    @test all(result[k] == v for (k, v) in d)
 end
 
 @testset "info on unsupervised models" begin
@@ -174,8 +181,10 @@ end
             :hyperparameters       => (),
             :hyperparameter_ranges => ())
 
-    @test info_dict(DummyUnsup)   == d
-    @test info_dict(DummyUnsup()) == d
+    result = info_dict(DummyUnsup)
+    @test all(result[k] == v for (k, v) in d)
+    result = info_dict(DummyUnsup())
+    @test all(result[k] == v for (k, v) in d)
 end
 
 @testset "info for measures" begin
@@ -183,5 +192,5 @@ end
     info(L2DistLoss()).name == "LPDistLoss{2}"
 end
 
-end
+end # module
 true

@@ -20,8 +20,8 @@ import MLJModelInterface: fit, update, update_data, transform,
 using Tables
 import PrettyTables
 using DelimitedFiles
-using OrderedCollections
 using CategoricalArrays
+using DataStructures
 import InvertedIndices: Not
 import JLSO
 
