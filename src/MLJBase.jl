@@ -21,7 +21,7 @@ using Tables
 import PrettyTables
 using DelimitedFiles
 using CategoricalArrays
-using DataStructures
+using OrderedCollections
 import InvertedIndices: Not
 import JLSO
 

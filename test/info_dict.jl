@@ -2,9 +2,10 @@ module TestInfo
 
 using MLJBase
 import MLJBase.info_dict
+import MLJModelInterface
 using Test
 using LossFunctions
-using DataStructures
+using OrderedCollections
 
 mutable struct DummyProb <: Probabilistic
     an_int::Int
@@ -93,7 +94,15 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
                  range(Float64, :a_float, lower=1, upper=2),
                  range(Vector{Float64}, :a_vector, values=[[1.0], [2.0]]),
                  nothing))
+
     result = info_dict(DummyProb)
+
+    @test keys(result) == MLJModelInterface.MODEL_TRAITS
+    @test length(result) == length(MLJModelInterface.MODEL_TRAITS)
+    @test haskey(result, :name)
+    @test !haskey(result, :some_non_existent_name)
+    @test_throws KeyError result[:some_non_existent_name]
+
     @test all(result[k] == v for (k, v) in d)
 
     result = info_dict(DummyProb(42, 3.14, [1.0, 2.0], :cow))

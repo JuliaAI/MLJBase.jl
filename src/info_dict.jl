@@ -2,6 +2,29 @@
 # encoding, to serializing to TOML file. Not intended to be exposed to
 # user.
 
+struct LazyInfoDict{K, V, M} <: AbstractDict{K, V}
+    d::LittleDict{K, V}
+    keys::Vector{K}
+    m::M
+end
+
+function Base.:getindex(d::LazyInfoDict, key)
+    if haskey(d.d, key)
+        return d.d[key]
+    else
+        # safety measures
+        !(key in d.keys) && throw(KeyError(key))
+
+        val = getfield(MLJBase, key)(d.m)
+        d.d[key] = val
+        return val
+    end
+end
+
+Base.:keys(d::LazyInfoDict) = d.keys
+Base.:length(d::LazyInfoDict) = length(d.keys)
+Base.:haskey(d::LazyInfoDict, key) = key in d.keys
+
 info_dict(model::Model) = info_dict(typeof(model))
 
 function info_dict(M::Type{<:Model})
@@ -14,9 +37,5 @@ function info_dict(M::Type{<:Model})
     is_wrapper(M) isa Bool ||
         error(message * "`is_wrapper($M)` must return true, false. ")
 
-    dd = DefaultDict{Symbol, Any}(passkey=true) do key
-        getfield(MLJBase, key)(M)
-    end
-
-    return dd
+    return LazyInfoDict(LittleDict{Symbol, Any}(), MLJModelInterface.MODEL_TRAITS, M)
 end
