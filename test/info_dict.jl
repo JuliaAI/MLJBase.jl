@@ -102,6 +102,7 @@ MLJBase.transform(::DummyUnsup, fr, X) = nothing
     @test haskey(result, :name)
     @test !haskey(result, :some_non_existent_name)
     @test_throws KeyError result[:some_non_existent_name]
+    @test all(d[k] == v for (k, v) in result)
 
     @test all(result[k] == v for (k, v) in d)
 

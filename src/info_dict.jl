@@ -25,6 +25,11 @@ Base.:keys(d::LazyInfoDict) = d.keys
 Base.:length(d::LazyInfoDict) = length(d.keys)
 Base.:haskey(d::LazyInfoDict, key) = key in d.keys
 
+function Base.:iterate(d::LazyInfoDict, i::Int = 1)
+    i > length(d.keys) && return nothing
+    return ((d.keys[i], d[d.keys[i]]), i+1)
+end
+
 info_dict(model::Model) = info_dict(typeof(model))
 
 function info_dict(M::Type{<:Model})
