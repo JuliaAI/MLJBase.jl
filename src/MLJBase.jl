@@ -14,7 +14,7 @@ import MLJModelInterface: fit, update, update_data, transform,
                           inverse_transform, fitted_params, predict,
                           predict_mode, predict_mean, predict_median,
                           evaluate, clean!, is_same_except,
-                          save, restore
+                          save, restore, is_same_except
 
 # Containers & data manipulation
 using Tables
