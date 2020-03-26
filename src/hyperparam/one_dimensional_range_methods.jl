@@ -173,6 +173,7 @@ end
 
 ### Fallback and docstring
 
+
 """
     Distributions.fit(D, r::MLJBase.NumericRange)
 
@@ -292,9 +293,14 @@ The argument `probs` can be any probability vector with the same
 length as `r.values`. The second `sampler` method above calls the
 first with a uniform `probs` vector.
 
-The argument `d`, can be either an arbitrary instance of
+The argument `d` can be either an arbitrary instance of
 `UnivariateDistribution` from the Distributions.jl package, or one of
-the Distributions.jl types specified in the table below. 
+a Distributions.jl *types* for which `fit(d, ::NumericRange)` is
+defined. These include: `Arcsine`, `Uniform`, `Biweight`, `Cosine`,
+`Epanechnikov`, `SymTriangularDist`, `Triweight`, `Normal`, `Gamma`,
+`InverseGaussian`, `Logistic`, `LogNormal`, `Cauchy`, `Gumbel`,
+`Laplace`, and `Poisson`; but see the doc-string for
+[`Distributions.fit`](@ref) for an up-to-date list.
 
 If `d` is an *instance*, then sampling is from a truncated form of the
 supplied distribution `d`, the truncation bounds being `r.lower` and
