@@ -14,7 +14,7 @@ import MLJModelInterface: fit, update, update_data, transform,
                           inverse_transform, fitted_params, predict,
                           predict_mode, predict_mean, predict_median,
                           evaluate, clean!, is_same_except,
-                          save, restore
+                          save, restore, is_same_except
 
 # Containers & data manipulation
 using Tables
@@ -262,8 +262,9 @@ include("composition/networks.jl")
 include("composition/composites.jl")
 include("composition/pipelines.jl")
 include("composition/pipeline_static.jl")
-VERSION ≥ v"1.3.0-" && include("composition/arrows.jl")
-
+@static if VERSION ≥ v"1.3.0-"
+    include("composition/arrows.jl")
+end
 include("operations.jl")
 
 include("resampling.jl")
