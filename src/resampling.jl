@@ -602,7 +602,7 @@ function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
                    measures, operation, acceleration, force)
 
-    # Note: `rows` and `n` are ignored here
+    # Note: `rows` and `repeats` are ignored here
 
     resampling isa TrainTestPairs ||
         error("`resampling` must be an "*
