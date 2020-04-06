@@ -10,6 +10,8 @@ import Base.+, Base.*
 import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
 using MLJModelInterface
+
+# Interface
 import MLJModelInterface: fit, update, update_data, transform,
                           inverse_transform, fitted_params, predict,
                           predict_mode, predict_mean, predict_median,
@@ -24,6 +26,7 @@ using OrderedCollections
 using CategoricalArrays
 import InvertedIndices: Not
 import JLSO
+import Dates
 
 # Distributed computing
 using Distributed
@@ -128,9 +131,9 @@ export info_dict
 
 # datasets.jl:
 export load_boston, load_ames, load_iris,
-       load_reduced_ames, load_crabs,
+       load_reduced_ames, load_crabs, load_smarket,
        @load_boston, @load_ames, @load_iris,
-       @load_reduced_ames, @load_crabs
+       @load_reduced_ames, @load_crabs, @load_smarket
 
 # machines.jl:
 export machine, Machine, AbstractMachine, fit!, report
