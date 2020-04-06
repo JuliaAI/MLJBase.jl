@@ -143,11 +143,23 @@ const COERCE_CRABS = (
 
 typeof(COERCE_CRABS)
 
+const COERCE_SMARKET = (
+    :Year=>Continuous,
+    :Lag1=>Continuous,
+    :Lag2=>Continuous,
+    :Lag3=>Continuous,
+    :Lag4=>Continuous,
+    :Lag5=>Continuous,
+    :Volume=>Continuous,
+    :Today=>Continuous,
+    :Direction=>Multiclass{2})
+
 """
 load_dataset(fpath, coercions)
 
-Load one of standard dataset like Boston etc assuming the file is a comma separated file with
-a  header.
+Load one of standard dataset like Boston etc assuming the file is a
+comma separated file with a header.
+
 """
 function load_dataset(fname::String, coercions::Tuple)
     fpath = joinpath(DATA_DIR, fname)
@@ -178,6 +190,10 @@ function load_ames()
 end
 load_iris()         = load_dataset("iris.csv", COERCE_IRIS)
 load_crabs()        = load_dataset("crabs.csv", COERCE_CRABS)
+function load_smarket()
+    data1 = load_dataset("smarket.csv", COERCE_SMARKET)
+    return merge(data1, (Year=Dates.Date.(data1.Year),))
+end
 
 
 """Load a well-known public regression dataset with `Continuous` features."""
@@ -216,6 +232,17 @@ end
 macro load_crabs()
     quote
         y, X = unpack(load_crabs(), ==(:sp), x-> !(x in [:sex, :index]))
+        (X, y)
+    end
+end
+
+""" Load S&P Stock Market dataset, as used in (An Introduction to
+Statistical Learning with applications in
+R)[https://rdrr.io/cran/ISLR/man/Smarket.html](https://rdrr.io/cran/ISLR/man/Smarket.html),
+by Witten et al (2013), Springer-Verlag, New York."""
+macro load_smarket()
+    quote
+        y, X = unpack(load_smarket(), ==(:Direction), x-> true)
         (X, y)
     end
 end

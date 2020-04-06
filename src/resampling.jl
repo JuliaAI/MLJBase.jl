@@ -667,6 +667,8 @@ function evaluate!(mach::Machine, resampling, weights,
                        channel)
     end
 
+#    @show measurements_flat
+
     close(channel)
 
     # in the following rows=folds, columns=measures:
