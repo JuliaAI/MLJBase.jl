@@ -200,7 +200,6 @@ end
 macro load_boston()
     quote
         y, X = unpack(load_boston(), ==(:MedV), x->x != :Chas)
-        (X, y)
     end
 end
 
@@ -208,7 +207,6 @@ end
 macro load_reduced_ames()
     quote
         y, X = unpack(load_reduced_ames(), ==(:target), x-> true)
-        (X, y)
     end
 end
 
@@ -216,7 +214,6 @@ end
 macro load_ames()
     quote
         y, X = unpack(load_ames(), ==(:target), x->x != :Id)
-        (X, y)
     end
 end
 
@@ -224,7 +221,6 @@ end
 macro load_iris()
     quote
         y, X = unpack(load_iris(), ==(:target), x-> true)
-        (X, y)
     end
 end
 
@@ -232,7 +228,6 @@ end
 macro load_crabs()
     quote
         y, X = unpack(load_crabs(), ==(:sp), x-> !(x in [:sex, :index]))
-        (X, y)
     end
 end
 
@@ -243,6 +238,5 @@ by Witten et al (2013), Springer-Verlag, New York."""
 macro load_smarket()
     quote
         y, X = unpack(load_smarket(), ==(:Direction), x-> true)
-        (X, y)
     end
 end
