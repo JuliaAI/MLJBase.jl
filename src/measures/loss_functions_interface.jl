@@ -18,12 +18,12 @@ MMI.target_scitype(::Type{<:DistanceLoss})  = AbstractArray{<:Continuous}
 
 function value(measure::DistanceLoss, yhat, X, y, ::Nothing,
                 ::Val{false}, ::Val{true})
-    return measure(yhat, y)
+    return LSF.value(measure, yhat, y)
 end
 
 function value(measure::DistanceLoss, yhat, X, y, w,
                 ::Val{false}, ::Val{true})
-    return w .* measure(yhat, y) ./ (sum(w)/length(y))
+    return w .* value(measure, yhat, X, y, nothing) ./ (sum(w)/length(y))
 end
 
 ## MARGIN BASED LOSS FUNCTIONS
