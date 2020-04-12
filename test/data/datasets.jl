@@ -4,12 +4,12 @@ module TestDatasets
 using Test
 using MLJBase
 
-X, y = @load_boston
+y, X = @load_boston
 @test schema(X).names  == (:Crim, :Zn, :Indus, :NOx, :Rm, :Age,
                            :Dis, :Rad, :Tax, :PTRatio, :Black, :LStat)
 @test scitype(y) <: AbstractVector{Continuous}
 
-X, y = @load_ames
+y, X = @load_ames
 schema(X).names == (:MSSubClass, :MSZoning, :LotFrontage, :LotArea,
                     :Street, :LotShape, :LandContour, :LotConfig,
                     :LandSlope, :Neighborhood, :Condition1,
@@ -34,23 +34,23 @@ schema(X).names == (:MSSubClass, :MSZoning, :LotFrontage, :LotArea,
                     :MoSold, :YrSold, :SaleType, :SaleCondition)
 @test scitype(y) <: AbstractVector{Continuous}
 
-X, y = @load_reduced_ames
+y, X = @load_reduced_ames
 schema(X).names == (:OverallQual, :GrLivArea, :Neighborhood,
                     :x1stFlrSF, :TotalBsmtSF, :BsmtFinSF1, :LotArea,
                     :GarageCars, :MSSubClass, :GarageArea, :YearRemodAdd,
                     :YearBuilt)
 @test scitype(y) <: AbstractVector{Continuous}
 
-X, y = @load_iris
+y, X = @load_iris
 @test schema(X).names == (:sepal_length, :sepal_width, :petal_length,
                           :petal_width)
 @test scitype(y) <: AbstractVector{<:Multiclass}
 
-X, y = @load_crabs
+y, X = @load_crabs
 @test schema(X).names ==  (:FL, :RW, :CL, :CW, :BD)
 @test scitype(y) <: AbstractVector{<:Multiclass}
 
-X, y = @load_smarket
+y, X = @load_smarket
 @test schema(X).names == (:Year, :Lag1, :Lag2, :Lag3, :Lag4, :Lag5, :Volume, :Today)
 @test scitype(y) == AbstractVector{Multiclass{2}}
 
