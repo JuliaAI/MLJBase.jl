@@ -213,13 +213,13 @@ end
     # check in explicit example:
     y = categorical(['c', 'a', 'b', 'a', 'c', 'x',
                  'c', 'a', 'a', 'b', 'b', 'b', 'b', 'b'])
-    rows = [14, 13, 12, 11, 10, 9, 8, 7, 5, 4, 3, 2, 1]
-    @test y[rows] == collect("bbbbbaaccabac")
+    rows = [14, 13, 12, 11, 10, 9, 8, 7, 5, 4, 3, 1]
+    @test y[rows] == collect("bbbbbaaccabc")
     scv = StratifiedCV(nfolds=3)
     pairs = MLJBase.train_test_pairs(scv, rows, nothing, y)
-    @test pairs == [([12, 11, 10, 8, 5, 4, 3, 2, 1], [14, 13, 9, 7]),
-                    ([14, 13, 10, 9, 7, 4, 3, 2, 1], [12, 11, 8, 5]),
-                    ([14, 13, 12, 11, 9, 8, 7, 5], [10, 4, 3, 2, 1])]
+    @test pairs == [([12, 11, 10, 8, 5, 4, 3, 1], [14, 13, 9, 7]),
+                    ([14, 13, 10, 9, 7, 4, 3, 1], [12, 11, 8, 5]),
+                    ([14, 13, 12, 11, 9, 8, 7, 5], [10, 4, 3, 1])]
     scv_random = StratifiedCV(nfolds=3, shuffle=true)
     pairs_random = MLJBase.train_test_pairs(scv_random, rows, nothing, y)
     @test pairs != pairs_random
