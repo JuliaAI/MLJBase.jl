@@ -42,7 +42,7 @@ function value(measure::MarginLoss, yhat, X, y, ::Nothing,
                 ::Val{false}, ::Val{true})
     check_pools(yhat, y)
     probs_of_observed = broadcast(pdf, yhat, y)
-    return value.(measure, _scale.(probs_of_observed), 1)
+    return (LSF.value).(measure, _scale.(probs_of_observed), 1)
 end
 
 function value(measure::MarginLoss, yhat, X, y, w,
