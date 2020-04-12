@@ -64,6 +64,18 @@ end
 @test MLJBase.train_test_pairs(Holdout(), 1:10) !=
      MLJBase.train_test_pairs(Holdout(shuffle=true), 1:10)
 
+@testset "train test pairs" begin
+    cv = CV(nfolds=5)
+    pairs = MLJBase.train_test_pairs(cv, 1:24)
+    @test pairs == [
+        (6:24, 1:5),
+        ([1:5..., 11:24...], 6:10),
+        ([1:10..., 16:24...], 11:15),
+        ([1:15..., 21:24...], 16:20),
+        (1:20, 21:24)
+    ]
+end
+
 @testset "checking measure/model compatibility" begin
     model = ConstantRegressor()
     y = rand(4)
