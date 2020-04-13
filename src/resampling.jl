@@ -104,7 +104,9 @@ of `rows`. The `test` vectors are mutually exclusive and exhaust
 `test` vector. With no row pre-shuffling, the order of `rows` is
 preserved, in the sense that `rows` coincides precisely with the
 concatenation of the `test` vectors, in the order they are
-generated. All but the last `test` vector have equal length.
+generated. The first `r` test vectors have length `n + 1`, where
+`n, r = divrem(length(rows), nfolds)`, and the remaining test vectors
+have length `n`.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `CV` keyword constructor resets it to
