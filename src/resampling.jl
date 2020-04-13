@@ -132,31 +132,33 @@ CV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(cv::CV, rows)
 
-    n_observations = length(rows)
-    nfolds = cv.nfolds
+    n_obs = length(rows)
+    n_folds = cv.nfolds
 
     if cv.shuffle
         rows=shuffle!(cv.rng, collect(rows))
     end
 
-    # number of observations per fold
-    k = floor(Int, n_observations/nfolds)
-    k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
+    n, r = divrem(n_obs, n_folds)
+    n > 0 || error("Inusufficient data for $n_folds-fold cross-validation.\n"*
                    "Try reducing nfolds. ")
 
-    # define the (trainrows, testrows) pairs:
-    firsts = 1:k:((nfolds - 1)*k + 1) # itr of first `test` rows index
-    seconds = k:k:(nfolds*k)          # itr of last  `test` rows index
+    m = n + 1 # number of observations in first r folds
 
-    ret = map(1:nfolds) do k
-        f = firsts[k]
-        s = seconds[k]
-        k < nfolds || (s = n_observations)
-        return (vcat(rows[1:(f - 1)], rows[(s + 1):end]), # trainrows
-                rows[f:s])                                # testrows
+    itr1 = Iterators.partition( 1 : m*r , m)
+    itr2 = Iterators.partition( m*r+1 : n_obs , n)
+    test_folds = Iterators.flatten((itr1, itr2))
+
+    return map(test_folds) do test_indices
+        test_rows = rows[test_indices]
+
+        train_rows = vcat(
+            rows[ 1 : first(test_indices)-1 ],
+            rows[ last(test_indices)+1 : end ]
+        )
+
+        (train_rows, test_rows)
     end
-
-    return ret
 end
 
 # ----------------------------------------------------------------
