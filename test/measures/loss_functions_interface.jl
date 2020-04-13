@@ -29,7 +29,7 @@ seed!(1234)
     for m in [ZeroOneLoss(), L1HingeLoss(), L2HingeLoss(), LogitMarginLoss(),
               ModifiedHuberLoss(), PerceptronLoss(), SmoothedL1HingeLoss(0.9),
               L2MarginLoss(), ExpLoss(), SigmoidLoss(), DWDMarginLoss(0.9)]
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈ m(yhatm, ym)
+        @test MLJBase.value(m, yhat, X, y, nothing) ≈ LossFunctions.value(m, yhatm, ym)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
                 LossFunctions.value(m, yhatm, ym, AggMode.WeightedMean(w))
     end
@@ -47,7 +47,7 @@ end
               HuberLoss(0.9), EpsilonInsLoss(0.9), L1EpsilonInsLoss(0.9),
               L2EpsilonInsLoss(0.9), LogitDistLoss(), QuantileLoss(0.7)]
 
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈ m(yhat, y)
+        @test MLJBase.value(m, yhat, X, y, nothing) ≈ LossFunctions.value(m, yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
                 LossFunctions.value(m, yhat, y, AggMode.WeightedMean(w))
     end
