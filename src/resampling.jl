@@ -104,9 +104,7 @@ of `rows`. The `test` vectors are mutually exclusive and exhaust
 `test` vector. With no row pre-shuffling, the order of `rows` is
 preserved, in the sense that `rows` coincides precisely with the
 concatenation of the `test` vectors, in the order they are
-generated. The first `r` test vectors have length `n + 1`, where
-`n, r = divrem(length(rows), nfolds)`, and the remaining test vectors
-have length `n`.
+generated. All but the last `test` vector have equal length.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `CV` keyword constructor resets it to
@@ -134,33 +132,31 @@ CV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(cv::CV, rows)
 
-    n_obs = length(rows)
-    n_folds = cv.nfolds
+    n_observations = length(rows)
+    nfolds = cv.nfolds
 
     if cv.shuffle
         rows=shuffle!(cv.rng, collect(rows))
     end
 
-    n, r = divrem(n_obs, n_folds)
-    n > 0 || error("Inusufficient data for $n_folds-fold cross-validation.\n"*
+    # number of observations per fold
+    k = floor(Int, n_observations/nfolds)
+    k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
                    "Try reducing nfolds. ")
 
-    m = n + 1 # number of observations in first r folds
+    # define the (trainrows, testrows) pairs:
+    firsts = 1:k:((nfolds - 1)*k + 1) # itr of first `test` rows index
+    seconds = k:k:(nfolds*k)          # itr of last  `test` rows index
 
-    itr1 = Iterators.partition( 1 : m*r , m)
-    itr2 = Iterators.partition( m*r+1 : n_obs , n)
-    test_folds = Iterators.flatten((itr1, itr2))
-
-    return map(test_folds) do test_indices
-        test_rows = rows[test_indices]
-
-        train_rows = vcat(
-            rows[ 1 : first(test_indices)-1 ],
-            rows[ last(test_indices)+1 : end ]
-        )
-
-        (train_rows, test_rows)
+    ret = map(1:nfolds) do k
+        f = firsts[k]
+        s = seconds[k]
+        k < nfolds || (s = n_observations)
+        return (vcat(rows[1:(f - 1)], rows[(s + 1):end]), # trainrows
+                rows[f:s])                                # testrows
     end
+
+    return ret
 end
 
 # ----------------------------------------------------------------
@@ -220,6 +216,7 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 
+    n_observations = length(rows)
     nfolds = stratified_cv.nfolds
 
     if stratified_cv.shuffle
@@ -842,7 +839,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
         old_resampling.fraction_train ==
-        resampler.resampling.fraction_train
+        resampler.resampling.fraction_train 
 
     if reusable
         mach = old_mach
