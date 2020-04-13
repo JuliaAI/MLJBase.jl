@@ -218,7 +218,6 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 
-    n_observations = length(rows)
     nfolds = stratified_cv.nfolds
 
     if stratified_cv.shuffle
@@ -841,7 +840,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
         old_resampling.fraction_train ==
-        resampler.resampling.fraction_train 
+        resampler.resampling.fraction_train
 
     if reusable
         mach = old_mach
