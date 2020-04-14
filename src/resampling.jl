@@ -622,12 +622,12 @@ function evaluate!(mach::Machine, resampling, weights,
     machines = Dict(1 => mach)
 
     # set up progress meter and a remote channel for communication
-    p = Progress(nfolds,
+    verbosity < 1 || (p = Progress(nfolds,
                  dt=0,
                  desc="Evaluating over $nfolds folds: ",
                  barglyphs=BarGlyphs("[=> ]"),
                  barlen=25,
-                 color=:yellow)
+                 color=:yellow))
     channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
 
     function get_measurements(mach, k)
@@ -643,7 +643,7 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-        put!(channel, true)
+       # put!(channel, true)
     end
 
     if acceleration isa CPUProcesses
@@ -656,18 +656,18 @@ function evaluate!(mach::Machine, resampling, weights,
     @sync begin
         # printing the progress bar
         @async while take!(channel)
-            verbosity < 1 || next!(p)
-        end
+		  verbosity < 1 || next!(p)
+		end
 
-        @async global measurements_flat =
-            _evaluate!(get_measurements,
-                       machines,
-                       acceleration,
-                       nfolds,
-                       channel)
-    end
+       global measurements_flat = _evaluate!(get_measurements,
+					machines,
+					acceleration,
+					nfolds,
+					channel)
+    
+     end
 
-#    @show measurements_flat
+
 
     close(channel)
 
