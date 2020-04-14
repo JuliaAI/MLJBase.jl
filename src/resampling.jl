@@ -546,31 +546,41 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPU1, nfolds, channel)
+function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
+    ## These quantiles serves as points where sleep will be called to allow progressbars computation
+    
+    quantiles = Int.(round.(quantile(1:nfolds,
+				    [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
+				    digits = 0))
+    
     generator = (begin
                      r = func(machines[1], k)
-                     put!(channel, true)
-                     r
+                     verbosity < 1 || (put!(channel, true);
+				      k in quantiles && sleep(0.001))
                  end for k in 1:nfolds)
     ret = reduce(vcat, generator)
-    put!(channel, false)
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel)
+function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
+    quantiles = Int.(round.(quantile(1:nfolds,[0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
+		digits = 0))#these serves as points where sleep will be called to allow progressbars computations
+    
     ret =  @distributed vcat for k in 1:nfolds
         r = func(machines[1], k)
-        put!(channel, true)
+        verbosity < 1 || (put!(channel, true);
+		         k in quantiles && sleep(0.001))
         r
     end
-    put!(channel, false)
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
-function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
+function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
     nthreads = Threads.nthreads()
     tasks = map(1:nfolds) do k
         Threads.@spawn begin
@@ -580,12 +590,13 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
                     machine(machines[1].model, machines[1].args...)
             end
             r = func(machines[id], k)
-            put!(channel, true)
+            verbosity < 1 || (put!(channel, true);
+			      k in quantiles && sleep(0.001))
             r
         end
     end
     ret = reduce(vcat, fetch.(tasks))
-    put!(channel, false)
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 end
@@ -622,13 +633,13 @@ function evaluate!(mach::Machine, resampling, weights,
     machines = Dict(1 => mach)
 
     # set up progress meter and a remote channel for communication
-    verbosity < 1 || (p = Progress(nfolds,
+    verbosity < 1 || ( (p = Progress(nfolds,
                  dt=0,
                  desc="Evaluating over $nfolds folds: ",
                  barglyphs=BarGlyphs("[=> ]"),
                  barlen=25,
-                 color=:yellow))
-    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+                 color=:yellow));
+    		channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1) )
 
     function get_measurements(mach, k)
         train, test = resampling[k]
@@ -655,15 +666,16 @@ function evaluate!(mach::Machine, resampling, weights,
 
     @sync begin
         # printing the progress bar
-        @async while take!(channel)
-		  verbosity < 1 || next!(p)
+        verbosity < 1 || @async while take!(channel)
+		     next!(p)
 		end
 
        global measurements_flat = _evaluate!(get_measurements,
 					machines,
 					acceleration,
 					nfolds,
-					channel)
+					channel,
+					veerbosity)
     
      end
 
