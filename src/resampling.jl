@@ -677,6 +677,7 @@ function evaluate!(mach::Machine, resampling, weights,
 					nfolds,
 					channel,
 					verbosity)
+		
     
      end
 
