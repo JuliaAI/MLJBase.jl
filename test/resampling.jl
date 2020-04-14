@@ -45,7 +45,7 @@ end
 
         t2 = @async begin
             global result =
-                MLJBase._evaluate!(func, machines, accel, nfolds, channel)
+                MLJBase._evaluate!(func, machines, accel, nfolds, channel, 1)
         end
     end
 

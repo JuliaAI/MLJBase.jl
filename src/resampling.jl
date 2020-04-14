@@ -547,32 +547,35 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-    ## These quantiles serves as points where sleep will be called to allow progressbars computation
-    
-    quantiles = Int.(round.(quantile(1:nfolds,
-				    [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
-				    digits = 0))
-    
+    ## These quantiles serve as points where sleep will be called to allow progressbars computations for
+    ## verbosity >= 1    
+    verbosity < 1 || (quantiles = Int.(round.(quantile(1:nfolds,
+                                                    [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
+		                                            digits = 0)))
     generator = (begin
                      r = func(machines[1], k)
-                     verbosity < 1 || (put!(channel, true);
-				      k in quantiles && sleep(0.001))
-		      r
+                     verbosity < 1 ||( put!(channel, true); 
+                                       k in quantiles && sleep(0.001))
+                     r
                  end for k in 1:nfolds)
     ret = reduce(vcat, generator)
+    #sleep(0.01)
     verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
-    quantiles = Int.(round.(quantile(1:nfolds,[0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
-		digits = 0))#these serves as points where sleep will be called to allow progressbars computations
-    
+    ## These quantiles serve as points where sleep will be called to allow progressbars computations for
+    ## verbosity >= 1    
+    verbosity < 1 || (quantiles = Int.(round.(quantile(1:nfolds,
+                                                    [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
+		                                            digits = 0)))
+
     ret =  @distributed vcat for k in 1:nfolds
         r = func(machines[1], k)
-        verbosity < 1 || (put!(channel, true);
-		         k in quantiles && sleep(0.001))
+        verbosity < 1 || ( put!(channel, true);
+                               k in quantiles && sleep(0.001))
         r
     end
     verbosity < 1 || put!(channel, false)
@@ -582,6 +585,12 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
+    ## These quantiles serve as points where sleep will be called to allow progressbars computations for
+    ## verbosity >= 1    
+    verbosity < 1 || (quantiles = Int.(round.(quantile(1:nfolds,
+                                                    [0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90]),
+		                                            digits = 0)))
+    
     nthreads = Threads.nthreads()
     tasks = map(1:nfolds) do k
         Threads.@spawn begin
@@ -591,8 +600,8 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
                     machine(machines[1].model, machines[1].args...)
             end
             r = func(machines[id], k)
-            verbosity < 1 || (put!(channel, true);
-			      k in quantiles && sleep(0.001))
+            verbosity < 1 || ( put!(channel, true);
+                               k in quantiles && sleep(0.001))
             r
         end
     end
@@ -627,20 +636,21 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-
+    
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
     machines = Dict(1 => mach)
 
     # set up progress meter and a remote channel for communication
-    verbosity < 1 || ( (p = Progress(nfolds,
-                 dt=0,
-                 desc="Evaluating over $nfolds folds: ",
-                 barglyphs=BarGlyphs("[=> ]"),
-                 barlen=25,
-                 color=:yellow));
-    		channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1) )
+    verbosity < 1 || (p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow))
+
+    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
 
     function get_measurements(mach, k)
         train, test = resampling[k]
@@ -655,7 +665,7 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-       # put!(channel, true)
+        #put!(channel, true)
     end
 
     if acceleration isa CPUProcesses
@@ -667,21 +677,19 @@ function evaluate!(mach::Machine, resampling, weights,
 
     @sync begin
         # printing the progress bar
-        verbosity < 1 || @async while take!(channel)
-		     next!(p)
-		end
+       verbosity < 1 || @async while take!(channel)
+            next!(p)
+        end
 
-       global measurements_flat = _evaluate!(get_measurements,
-					machines,
-					acceleration,
-					nfolds,
-					channel,
-					verbosity)
-		
-    
-     end
+        global measurements_flat =
+            _evaluate!(get_measurements,
+                       machines,
+                       acceleration,
+                       nfolds,
+                       channel, verbosity)
+    end
 
-
+#    @show measurements_flat
 
     close(channel)
 
@@ -896,3 +904,4 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
+
