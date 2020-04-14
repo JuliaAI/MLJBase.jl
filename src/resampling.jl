@@ -557,6 +557,7 @@ function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
                      r = func(machines[1], k)
                      verbosity < 1 || (put!(channel, true);
 				      k in quantiles && sleep(0.001))
+		      r
                  end for k in 1:nfolds)
     ret = reduce(vcat, generator)
     verbosity < 1 || put!(channel, false)
