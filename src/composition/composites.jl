@@ -175,7 +175,6 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
                  train_args = [newnode_given_old[arg] for arg in N.machine.args]
                  mach = NodalMachine(newmodel_given_old[N.machine.model],
                                 train_args...)
-                 @show train_args mach.model
                  newmach_given_old[N.machine] = mach
              end
              newnode_given_old[N] = N.operation(mach, args...)
