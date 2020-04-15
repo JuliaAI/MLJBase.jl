@@ -45,7 +45,7 @@ end
 
         t2 = @async begin
             global result =
-                MLJBase._evaluate!(func, machines, accel, nfolds, channel)
+                MLJBase._evaluate!(func, machines, accel, nfolds, channel, 1)
         end
     end
 
@@ -186,6 +186,15 @@ end
     @test e1 != evaluate!(mach, verbosity=verb,
                           resampling=Holdout(),
                           acceleration=accel).measurement[1]
+end
+
+@testset_accelerated "Exception handling (see issue 235)" accel begin
+ X, y = @load_iris
+model = ConstantClassifier()
+
+bad_loss(yhat, y) = throw(Exception())
+@test_throws Exception evaluate(model, X, y, measure=bad_loss)
+
 end
 
 @testset_accelerated "cv" accel begin
