@@ -73,7 +73,13 @@ end
 # ------------------------------------------------------------------------
 # nrows, selectrows, selectcols
 
-MMI.nrows(::FI, ::Val{:table}, X) = Tables.rowcount(X)
+function MMI.nrows(::FI, ::Val{:table}, X)
+    Tables.columnaccess(X) || return length(collect(X))
+    # if has columnaccess
+    cols = Tables.columntable(X)
+    !isempty(cols) || return 0
+    return length(cols[1])
+end
 
 MMI.selectrows(::FI, ::Val{:table}, X, ::Colon) = X
 MMI.selectcols(::FI, ::Val{:table}, X, ::Colon) = X
