@@ -546,31 +546,37 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPU1, nfolds, channel)
-    generator = (begin
+function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
+    
+    ret = mapreduce(vcat, 1:nfolds) do k
+                begin
                      r = func(machines[1], k)
-                     put!(channel, true)
+                     verbosity < 1 || put!(channel, true) 
                      r
-                 end for k in 1:nfolds)
-    ret = reduce(vcat, generator)
-    put!(channel, false)
+                 end
+    	  end
+	
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel)
+function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
+    
     ret =  @distributed vcat for k in 1:nfolds
-        r = func(machines[1], k)
-        put!(channel, true)
-        r
-    end
-    put!(channel, false)
+        	r = func(machines[1], k)
+        	verbosity < 1 || put!(channel, true)
+        	r
+    	   end
+	
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
-function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
+function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
+    
     nthreads = Threads.nthreads()
     tasks = map(1:nfolds) do k
         Threads.@spawn begin
@@ -580,12 +586,13 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel)
                     machine(machines[1].model, machines[1].args...)
             end
             r = func(machines[id], k)
-            put!(channel, true)
+            verbosity < 1 || put!(channel, true)
             r
         end
     end
     ret = reduce(vcat, fetch.(tasks))
-    put!(channel, false)
+    
+    verbosity < 1 || put!(channel, false)
     return ret
 end
 end
@@ -615,20 +622,21 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-
+    
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
     machines = Dict(1 => mach)
 
     # set up progress meter and a remote channel for communication
-    p = Progress(nfolds,
-                 dt=0,
-                 desc="Evaluating over $nfolds folds: ",
-                 barglyphs=BarGlyphs("[=> ]"),
-                 barlen=25,
-                 color=:yellow)
-    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+    verbosity < 1 || (p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow))
+
+    channel = acceleration isa CPU1 ? RemoteChannel(()->Channel{Bool}(1) , 1) : RemoteChannel(()->Channel{Bool}(nfolds) , 1)
 
     function get_measurements(mach, k)
         train, test = resampling[k]
@@ -643,7 +651,7 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-        put!(channel, true)
+        #put!(channel, true)
     end
 
     if acceleration isa CPUProcesses
@@ -655,16 +663,16 @@ function evaluate!(mach::Machine, resampling, weights,
 
     @sync begin
         # printing the progress bar
-        @async while take!(channel)
-            verbosity < 1 || next!(p)
+       verbosity < 1 || @async while take!(channel)
+            next!(p)
         end
 
-        @async global measurements_flat =
+        global measurements_flat =
             _evaluate!(get_measurements,
                        machines,
                        acceleration,
                        nfolds,
-                       channel)
+                       channel, verbosity)
     end
 
 #    @show measurements_flat
@@ -882,3 +890,4 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
+

@@ -91,10 +91,11 @@ end
 end
 
 @testset "select etc" begin
-    A = broadcast(x->Char(65+mod(x,5)), rand(Int, 10, 5))
+    N = 10
+    A = broadcast(x->Char(65+mod(x,5)), rand(Int, N, 5))
     X = CategoricalArrays.categorical(A)
     df = DataFrame(A)
-    df.z  = 1:10
+    df.z  = 1:N
     tt = TypedTables.Table(df)
     rt = Tables.rowtable(tt)
     ct = Tables.columntable(tt)
@@ -111,19 +112,23 @@ end
     @test MLJBase.select(df, 2, :x2) == df[2, :x2]
     @test MLJBase.select(nothing, 2, :x) == nothing
     s = schema(df)
-    @test nrows(df) == size(df, 1)
+    @test nrows(df) == N
 
-    @test selectcols(tt, 4:6) == selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
-    @test selectcols(tt, [:x1, :z]) == selectcols(TypedTables.Table(x1=tt.x1, z=tt.z), :)
+    @test selectcols(tt, 4:6) ==
+        selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
+    @test selectcols(tt, [:x1, :z]) ==
+        selectcols(TypedTables.Table(x1=tt.x1, z=tt.z), :)
     @test selectcols(tt, :x2) == tt.x2
     @test selectcols(tt, 2)   == tt.x2
     @test selectrows(tt, 4:6) == selectrows(tt[4:6], :)
-    @test nrows(tt) == length(tt.x1)
+    @test nrows(tt) == N
     @test MLJBase.select(tt, 2, :x2) == tt.x2[2]
 
     @test selectrows(rt, 4:6) == rt[4:6]
     @test selectrows(rt, :)   == rt
+
     @test selectrows(rt, 5)   == rt[5,:]
+    @test nrows(rt) == N
 
     @test Tables.rowtable(selectrows(ct, 4:6)) == rt[4:6]
     @test selectrows(ct, :) == ct
