@@ -549,11 +549,9 @@ evaluate(model::Supervised, args...; kwargs...) =
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
     
     ret = mapreduce(vcat, 1:nfolds) do k
-                begin
-                     r = func(machines[1], k)
-                     verbosity < 1 || put!(channel, true) 
-                     r
-                 end
+             r = func(machines[1], k)
+             verbosity < 1 || put!(channel, true);yield() 
+             r
     	  end
 	
     verbosity < 1 || put!(channel, false)
@@ -565,7 +563,7 @@ function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
     
     ret =  @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
-        	verbosity < 1 || put!(channel, true)
+        	verbosity < 1 || put!(channel, true);
         	r
     	   end
 	
@@ -576,25 +574,25 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-    
-    nthreads = Threads.nthreads()
-    tasks = map(1:nfolds) do k
-        Threads.@spawn begin
+       
+   tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
                 machines[id] =
                     machine(machines[1].model, machines[1].args...)
             end
             r = func(machines[id], k)
-            verbosity < 1 || put!(channel, true)
+            verbosity < 1 || put!(channel, true); yield()
             r
         end
-    end
+        for k in 1:nfolds)
+
     ret = reduce(vcat, fetch.(tasks))
     
     verbosity < 1 || put!(channel, false)
     return ret
 end
+
 end
 
 # ------------------------------------------------------------
@@ -636,7 +634,7 @@ function evaluate!(mach::Machine, resampling, weights,
                  barlen = 25,
                  color = :yellow))
 
-    channel = acceleration isa CPU1 ? RemoteChannel(()->Channel{Bool}(1) , 1) : RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+    channel = acceleration isa CPU1 ? RemoteChannel(()->Channel{Bool}(1) , 1) : RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
 
     function get_measurements(mach, k)
         train, test = resampling[k]
@@ -651,7 +649,6 @@ function evaluate!(mach::Machine, resampling, weights,
         yhat = operation(mach, Xtest)
         return [value(m, yhat, Xtest, ytest, wtest)
                 for m in measures]
-        #put!(channel, true)
     end
 
     if acceleration isa CPUProcesses
@@ -659,6 +656,12 @@ function evaluate!(mach::Machine, resampling, weights,
             @info "Distributing evaluations " *
                   "among $(nworkers()) workers."
         end
+    end
+    if acceleration isa CPUThreads
+        if verbosity > 0
+                @info "Performing evaluations " *
+                      "using $(Threads.nthreads()) threads."
+            end
     end
 
     @sync begin
@@ -675,7 +678,6 @@ function evaluate!(mach::Machine, resampling, weights,
                        channel, verbosity)
     end
 
-#    @show measurements_flat
 
     close(channel)
 
@@ -890,4 +892,3 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-
