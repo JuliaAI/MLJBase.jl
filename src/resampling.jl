@@ -574,7 +574,10 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-       
+   
+   if Threads.nthreads() == 1
+       return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
+   end    
    tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
