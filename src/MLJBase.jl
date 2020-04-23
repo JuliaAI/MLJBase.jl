@@ -130,9 +130,9 @@ export SupervisedTask, UnsupervisedTask, MLJTask,
 export info_dict
 
 # datasets.jl:
-export load_boston, load_ames, load_iris,
+export load_boston, load_ames, load_iris, load_sunspot,
        load_reduced_ames, load_crabs, load_smarket,
-       @load_boston, @load_ames, @load_iris,
+       @load_boston, @load_ames, @load_iris, @load_sunspot,
        @load_reduced_ames, @load_crabs, @load_smarket
 
 # machines.jl:
@@ -153,7 +153,7 @@ export @pipeline
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
-       evaluate!, Resampler, PerformanceEvaluation
+       evaluate!, Resampler, PerformanceEvaluation, tsCV
 
 # openml.jl:
 export OpenML

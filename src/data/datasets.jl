@@ -154,6 +154,11 @@ const COERCE_SMARKET = (
     :Today=>Continuous,
     :Direction=>Multiclass{2})
 
+const COERCE_SUNSPOT = (
+    :Index=>Count,
+    :Date=>Multiclass,
+    :MMTSN=>Continuous)
+
 """
 load_dataset(fpath, coercions)
 
@@ -195,6 +200,10 @@ function load_smarket()
     return merge(data1, (Year=Dates.Date.(data1.Year),))
 end
 
+function load_sunspot()
+    data1 = load_dataset("sunspot.csv", COERCE_SUNSPOT)
+    return merge(data1, (Date=Dates.Date.(String.(data1.Date)),))
+end
 
 """Load a well-known public regression dataset with `Continuous` features."""
 macro load_boston()
@@ -243,6 +252,16 @@ by Witten et al (2013), Springer-Verlag, New York."""
 macro load_smarket()
     quote
         y, X = unpack(load_smarket(), ==(:Direction), x-> true)
+        (X, y)
+    end
+end
+
+"""Load a well-known sunspots time series with nominal features.
+[https://www.kaggle.com/robervalt/sunspots](https://www.kaggle.com/robervalt/sunspots)
+"""
+macro load_sunspot()
+    quote
+        y, X = unpack(load_sunspot(), ==(:MMTSN), x-> true)
         (X, y)
     end
 end
