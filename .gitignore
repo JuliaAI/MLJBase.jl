@@ -7,3 +7,4 @@ sandbox/
 /docs/build/
 /docs/site/
 /docs/Manifest.toml
+.vscode

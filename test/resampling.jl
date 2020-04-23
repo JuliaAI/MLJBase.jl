@@ -64,6 +64,18 @@ end
 @test MLJBase.train_test_pairs(Holdout(), 1:10) !=
      MLJBase.train_test_pairs(Holdout(shuffle=true), 1:10)
 
+@testset "train test pairs" begin
+    cv = CV(nfolds=5)
+    pairs = MLJBase.train_test_pairs(cv, 1:24)
+    @test pairs == [
+        (6:24, 1:5),
+        ([1:5..., 11:24...], 6:10),
+        ([1:10..., 16:24...], 11:15),
+        ([1:15..., 21:24...], 16:20),
+        (1:20, 21:24)
+    ]
+end
+
 @testset "checking measure/model compatibility" begin
     model = ConstantRegressor()
     y = rand(4)
@@ -222,13 +234,13 @@ end
     # check in explicit example:
     y = categorical(['c', 'a', 'b', 'a', 'c', 'x',
                  'c', 'a', 'a', 'b', 'b', 'b', 'b', 'b'])
-    rows = [14, 13, 12, 11, 10, 9, 8, 7, 5, 4, 3, 2, 1]
-    @test y[rows] == collect("bbbbbaaccabac")
+    rows = [14, 13, 12, 11, 10, 9, 8, 7, 5, 4, 3, 1]
+    @test y[rows] == collect("bbbbbaaccabc")
     scv = StratifiedCV(nfolds=3)
     pairs = MLJBase.train_test_pairs(scv, rows, nothing, y)
-    @test pairs == [([12, 11, 10, 8, 5, 4, 3, 2, 1], [14, 13, 9, 7]),
-                    ([14, 13, 10, 9, 7, 4, 3, 2, 1], [12, 11, 8, 5]),
-                    ([14, 13, 12, 11, 9, 8, 7, 5], [10, 4, 3, 2, 1])]
+    @test pairs == [([12, 11, 10, 8, 5, 4, 3, 1], [14, 13, 9, 7]),
+                    ([14, 13, 10, 9, 7, 4, 3, 1], [12, 11, 8, 5]),
+                    ([14, 13, 12, 11, 9, 8, 7, 5], [10, 4, 3, 1])]
     scv_random = StratifiedCV(nfolds=3, shuffle=true)
     pairs_random = MLJBase.train_test_pairs(scv_random, rows, nothing, y)
     @test pairs != pairs_random

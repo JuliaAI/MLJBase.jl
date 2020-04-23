@@ -295,9 +295,10 @@ fit!(yhat)
 
 # test nested reporting:
 r = MLJBase.report(yhat)
-@test r isa NamedTuple
-@test length(r.reports) == 4
-@test r.reports[1] == NamedTuple()
+d = r.report_given_machine
+ms = machines(yhat)
+@test ms == r.machines
+@test all(mach -> report(mach) == d[mach], ms)
 
 hot2 = deepcopy(hot)
 knn2 = deepcopy(knn)
@@ -352,7 +353,7 @@ model_.knn_rgs.K = 55
 
 @test MLJBase.tree(mach.fitresult).arg1.arg1.arg1.arg1.model.K == 55
 
-# check data anomynity:
+# check data anonymity:
 @test all(x->(x===nothing), [s.data for s in sources(mach.fitresult)])
 
 
@@ -373,8 +374,12 @@ model_.one_hot.drop_last=true
                (:info, r"^Updating.*OneHot"),
                (:info, r"^Spawn"),
                (:info, r"Train.*Stand"), fit!(mach))
-@test(fitted_params(mach).fitted_params[1] isa
-          NamedTuple{(:mean_and_std_given_feature,)})
+
+# check nested fitted_params:
+FP = MLJBase.fitted_params(mach)
+d = FP.fitted_params_given_machine
+ms = FP.machines
+@test all(mach -> fitted_params(mach) == d[mach], ms)
 
 # check data anomynity:
 @test all(x->(x===nothing), [s.data for s in sources(mach.fitresult)])
