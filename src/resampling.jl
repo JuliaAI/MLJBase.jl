@@ -272,59 +272,6 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
     return zip(trains_per_fold, tests_per_fold) |> collect
 
 end
-# ----------------------------------------------------------------
-# Time series cross-validation (vanilla)
-
-"""
-    cv = tsCV(3)
-
-Cross-validation resampling strategy, for use in `evaluate!`,
-`evaluate` and tuning.
-
-    train_test_pairs(cv, rows)
-
-Returns an `nfolds`-length iterator of `(train, test)` pairs of
-vectors (row indices), where each `train` and `test` is a sub-vector
-of `rows`.
-
-The nfold observations preceding and following the observation are left out
-in the test set.
-
-There is no Pre-shuffling of `rows` as sequence is information.
-
-"""
-struct tsCV <: ResamplingStrategy
-    nfolds::Int
-    function tsCV(nfolds)
-        nfolds > 1 || error("Must have nfolds > 1. ")
-        return new(nfolds)
-    end
-end
-
-function train_test_pairs(tscv::tsCV, rows)
-
-    n_observations = length(rows)
-    nfolds = tscv.nfolds
-
-    # number of observations per fold
-    k = floor(Int, n_observations/nfolds)
-    k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
-                   "Try reducing nfolds. ")
-
-    # define the (trainrows, testrows) pairs:
-    firsts = 1:k:((nfolds - 1)*k + 1) # itr of first `test` rows index
-    seconds = k:k:(nfolds*k)          # itr of last  `test` rows index
-
-    ret = map(2:nfolds) do k
-        f = firsts[k]
-        s = seconds[k]
-        k < nfolds || (s = n_observations)
-        return (rows[1:(f - 1)], # trainrows
-                [rows[s]])                                # testrows
-    end
-
-    return ret
-end
 
 # ================================================================
 ## EVALUATION RESULT TYPE
@@ -600,26 +547,26 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-
+    
     ret = mapreduce(vcat, 1:nfolds) do k
              r = func(machines[1], k)
-             verbosity < 1 || put!(channel, true);yield()
+             verbosity < 1 || put!(channel, true);yield() 
              r
     	  end
-
+	
     verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
-
+    
     ret =  @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
         	verbosity < 1 || put!(channel, true);
         	r
     	   end
-
+	
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -627,10 +574,10 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-
+   
    if Threads.nthreads() == 1
        return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
-   end
+   end    
    tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
@@ -644,7 +591,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
         for k in 1:nfolds)
 
     ret = reduce(vcat, fetch.(tasks))
-
+    
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -676,7 +623,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-
+    
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
@@ -905,7 +852,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
         old_resampling.fraction_train ==
-        resampler.resampling.fraction_train
+        resampler.resampling.fraction_train 
 
     if reusable
         mach = old_mach
