@@ -47,9 +47,22 @@ predict(::SupervisedNetwork, fitres, Xnew)     = fitres(Xnew)
 transform(::UnsupervisedNetwork, fitres, Xnew) = fitres(Xnew)
 
 function fitted_params(yhat::Node)
-    machs  = machines(yhat)
-    fitted = [fitted_params(m) for m in machs]
-    return (machines=machs, fitted_params=fitted)
+    machs = machines(yhat)
+    _fitted_params = NamedTuple[]
+    try
+        _fitted_params = [fitted_params(m) for m in machs]
+    catch exception
+        if exception isa UndefRefError
+            error("UndefRefEror intercepted. Perhaps "*
+                  "you forgot to `fit!` a machine or node?")
+        else
+            throw(exception)
+        end
+    end
+    fitted_params_given_machine =
+        LittleDict(machs[j] => _fitted_params[j] for j in eachindex(machs))
+    return (machines=machs,
+            fitted_params_given_machine=fitted_params_given_machine)
 end
 
 fitted_params(::GenericNetwork, yhat) = fitted_params(yhat)
@@ -73,8 +86,20 @@ end
 
 function MLJBase.report(yhat::Node)
     machs = machines(yhat)
-    reports = [report(m) for m in machs]
-    return (machines=machs, reports=reports)
+    reports = NamedTuple[]
+    try
+        reports = [report(m) for m in machs]
+    catch exception
+        if exception isa UndefRefError
+            error("UndefRefEror intercepted. Perhaps "*
+                  "you forgot to `fit!` a machine or node?")
+        else
+            throw(exception)
+        end
+    end
+    report_given_machine =
+        LittleDict(machs[j] => reports[j] for j in eachindex(machs))
+    return (machines=machs, report_given_machine=report_given_machine)
 end
 
 # what should be returned by a fit method for an exported learning
