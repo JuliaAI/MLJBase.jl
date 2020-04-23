@@ -40,6 +40,41 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
 end
 
 # the zero argument special cases:
+"""
+    fitted_params(mach)
+
+Return the learned parameters for a machine `mach` that has been
+`fit!`, for example the coefficients in a linear model.
+
+This is a named tuple and human-readable if possible.
+
+If `mach` is a machine for a composite model, then the returned value
+has keys `machines` and `fitted_params_given_machine`, whose
+corresponding values are a vector of (nodal) machines appearing in the
+underlying learning network, and a dictionary of reports keyed on
+those machines.
+
+```julia
+using MLJ
+X, y = @load_crabs;
+pipe = @pipeline MyPipe(
+    std = Standardizer(),
+    clf = @load LinearBinaryClassifier pkg=GLM
+)
+mach = machine(MyPipe(), X, y) |> fit!
+fp = fitted_params(mach)
+machs = fp.machines
+2-element Array{Any,1}:
+ NodalMachine{LinearBinaryClassifier{LogitLink}} @ 1…57
+ NodalMachine{Standardizer} @ 7…33
+
+fp.fitted_params_given_machine[machs[1]]
+(coef = [121.05433477939319, 1.5863921128182814,
+         61.0770377473622, -233.42699281787324, 72.74253591435117],
+ intercept = 10.384459260848505,)
+```
+
+"""
 function fitted_params(machine::AbstractMachine)
     if isdefined(machine, :fitresult)
         return fitted_params(machine.model, machine.fitresult)

@@ -216,6 +216,45 @@ is_stale(mach::Machine) =
     !isdefined(mach, :fitresult) || (mach.model != mach.previous_model)
 
 params(mach::AbstractMachine) = params(mach.model)
+
+"""
+    report(mach)
+
+Return the report for a machine `mach` that has been
+`fit!`, for example the coefficients in a linear model.
+
+This is a named tuple and human-readable if possible.
+
+If `mach` is a machine for a composite model, then the returned value
+has keys `machines` and `report_given_machine`, whose
+corresponding values are a vector of (nodal) machines appearing in the
+underlying learning network, and a dictionary of reports keyed on
+those machines.
+
+```julia
+using MLJ
+X, y = @load_crabs;
+pipe = @pipeline MyPipe(
+    std = Standardizer(),
+    clf = @load LinearBinaryClassifier pkg=GLM
+)
+mach = machine(MyPipe(), X, y) |> fit!
+r = report(mach)
+r.machines
+2-element Array{Any,1}:
+ NodalMachine{LinearBinaryClassifier{LogitLink}} @ 1…57
+ NodalMachine{Standardizer} @ 7…33
+
+r.report_given_machine[machs[1]]
+(deviance = 3.8893386087844543e-7,
+ dof_residual = 195.0,
+ stderror = [18954.83496713119, ..., 2111.1294584763386],
+ vcov = [3.592857686311793e8 ... .442545425533723e6;
+         ...
+         5.38856837634321e6 ... 2.1799125705781363e7 4.456867590446599e6],)
+```
+
+"""
 report(mach::AbstractMachine) = mach.report
 
 
