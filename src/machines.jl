@@ -60,9 +60,10 @@ function check(model::Supervised, args...)
         "target_scitype(model) = $(target_scitype(model))."
 
     # checks on dimension matching:
-    nrows(X) == nrows(y) ||
-        throw(DimensionMismatch("Differing number of observations "*
-                                "in input and target. "))
+    X === nothing || # model fits a distribution to y
+        nrows(X) == nrows(y) ||
+            throw(DimensionMismatch("Differing number of observations "*
+                                    "in input and target. "))
     return nothing
 end
 
