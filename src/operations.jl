@@ -24,8 +24,8 @@
 for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                   :transform, :inverse_transform)
     ex = quote
-        function $(operation)(machine::AbstractMachine, args...)
-            if isdefined(machine, :fitresult)
+        function $(operation)(machine::AbstractMachine{M}, args...) where M
+            if isdefined(machine, :fitresult) || M <: Static
                 return $(operation)(machine.model, machine.fitresult, args...)
             else
                 throw(error("$machine has not been trained."))
