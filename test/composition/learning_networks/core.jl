@@ -284,4 +284,10 @@ e4 =  evaluate(comp4, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 
 end
 
+@testset "overloading methods for nodes" begin
+    X = source(1)
+    y = source(7)
+    @test tup(X, y)() == (1, 7)
+end
+
 true

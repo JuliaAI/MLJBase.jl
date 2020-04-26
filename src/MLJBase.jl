@@ -139,11 +139,10 @@ export NodalMachine,  machines, source, node,sources, origins,
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
-# composites.jl:
-export machines, sources, anonymize!, @from_network, fitresults
+# composition:
+export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
+    tup
 
-# pipelines.jl:
-export @pipeline
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
@@ -246,24 +245,24 @@ include("utilities.jl")
 include("parameter_inspection.jl")
 include("show.jl")
 include("info_dict.jl")
-
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 include("interface/univariate_finite.jl")
-
 include("distributions.jl")
-
 include("machines.jl")
 
-include("composition/networks.jl")
-include("composition/composites.jl")
-include("composition/pipelines.jl")
-include("composition/pipeline_static.jl")
+include("composition/learning_networks/core.jl")
+include("composition/learning_networks/inspection.jl")
 @static if VERSION ≥ v"1.3.0-"
-    include("composition/arrows.jl")
+    include("composition/learning_networks/arrows.jl")
 end
-include("operations.jl")
 
+include("composition/composites/core.jl")
+include("composition/composites/from_network.jl")
+include("composition/composites/pipelines.jl")
+include("composition/composites/pipeline_static.jl")
+
+include("operations.jl")
 include("resampling.jl")
 
 include("hyperparam/one_dimensional_ranges.jl")
