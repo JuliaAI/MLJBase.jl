@@ -61,14 +61,20 @@ end
     @test include("data/datasets_synthetic.jl")
 end
 
-@testset "machines+composition" begin
+@testset "machines" begin
     @test include("machines.jl")
-    @test include("composition/composites.jl")
-    @test include("composition/pipelines.jl")
-    @test include("composition/pipeline_static.jl")
-    @test include("composition/networks.jl")
+end
 
-    VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
+@testset "composition" begin
+    @test include("composition/learning_networks/core.jl")
+    @test include("composition/learning_networks/inspection.jl")
+    VERSION ≥ v"1.3.0-" &&
+        @test include("composition/learning_networks/arrows.jl")
+
+    @test include("composition/composites/core.jl")
+    @test include("composition/composites/from_network.jl")
+    @test include("composition/composites/pipelines.jl")
+    @test include("composition/composites/pipeline_static.jl")
 end
 
 @testset "operations.jl" begin

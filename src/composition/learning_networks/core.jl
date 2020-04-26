@@ -245,6 +245,10 @@ Return all nodes upstream of a node `N`, including `N` itself, in an
 order consistent with the extended directed acyclic graph of the
 network. Here "extended" means edges corresponding to training
 arguments are included.
+
+*Warning.* Not the same as `N.nodes`, which may not include `N`
+ itself.
+
 """
 nodes(X::Node) = AbstractNode[X.nodes..., X]
 nodes(S::Source) = AbstractNode[S, ]
@@ -456,6 +460,8 @@ machine(m::Supervised, a1::AbstractNode, a::AbstractNode...) =
 machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
 machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
 
+tup(X::AbstractNode...) = node(tuple, X...)
+
 MMI.matrix(X::AbstractNode)      = node(matrix, X)
 MMI.table(X::AbstractNode)       = node(table, X)
 Base.vcat(args::AbstractNode...) = node(vcat, args...)
@@ -495,125 +501,3 @@ getindex(n::Node{<:NodalMachine{<:Model}}, s::Symbol) =
     getproperty(n.machine.model, s)
 setindex!(n::Node{<:NodalMachine{<:Model}}, v, s::Symbol) =
     setproperty!(n.machine.model, s, v)
-
-
-## INSPECTING LEARNING NETWORKS
-
-"""
-    tree(N)
-
-Return a description of the tree `N` defined by the learning network
-terminating at a given node.
-
-"""
-function tree(W::Node)
-    mach = W.machine
-    if mach === nothing
-        value2 = nothing
-        endkeys = []
-        endvalues = []
-    else
-        value2 = mach.model
-        endkeys = (Symbol("train_arg", i) for i in eachindex(mach.args))
-        endvalues = (tree(arg) for arg in mach.args)
-    end
-    keys = tuple(:operation,  :model,
-                 (Symbol("arg", i) for i in eachindex(W.args))...,
-                 endkeys...)
-    values = tuple(W.operation, value2,
-                   (tree(arg) for arg in W.args)...,
-                   endvalues...)
-    return NamedTuple{keys}(values)
-end
-tree(s::Source) = (source = s,)
-
-"""
-   args(tree; train=false)
-
-Return a vector of the top level args of the tree associated with a node.
-If `train=true`, return the `train_args`.
-"""
-function args(tree; train=false)
-    keys_ = filter(keys(tree) |> collect) do key
-        match(Regex("^$("train_"^train)arg[0-9]*"), string(key)) !== nothing
-    end
-    return [getproperty(tree, key) for key in keys_]
-end
-
-"""
-    models(N::AbstractNode)
-
-A vector of all models referenced by a node `N`, each model appearing
-exactly once.
-
-"""
-function models(W::AbstractNode)
-    models_ = filter(flat_values(tree(W)) |> collect) do model
-        model isa Model
-    end
-    return unique(models_)
-end
-
-"""
-    sources(N::AbstractNode; kind=:any)
-
-A vector of all sources referenced by calls `N()` and `fit!(N)`. These
-are the sources of the directed acyclic graph associated with the
-learning network terminating at `N`, including training edges. The
-return value can be restricted further by specifying `kind=:input`,
-`kind=:target`, `kind=:weight`, etc.
-
-Not to be confused with `origins(N)` which refers to the same graph with edges
-corresponding to training arguments deleted.
-
-See also: [`origins`](@ref), [`source`](@ref).
-"""
-function sources(W::AbstractNode; kind=:any)
-    if kind == :any
-        sources_ = filter(flat_values(tree(W)) |> collect) do value
-            value isa Source
-        end
-    else
-        sources_ = filter(flat_values(tree(W)) |> collect) do value
-            value isa Source{kind}
-        end
-    end
-    return unique(sources_)
-end
-
-
-"""
-    machines(N)
-
-List all machines in the learning network terminating at node `N`.
-
-"""
-function machines(W::Node)
-    if W.machine === nothing
-        return vcat((machines(arg) for arg in W.args)...) |> unique
-    else
-        return vcat(Any[W.machine, ],
-                    (machines(arg) for arg in W.args)...,
-                    (machines(arg) for arg in W.machine.args)...) |> unique
-    end
-end
-machines(W::Source) = Any[]
-
-
-## MANIPULATING LEARNING NETWORKS
-
-"""
-    reset!(N::Node)
-
-Place the learning network terminating at node `N` into a state in
-which `fit!(N)` will retrain from scratch all machines in its
-dependency tape. Does not actually train any machine or alter
-fit-results. (The method simply resets `m.state` to zero, for every
-machine `m` in the network.)
-
-"""
-function reset!(W::Node)
-    for mach in machines(W)
-        mach.state = 0 # to do: replace with dagger object
-    end
-end
