@@ -555,7 +555,7 @@ function models(W::AbstractNode)
 end
 
 """
-    sources(W::AbstractNode; kind=:any)
+    sources(N::AbstractNode; kind=:any)
 
 A vector of all sources referenced by calls `N()` and `fit!(N)`. These
 are the sources of the directed acyclic graph associated with the
