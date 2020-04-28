@@ -28,13 +28,25 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
             if isdefined(machine, :fitresult) || M <: Static
                 return $(operation)(machine.model, machine.fitresult, args...)
             else
-                throw(error("$machine has not been trained."))
+                error("$machine has not been trained.")
             end
         end
-        $(operation)(machine::Machine; rows=:) =
-            $(operation)(machine, selectrows(machine.args[1], rows))
-        $(operation)(machine::NodalMachine, args::AbstractNode...) =
-            node($(operation), machine, args...)
+        function $(operation)(machine::Machine; rows=:)
+            isempty(machine.args) &&
+                throw(ArgumentError("Attempt to accesss non-existent data "*
+                                    "bound to a machine, "*
+                                    "probably because machine was "*
+                                    "deserialized. Specify data `X` "*
+                                    "with `$($operation)(mach, X)`. "))
+            return $(operation)(machine, selectrows(machine.args[1], rows))
+        end
+        function $(operation)(machine::NodalMachine, args::AbstractNode...)
+            length(args) > 0 ||
+                throw(ArgumentError("`args` in `$($operation)(mach, args...)`"*
+                                    " cannot be empty if `mach` is a "*
+                                    "`NodalMachine`. "))
+            return node($(operation), machine, args...)
+        end
     end
     eval(ex)
 end
