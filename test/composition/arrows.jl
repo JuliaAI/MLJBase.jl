@@ -31,12 +31,12 @@ using Random
 
     fit!(ŷ, rows=train)
 
-    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.627123, rtol=1e-4)
+    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.627123, atol=0.07)
 
     # shortcut to get and set hyperparameters of a node
     ẑ[:lambda] = 5.0
     fit!(ŷ, rows=train)
-    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.62699, rtol=1e-4)
+    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.62699, atol=0.07)
 end
 
 @testset "Auto-source" begin
