@@ -246,7 +246,10 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
     # For each level, the index of fold_lookup where you start looking.
     initial_lookup_indices = 1 .+ cumsum([0; level_count[1:end-1]])
 
-    lookup_indices = LittleDict(y_levels .=> initial_lookup_indices)
+    # This name looks complicated, but it's the most accurate I could come
+    # up with. Given the y-level of the current row, use this dictionary to
+    # look up the index that you will use to look up the fold in `fold_lookup`.
+    fold_lookup_index_lookup = LittleDict(y_levels .=> initial_lookup_indices)
 
     folds = [Int[] for _ in 1:n_folds]
     for fold in folds
@@ -256,10 +259,10 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
     for i in 1:n_obs
         level = y_included[i]
 
-        lookup_index = lookup_indices[level]
-        lookup_indices[level] = lookup_index + 1
+        fold_lookup_index = fold_lookup_index_lookup[level]
+        fold_lookup_index_lookup[level] = fold_lookup_index + 1
 
-        fold_index = fold_lookup[lookup_index]
+        fold_index = fold_lookup[fold_lookup_index]
         push!(folds[fold_index], rows[i])
     end
 
