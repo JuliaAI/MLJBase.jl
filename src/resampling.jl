@@ -218,62 +218,57 @@ end
 StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
        StratifiedCV(nfolds, shuffle_and_rng(shuffle, rng)...)
 
-function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
-
-    nfolds = stratified_cv.nfolds
-
-    if stratified_cv.shuffle
-        rows=shuffle!(stratified_cv.rng, collect(rows))
-    end
+function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
     st <: AbstractArray{<:Finite} ||
         error("Supplied target has scitpye $st but stratified "*
               "cross-validation applies only to classification problems. ")
 
-
-    freq_given_level = countmap(y[rows])
-    minimum(values(freq_given_level)) >= nfolds ||
-        error("The number of observations for which the target takes on a "*
-              "given class must, for each class, exceed `nfolds`. Try "*
-              "reducing `nfolds`. ")
-
-    levels_seen = keys(freq_given_level) |> collect
-
-    cv = CV(nfolds=nfolds)
-
-    # the target is constant on each stratum, a subset of `rows`:
-    class_rows = [rows[y[rows] .== c] for c in levels_seen]
-
-    # get the cv train/test pairs for each level:
-    train_test_pairs_per_level = (train_test_pairs(cv, class_rows[m])
-                              for m in eachindex(levels_seen))
-
-    # just the train rows in each level:
-    trains_per_level = map(x -> first.(x),
-                           train_test_pairs_per_level)
-
-    # just the test rows in each level:
-    tests_per_level  = map(x -> last.(x),
-                                train_test_pairs_per_level)
-
-    # for each fold, concatenate the train rows over levels:
-    trains_per_fold = map(x->vcat(x...), zip(trains_per_level...))
-
-    # for each fold, concatenate the test rows over levels:
-    tests_per_fold = map(x->vcat(x...), zip(tests_per_level...))
-
-    # restore ordering specified by rows:
-    trains_per_fold = map(trains_per_fold) do train
-        filter(in(train), rows)
-    end
-    tests_per_fold = map(tests_per_fold) do test
-        filter(in(test), rows)
+    if stratified_cv.shuffle
+        rows=shuffle!(stratified_cv.rng, collect(rows))
     end
 
-    # re-assemble:
-    return zip(trains_per_fold, tests_per_fold) |> collect
+    n_folds = stratified_cv.nfolds
+    n_obs = length(rows)
+    obs_per_fold = div(n_obs, n_folds)
 
+    y_included = y[rows]
+    level_count_dict = countmap(y_included)
+
+    # unique() preserves the order of appearance of the levels.
+    # We need this so that the results are invariant to renaming of the levels.
+    y_levels = unique(y_included)
+    level_count = [level_count_dict[level] for level in y_levels]
+
+    # Use this vector to determine in which fold to put the i-th observation.
+    fold_lookup = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
+
+    # For each level, the index of fold_lookup where you start looking.
+    initial_lookup_indices = 1 .+ cumsum([0; level_count[1:end-1]])
+
+    lookup_indices = LittleDict(y_levels .=> initial_lookup_indices)
+
+    folds = [Int[] for _ in 1:n_folds]
+    for fold in folds
+        sizehint!(fold, obs_per_fold)
+    end
+
+    for i in 1:n_obs
+        level = y_included[i]
+
+        lookup_index = lookup_indices[level]
+        lookup_indices[level] = lookup_index + 1
+
+        fold_index = fold_lookup[lookup_index]
+        push!(folds[fold_index], rows[i])
+    end
+
+    map(1:n_folds) do i
+        train_folds = vcat(folds[ 1 : i-1 ], folds[ i+1 : end ])
+        train = reduce(vcat, train_folds)
+        (train, folds[i])
+    end
 end
 
 # ================================================================
@@ -550,26 +545,26 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-    
+
     ret = mapreduce(vcat, 1:nfolds) do k
              r = func(machines[1], k)
-             verbosity < 1 || put!(channel, true);yield() 
+             verbosity < 1 || put!(channel, true);yield()
              r
     	  end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
-    
+
     ret =  @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
         	verbosity < 1 || put!(channel, true);
         	r
     	   end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -577,10 +572,10 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-   
+
    if Threads.nthreads() == 1
        return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
-   end    
+   end
    tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
@@ -594,7 +589,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
         for k in 1:nfolds)
 
     ret = reduce(vcat, fetch.(tasks))
-    
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -626,7 +621,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-    
+
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
