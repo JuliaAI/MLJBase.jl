@@ -217,6 +217,41 @@ end
 StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
        StratifiedCV(nfolds, shuffle_and_rng(shuffle, rng)...)
 
+# Description of the stratified CV algorithm:
+#
+# There are algorithms that are conceptually somewhat simpler than this
+# algorithm, but this algorithm is O(n) and is invariant to relabelling
+# of the target vector.
+#
+# 1) Use countmap() to get the count for each level.
+#
+# 2) Use unique() to get the order in which the levels appear. (Steps 1
+# and 2 could be combined if countmap() used an OrderedDict.)
+#
+# 3) For y = ['b', 'c', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'a', 'a', 'a'],
+# the levels occur in the order ['b', 'c', 'a'], and each level has a count
+# of 4. So imagine a table like this:
+#
+# b b b b c c c c a a a a
+# 1 2 3 1 2 3 1 2 3 1 2 3
+#
+# This table ensures that the levels are smoothly spread across the test folds.
+# In other words, where one level leaves off, the next level picks up. So,
+# for example, as the 'c' levels are encountered, the corresponding row indices
+# are added to folds [2, 3, 1, 2], in that order. The vector [1, 2, 3, 1, ...]
+# is stored in `fold_lookup`. And a dictionary `fold_lookup_index_lookup` is
+# created that maps a level to the current location (index) in `fold_lookup`
+# for that level.
+#
+# 4) Iterate i from 1 to length(rows). For each i, look up the corresponding
+# y-level, i.e. y[rows[i]]. Then use `fold_lookup_index_lookup` to look up
+# the current index for that level in `fold_lookup` (and then increment that
+# index). Finally, using that index, use `fold_lookup` to find the test fold
+# in which to put the i-th element of `rows`.
+#
+# 5) Concatenate the appropriate test folds together to get the train
+# indices for each `(train, test)` pair.
+
 function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
