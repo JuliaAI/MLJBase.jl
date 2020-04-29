@@ -232,25 +232,51 @@ end
 @testset "stratified_cv" begin
 
     # check in explicit example:
-    y = categorical(['c', 'a', 'b', 'a', 'c', 'x',
-                 'c', 'a', 'a', 'b', 'b', 'b', 'b', 'b'])
-    rows = [14, 13, 12, 11, 10, 9, 8, 7, 5, 4, 3, 1]
-    @test y[rows] == collect("bbbbbaaccabc")
+    y = categorical(
+        ['b', 'c', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'a', 'a', 'a']
+    )
     scv = StratifiedCV(nfolds=3)
-    pairs = MLJBase.train_test_pairs(scv, rows, nothing, y)
-    @test pairs == [([12, 11, 10, 8, 5, 4, 3, 1], [14, 13, 9, 7]),
-                    ([14, 13, 10, 9, 7, 4, 3, 1], [12, 11, 8, 5]),
-                    ([14, 13, 12, 11, 9, 8, 7, 5], [10, 4, 3, 1])]
-    scv_random = StratifiedCV(nfolds=3, shuffle=true)
-    pairs_random = MLJBase.train_test_pairs(scv_random, rows, nothing, y)
+    rows = 1:12
+    pairs = MLJBase.train_test_pairs(scv, rows, y)
+    expected_pairs = [
+        ([2, 4, 9, 11, 3, 5, 7, 12], [1, 6, 8, 10]),
+        ([1, 6, 8, 10, 3, 5, 7, 12], [2, 4, 9, 11]),
+        ([1, 6, 8, 10, 2, 4, 9, 11], [3, 5, 7, 12])
+    ]
+    # Explanation of expected_pairs: The row indices are processed one at
+    # a time. The test fold that a row index is placed in is determined
+    # by this lookup:
+    #
+    # b b b b c c c c a a a a
+    # 1 2 3 1 2 3 1 2 3 1 2 3
+    #
+    # For example, the first row such that y[row] == 'c' is placed in the
+    # second fold, and the second row such that y[row] == 'c' is placed in
+    # the third fold.
+    @test pairs == expected_pairs
+
+    # test invariance to label renaming:
+    z = replace(y, 'a' => 'b', 'b' => 'c', 'c' => 'a')
+    pairs = MLJBase.train_test_pairs(scv, rows, z)
+    @test pairs == expected_pairs
+
+    # test the case where rows is a shuffled subset of y:
+    y = categorical(['a', 'b', 'c', 'a', 'b', 'c', 'a', 'b', 'c'])
+    rows = 8:-1:2
+    pairs = MLJBase.train_test_pairs(scv, rows, y)
+    @test pairs == [
+        ([5, 4, 6, 2], [8, 7, 3]),
+        ([8, 7, 3, 6, 2], [5, 4]),
+        ([8, 7, 3, 5, 4], [6, 2])
+    ]
+
+    # test shuffle:
+    scv_random = StratifiedCV(nfolds=3, shuffle=true, rng=1)
+    pairs_random = MLJBase.train_test_pairs(scv_random, rows, y)
     @test pairs != pairs_random
 
     # wrong target type throws error:
-    @test_throws Exception MLJBase.train_test_pairs(scv, rows, nothing, get.(y))
-
-    # too many folds throws error:
-    @test_throws Exception MLJBase.train_test_pairs(StratifiedCV(nfolds=4),
-                                                rows, nothing, y)
+    @test_throws Exception MLJBase.train_test_pairs(scv, rows, get.(y))
 
     # check class distribution is preserved in a larger randomized example:
     N = 30
