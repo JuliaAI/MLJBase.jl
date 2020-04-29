@@ -187,12 +187,9 @@ Unlike regular cross-validation, the distribution of the levels of the
 target `y` corresponding to each `train` and `test` is constrained, as
 far as possible, to replicate that of `y[rows]` as a whole.
 
-Specifically, the data is split into a number of groups on which `y`
-is constant, and each individual group is resampled according to the
-ordinary cross-validation strategy `CV(nfolds=nfolds)`. To obtain the
-final `(train, test)` pairs of row indices, the per-group pairs are
-collated in such a way that each collated `train` and `test` respects
-the original order of `rows` (after shuffling, if `shuffle=true`).
+The stratified `train_test_pairs` algorithm is invariant to label renaming.
+For example, if you run `replace!(y, 'a' => 'b', 'b' => 'a')` and then re-run
+`train_test_pairs`, the returned `(train, test)` pairs will be the same.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `StratifedCV` keyword constructor resets it to
@@ -218,62 +215,95 @@ end
 StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
        StratifiedCV(nfolds, shuffle_and_rng(shuffle, rng)...)
 
-function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
+# Description of the stratified CV algorithm:
+#
+# There are algorithms that are conceptually somewhat simpler than this
+# algorithm, but this algorithm is O(n) and is invariant to relabelling
+# of the target vector.
+#
+# 1) Use countmap() to get the count for each level.
+#
+# 2) Use unique() to get the order in which the levels appear. (Steps 1
+# and 2 could be combined if countmap() used an OrderedDict.)
+#
+# 3) For y = ['b', 'c', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'a', 'a', 'a'],
+# the levels occur in the order ['b', 'c', 'a'], and each level has a count
+# of 4. So imagine a table like this:
+#
+# b b b b c c c c a a a a
+# 1 2 3 1 2 3 1 2 3 1 2 3
+#
+# This table ensures that the levels are smoothly spread across the test folds.
+# In other words, where one level leaves off, the next level picks up. So,
+# for example, as the 'c' levels are encountered, the corresponding row indices
+# are added to folds [2, 3, 1, 2], in that order. The vector [1, 2, 3, 1, ...]
+# is stored in `fold_lookup`. And a dictionary `fold_lookup_index_lookup` is
+# created that maps a level to the current location (index) in `fold_lookup`
+# for that level.
+#
+# 4) Iterate i from 1 to length(rows). For each i, look up the corresponding
+# y-level, i.e. y[rows[i]]. Then use `fold_lookup_index_lookup` to look up
+# the current index for that level in `fold_lookup` (and then increment that
+# index). Finally, using that index, use `fold_lookup` to find the test fold
+# in which to put the i-th element of `rows`.
+#
+# 5) Concatenate the appropriate test folds together to get the train
+# indices for each `(train, test)` pair.
 
-    nfolds = stratified_cv.nfolds
-
-    if stratified_cv.shuffle
-        rows=shuffle!(stratified_cv.rng, collect(rows))
-    end
+function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
     st <: AbstractArray{<:Finite} ||
         error("Supplied target has scitpye $st but stratified "*
               "cross-validation applies only to classification problems. ")
 
-
-    freq_given_level = countmap(y[rows])
-    minimum(values(freq_given_level)) >= nfolds ||
-        error("The number of observations for which the target takes on a "*
-              "given class must, for each class, exceed `nfolds`. Try "*
-              "reducing `nfolds`. ")
-
-    levels_seen = keys(freq_given_level) |> collect
-
-    cv = CV(nfolds=nfolds)
-
-    # the target is constant on each stratum, a subset of `rows`:
-    class_rows = [rows[y[rows] .== c] for c in levels_seen]
-
-    # get the cv train/test pairs for each level:
-    train_test_pairs_per_level = (train_test_pairs(cv, class_rows[m])
-                              for m in eachindex(levels_seen))
-
-    # just the train rows in each level:
-    trains_per_level = map(x -> first.(x),
-                           train_test_pairs_per_level)
-
-    # just the test rows in each level:
-    tests_per_level  = map(x -> last.(x),
-                                train_test_pairs_per_level)
-
-    # for each fold, concatenate the train rows over levels:
-    trains_per_fold = map(x->vcat(x...), zip(trains_per_level...))
-
-    # for each fold, concatenate the test rows over levels:
-    tests_per_fold = map(x->vcat(x...), zip(tests_per_level...))
-
-    # restore ordering specified by rows:
-    trains_per_fold = map(trains_per_fold) do train
-        filter(in(train), rows)
-    end
-    tests_per_fold = map(tests_per_fold) do test
-        filter(in(test), rows)
+    if stratified_cv.shuffle
+        rows=shuffle!(stratified_cv.rng, collect(rows))
     end
 
-    # re-assemble:
-    return zip(trains_per_fold, tests_per_fold) |> collect
+    n_folds = stratified_cv.nfolds
+    n_obs = length(rows)
+    obs_per_fold = div(n_obs, n_folds)
 
+    y_included = y[rows]
+    level_count_dict = countmap(y_included)
+
+    # unique() preserves the order of appearance of the levels.
+    # We need this so that the results are invariant to renaming of the levels.
+    y_levels = unique(y_included)
+    level_count = [level_count_dict[level] for level in y_levels]
+
+    # Use this vector to determine in which fold to put the i-th observation.
+    fold_lookup = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
+
+    # For each level, the index of fold_lookup where you start looking.
+    initial_lookup_indices = 1 .+ cumsum([0; level_count[1:end-1]])
+
+    # This name looks complicated, but it's the most accurate I could come
+    # up with. Given the y-level of the current row, use this dictionary to
+    # look up the index that you will use to look up the fold in `fold_lookup`.
+    fold_lookup_index_lookup = LittleDict(y_levels .=> initial_lookup_indices)
+
+    folds = [Int[] for _ in 1:n_folds]
+    for fold in folds
+        sizehint!(fold, obs_per_fold)
+    end
+
+    for i in 1:n_obs
+        level = y_included[i]
+
+        fold_lookup_index = fold_lookup_index_lookup[level]
+        fold_lookup_index_lookup[level] = fold_lookup_index + 1
+
+        fold_index = fold_lookup[fold_lookup_index]
+        push!(folds[fold_index], rows[i])
+    end
+
+    map(1:n_folds) do i
+        train_folds = vcat(folds[ 1 : i-1 ], folds[ i+1 : end ])
+        train = reduce(vcat, train_folds)
+        (train, folds[i])
+    end
 end
 
 # ================================================================
@@ -550,26 +580,26 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-    
+
     ret = mapreduce(vcat, 1:nfolds) do k
              r = func(machines[1], k)
-             verbosity < 1 || put!(channel, true);yield() 
+             verbosity < 1 || put!(channel, true);yield()
              r
     	  end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
-    
+
     ret =  @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
         	verbosity < 1 || put!(channel, true);
         	r
     	   end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -577,10 +607,10 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-   
+
    if Threads.nthreads() == 1
        return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
-   end    
+   end
    tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
@@ -594,7 +624,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
         for k in 1:nfolds)
 
     ret = reduce(vcat, fetch.(tasks))
-    
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -626,7 +656,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-    
+
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
