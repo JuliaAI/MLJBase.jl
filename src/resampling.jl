@@ -189,12 +189,9 @@ Unlike regular cross-validation, the distribution of the levels of the
 target `y` corresponding to each `train` and `test` is constrained, as
 far as possible, to replicate that of `y[rows]` as a whole.
 
-Specifically, the data is split into a number of groups on which `y`
-is constant, and each individual group is resampled according to the
-ordinary cross-validation strategy `CV(nfolds=nfolds)`. To obtain the
-final `(train, test)` pairs of row indices, the per-group pairs are
-collated in such a way that each collated `train` and `test` respects
-the original order of `rows` (after shuffling, if `shuffle=true`).
+The stratified `train_test_pairs` algorithm is invariant to label renaming.
+For example, if you run `replace!(y, 'a' => 'b', 'b' => 'a')` and then re-run
+`train_test_pairs`, the returned `(train, test)` pairs will be the same.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `StratifedCV` keyword constructor resets it to
