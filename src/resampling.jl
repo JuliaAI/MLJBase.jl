@@ -236,16 +236,13 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 # This table ensures that the levels are smoothly spread across the test folds.
 # In other words, where one level leaves off, the next level picks up. So,
 # for example, as the 'c' levels are encountered, the corresponding row indices
-# are added to folds [2, 3, 1, 2], in that order. The vector [1, 2, 3, 1, ...]
-# is stored in `fold_lookup`. And a dictionary `fold_lookup_index_lookup` is
-# created that maps a level to the current location (index) in `fold_lookup`
-# for that level.
+# are added to folds [2, 3, 1, 2], in that order. The table above is
+# partitioned by y-level and put into a dictionary `fold_lookup` that maps
+# levels to the corresponding array of fold indices.
 #
 # 4) Iterate i from 1 to length(rows). For each i, look up the corresponding
-# y-level, i.e. y[rows[i]]. Then use `fold_lookup_index_lookup` to look up
-# the current index for that level in `fold_lookup` (and then increment that
-# index). Finally, using that index, use `fold_lookup` to find the test fold
-# in which to put the i-th element of `rows`.
+# level, i.e. `level = y[rows[i]]`. Then use `popfirst!(fold_lookup[level])`
+# to find the test fold in which to put the i-th element of `rows`.
 #
 # 5) Concatenate the appropriate test folds together to get the train
 # indices for each `(train, test)` pair.
