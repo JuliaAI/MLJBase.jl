@@ -272,7 +272,6 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
     y_levels = unique(y_included)
     level_count = [level_count_dict[level] for level in y_levels]
 
-    # Use this vector to determine in which fold to put the i-th observation.
     fold_cycle = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
 
     lasts = cumsum(level_count)
