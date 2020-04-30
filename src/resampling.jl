@@ -276,15 +276,13 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
     level_count = [level_count_dict[level] for level in y_levels]
 
     # Use this vector to determine in which fold to put the i-th observation.
-    fold_lookup = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
+    fold_cycle = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
 
-    # For each level, the index of fold_lookup where you start looking.
-    initial_lookup_indices = 1 .+ cumsum([0; level_count[1:end-1]])
+    lasts = cumsum(level_count)
+    firsts = [1; lasts[1:end-1] .+ 1]
 
-    # This name looks complicated, but it's the most accurate I could come
-    # up with. Given the y-level of the current row, use this dictionary to
-    # look up the index that you will use to look up the fold in `fold_lookup`.
-    fold_lookup_index_lookup = LittleDict(y_levels .=> initial_lookup_indices)
+    level_fold_indices = (fold_cycle[f:l] for (f, l) in zip(firsts, lasts))
+    fold_lookup = Dict(y_levels .=> level_fold_indices)
 
     folds = [Int[] for _ in 1:n_folds]
     for fold in folds
@@ -293,19 +291,11 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     for i in 1:n_obs
         level = y_included[i]
-
-        fold_lookup_index = fold_lookup_index_lookup[level]
-        fold_lookup_index_lookup[level] = fold_lookup_index + 1
-
-        fold_index = fold_lookup[fold_lookup_index]
+        fold_index = popfirst!(fold_lookup[level])
         push!(folds[fold_index], rows[i])
     end
 
-    map(1:n_folds) do i
-        train_folds = vcat(folds[ 1 : i-1 ], folds[ i+1 : end ])
-        train = reduce(vcat, train_folds)
-        (train, folds[i])
-    end
+    [(complement(folds, i), folds[i]) for i in 1:n_folds]
 end
 
 # ================================================================
