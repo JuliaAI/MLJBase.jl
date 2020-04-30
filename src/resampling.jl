@@ -164,6 +164,50 @@ function train_test_pairs(cv::CV, rows)
 end
 
 # ----------------------------------------------------------------
+# Cross-validation (TimeSeriesCV)
+
+"""
+    TimeSeriesCV = TimeSeriesCV(;nsteps=4)
+
+Cross-validation resampling strategy, for use in `evaluate!`,
+`evaluate` and tuning.
+
+    train_test_pairs(TimeSeriesCV, rows)
+
+Returns an iterator of `(train, test)` pairs of vectors. (row indices)
+The series of `test` sets, each consisting of a single observation &
+corresponding `train` set consists only of observations 
+that occurred prior to the observation that forms the `test` set.
+Thus, no future observations can be used in construction.
+"""
+struct TimeSeriesCV <: ResamplingStrategy
+    nsteps::Int
+    function TimeSeriesCV(nsteps)
+        nsteps >= 1 || error("Must have nsteps >= 1. ")
+        return new(nsteps)
+    end
+end
+
+# Constructor with keywords
+TimeSeriesCV(;nsteps::Int=4) =
+      TimeSeriesCV(nsteps)
+
+function train_test_pairs(TimeSeriesCV::TimeSeriesCV, rows)
+
+    n_obs = length(rows)
+    nsteps = TimeSeriesCV.nsteps
+
+    n_obs > nsteps  || error("Inusufficient data for $nsteps-step cross-validation.\n"*
+                             "Try reducing nsteps. ")
+
+    ret = map(1:n_obs-nsteps) do k
+        return (rows[1:k],          # trainrows
+                [rows[k + nsteps]]) # testrows
+    end
+    return ret
+end
+
+# ----------------------------------------------------------------
 # Cross-validation (stratified; for `Finite` targets)
 
 """
@@ -550,26 +594,26 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-    
+
     ret = mapreduce(vcat, 1:nfolds) do k
              r = func(machines[1], k)
-             verbosity < 1 || put!(channel, true);yield() 
+             verbosity < 1 || put!(channel, true);yield()
              r
     	  end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
-    
+
     ret =  @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
         	verbosity < 1 || put!(channel, true);
         	r
     	   end
-	
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -577,10 +621,10 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
-   
+
    if Threads.nthreads() == 1
        return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
-   end    
+   end
    tasks= (Threads.@spawn begin
             id = Threads.threadid()
             if !haskey(machines, id)
@@ -594,7 +638,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
         for k in 1:nfolds)
 
     ret = reduce(vcat, fetch.(tasks))
-    
+
     verbosity < 1 || put!(channel, false)
     return ret
 end
@@ -626,7 +670,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-    
+
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
