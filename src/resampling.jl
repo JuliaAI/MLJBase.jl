@@ -104,9 +104,7 @@ of `rows`. The `test` vectors are mutually exclusive and exhaust
 `test` vector. With no row pre-shuffling, the order of `rows` is
 preserved, in the sense that `rows` coincides precisely with the
 concatenation of the `test` vectors, in the order they are
-generated. The first `r` test vectors have length `n + 1`, where
-`n, r = divrem(length(rows), nfolds)`, and the remaining test vectors
-have length `n`.
+generated. All but the last `test` vector have equal length.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `CV` keyword constructor resets it to
@@ -134,33 +132,31 @@ CV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(cv::CV, rows)
 
-    n_obs = length(rows)
-    n_folds = cv.nfolds
+    n_observations = length(rows)
+    nfolds = cv.nfolds
 
     if cv.shuffle
         rows=shuffle!(cv.rng, collect(rows))
     end
 
-    n, r = divrem(n_obs, n_folds)
-    n > 0 || error("Inusufficient data for $n_folds-fold cross-validation.\n"*
+    # number of observations per fold
+    k = floor(Int, n_observations/nfolds)
+    k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
                    "Try reducing nfolds. ")
 
-    m = n + 1 # number of observations in first r folds
+    # define the (trainrows, testrows) pairs:
+    firsts = 1:k:((nfolds - 1)*k + 1) # itr of first `test` rows index
+    seconds = k:k:(nfolds*k)          # itr of last  `test` rows index
 
-    itr1 = Iterators.partition( 1 : m*r , m)
-    itr2 = Iterators.partition( m*r+1 : n_obs , n)
-    test_folds = Iterators.flatten((itr1, itr2))
-
-    return map(test_folds) do test_indices
-        test_rows = rows[test_indices]
-
-        train_rows = vcat(
-            rows[ 1 : first(test_indices)-1 ],
-            rows[ last(test_indices)+1 : end ]
-        )
-
-        (train_rows, test_rows)
+    ret = map(1:nfolds) do k
+        f = firsts[k]
+        s = seconds[k]
+        k < nfolds || (s = n_observations)
+        return (vcat(rows[1:(f - 1)], rows[(s + 1):end]), # trainrows
+                rows[f:s])                                # testrows
     end
+
+    return ret
 end
 
 # ----------------------------------------------------------------
@@ -220,6 +216,7 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 
 function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
 
+    n_observations = length(rows)
     nfolds = stratified_cv.nfolds
 
     if stratified_cv.shuffle
@@ -549,54 +546,108 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPU1, nfolds, channel, verbosity)
-    
-    ret = mapreduce(vcat, 1:nfolds) do k
-             r = func(machines[1], k)
-             verbosity < 1 || put!(channel, true);yield() 
-             r
-    	  end
-	
-    verbosity < 1 || put!(channel, false)
+function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
+   local ret         
+   verbosity < 1 || (p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow))
+
+   ret = mapreduce(vcat, 1:nfolds) do k
+            r = func(machines[1], k)
+            verbosity < 1 || begin
+                      p.counter += 1
+                      ProgressMeter.updateProgress!(p)  
+                    end 
+            return r
+        end
+     
     return ret
 end
 
 # machines has only one element:
-function _evaluate!(func, machines, ::CPUProcesses, nfolds, channel, verbosity)
+function _evaluate!(func, machines, ::CPUProcesses, nfolds, verbosity) #where T<:AbstractWorkerPool
     
-    ret =  @distributed vcat for k in 1:nfolds
+    #verbosity < 1 || update!(p,0)
+local ret
+@sync begin
+        channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
+    verbosity < 1 || (p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow))
+        # printing the progress bar
+       verbosity < 1 || @async begin
+                    while take!(channel)
+                    next!(p)
+                    end
+                    end
+        
+    
+     @sync begin
+            ret = @distributed vcat for k in 1:nfolds
         	r = func(machines[1], k)
-        	verbosity < 1 || put!(channel, true);
+        	verbosity < 1 || begin
+                            put!(channel, true)
+                            yield()
+                            end
         	r
     	   end
-	
     verbosity < 1 || put!(channel, false)
+    end
+    close(channel)
+    end
+    
     return ret
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 # one machine for each thread; cycle through available threads:
-function _evaluate!(func, machines, ::CPUThreads, nfolds, channel, verbosity)
+function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
+   n_threads = Threads.nthreads()
+    
+   if n_threads == 1
+        return _evaluate!(func, machines, CPU1(), nfolds, verbosity)
+   end
+    
+    results = Array{Any, 1}(undef, nfolds)
+    loc = ReentrantLock()
+    verbosity < 1 || (p = Progress(nfolds,
+                    dt = 0,
+                    desc = "Evaluating over $nfolds folds: ",
+                    barglyphs = BarGlyphs("[=> ]"),
+                    barlen = 25,
+                    color = :yellow))   
    
-   if Threads.nthreads() == 1
-       return _evaluate!(func, machines, CPU1(), nfolds, channel, verbosity)
-   end    
-   tasks= (Threads.@spawn begin
+     @sync begin  
+      
+        @sync for parts in Iterators.partition(1:nfolds, max(1,floor(Int, nfolds/n_threads)))    
+        Threads.@spawn begin
+            for k in parts
             id = Threads.threadid()
             if !haskey(machines, id)
-                machines[id] =
-                    machine(machines[1].model, machines[1].args...)
+                   machines[id] =
+                       machine(machines[1].model, machines[1].args...)
             end
-            r = func(machines[id], k)
-            verbosity < 1 || put!(channel, true); yield()
-            r
-        end
-        for k in 1:nfolds)
+           results[k] = func(machines[id], k) 
+           verbosity < 1 || (begin
+                              lock(loc)do
+                                p.counter +=1
+                                ProgressMeter.updateProgress!(p)
+                              end
 
-    ret = reduce(vcat, fetch.(tasks))
-    
-    verbosity < 1 || put!(channel, false)
-    return ret
+                            end)
+            end
+        end
+    end
+
+    end
+  
+    return reduce(vcat, results)
 end
 
 end
@@ -632,16 +683,6 @@ function evaluate!(mach::Machine, resampling, weights,
     # threadid=1.
     machines = Dict(1 => mach)
 
-    # set up progress meter and a remote channel for communication
-    verbosity < 1 || (p = Progress(nfolds,
-                 dt = 0,
-                 desc = "Evaluating over $nfolds folds: ",
-                 barglyphs = BarGlyphs("[=> ]"),
-                 barlen = 25,
-                 color = :yellow))
-
-    channel = acceleration isa CPU1 ? RemoteChannel(()->Channel{Bool}(1) , 1) : RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
-
     function get_measurements(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
@@ -669,23 +710,14 @@ function evaluate!(mach::Machine, resampling, weights,
                       "using $(Threads.nthreads()) threads."
             end
     end
-
-    @sync begin
-        # printing the progress bar
-       verbosity < 1 || @async while take!(channel)
-            next!(p)
-        end
-
-        global measurements_flat =
+   
+    measurements_flat =
             _evaluate!(get_measurements,
                        machines,
                        acceleration,
                        nfolds,
-                       channel, verbosity)
-    end
+                      verbosity)
 
-
-    close(channel)
 
     # in the following rows=folds, columns=measures:
     measurements_matrix = permutedims(
@@ -721,10 +753,11 @@ function evaluate!(mach::Machine, resampling, weights,
            measurement=per_measure,
            per_fold=per_fold,
            per_observation=per_observation)
-
+    
     return ret
 
 end
+
 
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
@@ -831,12 +864,12 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
         _process_weights_measures(resampler.weights, resampler.measure,
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
+    
 
-    fitresult = evaluate!(mach, resampler.resampling,
+    fitresult =evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
                           resampler.acceleration, false)
-
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 
@@ -855,7 +888,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
         old_resampling.fraction_train ==
-        resampler.resampling.fraction_train
+        resampler.resampling.fraction_train 
 
     if reusable
         mach = old_mach
@@ -898,3 +931,4 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
+

@@ -33,26 +33,27 @@ end
 
     machines = Dict(1 => machine(ConstantRegressor(), X, y))
 
-    channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
+    #channel = RemoteChannel(()->Channel{Bool}(nfolds) , 1)
     p = Progress(nfolds, dt=0)
 
-    @sync begin
+    #@sync begin
 
         # printing the progress bar
-        t1 = @async while take!(channel)
-            next!(p)
-        end
+        #t1 = @async while take!(channel)
+        #    next!(p)
+        #end
 
-        t2 = @async begin
-            global result =
+        #t2 = @async begin
+         result =
                 MLJBase._evaluate!(func, machines, accel, nfolds, channel, 1)
-        end
-    end
+        #end
+        #put!(channel,false)
+    #end
 
     @test result ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
 
-    close(channel)
+    #close(channel)
 
 end
 
