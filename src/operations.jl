@@ -5,18 +5,27 @@
 #
 # but want also want
 #
-# `predict(machine::Machine, X)` where `X` is data
+# 1. `predict(machine::Machine, X)` where `X` is data
 #
 # and "networks.jl" requires us to define
 #
-# `predict(machine::NodalMachine, X)` where `X` is data
+# 2. `predict(machine::NodalMachine, X)` where `X` is data
 #
 # and we would like the syntactic sugar (for `X` a node):
 #
-# `predict(machine::NodalMachine, X::Node)=node(predict, machine, X)`
+# 3. `predict(machine::NodalMachine, X::Node)=node(predict, machine, X)`
 #
 # (If an operation has zero arguments, we cannot achieve the last
 # desire because of ambiguity with the preceding one.)
+#
+# Finally, for an instance `model` ProbabilisticNetwork,
+# DetermisiticNetwork, or UnsupervisedNetwork, we want
+#
+# 4. `predict(model, fitresult, X) = fitresult.predict(X)`
+#
+# where `fitresult.predict` will be the learning network node
+# delivering predictions (note composites models can support multiple
+# operations, just like some regular models).
 
 ## TODO: need to add checks on the arguments of
 ## predict(::AbstractMachine, ) and transform(::AbstractMachine, )
@@ -24,6 +33,7 @@
 for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                   :transform, :inverse_transform)
     ex = quote
+        # operations on any machine, given *concrete* data:
         function $(operation)(machine::AbstractMachine{M}, args...) where M
             if isdefined(machine, :fitresult) || M <: Static
                 return $(operation)(machine.model, machine.fitresult, args...)
@@ -31,6 +41,7 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                 error("$machine has not been trained.")
             end
         end
+        # operations on ordinary machines,  given no data:
         function $(operation)(machine::Machine; rows=:)
             isempty(machine.args) &&
                 throw(ArgumentError("Attempt to accesss non-existent data "*
@@ -40,6 +51,7 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                                     "with `$($operation)(mach, X)`. "))
             return $(operation)(machine, selectrows(machine.args[1], rows))
         end
+        # operations on nodal machines, given node (dynamic) data:
         function $(operation)(machine::NodalMachine, args::AbstractNode...)
             length(args) > 0 ||
                 throw(ArgumentError("`args` in `$($operation)(mach, args...)`"*
@@ -47,6 +59,9 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                                     "`NodalMachine`. "))
             return node($(operation), machine, args...)
         end
+        # opertions on composite models, including `SurrogateNetwork()`:
+        $(operation)(model::GenericNetwork, fitresult, X) =
+            fitresult.$operation(X)
     end
     eval(ex)
 end

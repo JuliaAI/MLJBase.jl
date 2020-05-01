@@ -187,7 +187,6 @@ function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
         verbosity < 1 || @info "Training $mach."
         mach.fitresult, mach.cache, mach.report =
             fit(mach.model, verbosity, args...)
-
     elseif !is_stale(mach)
         # don't fit the model
         if verbosity > 0

@@ -296,8 +296,8 @@ deterministic):
 
 ### Return value
 
-An instance of the new type, with default
-hyperparameters (see above), is returned.
+An instance of the new type with default hyperparameters (see above)
+is returned.
 
 ### Target transformation and inverse transformation
 
