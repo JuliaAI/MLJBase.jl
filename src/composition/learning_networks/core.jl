@@ -1,3 +1,6 @@
+const SOURCE_KINDS= [:input, :output, :target, :weights]
+
+
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
@@ -44,8 +47,8 @@ See also: [`@from_network`](@ref], [`sources`](@ref),
 
 """
 function source(X; kind=:input)
-    kind in [:input, :target, :weights] ||
-        @warn "`Source` kind is neither :input, :target, or :weights. "
+    kind in SOURCE_KINDS ||
+        @warn "Source `kind` is not one of $SOURCE_KINDS. "
     return Source{kind}(X)
 end
 
@@ -79,8 +82,7 @@ end
     origins(N)
 
 Return a list of all origins of a node `N` accessed by a call `N()`.
-These are the source nodes of the acyclic directed graph (DAG)
-associated with the learning network terminating at `N`, if edges
+These are the source nodes of ancestor graph of `N` if edges
 corresponding to training arguments are excluded. A `Node` object
 cannot be called on new data unless it has a unique origin.
 
@@ -319,8 +321,8 @@ end
 """
     fit!(N::Node; rows=nothing, verbosity::Int=1, force::Bool=false)
 
-Train all machines in the learning network terminating at node `N`, in an
-appropriate order. These machines are those returned by `machines(N)`.
+Train all machines required to call the node `N`, in an appropriate
+order. These machines are those returned by `machines(N)`.
 
 """
 function fit!(y::Node; rows=nothing, verbosity::Int=1,
@@ -345,6 +347,7 @@ function fit!(y::Node; rows=nothing, verbosity::Int=1,
 
     return y
 end
+fit!(S::Source; args...) = S
 
 # allow arguments of `Nodes` and `NodalMachine`s to appear
 # at REPL:

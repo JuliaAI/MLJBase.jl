@@ -1,4 +1,4 @@
-module TestLearningNetworks
+module TestLearningNetworksCore
 
 # using Revise
 using Test

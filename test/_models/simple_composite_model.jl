@@ -44,9 +44,10 @@ function MLJBase.fit(composite::SimpleDeterministicCompositeModel,
     l = machine(composite.model, Xt, y)
     yhat = predict(l, Xt)
 
-    fit!(yhat, verbosity=verbosity)
+    mach = machine(predict=yhat)
+    fit!(mach, verbosity=verbosity)
 
-    return fitresults(yhat)
+    return mach.fitresult, mach.cache, mach.report
 end
 
 MLJBase.load_path(::Type{<:SimpleDeterministicCompositeModel}) =
