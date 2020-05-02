@@ -567,7 +567,6 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 # machines has only one element:
-
 function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
    local ret
    verbosity < 1 || (p = Progress(nfolds,
@@ -590,7 +589,6 @@ function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
 end
 
 # machines has only one element:
-
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, verbosity) #where T<:AbstractWorkerPool
 
     #verbosity < 1 || update!(p,0)
@@ -620,6 +618,7 @@ local ret
                             end
                 r
            end
+
     verbosity < 1 || put!(channel, false)
     end
     close(channel)
