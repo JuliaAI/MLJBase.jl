@@ -44,7 +44,8 @@ end
                          shuffle=nothing,
                          rng=nothing)
 
-Holdout resampling strategy, for use in `evaluate!`, `evaluate` and in tuning.
+Holdout resampling strategy, for use in `evaluate!`, `evaluate` and in
+tuning.
 
     train_test_pairs(holdout, rows)
 
@@ -91,9 +92,12 @@ end
 
 """
     cv = CV(; nfolds=6,  shuffle=nothing, rng=nothing)
+
 Cross-validation resampling strategy, for use in `evaluate!`,
 `evaluate` and tuning.
+
     train_test_pairs(cv, rows)
+
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices), where each `train` and `test` is a sub-vector
 of `rows`. The `test` vectors are mutually exclusive and exhaust
@@ -101,16 +105,19 @@ of `rows`. The `test` vectors are mutually exclusive and exhaust
 `test` vector. With no row pre-shuffling, the order of `rows` is
 preserved, in the sense that `rows` coincides precisely with the
 concatenation of the `test` vectors, in the order they are
-generated. The first `r` test vectors have length `n + 1`, where
-`n, r = divrem(length(rows), nfolds)`, and the remaining test vectors
-have length `n`.
+generated. The first `r` test vectors have length `n + 1`, where `n, r
+= divrem(length(rows), nfolds)`, and the remaining test vectors have
+length `n`.
+
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `CV` keyword constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
 expected.
+
 If `rng` is left unspecified, `rng` is reset to `Random.GLOBAL_RNG`,
 in which case rows are only pre-shuffled if `shuffle=true` is
 explicitly specified.
+
 """
 struct CV <: ResamplingStrategy
     nfolds::Int
@@ -165,31 +172,39 @@ end
     stratified_cv = StratifiedCV(; nfolds=6,
                                    shuffle=false,
                                    rng=Random.GLOBAL_RNG)
+
 Stratified cross-validation resampling strategy, for use in
 `evaluate!`, `evaluate` and in tuning. Applies only to classification
 problems (`OrderedFactor` or `Multiclass` targets).
+
     train_test_pairs(stratified_cv, rows, y)
+
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices) where each `train` and `test` is a sub-vector of
 `rows`. The `test` vectors are mutually exclusive and exhaust
 `rows`. Each `train` vector is the complement of the corresponding
 `test` vector.
+
 Unlike regular cross-validation, the distribution of the levels of the
 target `y` corresponding to each `train` and `test` is constrained, as
 far as possible, to replicate that of `y[rows]` as a whole.
+
 Specifically, the data is split into a number of groups on which `y`
 is constant, and each individual group is resampled according to the
 ordinary cross-validation strategy `CV(nfolds=nfolds)`. To obtain the
 final `(train, test)` pairs of row indices, the per-group pairs are
 collated in such a way that each collated `train` and `test` respects
 the original order of `rows` (after shuffling, if `shuffle=true`).
+
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `StratifedCV` keyword constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
 expected.
+
 If `rng` is left unspecified, `rng` is reset to `Random.GLOBAL_RNG`,
 in which case rows are only pre-shuffled if `shuffle=true` is
 explicitly specified.
+
 """
 struct StratifiedCV <: ResamplingStrategy
     nfolds::Int
