@@ -41,16 +41,6 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
                 error("$machine has not been trained.")
             end
         end
-        # operations on ordinary machines,  given no data:
-        function $(operation)(machine::Machine; rows=:)
-            isempty(machine.args) &&
-                throw(ArgumentError("Attempt to accesss non-existent data "*
-                                    "bound to a machine, "*
-                                    "probably because machine was "*
-                                    "deserialized. Specify data `X` "*
-                                    "with `$($operation)(mach, X)`. "))
-            return $(operation)(machine, selectrows(machine.args[1], rows))
-        end
         # operations on nodal machines, given node (dynamic) data:
         function $(operation)(machine::NodalMachine, args::AbstractNode...)
             length(args) > 0 ||
@@ -62,6 +52,28 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
         # opertions on composite models, including `SurrogateNetwork()`:
         $(operation)(model::GenericNetwork, fitresult, X) =
             fitresult.$operation(X)
+    end
+    eval(ex)
+end
+
+# operations on ordinary machines, given no data:
+for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
+                  :transform) # inverse_transform excluded
+    ex = quote
+        function $(operation)(machine::Machine; rows=:)
+            isempty(machine.args) &&
+                throw(ArgumentError("Attempt to accesss non-existent data "*
+                                    "bound to a machine, "*
+                                    "probably because machine was "*
+                                    "deserialized. Specify data `X` "*
+                                    "with `$($operation)(mach, X)`. "))
+            # Base.depwarn("`$($operation)(::Machine)` and "*
+            #              "`$($operation)(::Machine; rows=...)` are "*
+            #              "deprecated. Data must be explictly specified, "*
+            #              "as in `$($operation)(mach, X)`. ",
+            #              Base.Core.Typeof($operation).name.mt.name)
+            return $(operation)(machine, selectrows(machine.args[1], rows))
+        end
     end
     eval(ex)
 end

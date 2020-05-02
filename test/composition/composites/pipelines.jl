@@ -280,7 +280,7 @@ mach = machine(p, X, y)
 fit!(mach)
 @test MLJBase.tree(mach.fitresult).arg1.model.K == 3
 MLJBase.tree(mach.fitresult).arg1.arg1.model.features == [:x3, ]
-@test predict(mach) ≈ hand_built
+@test predict(mach, X) ≈ hand_built
 
 # test a simple probabilistic classifier pipeline:
 X = MLJBase.table(rand(7,3))
@@ -293,7 +293,7 @@ p = @pipeline(Pipe21(hot=OneHotEncoder(),
 mach = machine(p, X, y)
 fit!(mach)
 @test p isa ProbabilisticNetwork
-pdf(predict(mach)[1], 'f') ≈ 4/7
+pdf(predict(mach, X)[1], 'f') ≈ 4/7
 
 # test a simple deterministic classifier pipeline:
 X = MLJBase.table(rand(7,3))
@@ -304,7 +304,7 @@ p = @pipeline(Piper3(hot=OneHotEncoder(), cnst=ConstantClassifier(),
                      broadcast_mode))
 mach = machine(p, X, y)
 fit!(mach)
-@test predict(mach) == fill('f', 7)
+@test predict(mach, X) == fill('f', 7)
 
 # test pipelines with weights:
 w = map(y) do η
@@ -312,7 +312,7 @@ w = map(y) do η
 end
 mach = machine(p, X, y, w)
 fit!(mach)
-@test predict(mach) == fill('m', 7)
+@test predict(mach, X) == fill('m', 7)
 
 # test a pipeline with static transformation of target:
 NN = 100
@@ -343,7 +343,7 @@ p.sel.features = [:x1, :x3__a]
 p.knn.K = 4
 p_ = machine(p, X, y)
 fit!(p_)
-pred2 = predict(p_)
+pred2 = predict(p_, X)
 @test pred1 ≈ pred2
 
 # and another:

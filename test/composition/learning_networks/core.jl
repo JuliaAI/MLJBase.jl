@@ -48,7 +48,7 @@ seed!(1234)
     MLJBase.save(io, knn1)
     seekstart(io)
     mach = fit!(machine(io, Xtrain, ytrain))
-    @test predict(mach) ≈ pred
+    @test predict(mach, Xtrain) ≈ pred
 
 end
 
