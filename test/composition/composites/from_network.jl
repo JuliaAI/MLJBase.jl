@@ -286,7 +286,7 @@ ms = FP.machines
 # check data anomynity:
 @test all(x->(x===nothing), [s.data for s in sources(mach.fitresult)])
 
-transform(mach)
+transform(mach, X)
 
 
 ## TEST MACRO-EXPORTED SUPERVISED NETWORK WITH SAMPLE WEIGHTS
@@ -324,8 +324,9 @@ composite = @from_network Composite3(regressor=rgs) <= yhat
 
 @test MLJBase.supports_weights(composite)
 mach = fit!(machine(composite, X, y))
-predict(mach, rows=1:div(N,2))[1]
-posterior = predict(mach, rows=1:div(N,2))[1]
+Xnew = selectrows(X, 1:div(N,2))
+predict(mach, Xnew)[1]
+posterior = predict(mach, Xnew)[1]
 
 # "posterior" is roughly uniform:
 @test abs(pdf(posterior, 'b')/(pdf(posterior, 'a'))  - 1) < 0.15
@@ -333,7 +334,7 @@ posterior = predict(mach, rows=1:div(N,2))[1]
 
 # now add weights:
 mach = fit!(machine(composite, X, y, w), rows=1:div(N,2))
-posterior = predict(mach, rows=1:div(N,2))[1]
+posterior = predict(mach, Xnew)[1]
 
 # "posterior" is skewed appropriately in weighted case:
 @test abs(pdf(posterior, 'b')/(2*pdf(posterior, 'a'))  - 1) < 0.15
