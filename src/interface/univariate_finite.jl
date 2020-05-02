@@ -3,8 +3,13 @@ abstract type NonEuclidean <: Dist.ValueSupport end
 
 const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 
-struct UnivariateFinite{L,U,T<:Real} <: UnivariateFiniteSuper
-    decoder::CategoricalDecoder{L,U}
+# C - original type (eg, Char in `categorical(['a', 'b'])`)
+# U - reference type <: Unsigned
+# T - raw probability type
+# L - subtype of CategoricalValue, eg CategoricalValue{Char,UInt32}
+
+struct UnivariateFinite{C,U,T<:Real} <: UnivariateFiniteSuper
+    decoder::CategoricalDecoder{C,U}
     prob_given_class::LittleDict{U,T}
 end
 
