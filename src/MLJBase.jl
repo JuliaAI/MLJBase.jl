@@ -8,6 +8,7 @@ import Base.+, Base.*
 
 # Scitype
 import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
+import ScientificTypes
 using MLJScientificTypes
 using MLJModelInterface
 
@@ -249,6 +250,7 @@ include("interface/data_utils.jl")
 include("interface/model_api.jl")
 include("interface/univariate_finite.jl")
 include("distributions.jl")
+include("sources.jl")
 include("machines.jl")
 
 include("composition/learning_networks/core.jl")

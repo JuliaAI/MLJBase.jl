@@ -1,3 +1,6 @@
+
+## MACHINES
+
 abstract type AbstractMachine{M<:Model} <: MLJType end
 
 mutable struct Machine{M<:Model} <: AbstractMachine{M}
