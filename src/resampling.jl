@@ -393,7 +393,7 @@ function _process_weights_measures(weights, measures, mach,
         _measures = measures
     end
 
-    y = mach.args[2]
+    y = mach.args[2]()
 
     [ _check_measure(mach.model, m, y, operation, !check_measure)
      for m in _measures ]
@@ -408,7 +408,7 @@ function _process_weights_measures(weights, measures, mach,
     elseif  length(mach.args) == 3
         verbosity < 1 ||
             @info "Passing machine sample weights to any supported measures. "
-        _weights = mach.args[3]
+        _weights = mach.args[3]()
     else
         _weights = weights
     end
@@ -498,12 +498,18 @@ these properties:
 See also [`evaluate`](@ref)
 
 """
-function evaluate!(mach::Machine{<:Supervised};
+function evaluate!(mach::AbstractMachine{<:Supervised};
                    resampling=CV(),
-                   measures=nothing, measure=measures, weights=nothing,
-                   operation=predict, acceleration=default_resource(),
-                   rows=nothing, repeats=1, force=false,
-                   check_measure=true, verbosity=1)
+                   measures=nothing,
+                   measure=measures,
+                   weights=nothing,
+                   operation=predict,
+                   acceleration=default_resource(),
+                   rows=nothing,
+                   repeats=1,
+                   force=false,
+                   check_measure=true,
+                   verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights and measures, and dispatches a strategy-specific
@@ -682,7 +688,7 @@ const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
-function evaluate!(mach::Machine, resampling, weights,
+function evaluate!(mach::AbstractMachine, resampling, weights,
                    rows, verbosity, repeats,
                    measures, operation, acceleration, force)
 
@@ -693,8 +699,8 @@ function evaluate!(mach::Machine, resampling, weights,
               "`MLJ.ResamplingStrategy` or tuple of pairs "*
               "of the form `(train_rows, test_rows)`")
 
-    X = mach.args[1]
-    y = mach.args[2]
+    X = mach.args[1]()
+    y = mach.args[2]()
 
     nfolds = length(resampling)
 
@@ -707,7 +713,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     function get_measurements(mach, k)
         train, test = resampling[k]
-        fit!(mach; rows=train, verbosity=verbosity-1, force=force)
+        fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
         if weights == nothing
@@ -784,7 +790,7 @@ end
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
 
-function evaluate!(mach::Machine, resampling::ResamplingStrategy,
+function evaluate!(mach::AbstractMachine, resampling::ResamplingStrategy,
                    weights, rows, verbosity, repeats, args...)
 
     y = mach.args[2]
@@ -794,9 +800,13 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
         vcat([train_test_pairs(resampling, _rows, mach.args...)
               for i in 1:repeats]...)
 
-    return evaluate!(mach::Machine,
+    return evaluate!(mach,
                      repeated_train_test_pairs,
-                     weights, nothing, verbosity, repeats, args...)
+                     weights,
+                     nothing,
+                     verbosity,
+                     repeats,
+                     args...)
 
 end
 

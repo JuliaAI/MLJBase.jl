@@ -4,6 +4,8 @@ abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type  UnsupervisedNetwork <: Unsupervised end
 
+## NODES
+
 # Function to incrementally append to `nodes1` all elements in
 # `nodes2`, excluding any elements previously added (or any element of
 # `nodes1` in its initial state):
@@ -16,113 +18,29 @@ function _merge!(nodes1, nodes2)
     return nodes1
 end
 
-# Note that `fit!` has already been defined for any AbstractMachine in
-# machines.jl
-
-
-mutable struct NodalMachine{M<:Model} <: AbstractMachine{M}
-    model::M
-    previous_model::M # for remembering the model used in last call to `fit!`
-    fitresult
-    cache
-    args::Tuple{Vararg{AbstractNode}}
-    report
-    frozen::Bool
-    previous_rows   # for remembering the rows used in last call to `fit!`
-    state::Int      # number of times fit! has been called on machine
-    upstream_state  # for remembering the upstream state in last call to `fit!`
-
-    function NodalMachine{M}(model::M, args::AbstractNode...) where M<:Model
-
-        # check number of arguments for model subtypes:
-        !(M <: Supervised) || length(args) > 1 ||
-            throw(ArgumentError("Wrong number of arguments. " *
-                        "Use `machine(model, X, y)` or "*
-                        "`machine(model, X, y, w)` for supervised models."))
-
-        if M <: Unsupervised && !(M <: Static)
-            length(args) == 1 ||
-                throw(ArgumentError("Wrong number of arguments. Use " *
-                        "`machine(model, X)` for an unsupervised model "*
-                        "(or `machine(model)` if there are no training "*
-                        "arguments (\"static\" tranformers"))
-        end
-
-        machine = new{M}(model)
-        machine.frozen = false
-        machine.state = 0
-        machine.args = args
-
-        machine.upstream_state = Tuple([state(arg) for arg in args])
-
-        return machine
-    end
-end
-
-NodalMachine(model::M, args...) where M<:Model = NodalMachine{M}(model, args...)
-
-# Note: freeze! and thaw! are possibly not used within MLJ itself.
-
-"""
-    freeze!(mach)
-
-Freeze the machine `mach` so that it will never be retrained (unless
-thawed).
-
-See also [`thaw!`](@ref).
-"""
-function freeze!(machine::NodalMachine)
-    machine.frozen = true
-end
-
-"""
-    thaw!(mach)
-
-Unfreeze the machine `mach` so that it can be retrained.
-
-See also [`freeze!`](@ref).
-"""
-function thaw!(machine::NodalMachine)
-    machine.frozen = false
-end
-
-"""
-    is_stale(mach)
-
-Check if a machine `mach` is stale.
-
-See also [`fit!`](@ref)
-"""
-function is_stale(machine::NodalMachine)
-    !isdefined(machine, :fitresult) ||
-        machine.model != machine.previous_model ||
-        reduce(|,[is_stale(arg) for arg in machine.args])
-end
-
-"""
-    state(mach)
-
-Return the state of a machine, `mach`.
-"""
-state(machine::NodalMachine) = machine.state
-
-
-## NODES
-
 struct Node{T<:Union{NodalMachine, Nothing}} <: AbstractNode
-    operation   # that can be dispatched on a fit-result (eg, `predict`) or a static operation
+
+    operation   # eg, `predict` or a static operation, such as `exp`
     machine::T  # is `nothing` for static operations
-    args::Tuple{Vararg{AbstractNode}}  # nodes where `operation` looks for its arguments
+
+    # nodes called to get args for `operation(model, ...) ` or `operation`:
+    args::Tuple{Vararg{AbstractNode}}
+
+    # sources of ancestor graph (training edges excluded)
     origins::Vector{Source}
-    nodes::Vector{AbstractNode}  # all upstream nodes, order consistent with DAG order (the node "tape")
+
+    # all ancestors (training edges included) listed in order
+    # consistent with extended graph
+    nodes::Vector{AbstractNode}
 
     function Node{T}(operation,
                      machine::T,
-                     args::AbstractNode...) where {M<:Model, T<:Union{NodalMachine{M},Nothing}}
+                     args::AbstractNode...) where
+        {M<:Model, T<:Union{NodalMachine{M}, Nothing}}
 
         # check the number of arguments:
         if machine === nothing && isempty(args)
-            throw(error("`args` in `Node(::Function, args...)` must be non-empty. "))
+            error("`args` in `Node(::Function, args...)` must be non-empty. ")
         end
 
         origins_ = unique(vcat([origins(arg) for arg in args]...))
@@ -177,7 +95,6 @@ arguments are included.
 
 """
 nodes(X::Node) = AbstractNode[X.nodes..., X]
-nodes(S::Source) = AbstractNode[S, ]
 
 """
     is_stale(N)
@@ -188,8 +105,6 @@ function is_stale(X::Node)
     (X.machine !== nothing && is_stale(X.machine)) ||
         reduce(|, [is_stale(arg) for arg in X.args])
 end
-
-state(s::Source) = (state = 0, )
 
 """
     state(N)
@@ -375,17 +290,6 @@ See also: [`source`](@ref), [`origins`](@ref).
 
 """
 node = Node
-
-# if `args` in `machine(model, args...)` is empty or includes an
-# `AbstractNode`, a `NodalMachine` is to be created.
-machine(m::Unsupervised, a::AbstractNode...) =
-    NodalMachine(m, a...)
-# machine(m::Static, a1::AbstractNode, a::AbstractNode...) =
-#     NodalMachine(m, a...)
-machine(m::Supervised, a1::AbstractNode, a::AbstractNode...) =
-    NodalMachine(m, a1, a...)
-machine(model::Model, X, y::AbstractNode) = NodalMachine(model, source(X), y)
-machine(model::Model, X::AbstractNode, y) = NodalMachine(model, X, source(y))
 
 tup(X::AbstractNode...) = node(tuple, X...)
 

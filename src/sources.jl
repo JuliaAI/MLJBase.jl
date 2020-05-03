@@ -13,12 +13,11 @@
 
 ## SOURCE NODES
 
-const SOURCE_KINDS= [:input, :output, :target, :weights]
+const SOURCE_KINDS= [:input, :output, :target, :weights, :unknown]
 
 abstract type AbstractNode <: MLJType end
 abstract type NodeScitype{K} end
 
-# K is :target, :input, :weight or :unknown
 mutable struct Source{K} <: AbstractNode
     data     # training data
     scitype::DataType 
@@ -70,6 +69,7 @@ ScientificTypes.elscitype(X::Source) = X.scitype
 Base.isempty(X::Source) = X.data == nothing
 
 is_stale(::Source) = false
+state(s::Source) = (state = 0, )
 
 # make source nodes callable:
 function (X::Source)(; rows=:)

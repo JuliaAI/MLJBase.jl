@@ -136,20 +136,19 @@ export load_boston, load_ames, load_iris,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs, @load_smarket
 
-# machines.jl:
-export machine, Machine, AbstractMachine, fit!, report
+# sources.jl:
+export source, Source
 
-# networks.jl:
-export NodalMachine,  machines, source, node,sources, origins,
-    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
+# machines.jl:
+export machine, Machine, fit!, report
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
 export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
-    tup
-
+    tup, node, sources, origins,
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,

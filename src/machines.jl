@@ -1,30 +1,39 @@
-
-## MACHINES
+## MACHINE TYPE
 
 abstract type AbstractMachine{M<:Model} <: MLJType end
 
-mutable struct Machine{M<:Model} <: AbstractMachine{M}
+mutable struct NodalMachine{M<:Model} <: AbstractMachine{M}
     model::M
-    previous_model::M
+    previous_model::M # for remembering the model used in last call to `fit!`
     fitresult
     cache
-    args::Tuple
+    args::Tuple{Vararg{AbstractNode}}
     report
-    previous_rows
-    # constructor
-    function Machine{M}(model, args...) where M
-        machine = new{M}(model)
-        machine.args = args
-        return machine
+    frozen::Bool
+    previous_rows   # for remembering the rows used in last call to `fit!`
+    state::Int      # number of times fit! has been called on machine
+    upstream_state  # for remembering the upstream state in last call to `fit!`
+
+    function NodalMachine(model::M, args::AbstractNode...) where M<:Model
+
+        mach = new{M}(model)
+        mach.frozen = false
+        mach.state = 0
+        mach.args = args
+
+        mach.upstream_state = Tuple([state(arg) for arg in args])
+
+        return mach
     end
 end
 
 
 ## CONSTRUCTORS
 
-Machine(model::M, args...) where M <: Model = Machine{M}(model, args...)
+# In these checks the args are abstract nodes but `full=true` only
+# makes sense if they are actually source nodes.
 
-function check(model::Supervised, args...)
+function check(model::Supervised, args... ; full=false)
     nargs = length(args)
     if nargs == 2
         X, y = args
@@ -46,42 +55,44 @@ function check(model::Supervised, args...)
                             "model."))
     end
 
-    # checks on input type:
-    input_scitype(model) <: Unknown ||
-        scitype(X) <: input_scitype(model) ||
-        @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-        "`machine(model, X, y, w)` is incompatible with " *
-        "`model`:\nscitype(X) = $(scitype(X))\n" *
-        "input_scitype(model) = $(input_scitype(model))."
+    if full
+        # checks on input type:
+        input_scitype(model) <: Unknown ||
+            elscitype(X) <: input_scitype(model) ||
+            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
+            "`machine(model, X, y, w)` is incompatible with " *
+            "`model`:\nscitype(X) = $(scitype(X))\n" *
+            "input_scitype(model) = $(input_scitype(model))."
 
-    # checks on target type:
-    target_scitype(model) <: Unknown ||
-        scitype(y) <: target_scitype(model) ||
-        @warn "The scitype of `y`, in `machine(model, X, y)` " *
-        "or `machine(model, X, y, w)` is incompatible with " *
-        "`model`:\nscitype(y) = $(scitype(y))\n" *
-        "target_scitype(model) = $(target_scitype(model))."
+        # checks on target type:
+        target_scitype(model) <: Unknown ||
+            elscitype(y) <: target_scitype(model) ||
+            @warn "The scitype of `y`, in `machine(model, X, y)` " *
+            "or `machine(model, X, y, w)` is incompatible with " *
+            "`model`:\nscitype(y) = $(scitype(y))\n" *
+            "target_scitype(model) = $(target_scitype(model))."
 
-    # checks on dimension matching:
-    X === nothing || # model fits a distribution to y
-        nrows(X) == nrows(y) ||
+        # checks on dimension matching:
+        X() === nothing || # model fits a distribution to y
+            nrows(X()) == nrows(y()) ||
             throw(DimensionMismatch("Differing number of observations "*
                                     "in input and target. "))
+    end
     return nothing
 end
 
-function check(model::Unsupervised, args...)
+function check(model::Unsupervised, args...; full=false)
     nargs = length(args)
     nargs <= 1 ||
         throw(ArgumentError("Wrong number of arguments. Use " *
-                            "`machine(model, X)` for an unsupervised model "*
-                            "(or `Machine(model)` if there are no training "*
-                            "arguments (\"static\" tranformers"))
-    if nargs == 1
+                            "`machine(model, X)` for an unsupervised model, "*
+                            "or `machine(model)` if there are no training "*
+                            "arguments (`Static` tranformers).) "))
+    if full && nargs == 1
         X = args[1]
         # check input scitype
         input_scitype(model) <: Unknown ||
-            scitype(X) <: input_scitype(model) ||
+            elscitype(X) <: input_scitype(model) ||
             @warn "The scitype of `X`, in `machine(model, X)` is "*
         "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
             "input_scitype(model) = $(input_scitype(model))."
@@ -89,74 +100,144 @@ function check(model::Unsupervised, args...)
     return nothing
 end
 
-function machine(model::Model, args...)
-    # isempty(args) &&
-    #     error("`machine(model)` is ambiguous. Use `Machine(model)` or "*
-    #           "`NodalMachine(model)` (for machines in a learning network). ")
-    check(model, args...)
-    return Machine(model, args...)
+function machine(model::Static, args...)
+    isempty(args) ||
+        error("A `Static` transformer has no training arguments. "*
+              "Use `machine(model)`. ")
+    return NodalMachine(model, args...)
 end
 
-# machine(model::Static, args...) = Machine(model, args...)
+function machine(model::Supervised, X, y)
+    args = (source(X), source(y, kind=:target))
+    check(model, X, y; full=true)
+    return NodalMachine(model, args...)
+end
 
-# Note: The following method is written to fit `NodalMachine`s
-# defined in networks.jl, in addition to `Machine`s defined above.
+function machine(model::Supervised, X, y, w)
+    args = (source(X), source(y, kind=:target), source(w, kind=:weights))
+    check(model, X, y; full=true)
+    return NodalMachine(model, args...)
+end
+
+function machine(model::Unsupervised, X)
+    args = (source(X, kind=:input),)
+    check(model, X, full=true)
+    return NodalMachine(model, args...)
+end
+
+function machine(model::Model, args::AbstractNodes...)
+    check(model, args...)
+    return NodalMachine(model, args...)
+end
+
+
+## INSPECTION AND MINOR MANIPULATION OF FIELDS
+
+# Note: freeze! and thaw! are possibly not used within MLJ itself.
+
+"""
+    freeze!(mach)
+
+Freeze the machine `mach` so that it will never be retrained (unless
+thawed).
+
+See also [`thaw!`](@ref).
+"""
+function freeze!(machine::NodalMachine)
+    machine.frozen = true
+end
+
+"""
+    thaw!(mach)
+
+Unfreeze the machine `mach` so that it can be retrained.
+
+See also [`freeze!`](@ref).
+"""
+function thaw!(machine::NodalMachine)
+    machine.frozen = false
+end
+
+"""
+    is_stale(mach)
+
+Check if a machine `mach` is stale.
+
+See also [`fit!`](@ref)
+"""
+function is_stale(machine::NodalMachine)
+    !isdefined(machine, :fitresult) ||
+        machine.model != machine.previous_model ||
+        reduce(|,[is_stale(arg) for arg in machine.args])
+end
+
+"""
+    state(mach)
+
+Return the state of a machine, `mach` (0 if untrained).
+
+"""
+state(machine::NodalMachine) = machine.state
+
+params(mach::AbstractMachine) = params(mach.model)
+
+
+## FITTING
 
 """
     fit!(mach::Machine; rows=nothing, verbosity=1, force=false)
 
-When called for the first time, call
-
-    fit(mach.model, verbosity, mach.args...)
-
-storing the returned fit-result and report in `mach`. Subsequent calls
-do nothing unless: (i) `force=true`, or (ii) the specified `rows` are
-different from those used the last time a fit-result was computed, or
-(iii) `mach.model` has changed since the last time a fit-result was
-computed (the machine is *stale*). In cases (i) or (ii) `MLJBase.fit`
-is called again. Otherwise, `MLJBase.update` is called.
-
-    fit!(mach::NodalMachine; rows=nothing, verbosity=1, force=false)
-
 When called for the first time, attempt to call
 
-    fit(mach.model, verbosity, mach.args...)
+    MLJBase.fit(mach.model, verbosity=verbosity, args...)`
 
-This will fail if an argument of the machine depends ultimately on
-some other untrained machine for successful calling, but this is
-resolved by instead calling `fit!` any node `N` for which
-`mach in machines(N)` is true, which trains all necessary machines in
-an appropriate order. Subsequent `fit!` calls do nothing unless: (i)
-`force=true`, or (ii) some machine on which `mach` depends has
-computed a new fit-result since `mach` last computed its fit-result,
-or (iii) the specified `rows` have changed since the last time a
-fit-result was last computed, or (iv) `mach` is stale (see below). In
-cases (i), (ii) or (iii), `MLJBase.fit` is called. Otherwise
-`MLJBase.update` is called.
+where `args` represents the training arguments of the machine. These
+are either the concrete data bound to the machine at construction, or
+data obtained by calling abstract nodes bound to the machine at
+construction.  If `rows` is specified, it is understood that each
+argument `arg` has been replaced with `selectrows(arg)`.
 
-A machine `mach` is *stale* if `mach.model` has changed since the last
-time a fit-result was computed, or if one of its training arguments
-is `stale`. A node `N` is stale if `N.machine` is stale or one of its
-arguments is stale. `Source` nodes are never stale.
+In the case of node arguments, the call to `fit!` will fail if an
+argument of the machine depends ultimately on some other untrained
+machine for successful calling. This is resolved by instead
+calling `fit!` any node `N` for which `mach in machines(N)` is true,
+which trains all necessary machines in an appropriate
+order.
 
-Note that a nodal machine obtains its training data by *calling* its
-node arguments on the specified `rows` (rather than *indexing* its arguments
-on those rows) and that this calling is a recursive operation on nodes
-upstream of those arguments.
+Subsequent `fit!` calls do nothing unless:
+
+- (i) `force=true`
+
+- (ii) Some machine on which `mach` depends has been retrained since
+  `mach` was last retrained (never true if `mach` was bound to conrete
+  data)
+
+- (iii) The specified `rows` have changed since the last retraining.
+
+- (iv) `mach` is stale (see below).
+
+In cases (i), (ii) or (iii), `MLJBase.fit` is called again for
+retraining from scratch. Otherwise `MLJBase.update` is called.
+
+A machine `mach` is *stale* if:
+
+-  `mach.model` has changed since the last
+time a fit-result was computed.
+
+- The machine was bound to abstract nodes at construction and one of
+  these is `stale`. A node `N` is stale if `N.machine` is stale or one
+  of its arguments is stale. `Source` nodes are never stale.
 
 """
 function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
 
-    if mach isa NodalMachine && mach.frozen
+    if mach.frozen
         verbosity < 0 || @warn "$mach not trained as it is frozen."
         return mach
     end
 
-    # catch machines with no arguments (no data):
-    mach isa Machine{<:Supervised} ||
-        mach isa Machine{<:Unsupervised} &&
-        !(mach isa Machine{<:Static}) &&
-        isempty(mach.args) &&
+    # catch machines deserialized and not bound to data:
+    !(mach.model isa Static} && isempty(mach.args) &&
         error("This machine is not bound to any data and so "*
               "cannot be trained. ")
 
@@ -168,26 +249,22 @@ function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
     rows_have_changed = !isdefined(mach, :previous_rows) ||
                           rows != mach.previous_rows
 
-    if mach isa NodalMachine
-        # determine if concrete data to be used in training may have changed:
-        upstream_state = Tuple([state(arg) for arg in mach.args])
-        data_has_changed =
-            rows_have_changed || (upstream_state != mach.upstream_state)
-        previously_fit = (mach.state > 0)
-        args = [arg(rows=rows) for arg in mach.args]
-    else
-        data_has_changed = rows_have_changed
-        previously_fit = isdefined(mach, :fitresult)
-        args = [selectrows(arg, rows) for arg in mach.args]
-    end
+    # determine if concrete data to be used in training may have changed:
+    upstream_state = Tuple([state(arg) for arg in mach.args])
+    data_has_changed =
+        rows_have_changed || (upstream_state != mach.upstream_state)
+    previously_fit = (mach.state > 0)
 
+    raw_args = [arg(rows=rows) for arg in mach.args]
+
+    # we fit, update, or return untouched:
     if !previously_fit || data_has_changed || force
         # fit the model:
         verbosity < 1 || @info "Training $mach."
         mach.fitresult, mach.cache, mach.report =
-            fit(mach.model, verbosity, args...)
+            fit(mach.model, verbosity, raw_args...)
     elseif !is_stale(mach)
-        # don't fit the model
+        # don't fit the model:
         if verbosity > 0
             @info "Not retraining $mach.\n It appears up-to-date. " *
                   "Use `force=true` to force retraining."
@@ -197,8 +274,11 @@ function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
         # update the model:
         verbosity < 1 || @info "Updating $mach."
         mach.fitresult, mach.cache, mach.report =
-            update(mach.model, verbosity, mach.fitresult, mach.cache, args...)
-
+            update(mach.model,
+                   verbosity,
+                   mach.fitresult,
+                   mach.cache,
+                   raw_args...)
     end
 
     if rows_have_changed
@@ -207,18 +287,57 @@ function fit!(mach::AbstractMachine; rows=nothing, verbosity=1, force=false)
 
     mach.previous_model = deepcopy(mach.model)
 
-    if mach isa NodalMachine
-        mach.upstream_state = upstream_state
-         mach.state = mach.state + 1
-    end
+    mach.upstream_state = upstream_state
+    mach.state = mach.state + 1
 
     return mach
 end
 
-is_stale(mach::Machine) =
-    !isdefined(mach, :fitresult) || (mach.model != mach.previous_model)
 
-params(mach::AbstractMachine) = params(mach.model)
+## INSPECTION OF TRAINING OUTCOMES
+
+"""
+    fitted_params(mach)
+
+Return the learned parameters for a machine `mach` that has been
+`fit!`, for example the coefficients in a linear model.
+
+This is a named tuple and human-readable if possible.
+
+If `mach` is a machine for a composite model, then the returned value
+has keys `machines` and `fitted_params_given_machine`, whose
+corresponding values are a vector of machines appearing in the
+underlying learning network, and a dictionary of reports keyed on
+those machines.
+
+```julia
+using MLJ
+X, y = @load_crabs;
+pipe = @pipeline MyPipe(
+    std = Standardizer(),
+    clf = @load LinearBinaryClassifier pkg=GLM
+)
+mach = machine(MyPipe(), X, y) |> fit!
+fp = fitted_params(mach)
+machs = fp.machines
+2-element Array{Any,1}:
+ Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
+ Machine{Standardizer} @ 7…33
+
+fp.fitted_params_given_machine[machs[1]]
+(coef = [121.05433477939319, 1.5863921128182814,
+         61.0770377473622, -233.42699281787324, 72.74253591435117],
+ intercept = 10.384459260848505,)
+```
+
+"""
+function fitted_params(machine::AbstractMachine)
+    if isdefined(machine, :fitresult)
+        return fitted_params(machine.model, machine.fitresult)
+    else
+        throw(error("$machine has not been trained."))
+    end
+end
 
 """
     report(mach)
@@ -229,10 +348,9 @@ Return the report for a machine `mach` that has been
 This is a named tuple and human-readable if possible.
 
 If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `report_given_machine`, whose
-corresponding values are a vector of (nodal) machines appearing in the
-underlying learning network, and a dictionary of reports keyed on
-those machines.
+has keys `machines` and `report_given_machine`, whose corresponding
+values are a vector of machines appearing in the underlying learning
+network, and a dictionary of reports keyed on those machines.
 
 ```julia
 using MLJ
@@ -245,8 +363,8 @@ mach = machine(MyPipe(), X, y) |> fit!
 r = report(mach)
 r.machines
 2-element Array{Any,1}:
- NodalMachine{LinearBinaryClassifier{LogitLink}} @ 1…57
- NodalMachine{Standardizer} @ 7…33
+ Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
+ Machine{Standardizer} @ 7…33
 
 r.report_given_machine[machs[1]]
 (deviance = 3.8893386087844543e-7,
@@ -265,10 +383,10 @@ report(mach::AbstractMachine) = mach.report
 
 # saving:
 """
-    MLJ.save(filename, mach::AbstractMachine; kwargs...)
+    MLJ.save(filename, mach::Machine; kwargs...)
     MLJ.save(io, mach::Machine; kwargs...)
 
-    MLJBase.save(filename, mach::AbstractMachine; kwargs...)
+    MLJBase.save(filename, mach::Machine; kwargs...)
     MLJBase.save(io, mach::Machine; kwargs...)
 
 Serialize the machine `mach` to a file with path `filename`, or to an
@@ -337,7 +455,7 @@ end
 function machine(file::Union{String,IO}, args...; kwargs...)
     model, fitresult, report = MMI.restore(file; kwargs...)
     isempty(args) || check(model, args...)
-    mach = Machine(model, args...)
+    mach = NodalMachine(model, args...)
     mach.fitresult = fitresult
     mach.report = report
     return mach
