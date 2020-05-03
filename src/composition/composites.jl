@@ -398,8 +398,9 @@ function from_network_(modl, modeltype_ex, fieldname_exs, model_exs,
     # code defining the composite model struct and fit method:
     program1 = quote
 
-        import MLJBase
-        import MLJModelInterface
+        $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase) : :(import MLJBase))
+        $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase.MLJModelInterface) :
+            :(import MLJBase.MLJModelInterface))
 
         mutable struct $modeltype_ex <: MLJBase.$kind
             $(fieldname_exs...)
