@@ -102,26 +102,30 @@ end
 """
     fit!(mach::Machine; rows=nothing, verbosity=1, force=false)
 
-When called for the first time, call
+When called for the first time, call `fit(mach.model, verbosity,
+args...)`, where `args = machine.args`, if `rows==nothing`, or
 
-    fit(mach.model, verbosity, mach.args...)
+    args = [selectrows(arg, rows) for arg in mach.args]
 
-storing the returned fit-result and report in `mach`. Subsequent calls
-do nothing unless: (i) `force=true`, or (ii) the specified `rows` are
-different from those used the last time a fit-result was computed, or
-(iii) `mach.model` has changed since the last time a fit-result was
-computed (the machine is *stale*). In cases (i) or (ii) `MLJBase.fit`
-is called again. Otherwise, `MLJBase.update` is called.
+otherwise, storing the returned fit-result and report in
+`mach`. Subsequent calls do nothing unless: (i) `force=true`, or (ii)
+the specified `rows` are different from those used the last time a
+fit-result was computed, or (iii) `mach.model` has changed since the
+last time a fit-result was computed (the machine is *stale*). In cases
+(i) or (ii) `MLJBase.fit` is called again. Otherwise, `MLJBase.update`
+is called.
 
     fit!(mach::NodalMachine; rows=nothing, verbosity=1, force=false)
 
-When called for the first time, attempt to call
+When called for the first time, attempt to call `fit(mach.model,
+verbosity, args...)`, where `args = [arg() for arg in mach.args`, if
+`rows==nothing`, and
 
-    fit(mach.model, verbosity, mach.args...)
+    args =  [arg(rows=rows) for arg in mach.args]
 
-This will fail if an argument of the machine depends ultimately on
-some other untrained machine for successful calling, but this is
-resolved by instead calling `fit!` any node `N` for which
+otherwise. This will fail if an argument of the machine depends
+ultimately on some other untrained machine for successful calling, but
+this is resolved by instead calling `fit!` any node `N` for which
 `mach in machines(N)` is true, which trains all necessary machines in
 an appropriate order. Subsequent `fit!` calls do nothing unless: (i)
 `force=true`, or (ii) some machine on which `mach` depends has
