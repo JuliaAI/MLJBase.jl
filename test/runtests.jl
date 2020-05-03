@@ -61,6 +61,10 @@ end
     @test include("data/datasets_synthetic.jl")
 end
 
+@testset "sources" begin
+    @test include("sources.jl")
+end
+
 @testset "machines" begin
     @test include("machines.jl")
 end

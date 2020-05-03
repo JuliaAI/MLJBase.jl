@@ -1,98 +1,8 @@
-const SOURCE_KINDS= [:input, :output, :target, :weights]
-
-
 # for models that are "exported" learning networks (return a Node as
 # their fit-result; see MLJ docs:
 abstract type ProbabilisticNetwork <: Probabilistic end
 abstract type DeterministicNetwork <: Deterministic end
 abstract type  UnsupervisedNetwork <: Unsupervised end
-
-## ABSTRACT NODES AND SOURCE NODES
-
-abstract type AbstractNode <: MLJType end
-
-# K is :target, :input, :weight or :unknown
-mutable struct Source{K} <: AbstractNode
-    data  # training data
-end
-
-"""
-    Xs = source(X)
-    ys = source(y, kind=:target)
-    ws = source(w, kind=:weight)
-
-Defines, respectively, learning network `Source` objects for wrapping
-some input data `X` (`kind=:input`), some target data `y`, or some
-sample weights `w`.  The values of each variable `X, y, w` can be
-anything, even `nothing`, if the network is for exporting as a
-stand-alone model only. For training and testing the unexported network,
-appropriate vectors, tables, or other data containers are expected.
-
-    Xs = source()
-    ys = source(kind=:target)
-    ws = source(kind=:weight)
-
-Define source nodes wrapping `nothing` instead of concrete data. Such
-definitions suffice if a learning network is to be exported without
-testing.
-
-The calling behaviour of a `Source` object is this:
-
-    Xs() = X
-    Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
-    Xs(Xnew) = Xnew
-
-See also: [`@from_network`](@ref], [`sources`](@ref),
-[`origins`](@ref), [`node`](@ref).
-
-"""
-function source(X; kind=:input)
-    kind in SOURCE_KINDS ||
-        @warn "Source `kind` is not one of $SOURCE_KINDS. "
-    return Source{kind}(X)
-end
-
-source(X::Source; args...) = X
-source(; args...) = source(nothing; args...)
-
-kind(::Source{k}) where k = k
-Base.isempty(X::Source) = X.data == nothing
-
-is_stale(s::Source) = false
-
-# make source nodes callable:
-function (s::Source)(; rows=:)
-    rows == (:) && return s.data
-    return selectrows(s.data, rows)
-end
-(s::Source)(Xnew) = Xnew
-
-"""
-    rebind!(s)
-
-Attach new data `X` to an existing source node `s`.
-"""
-function rebind!(s::Source, X)
-    s.data = X
-    return s
-end
-
-
-"""
-    origins(N)
-
-Return a list of all origins of a node `N` accessed by a call `N()`.
-These are the source nodes of ancestor graph of `N` if edges
-corresponding to training arguments are excluded. A `Node` object
-cannot be called on new data unless it has a unique origin.
-
-Not to be confused with `sources(N)` which refers to the same graph
-but without the training edge deletions.
-
-See also: [`node`](@ref), [`source`](@ref).
-"""
-origins(s::Source) = [s,]
-
 
 # Function to incrementally append to `nodes1` all elements in
 # `nodes2`, excluding any elements previously added (or any element of
@@ -108,6 +18,7 @@ end
 
 # Note that `fit!` has already been defined for any AbstractMachine in
 # machines.jl
+
 
 mutable struct NodalMachine{M<:Model} <: AbstractMachine{M}
     model::M
@@ -238,6 +149,19 @@ struct Node{T<:Union{NodalMachine, Nothing}} <: AbstractNode
     end
 end
 
+"""
+    origins(N)
+
+Return a list of all origins of a node `N` accessed by a call `N()`.
+These are the source nodes of ancestor graph of `N` if edges
+corresponding to training arguments are excluded. A `Node` object
+cannot be called on new data unless it has a unique origin.
+
+Not to be confused with `sources(N)` which refers to the same graph
+but without the training edge deletions.
+
+See also: [`node`](@ref), [`source`](@ref).
+"""
 origins(X::Node) = X.origins
 
 """
