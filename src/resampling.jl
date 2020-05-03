@@ -166,6 +166,50 @@ end
 
 
 # ----------------------------------------------------------------
+# Cross-validation (TimeSeriesCV)
+
+"""
+    TimeSeriesCV = TimeSeriesCV(;nsteps=4)
+
+Cross-validation resampling strategy, for use in `evaluate!`,
+`evaluate` and tuning.
+
+    train_test_pairs(TimeSeriesCV, rows)
+
+Returns an iterator of `(train, test)` pairs of vectors. (row indices)
+The series of `test` sets, each consisting of a single observation &
+corresponding `train` set consists only of observations
+that occurred prior to the observation that forms the `test` set.
+Thus, no future observations can be used in construction.
+"""
+struct TimeSeriesCV <: ResamplingStrategy
+    nsteps::Int
+    function TimeSeriesCV(nsteps)
+        nsteps >= 1 || error("Must have nsteps >= 1. ")
+        return new(nsteps)
+    end
+end
+
+# Constructor with keywords
+TimeSeriesCV(;nsteps::Int=4) =
+      TimeSeriesCV(nsteps)
+
+function train_test_pairs(TimeSeriesCV::TimeSeriesCV, rows)
+
+    n_obs = length(rows)
+    nsteps = TimeSeriesCV.nsteps
+
+    n_obs > nsteps  || error("Inusufficient data for $nsteps-step cross-validation.\n"*
+                             "Try reducing nsteps. ")
+
+    ret = map(1:n_obs-nsteps) do k
+        return (rows[1:k],          # trainrows
+                [rows[k + nsteps]]) # testrows
+    end
+    return ret
+end
+
+# ----------------------------------------------------------------
 # Cross-validation (stratified; for `Finite` targets)
 
 """
@@ -552,7 +596,7 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
-   local ret         
+   local ret
    verbosity < 1 || (p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
@@ -564,17 +608,17 @@ function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
             r = func(machines[1], k)
             verbosity < 1 || begin
                       p.counter += 1
-                      ProgressMeter.updateProgress!(p)  
-                    end 
+                      ProgressMeter.updateProgress!(p)
+                    end
             return r
         end
-     
+
     return ret
 end
 
 # machines has only one element:
 function _evaluate!(func, machines, ::CPUProcesses, nfolds, verbosity) #where T<:AbstractWorkerPool
-    
+
     #verbosity < 1 || update!(p,0)
 local ret
 @sync begin
@@ -591,22 +635,22 @@ local ret
                     next!(p)
                     end
                     end
-        
-    
+
+
      @sync begin
             ret = @distributed vcat for k in 1:nfolds
-        	r = func(machines[1], k)
-        	verbosity < 1 || begin
+                r = func(machines[1], k)
+                verbosity < 1 || begin
                             put!(channel, true)
                             yield()
                             end
-        	r
-    	   end
+                r
+           end
     verbosity < 1 || put!(channel, false)
     end
     close(channel)
     end
-    
+
     return ret
 end
 
@@ -614,11 +658,11 @@ end
 # one machine for each thread; cycle through available threads:
 function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
    n_threads = Threads.nthreads()
-    
+
    if n_threads == 1
         return _evaluate!(func, machines, CPU1(), nfolds, verbosity)
    end
-    
+
     results = Array{Any, 1}(undef, nfolds)
     loc = ReentrantLock()
     verbosity < 1 || (p = Progress(nfolds,
@@ -626,11 +670,11 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
                     desc = "Evaluating over $nfolds folds: ",
                     barglyphs = BarGlyphs("[=> ]"),
                     barlen = 25,
-                    color = :yellow))   
-   
-     @sync begin  
-      
-        @sync for parts in Iterators.partition(1:nfolds, max(1,floor(Int, nfolds/n_threads)))    
+                    color = :yellow))
+
+     @sync begin
+
+        @sync for parts in Iterators.partition(1:nfolds, max(1,floor(Int, nfolds/n_threads)))
         Threads.@spawn begin
             for k in parts
             id = Threads.threadid()
@@ -638,7 +682,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
                    machines[id] =
                        machine(machines[1].model, machines[1].args...)
             end
-           results[k] = func(machines[id], k) 
+           results[k] = func(machines[id], k)
            verbosity < 1 || (begin
                               lock(loc)do
                                 p.counter +=1
@@ -651,8 +695,9 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
     end
 
     end
-  
+
     return reduce(vcat, results)
+
 end
 
 end
@@ -682,7 +727,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-    
+
     # For multithreading we need a clone of `mach` for each thread
     # doing work. These are instantiated as needed except for
     # threadid=1.
@@ -715,7 +760,7 @@ function evaluate!(mach::Machine, resampling, weights,
                       "using $(Threads.nthreads()) threads."
             end
     end
-   
+
     measurements_flat =
             _evaluate!(get_measurements,
                        machines,
@@ -758,7 +803,7 @@ function evaluate!(mach::Machine, resampling, weights,
            measurement=per_measure,
            per_fold=per_fold,
            per_observation=per_observation)
-    
+
     return ret
 
 end
@@ -869,7 +914,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
         _process_weights_measures(resampler.weights, resampler.measure,
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
-    
+
 
     fitresult = evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
@@ -936,4 +981,3 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-
