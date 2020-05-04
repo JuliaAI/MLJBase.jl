@@ -97,8 +97,7 @@ export coerce, coerce!, autotype, schema, info
 # -------------------------------------------------------------------
 # exports from MLJBase
 
-export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork,
-       best, @load
+export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork, @load
 
 # computational_resources.jl:
 export default_resource
@@ -110,8 +109,7 @@ export ParamRange, NumericRange, NominalRange, iterator, scale
 export params # note this is *not* an extension of StatsBase.params
 
 # data.jl:
-export reconstruct, levels_seen, container_type,
-       partition, unpack, complement, restrict, corestrict
+export partition, unpack, complement, restrict, corestrict
 
 # utilities.jl:
 export @set_defaults, flat_values, recursive_setproperty!,
@@ -122,10 +120,6 @@ export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
 # distributions.jl:
 export average
-
-# tasks.jl:
-export SupervisedTask, UnsupervisedTask, MLJTask,
-       X_and_y, X_, y_, nfeatures
 
 # info_dict.jl:
 export info_dict

@@ -20,11 +20,11 @@ abstract type NodeScitype{K} end
 
 mutable struct Source{K} <: AbstractNode
     data     # training data
-    scitype::DataType 
+    scitype::DataType
 end
 
 """
-    Xs = source(X) 
+    Xs = source(X)
     ys = source(y, kind=:target)
     ws = source(w, kind=:weight)
 

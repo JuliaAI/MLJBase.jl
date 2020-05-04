@@ -293,6 +293,8 @@ node = Node
 
 tup(X::AbstractNode...) = node(tuple, X...)
 
+tup(X::AbstractNode...) = node(tuple, X...)
+
 MMI.matrix(X::AbstractNode)      = node(matrix, X)
 MMI.table(X::AbstractNode)       = node(table, X)
 Base.vcat(args::AbstractNode...) = node(vcat, args...)

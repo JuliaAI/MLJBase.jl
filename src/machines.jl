@@ -187,7 +187,9 @@ params(mach::AbstractMachine) = params(mach.model)
 """
     fit!(mach::Machine; rows=nothing, verbosity=1, force=false)
 
-When called for the first time, attempt to call
+When called for the first time, attempt to call `fit(mach.model,
+verbosity, args...)`, where `args = [arg() for arg in mach.args`, if
+`rows==nothing`, and
 
     MLJBase.fit(mach.model, verbosity=verbosity, args...)`
 
