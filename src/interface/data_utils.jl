@@ -30,6 +30,11 @@ MMI.classes(::FI, p::CategoricalPool) =
 MMI.classes(::FI, x::CategoricalElement) = classes(x.pool)
 
 # ------------------------------------------------------------------------
+# schema
+
+MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
+
+# ------------------------------------------------------------------------
 # decoder
 
 struct CategoricalDecoder{T,R}
