@@ -1,25 +1,26 @@
 # Machines store data for training as *arguments*. Eg, in the
 # supervised case, the first two arguments are always `X` and `y`. An
 # argument could be raw data (such as a table) or, in the case of a
-# learning network, a "promise" of data - formally a `Node` object,
-# which is *callable*. For uniformity of interface, even raw data is
-# stored in a wrapper that can be called to return the object
-# wrapped). The name of the wrapper type is source, as these also
-# constitute the source nodes of learning networks.
+# learning network, a "promise" of data (aka "dynamic" data) -
+# formally a `Node` object, which is *callable*. For uniformity of
+# interface, even raw data is stored in a wrapper that can be called
+# to return the object wrapped. The name of the wrapper type is
+# `Source`, as these constitute the source nodes of learning networks.
 
 # Here we define the `Source` wrapper, as well as some methods they
 # will share with the `Node` type for use in learning networks.
 
 
-## SOURCE NODES
+## SOURCE TYPE
 
 const SOURCE_KINDS= [:input, :output, :target, :weights, :unknown]
 
 abstract type AbstractNode <: MLJType end
-abstract type NodeScitype{K} end
+abstract type CallableReturning{K} end # scitype for sources and nodes
 
-mutable struct Source{K} <: AbstractNode
+mutable struct Source <: AbstractNode
     data     # training data
+    kind::Symbol
     scitype::DataType
 end
 
@@ -56,20 +57,20 @@ See also: [`@from_network`](@ref], [`sources`](@ref),
 function source(X; kind=:input)
     kind in SOURCE_KINDS ||
         @warn "Source `kind` is not one of $SOURCE_KINDS. "
-    return Source{kind}(X, scitype(X))
+    return Source(X, kind, scitype(X))
 end
 
 source(X::Source; args...) = X
 source(; args...) = source(nothing; args...)
 
-kind(::Source{k}) where k = k
-MLJScientificTypes.scitype(X::Source) = NodeScitype{X.scitype}
+kind(S::Source) = S.kind
+MLJScientificTypes.scitype(X::Source) = CallableReturning{X.scitype}
 ScientificTypes.elscitype(X::Source) = X.scitype
+nodes(X::Source) = [X, ]
+Base.isempty(X::Source) = X.data === nothing
+nrows_at_source(X::Source) = nrows(X.data)
 
-Base.isempty(X::Source) = X.data == nothing
-
-is_stale(::Source) = false
-state(s::Source) = (state = 0, )
+color(::Source) = :yellow
 
 # make source nodes callable:
 function (X::Source)(; rows=:)
@@ -79,14 +80,39 @@ end
 (X::Source)(Xnew) = Xnew
 
 """
-    rebind!(s)
+    rebind!(s, X; kind=nothing)
 
-Attach new data `X` to an existing source node `s`.
+Attach new data `X` to an existing source node `s` and optionally
+change it's kind.
+
 """
-function rebind!(s::Source, X)
+function rebind!(s::Source, X; kind=nothing)
     s.data = X
     s.scitype = scitype(X)
+    if kind != nothing
+        kind in SOURCE_KINDS ||
+            @warn "Source `kind` is not one of $SOURCE_KINDS. "
+        s.kind = kind
+    end
     return s
 end
 
 origins(s::Source) = [s,]
+
+
+## DISPLAY FOR SOURCES AND OTHER ABSTRACT NODES
+
+_extra(::Any) = ""
+_extra(S::Source) = " of kind `:$(S.kind)`"
+function Base.show(stream::IO, object::AbstractNode)
+    repr = simple_repr(typeof(object))
+    str = "$repr $(handle(object))"
+    if !isempty(fieldnames(typeof(object)))
+        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+                    str, bold=false, color=:blue)
+    else
+        print(stream, str)
+    end
+    print(stream, _extra(object), " returning `$(elscitype(object))`")
+    return nothing
+end

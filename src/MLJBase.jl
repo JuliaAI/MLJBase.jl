@@ -61,7 +61,7 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
        Probabilistic, Deterministic, Interval, Static,
-       UnivariateFinite
+    UnivariateFinite
 
 # MLJType equality
 export is_same_except
@@ -95,9 +95,11 @@ export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
 
 # -------------------------------------------------------------------
-# exports from MLJBase
+# exports from this module, MLJBase
 
-export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork, @load
+export DeterministicComposite,
+    ProbabilisticComposite,
+    UnsupervisedComposite, @load
 
 # computational_resources.jl:
 export default_resource
@@ -116,7 +118,7 @@ export @set_defaults, flat_values, recursive_setproperty!,
        recursive_getproperty, pretty, unwind
 
 # show.jl
-export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
+export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 
 # distributions.jl:
 export average
@@ -131,18 +133,25 @@ export load_boston, load_ames, load_iris,
        @load_reduced_ames, @load_crabs, @load_smarket
 
 # sources.jl:
-export source, Source
+export source, Source, CallableReturning
 
 # machines.jl:
-export machine, Machine, fit!, report
+export machine, Machine, fit!, report, fit_only!
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
 export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
-    tup, node, sources, origins,
-    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode
+    glb, @tuple, node, @node, sources, origins,
+    nrows_at_source, machine!,
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
+    DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
+    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
+
+# aliases to the above,  kept for backwards compatibility:
+export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
+
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
@@ -252,16 +261,18 @@ include("distributions.jl")
 include("sources.jl")
 include("machines.jl")
 
-include("composition/learning_networks/core.jl")
+include("composition/abstract_types.jl")
+include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
+include("composition/learning_networks/machines.jl")
 @static if VERSION ≥ v"1.3.0-"
     include("composition/learning_networks/arrows.jl")
 end
 
-include("composition/composites/core.jl")
-include("composition/composites/from_network.jl")
-include("composition/composites/pipelines.jl")
-include("composition/composites/pipeline_static.jl")
+include("composition/models/methods.jl")
+include("composition/models/from_network.jl")
+include("composition/models/pipelines.jl")
+include("composition/models/pipeline_static.jl")
 
 include("operations.jl")
 include("resampling.jl")

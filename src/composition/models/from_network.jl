@@ -7,7 +7,7 @@ Create a deep copy of a node `W`, and thereby replicate the learning
 network terminating at `W`, but replacing any specified sources and
 models `a1, a2, ...` of the original network with `b1, b2, ...`.
 
-If `empty_unspecified_sources=ture` then any source nodes not
+If `empty_unspecified_sources=true` then any source nodes not
 specified are replaced with empty version of the same kind.
 
 """
@@ -59,7 +59,7 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
     # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
-    newmach_given_old = IdDict{NodalMachine,NodalMachine}()
+    newmach_given_old = IdDict{Machine,Machine}()
 
     # build the new network:
     for N in nodes_
@@ -71,7 +71,7 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
                  mach = newmach_given_old[N.machine]
              else
                  train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                 mach = NodalMachine(newmodel_given_old[N.machine.model],
+                 mach = Machine(newmodel_given_old[N.machine.model],
                                 train_args...)
                  newmach_given_old[N.machine] = mach
              end
@@ -150,13 +150,13 @@ net_alert(k::Int) = throw(ArgumentError("Learning network export error $k. "))
 function kind_(is_supervised, is_probabilistic)
     if is_supervised
         if ismissing(is_probabilistic) || !is_probabilistic
-            return :DeterministicNetwork
+            return :DeterministicComposite
         else
-            return :ProbabilisticNetwork
+            return :ProbabilisticComposite
         end
     else
         if ismissing(is_probabilistic) || !is_probabilistic
-            return :UnsupervisedNetwork
+            return :UnsupervisedComposite
         else
             return missing
         end
@@ -204,13 +204,13 @@ function from_network_preprocess(modl, ex,
     weights = sources(N, kind=:weights)
 
     length(inputs) == 0 &&
-        net_alert("Network has no source with `kind=:input`.")
+        net_alert("Learning network has no source with `kind=:input`.")
     length(inputs) > 1  &&
-        net_alert("Network has multiple sources with `kind=:input`.")
+        net_alert("Learning network has multiple sources with `kind=:input`.")
     length(targets) > 1 &&
-        net_alert("Network has multiple sources with `kind=:target`.")
+        net_alert("Learning network has multiple sources with `kind=:target`.")
     length(weights) > 1 &&
-        net_alert("Network has multiple sources with `kind=:weights`.")
+        net_alert("Learning network has multiple sources with `kind=:weights`.")
 
     if length(weights) == 1
         trait_ex_given_name_ex[:supports_weights] = true
@@ -220,7 +220,7 @@ function from_network_preprocess(modl, ex,
 
     kind = kind_(is_supervised, is_probabilistic)
     ismissing(kind) &&
-        net_alert("Network appears unsupervised (has no source with "*
+        net_alert("Composite appears unsupervised (has no source with "*
                   "`kind=:target`) and so `is_probabilistic=true` "*
                   "declaration is not allowed. ")
 

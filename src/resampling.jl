@@ -498,7 +498,7 @@ these properties:
 See also [`evaluate`](@ref)
 
 """
-function evaluate!(mach::AbstractMachine{<:Supervised};
+function evaluate!(mach::Machine{<:Supervised};
                    resampling=CV(),
                    measures=nothing,
                    measure=measures,
@@ -688,7 +688,7 @@ const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
-function evaluate!(mach::AbstractMachine, resampling, weights,
+function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
                    measures, operation, acceleration, force)
 
@@ -790,14 +790,16 @@ end
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
 
-function evaluate!(mach::AbstractMachine, resampling::ResamplingStrategy,
+function evaluate!(mach::Machine, resampling::ResamplingStrategy,
                    weights, rows, verbosity, repeats, args...)
 
-    y = mach.args[2]
+    train_args = Tuple(a() for a in mach.args)
+    y = train_args[2]
+
     _rows = actual_rows(rows, length(y), verbosity)
 
     repeated_train_test_pairs =
-        vcat([train_test_pairs(resampling, _rows, mach.args...)
+        vcat([train_test_pairs(resampling, _rows, train_args...)
               for i in 1:repeats]...)
 
     return evaluate!(mach,
@@ -956,7 +958,7 @@ MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 
-function evaluate(machine::AbstractMachine{<:Resampler})
+function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)
         return evaluate(machine.model, machine.fitresult)
     else

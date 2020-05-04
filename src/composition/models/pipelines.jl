@@ -1,12 +1,15 @@
 ## LINEAR LEARNING NETWORKS (FOR INTERNAL USE ONLY)
 
-# constructs and returns an unsupervised node, and its machine, for a
-# given model and input. the node is static if model is a function
-# instead of bona fide model. Example: `node_(pca, X)` (dynamic) or
-# `node_(MLJBase.matrix, X)` (static).
+# Here `model` is a function or Unsupervised model (possibly
+# `Static`).  This function wraps `model` in an appropriate `Node`,
+# `node`, and returns `(node, mode.machine)`.
 function node_(model, X)
-    if model isa Model
-        mach = machine(model, X)
+    if model isa Unsupervised
+        if model isa Static
+            mach = machine(model)
+        else
+            mach = machine(model, X)
+        end
         return transform(mach, X), mach
     else
         n = node(model, X)
@@ -15,20 +18,25 @@ function node_(model, X)
 end
 
 # `models_and_functions` can include both functions (static
-# operatations) and bona fide models. If `ys == nothing` the learning
-# network is assumed to be unsupervised. Otherwise: If `target ===
-# nothing`, then no target transform is applied; if `target !==
-# nothing` and `inverse === nothing`, then corresponding `transform`
-# and `inverse_transform` are applied; if neither `target` nor
-# `inverse` are `nothing`, then both `target` and `inverse` are
-# assumed to be StaticTransformations, to be applied
-# respectively to `ys` and to the output of the `models_and_functions`
-# pipeline. Note that target inversion is applied to the output of the
-# *last* nodal machine in the pipeline, corresponding to the last
-# element of `models_and_functions`.
+# operatations) and bona fide models (including `Static`
+# transformers). If `ys == nothing` the learning network is assumed to
+# be unsupervised. Otherwise: If `target === nothing`, then no target
+# transform is applied; if `target !== nothing` and `inverse ===
+# nothing`, then corresponding `transform` and `inverse_transform` are
+# applied; if neither `target` nor `inverse` are `nothing`, then both
+# `target` and `inverse` are assumed to be StaticTransformations, to
+# be applied respectively to `ys` and to the output of the
+# `models_and_functions` pipeline. Note that target inversion is
+# applied to the output of the *last* nodal machine in the pipeline,
+# corresponding to the last element of `models_and_functions`.
 
 # No checks whatsoever are performed. Returns a learning network.
-function linear_learning_network(Xs, ys, ws, target, inverse, models_and_functions...)
+function linear_learning_network(Xs,
+                                 ys,
+                                 ws,
+                                 target,
+                                 inverse,
+                                 models_and_functions...)
 
     n = length(models_and_functions)
 
@@ -176,11 +184,11 @@ function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
     is_supervised  =
         length(supervised_components) == 1
 
-    # `kind_` is defined in composites.jl:
+    # `kind_` is defined in /src/composition/models/from_network.jl
     kind = kind_(is_supervised, is_probabilistic)
 
     ismissing(kind) &&
-        pipe_alert("Network has no supervised components and so "*
+        pipe_alert("Composite has no supervised components and so "*
                   "`prediction_type=:probablistic` (or "*
                    "`is_probabilistic=true`) "*
                   "declaration is not allowed. ")
@@ -233,7 +241,7 @@ function pipeline_(modl, ex, kw_ex)
      target_, inverse_, kind, trait_value_given_name_) =
          pipeline_preprocess(modl, ex, kw_ex)
 
-    if kind === :UnsupervisedNetwork
+    if kind === :UnsupervisedComposite
         ys_ = :nothing
     else
         ys_ = :(source(kind=:target))

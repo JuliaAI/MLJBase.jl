@@ -1,4 +1,4 @@
-module TestLearingNetworksInspection
+module TestLearningCompositesInspection
 
 using Test
 using MLJBase
@@ -16,7 +16,7 @@ knn = KNNRegressor()
 knnM = machine(knn, W, y)
 @constant yhat = predict(knnM, W)
 @constant K =  2*X
-@constant all = tup(yhat, K)
+@constant all = glb(yhat, K)
 
 @test MLJBase.tree(yhat) == (operation = predict,
                              model = knn,
@@ -40,7 +40,7 @@ knnM = machine(knn, W, y)
 
 @constant Q = 2X
 @constant R = 3X
-@constant S = tup(X, Q, R)
+@constant S = glb(X, Q, R)
 @test Set(MLJBase.children(X, S)) == Set([Q, R, S])
 @test MLJBase.lower_bound([Int, Float64]) == Union{}
 @test MLJBase.lower_bound([Int, Integer]) == Int
@@ -50,15 +50,15 @@ knnM = machine(knn, W, y)
 @test input_scitype(2X) == Unknown
 @test input_scitype(yhat) == input_scitype(KNNRegressor())
 W2 = transform(machine(UnivariateStandardizer(), X), X)
-@test input_scitype(X, tup(W, W2)) == Union{}
-@test input_scitype(X, tup(Q, W)) == Unknown
+# @test input_scitype(X, glb(W, W2)) == Union{}
+# @test input_scitype(X, glb(Q, W)) == Unknown
 
 y1 = predict(machine(@load(DecisionTreeRegressor), X, y), X)
 @test input_scitype(y1) == Table(Continuous, OrderedFactor, Count)
 y2 = predict(machine(@load(KNNRegressor), X, y), X)
 @test input_scitype(y2) == Table(Continuous)
-@test input_scitype(X, tup(y1, y2)) == Table(Continuous)
-@test input_scitype(X, tup(y1, y2, Q)) == Unknown
+# @test input_scitype(X, glb(y1, y2)) == Table(Continuous)
+# @test input_scitype(X, glb(y1, y2, Q)) == Unknown
 
 end
 

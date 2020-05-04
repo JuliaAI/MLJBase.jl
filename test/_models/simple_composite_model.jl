@@ -12,7 +12,7 @@ intended for internal testing .
 
 """
 mutable struct SimpleDeterministicCompositeModel{L<:Deterministic,
-                             T<:Unsupervised} <: DeterministicNetwork
+                             T<:Unsupervised} <: DeterministicComposite
     model::L
     transformer::T
 
@@ -36,7 +36,7 @@ MLJBase.is_wrapper(::Type{<:SimpleDeterministicCompositeModel}) = true
 function MLJBase.fit(composite::SimpleDeterministicCompositeModel,
                      verbosity::Integer, Xtrain, ytrain)
     X = source(Xtrain) # instantiates a source node
-    y = source(ytrain, kind=:target)
+    y = source(ytrain)
 
     t = machine(composite.transformer, X)
     Xt = transform(t, X)
@@ -44,7 +44,7 @@ function MLJBase.fit(composite::SimpleDeterministicCompositeModel,
     l = machine(composite.model, Xt, y)
     yhat = predict(l, Xt)
 
-    mach = machine(predict=yhat)
+    mach = machine!(X, y, predict=yhat)
     fit!(mach, verbosity=verbosity)
 
     return mach.fitresult, mach.cache, mach.report

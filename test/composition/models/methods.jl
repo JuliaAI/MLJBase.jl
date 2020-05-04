@@ -9,7 +9,6 @@ using CategoricalArrays
 import Random.seed!
 seed!(1234)
 
-
 @testset "anonymize!" begin
     ss  = [source(1, kind=:target), source(2), source(3)]
     a = MLJBase.anonymize!(ss)
@@ -20,12 +19,12 @@ end
 @load KNNRegressor
 
 N = 50
-Xin = (a=rand(N), b=rand(N), c=rand(N))
-yin = rand(N)
+Xin = (a=rand(N), b=rand(N), c=rand(N));
+yin = rand(N);
 
 train, test = partition(eachindex(yin), 0.7);
-Xtrain = MLJBase.selectrows(Xin, train)
-ytrain = yin[train]
+Xtrain = MLJBase.selectrows(Xin, train);
+ytrain = yin[train];
 
 ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
@@ -34,7 +33,7 @@ selector_model = FeatureSelector()
     composite = SimpleDeterministicCompositeModel(model=ridge_model,
                                                   transformer=selector_model)
 
-    fitresult, cache, rep = MLJBase.fit(composite, 3, Xtrain, ytrain)
+    fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
 
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
@@ -47,7 +46,7 @@ selector_model = FeatureSelector()
         @test_logs(
             (:info, r"^Not"),
             (:info, r"^Not"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain))
+            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
     @test ridge.fitresult == ridge_old.fitresult
     @test selector.fitresult == selector_old.fitresult
 
@@ -57,7 +56,7 @@ selector_model = FeatureSelector()
         @test_logs(
             (:info, r"^Updating"),
             (:info, r"^Training"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain))
+            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
     @test ridge.fitresult != ridge_old.fitresult
     @test selector.fitresult != selector_old.fitresult
     ridge_old = deepcopy(ridge)
@@ -69,11 +68,11 @@ selector_model = FeatureSelector()
         @test_logs(
             (:info, r"^Not"),
             (:info, r"^Updating"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain))
+            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
     @test ridge.fitresult != ridge_old.fitresult
     @test selector.fitresult == selector_old.fitresult
 
-    predict(composite, fitresult, MLJBase.selectrows(Xin, test))
+    predict(composite, fitresult, MLJBase.selectrows(Xin, test));
 
     Xs = source(Xtrain)
     ys = source(ytrain, kind=:target)
@@ -84,11 +83,11 @@ selector_model = FeatureSelector()
     composite.transformer.features = [:b, :c]
     fit!(yhat, verbosity=3)
     fit!(yhat, rows=1:20, verbosity=3)
-    yhat(MLJBase.selectrows(Xin, test))
+    yhat(MLJBase.selectrows(Xin, test));
 
 end
 
-mutable struct WrappedRidge <: DeterministicNetwork
+mutable struct WrappedRidge <: DeterministicComposite
     ridge
 end
 
@@ -111,7 +110,7 @@ end
         zhat = predict(ridgeM, W)
         yhat = inverse_transform(boxcoxM, zhat)
 
-        mach = machine(predict=yhat)
+        mach = machine!(predict=yhat)
         fit!(mach, verbosity=verbosity)
         return mach.fitresult, mach.cache, mach.report
     end
@@ -153,17 +152,18 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     [fill(fitresult[1], nrows(Xnew))...]
 
 # A wrap of above model:
-mutable struct WrappedDummyClusterer <: UnsupervisedNetwork
+mutable struct WrappedDummyClusterer <: UnsupervisedComposite
     model
 end
-WrappedDummyClusterer(; model=DummyClusterer()) = WrappedDummyClusterer(model)
+WrappedDummyClusterer(; model=DummyClusterer()) =
+    WrappedDummyClusterer(model)
 function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
     Xs = source(X)
     W = transform(machine(OneHotEncoder(), Xs), Xs)
     m = machine(model.model, W)
     yhat = predict(m, W)
     Wout = transform(m, W)
-    mach = machine(predict=yhat, transform=Wout)
+    mach = machine!(predict=yhat, transform=Wout)
     fit!(mach)
     return mach.fitresult, mach.cache, mach.report
 end

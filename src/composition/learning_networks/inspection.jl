@@ -75,7 +75,7 @@ function sources(W::AbstractNode; kind=:any)
         end
     else
         sources_ = filter(flat_values(tree(W)) |> collect) do value
-            value isa Source{kind}
+            value isa Source && value.kind == kind
         end
     end
     return unique(sources_)
@@ -83,26 +83,37 @@ end
 
 
 """
-    machines(N::AbstractNode)
+    machines(N::AbstractNode [, model::Model])
 
-List all machines in the ancestor graph of node `N`.
+List all machines in the ancestor graph of node `N`, optionally
+restricting to those machines whose corresponding model matches the
+specifed `model`.
+
+Here two models *match* if they have the same, possibly nested
+hyperparameters, or, more precisely, if
+`MLJModelInterface.is_same_except(m1, m2)` is `true`.
+
+See also `MLJModelInterface.is_same_except`.
 
 """
-function machines(W::Node)
+function machines(W::Node, model=nothing)
     if W.machine === nothing
-        return vcat((machines(arg) for arg in W.args)...) |> unique
+        machs = vcat((machines(arg) for arg in W.args)...) |> unique
     else
-        return vcat(Any[W.machine, ],
+        machs = vcat(Machine[W.machine, ],
                     (machines(arg) for arg in W.args)...,
                     (machines(arg) for arg in W.machine.args)...) |> unique
     end
+    model == nothing && return machs
+    return filter(machs) do mach
+        mach.model == model
+    end
 end
-machines(W::Source) = Any[]
 
 args(::Source) = []
 args(N::Node) = N.args
 train_args(::Source) = []
-train_args(N::Node{<:NodalMachine}) = N.machine.args
+train_args(N::Node{<:Machine}) = N.machine.args
 train_args(N::Node{Nothing}) = []
 
 """
@@ -138,30 +149,30 @@ function _lower_bound(Ts)
 end
 
 MLJModelInterface.input_scitype(N::Node) = Unknown
-MLJModelInterface.input_scitype(N::Node{<:NodalMachine}) =
+MLJModelInterface.input_scitype(N::Node{<:Machine}) =
     input_scitype(N.machine.model)
 
-"""
-    input_scitype(S::Source, y::AbstractNode)
+# """
+#     input_scitype(S::Source, y::AbstractNode)
 
-Assuming `S` is the unique origin of `y`, and given some data `D`,
-return, if it is possible to deduce, the optimal bound `B` on the
-scitype of `D` ensuring that the following are safe to execute, for
-each node `N` in the the ancestor graph of `y` (training edges
-included):
+# Assuming `S` is the unique origin of `y`, and given some data `D`,
+# return, if it is possible to deduce, the optimal bound `B` on the
+# scitype of `D` ensuring that the following are safe to execute, for
+# each node `N` in the the ancestor graph of `y` (training edges
+# included):
 
-- `fit!(N)` if `S.data = D`
-- `N(D)`
+# - `fit!(N)` if `S.data = D`
+# - `N(D)`
 
-If a bound cannot be deduded, return `Unknown`.
+# If a bound cannot be deduded, return `Unknown`.
 
-"""
-function MLJModelInterface.input_scitype(S::Source, y::AbstractNode)
-    origins(y) == [S, ] || error("Specified source is not the unique "*
-                                 "origin of specified node. ")
-    kids = children(S, y)
-    B = input_scitype.(kids) |> _lower_bound
-end
+# """
+# function MLJModelInterface.input_scitype(S::Source, y::AbstractNode)
+#     origins(y) == [S, ] || error("Specified source is not the unique "*
+#                                  "origin of specified node. ")
+#     kids = children(S, y)
+#     B = input_scitype.(kids) |> _lower_bound
+# end
 
 
 ## MANIPULATING LEARNING NETWORKS

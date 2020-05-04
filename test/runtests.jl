@@ -70,15 +70,17 @@ end
 end
 
 @testset "composition" begin
-    @test include("composition/learning_networks/core.jl")
+    @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
+    @test include("composition/learning_networks/machines.jl")
     VERSION ≥ v"1.3.0-" &&
         @test include("composition/learning_networks/arrows.jl")
 
-    @test include("composition/composites/core.jl")
-    @test include("composition/composites/from_network.jl")
-    @test include("composition/composites/pipelines.jl")
-    @test include("composition/composites/pipeline_static.jl")
+    @test include("composition/models/methods.jl")
+    @test include("composition/models/from_network.jl")
+    @test include("composition/models/pipelines.jl")
+    @test include("composition/models/pipeline_static.jl")
+    @test include("composition/models/static_transformers.jl")
 end
 
 @testset "operations.jl" begin

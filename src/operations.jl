@@ -11,8 +11,8 @@
 #
 # 2. `predict(machine::Machine, X::Node) = node(predict, machine, X)`
 #
-# Finally, for a `model` that is `ProbabilisticNetwork`,
-# `DetermisiticNetwork`, or `UnsupervisedNetwork`, we want
+# Finally, for a `model` that is `ProbabilisticComposite`,
+# `DetermisiticComposite`, or `UnsupervisedComposite`, we want
 #
 # 3. `predict(model, fitresult, X) = fitresult.predict(X)`
 #
@@ -23,31 +23,58 @@
 ## predict(::Machine, ) and transform(::Machine, )
 
 for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform, :inverse_transform)
+                  :transform)
+    ex = quote
+        # 0. operations on machs, given empty data:
+        function $(operation)(mach::Machine; rows=:)
+            Base.depwarn("`$($operation)(mach)` and "*
+                         "`$($operation)(mach, rows=...)` are "*
+                         "deprecated. Data or nodes "*
+                         "must be explictly specified, "*
+                         "as in `$($operation)(mach, X)`. ",
+                         Base.Core.Typeof($operation).name.mt.name)
+            if isempty(mach.args) # deserialized machine with no data
+                throw(ArgumentError("Calling $($operation) on a "*
+                                    "deserialized machine with no data "*
+                                    "bound to it. "))
+            end
+            return ($operation)(mach, mach.args[1]())
+        end
+    end
+    eval(ex)
+end
+
+for operation in (:inverse_transform,)
     ex = quote
         # 0. operations on machines, given empty data:
-        $(operation)(machine::NodalMachine; rows=:) =
-            error("`$($operation)(mach)` and "*
-                  "`$($operation)(mach, rows=...)` are "*
-                  "no longer supported. Data or nodes "*
-                  "must be explictly specified, "*
-                  "as in `$($operation)(mach, X)`. ")
+        $(operation)(mach::Machine; rows=:) =
+            throw(ArgumentError("`$($operation)(mach)` and "*
+                                "`$($operation)(mach, rows=...)` is "*
+                                "not supported. Data or nodes "*
+                                "must be explictly specified, "*
+                                "as in `$($operation)(mach, X)`. "))
+    end
+    eval(ex)
+end
 
+for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
+                  :transform, :inverse_transform)
+    ex = quote
         # 1. operations on machines, given *concrete* data:
-        function $(operation)(machine::NodalMachine{M}, Xraw) where M
-            if state(machine) > 0 || M <: Static
-                return $(operation)(machine.model, machine.fitresult, Xraw)
+        function $(operation)(mach::Machine{M}, Xraw) where M
+            if mach.state > 0 || M <: Static
+                return $(operation)(mach.model, mach.fitresult, Xraw)
             else
-                error("$machine has not been trained.")
+                error("$mach has not been trained.")
             end
         end
 
         # 2. operations on machines, given *dynamic* data (nodes):
-        $(operation)(machine::NodalMachine{M}, X::AbstractNode) =
-            node($(operation), machine, X)
+        $(operation)(mach::Machine, X::AbstractNode) =
+            node($(operation), mach, X)
 
         # 3. operations on composite models:
-        $(operation)(model::GenericNetwork, fitresult, X) =
+        $(operation)(model::Composite, fitresult, X) =
             fitresult.$operation(X)
     end
     eval(ex)
