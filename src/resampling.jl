@@ -630,7 +630,7 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
    
      @sync begin  
       
-        @sync for parts in Iterators.partition(1:nfolds, max(1,floor(Int, nfolds/n_threads)))    
+        @sync for parts in Iterators.partition(1:nfolds, max(1,cld(nfolds, n_threads)))    
         Threads.@spawn begin
             for k in parts
             id = Threads.threadid()
