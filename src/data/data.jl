@@ -28,10 +28,20 @@ function _partition(rows, fractions, ::Nothing)
     return tuple((rows[h:t] for (h, t) in zip(heads, tails))...)
 end
 
+_make_numerical(v::AbstractVector) =
+    throw(ArgumentError("`stratify` must have `Count`, `Continuous` "*
+                        "or `Finite` element scitpye. Consider "*
+                        "`coerce(stratify, Finite)`. "))
+_make_numerical(v::AbstractVector{<:Union{Missing,Real}}) = v
+_make_numerical(v::AbstractVector{<:Union{Missing,CategoricalElement}}) =
+                                int.(v)
+
 # Helper function for partitioning in the stratified case
-function _partition(rows, fractions, stratify::AbstractVector)
+function _partition(rows, fractions, raw_stratify::AbstractVector)
+    stratify = _make_numerical(raw_stratify)
     length(stratify) == length(rows) ||
-        throw(ArgumentError("The stratification vector must have as many entries as " *
+        throw(ArgumentError("The stratification vector must "*
+                            "have as many entries as " *
                             "the rows to partition."))
     uv    = unique(stratify)
     # construct table (n_classes * idx_of_that_class)
@@ -72,7 +82,7 @@ end
 
 """
     partition(rows::AbstractVector{Int}, fractions...;
-              shuffle=nothing, rng=Random.GLOBAL_RNG)
+              shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
 
 Splits the vector `rows` into a tuple of vectors whose lengths are
 given by the corresponding `fractions` of `length(rows)` where valid
