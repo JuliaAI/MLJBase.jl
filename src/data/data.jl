@@ -33,7 +33,7 @@ _make_numerical(v::AbstractVector) =
                         "or `Finite` element scitpye. Consider "*
                         "`coerce(stratify, Finite)`. "))
 _make_numerical(v::AbstractVector{<:Union{Missing,Real}}) = v
-_make_numerical(v::AbstractVector{<:Union{Missing,CategoricalElement}}) =
+_make_numerical(v::AbstractVector{<:Union{Missing,CategoricalValue}}) =
                                 int.(v)
 
 # Helper function for partitioning in the stratified case

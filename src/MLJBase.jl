@@ -220,8 +220,6 @@ const DEFAULT_SHOW_DEPTH = 0
 const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
 const INDENT = 4
 
-const CategoricalElement = Union{CategoricalValue,CategoricalString}
-
 const Arr = AbstractArray
 const Vec = AbstractVector
 

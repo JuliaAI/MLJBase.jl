@@ -13,7 +13,7 @@ seed!(1234)
 
 import MLJBase
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
-    CategoricalElement, selectrows, select, table, nrows, restrict,
+    CategoricalValue, selectrows, select, table, nrows, restrict,
     corestrict, complement
 
 @testset "partition" begin

@@ -53,7 +53,7 @@ cross_entropy = CrossEntropy()
 _cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
 function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
-                           y::Vec{<:CategoricalElement})
+                           y::Vec{<:CategoricalValue})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(_cross_entropy, ŷ, y, c.eps)
@@ -139,7 +139,7 @@ end
 
 # UnivariateFinite:
 function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
-                                            y::Vec{<:CategoricalElement})
+                                            y::Vec{<:CategoricalValue})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(_brier_score, ŷ, y)
@@ -201,11 +201,11 @@ const misclassification_rate = MisclassificationRate()
 const mcr = misclassification_rate
 const MCR = MisclassificationRate
 
-(::MCR)(ŷ::Vec{<:CategoricalElement},
-        y::Vec{<:CategoricalElement}) = mean(y .!= ŷ)
+(::MCR)(ŷ::Vec{<:CategoricalValue},
+        y::Vec{<:CategoricalValue}) = mean(y .!= ŷ)
 
-(::MCR)(ŷ::Vec{<:CategoricalElement},
-        y::Vec{<:CategoricalElement},
+(::MCR)(ŷ::Vec{<:CategoricalValue},
+        y::Vec{<:CategoricalValue},
         w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
 
 (::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
@@ -286,15 +286,15 @@ const bacc = balanced_accuracy
 const bac  = bacc
 const BACC = BalancedAccuracy
 
-function (::BACC)(ŷ::Vec{<:CategoricalElement},
-                  y::Vec{<:CategoricalElement})
+function (::BACC)(ŷ::Vec{<:CategoricalValue},
+                  y::Vec{<:CategoricalValue})
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
     return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
 end
 
-function (::BACC)(ŷ::Vec{<:CategoricalElement},
-                  y::Vec{<:CategoricalElement},
+function (::BACC)(ŷ::Vec{<:CategoricalValue},
+                  y::Vec{<:CategoricalValue},
                   w::Vec{<:Real})
     levels_ = levels(y)
     ŵ = similar(w)
@@ -366,8 +366,8 @@ function (::MCC)(cm::ConfusionMatrix{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ::Vec{<:CategoricalElement},
-         y::Vec{<:CategoricalElement}) =
+(m::MCC)(ŷ::Vec{<:CategoricalValue},
+         y::Vec{<:CategoricalValue}) =
              confmat(ŷ, y, warn=false) |> m
 
 # ---------------------------------------------------------
@@ -404,7 +404,7 @@ const area_under_curve = AUC()
 const auc = AUC()
 
 function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec{<:CategoricalElement})
+                 y::Vec{<:CategoricalValue})
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
     lab_pos = levels(y)[2]         # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
@@ -869,7 +869,7 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
 function roc_curve(ŷ::Vec{<:UnivariateFinite},
-                   y::Vec{<:CategoricalElement})
+                   y::Vec{<:CategoricalValue})
 
     n       = length(y)
     lab_pos = levels(y)[2]

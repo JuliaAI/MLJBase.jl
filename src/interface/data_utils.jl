@@ -17,17 +17,16 @@ MMI.int(::FI, x) = throw(
 MMI.int(::FI, x::Missing)       = missing
 MMI.int(::FI, x::AbstractArray) = int.(x)
 
-MMI.int(::FI, x::CategoricalElement) = CategoricalArrays.order(x.pool)[x.level]
+# first line is no good because it promotes type to higher ineger type:
+# MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
+MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.level(x)
 
 # ------------------------------------------------------------------------
 # classes
 
-MMI.classes(::FI, p::CategoricalPool) =
-    [p[i] for i in invperm(CategoricalArrays.order(p))]
-
-# older method that avoids inverting a permutation but has dict lookup:
-# classes(p::CategoricalPool) = [p.valindex[p.invindex[v]] for v in p.levels]
-MMI.classes(::FI, x::CategoricalElement) = classes(x.pool)
+MMI.classes(::FI, p::CategoricalPool) = categorical(p.valindex)
+MMI.classes(::FI, x::CategoricalValue) = classes(x.pool)
+MMI.classes(::FI, v::CategoricalArray) = classes(first(v))
 
 # ------------------------------------------------------------------------
 # schema
@@ -38,17 +37,15 @@ MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
 # decoder
 
 struct CategoricalDecoder{T,R}
-    pool::CategoricalPool{T,R}
-    invorder::Vector{Int}
+    classes::CategoricalVector{T,R}
 end
 
-MMI.decoder(::FI, x::CategoricalElement) =
-    CategoricalDecoder(x.pool, sortperm(x.pool.order))
+MMI.decoder(::FI, x::CategoricalValue) =
+    CategoricalDecoder(classes(x))
+MMI.decoder(::FI, v::CategoricalArray) = decoder(first(v))
 
 (d::CategoricalDecoder{T,R})(i::Integer) where {T,R} =
-    CategoricalValue{T,R}(d.invorder[i], d.pool)
-(d::CategoricalDecoder{String,R})(i::Integer) where R =
-    CategoricalString{R}(d.invorder[i], d.pool)
+    CategoricalValue{T,R}(d.classes[i])
 (d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
 
 # ------------------------------------------------------------------------
@@ -125,3 +122,4 @@ project(t::NamedTuple, i::Integer) = project(t, [i,])
 # utils for selectrows
 typename(X)    = split(string(supertype(typeof(X)).name), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
+
