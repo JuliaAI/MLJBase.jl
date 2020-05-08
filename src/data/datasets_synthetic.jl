@@ -355,5 +355,6 @@ function make_regression(n::Int=100, p::Int=2; intercept::Bool=true,
 		end
 	end
 
-	return finalize_Xy(X, y, false, as_table, eltype, rng; clf=binary)
+	return finalize_Xy(X[:,1:end-Int(intercept)], y, false,
+					   as_table, eltype, rng; clf=binary)
 end
