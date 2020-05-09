@@ -82,7 +82,7 @@ end
     n, p = 100, 5
     X, y = make_regression(n, p)
     Xm = MLJBase.matrix(X)
-    @test size(Xm) == (n, p+1)
+    @test size(Xm) == (n, p)
     @test length(y) == n
 
     # specific arguments end

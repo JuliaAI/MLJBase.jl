@@ -44,7 +44,11 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     y = ones(Int, 1000)
     y[end-100:end] .= 0; # 90%
 
+    train1, test1 =
+        partition(eachindex(y), 0.8, stratify=categorical(y), rng=34)
     train, test = partition(eachindex(y), 0.8, stratify=y, rng=34)
+    @test train == train1
+    @test test == test1
     @test isapprox(sum(y[train])/length(train), 0.9, rtol=1e-2)
     @test isapprox(sum(y[test])/length(test), 0.9, rtol=1e-2)
 
