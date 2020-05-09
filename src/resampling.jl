@@ -167,44 +167,67 @@ end
 
 # ----------------------------------------------------------------
 # Cross-validation (TimeSeriesCV)
-
 """
-    TimeSeriesCV = TimeSeriesCV(;nsteps=4)
+tscv = TimeSeriesCV(;folds=4)
 
 Cross-validation resampling strategy, for use in `evaluate!`,
-`evaluate` and tuning.
+`evaluate` and tuning, when observations are chronological and not
+expected to be independent.
 
-    train_test_pairs(TimeSeriesCV, rows)
+train_test_pairs(tscv, rows)
 
-Returns an iterator of `(train, test)` pairs of vectors. (row indices)
-The series of `test` sets, each consisting of a single observation &
-corresponding `train` set consists only of observations
-that occurred prior to the observation that forms the `test` set.
-Thus, no future observations can be used in construction.
+Return an iterator of `(train, test)` pairs of vectors in which `train` progressively
+grows in  `nfolds` and `test` consists of a `1+nfolds` indexs in `rows`.
+Specifically,
+
+train[k] = rows[1:k]
+test[k] = [rows[k + 1, ]
+for k in 2:(nfold).
+
+# Examples
+
+```julia-repl
+julia> tscv = TimeSeriesCV(nfolds=3)
+julia> MLJBase.train_test_pairs(tscv, collect(1:2:15))
+3-element Array{Tuple{Array{Int64,1},Array{Int64,1}},1}:
+ ([1, 3], [5, 7])
+ ([1, 3, 5, 7], [9, 11])
+ ([1, 3, 5, 7, 9, 11], [13, 15])
+```
 """
 struct TimeSeriesCV <: ResamplingStrategy
-    nsteps::Int
-    function TimeSeriesCV(nsteps)
-        nsteps >= 1 || error("Must have nsteps >= 1. ")
-        return new(nsteps)
-    end
-end
+     nfolds::Int
+     function TimeSeriesCV(nfolds)
+         nfolds > 1 || error("Must have nfolds > 1. ")
+         return new(nfolds)
+     end
+ end
+ # Constructor with keywords
+ TimeSeriesCV(;nfolds::Int=4) =
+       TimeSeriesCV(nfolds)
 
-# Constructor with keywords
-TimeSeriesCV(;nsteps::Int=4) =
-      TimeSeriesCV(nsteps)
-
-function train_test_pairs(TimeSeriesCV::TimeSeriesCV, rows)
-
-    n_obs = length(rows)
-    nsteps = TimeSeriesCV.nsteps
-
-    n_obs > nsteps  || error("Inusufficient data for $nsteps-step cross-validation.\n"*
-                             "Try reducing nsteps. ")
-
-    ret = map(1:n_obs-nsteps) do k
-        return (rows[1:k],          # trainrows
-                [rows[k + nsteps]]) # testrows
+ function train_test_pairs(tscv::TimeSeriesCV, rows)
+     if rows != sort(rows)
+         @warn("TimeSeriesCV being applied to `rows` not in sequence. ")
+     end
+     n_obs = length(rows)
+     nfolds = tscv.nfolds
+     # number of observations per fold
+     k = floor(Int, n_obs/nfolds)
+     k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
+                    "Try reducing nfolds. ")
+     # define the (trainrows, testrows) pairs:
+     firsts = 1:k:((nfolds)*k + 1) # itr of first `test` rows index
+     seconds = k:k:((nfolds)*k)
+     ret = map(2:nfolds+1) do k
+         f = firsts[k]
+         if  k == nfolds + 1
+             s = n_obs
+         else
+             s = seconds[k]
+         end
+         return (rows[1:f-1], # trainrows
+                 rows[f:s])   # testrows
     end
     return ret
 end
@@ -670,11 +693,11 @@ function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
                     desc = "Evaluating over $nfolds folds: ",
                     barglyphs = BarGlyphs("[=> ]"),
                     barlen = 25,
-                    color = :yellow))   
-   
-     @sync begin  
-      
-        @sync for parts in Iterators.partition(1:nfolds, max(1,cld(nfolds, n_threads)))    
+                    color = :yellow))
+
+     @sync begin
+
+        @sync for parts in Iterators.partition(1:nfolds, max(1,cld(nfolds, n_threads)))
         Threads.@spawn begin
             for k in parts
             id = Threads.threadid()
