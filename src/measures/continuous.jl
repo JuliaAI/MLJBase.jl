@@ -272,3 +272,43 @@ function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     end
     return sqrt(ret / count)
 end
+
+struct MAPE <: Measure end
+
+"""
+     mape(ŷ, y)
+
+Mean Absolute Percentage Error:
+
+``\\text{MAPE} =  m^{-1}∑ᵢ|{yᵢ-ŷᵢ \\over yᵢ}|`` 
+
+where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
+of such indices.
+
+For more information, run `info(mape)`.
+"""
+const mape = MAPE()
+
+metadata_measure(MAPE;
+    name                     = "mape",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "Mean Absolute Percentage Error; aliases: `mape`.")
+
+function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+    check_dimensions(ŷ, y)
+    ret = zero(eltype(y))
+    count = 0
+    for i in eachindex(y)
+        if y[i] != zero(eltype(y))
+            dev = abs((y[i] - ŷ[i]) / y[i])
+            ret += dev
+            count += 1
+        end
+    end
+    return ret / count
+end
