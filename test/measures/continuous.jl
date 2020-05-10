@@ -19,7 +19,7 @@ seed!(1234)
     @test isapprox(rmslp1(yhat, y),
                    sqrt((log(2/3)^2 + log(3/4)^2 + log(4/5)^2 + log(5/6)^2)/4))
     @test isapprox(rmsp(yhat, y), sqrt((1 + 1/4 + 1/9 + 1/16)/4))
-    @test isapprox(mape(yhat, y), (abs(1/1) + abs(1/2) + abs(1/3) + abs(1/4))/4)
+    @test isapprox(mape(yhat, y), (1/1 + 1/2 + 1/3 + 1/4)/4)
 end
 
 
