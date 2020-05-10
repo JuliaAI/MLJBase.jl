@@ -278,7 +278,7 @@ struct MAPE <: Measure end
 """
      mape(ŷ, y)
 Mean Absolute Percentage Error:
-``\\text{MAPE} =  m^{-1}∑ᵢ|{yᵢ-ŷᵢ \\over yᵢ}|`` 
+``\\text{MAPE} =  m^{-1}∑ᵢ|{(yᵢ-ŷᵢ) \\over yᵢ}|`` 
 where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
 of such indices.
 For more information, run `info(mape)`.
