@@ -295,13 +295,16 @@ metadata_measure(MAPE;
     supports_weights         = false,
     docstring                = "Mean Absolute Percentage Error; aliases: `mape`.")
 
-function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real}; tol = eps())
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
-    for i in eachindex(y)
-        if y[i] != zero(eltype(y))
-            dev = abs((y[i] - ŷ[i]) / y[i])
+    @inbounds for i in eachindex(y)
+        ayi = abs(y[i])
+        if ayi > tol
+        #if y[i] != zero(eltype(y))
+            dev = abs((y[i] - ŷ[i]) / ayi)
+            #dev = abs((y[i] - ŷ[i]) / y[i])
             ret += dev
             count += 1
         end
