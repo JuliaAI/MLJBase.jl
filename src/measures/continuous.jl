@@ -273,7 +273,9 @@ function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     return sqrt(ret / count)
 end
 
-struct MAPE <: Measure end
+struct MAPE <: Measure 
+    tol::Real
+end
 
 """
      mape(ŷ, y)
@@ -295,7 +297,7 @@ metadata_measure(MAPE;
     supports_weights         = false,
     docstring                = "Mean Absolute Percentage Error; aliases: `mape`.")
 
-function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real}; tol = eps())
+function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real}, tol = eps())
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
