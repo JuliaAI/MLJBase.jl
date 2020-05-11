@@ -281,7 +281,8 @@ end
 MAPE(; tol=eps()) = MAPE(tol)
 
 """
-      MAPE(; tol=esp())
+      MAPE(; tol=eps())
+
 Mean Absolute Percentage Error:
 
 ``\\text{MAPE} =  m^{-1}∑ᵢ|{(yᵢ-ŷᵢ) \\over yᵢ}|``
@@ -300,7 +301,7 @@ metadata_measure(MAPE;
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
-docstring                = "Mean Absolute Percentage Error; "*
+    docstring                = "Mean Absolute Percentage Error; "*
                  "aliases: `mape=MAPE()`.")
 
  function (m::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
