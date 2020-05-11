@@ -274,16 +274,21 @@ function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real}, tol=eps())
     return sqrt(ret / count)
 end
 
-struct MAPE <: Measure 
+struct MAPE <: Measure
     tol::Real
 end
 
+MAPE(; tol=eps()) = MAPE(tol)
+
 """
-     mape(ŷ, y)
+     MAPE(; tol=esp())
+
 Mean Absolute Percentage Error:
-``\\text{MAPE} =  m^{-1}∑ᵢ|{(yᵢ-ŷᵢ) \\over yᵢ}|`` 
-where the sum is over indices such that `yᵢ≂̸0` and `m` is the number
+
+``\\text{MAPE} =  m^{-1}∑ᵢ|{(yᵢ-ŷᵢ) \\over yᵢ}|``
+where the sum is over indices such that `yᵢ > tol` and `m` is the number
 of such indices.
+
 For more information, run `info(mape)`.
 """
 const mape = MAPE()
@@ -296,15 +301,16 @@ metadata_measure(MAPE;
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
-    docstring                = "Mean Absolute Percentage Error; aliases: `mape`.")
+                 docstring                = "Mean Absolute Percentage Error; "*
+                 "aliases: `mape=MAPE()`.")
 
-function (::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real}, tol = eps())
+function (m::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
     @inbounds for i in eachindex(y)
         ayi = abs(y[i])
-        if ayi > tol
+        if ayi > m.tol
         #if y[i] != zero(eltype(y))
             dev = abs((y[i] - ŷ[i]) / ayi)
             #dev = abs((y[i] - ŷ[i]) / y[i])
