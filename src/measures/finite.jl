@@ -20,8 +20,8 @@ metadata_measure(CrossEntropy;
     is_feature_dependent     = false,
     supports_weights         = false,
     docstring                = "Cross entropy loss with probabilities " *
-                               "clamped between eps and 1-eps; aliases: " *
-                               "`cross_entropy`.",
+                 "clamped between `eps()` and `1-eps()`; "*
+                 "aliases: `cross_entropy`.",
     distribution_type        = UnivariateFinite)
 
 """
@@ -33,7 +33,7 @@ $(docstring(CrossEntropy()))
     ce(ŷ, y)
 
 Given an abstract vector of distributions `ŷ` and an abstract vector
-of true observations `y`, return the corresponding Cross-Entropy
+of true observations `y`, return the corresponding cross-entropy
 loss (aka log loss) scores.
 
 Since the score is undefined in the case of the true observation has
