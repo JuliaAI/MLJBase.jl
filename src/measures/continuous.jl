@@ -259,13 +259,14 @@ metadata_measure(RMSP;
     supports_weights         = false,
     docstring                = "root mean square proportions; aliases: `rmsp`.")
 
-function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::RMSP)(ŷ::Vec{<:Real}, y::Vec{<:Real}, tol=eps())
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
-    for i in eachindex(y)
-        if y[i] != zero(eltype(y))
-            dev = ((y[i] - ŷ[i]) / y[i])^2
+    @inbounds for i in eachindex(y)
+        ayi = abs(y[i])
+        if ayi > tol
+            dev = ((y[i] - ŷ[i]) / ayi)^2
             ret += dev
             count += 1
         end
