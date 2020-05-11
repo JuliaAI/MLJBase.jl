@@ -29,7 +29,7 @@ metadata_measure(CrossEntropy;
 
 $(docstring(CrossEntropy()))
 
-    CrossEntropy(; eps=eps())
+    ce = CrossEntropy(; eps=eps())
     ce(ŷ, y)
 
 Given an abstract vector of distributions `ŷ` and an abstract vector
