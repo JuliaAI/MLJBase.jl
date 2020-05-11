@@ -165,7 +165,7 @@ export orientation, reports_each_observation,
        aggregate, default_measure, value
 
 # measures/continuous.jl:
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat
