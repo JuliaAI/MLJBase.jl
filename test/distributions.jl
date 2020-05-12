@@ -101,13 +101,47 @@ end
     @test isapprox(freq[F]/N, 0.7, atol=0.05)
     @test isapprox(freq[S]/N, 0.1, atol=0.05)
     @test isapprox(freq[Q]/N, 0.2, atol=0.05)
+end
 
-    # arguments not categorical values:
+@testset "constructor arguments not categorical values" begin
+    @test_throws(ArgumentError,
+                 UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
+    @test_throws(ArgumentError,
+                 UnivariateFinite(Dict('f'=>"junk", 'q'=>0.2, 's'=>0.1),
+                                  pool=missing))
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=missing)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
     @test_throws(ArgumentError,
                  UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
     @test_throws(ArgumentError,
-                 UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
+                 UnivariateFinite(['f', 'q', 's'],  ["junk", 0.2, 0.1],
+                                  pool=missing))
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=missing)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
 
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=f)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=a)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=v)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=v)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
 end
 
 @testset "Univariate mode" begin
