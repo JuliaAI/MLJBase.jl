@@ -65,35 +65,6 @@ end
 ##
 
 # helper functions
-# TODO: move these to MLJBase/src/data.jl
-
-const message1 = "Attempting to transform a level not in pool of specified "*
-   "categorical element. "
-
-# Transform a raw level `x` in the pool of some categorical element,
-# `element`, into a categorical element (with the same pool):
-function MLJBase.transform(element::C, x) where C<:CategoricalValue
-    pool = element.pool
-    x in levels(pool) || error(message1)
-    ref = pool.invindex[x]
-    return C(ref, pool)
-end
-
-# Transform ordinary array `X` into a categorical array with the same
-# pool as the categorical element `element`:
-function MLJBase.transform(element::CategoricalValue,
-                           X::AbstractArray{T,N}) where {T,N}
-    pool = element.pool
-
-    levels_presented = unique(X)
-    issubset(levels_presented, levels(pool)) || error(message1)
-    Missing <: T &&
-        error("Missing values not supported. ")
-
-    refs = broadcast(x -> pool.invindex[x], X)
-
-    return CategoricalArray{T,N}(refs, pool)
-end
 
 reftype(::CategoricalArray{<:Any,<:Any,R}) where R = R
 
@@ -223,7 +194,8 @@ mutable struct UnivariateStandardizer <: MLJBase.Unsupervised end
 function MLJBase.fit(transformer::UnivariateStandardizer, verbosity::Int,
              v::AbstractVector{T}) where T<:Real
     std(v) > eps(Float64) ||
-        @warn "Extremely small standard deviation encountered in standardization."
+        @warn "Extremely small standard deviation encountered "*
+    "in standardization."
     fitresult = (mean(v), std(v))
     cache = nothing
     report = NamedTuple()

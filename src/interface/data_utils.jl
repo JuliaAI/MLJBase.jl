@@ -25,8 +25,8 @@ MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.level(x)
 # classes
 
 MMI.classes(::FI, p::CategoricalPool) = categorical(p.valindex)
-MMI.classes(::FI, x::CategoricalValue) = classes(x.pool)
-MMI.classes(::FI, v::CategoricalArray) = classes(first(v))
+MMI.classes(::FI, x::CategoricalValue) = classes(CategoricalArrays.pool(x))
+MMI.classes(::FI, v::CategoricalArray) = classes(CategoricalArrays.pool(v))
 
 # ------------------------------------------------------------------------
 # schema

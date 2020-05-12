@@ -287,3 +287,42 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 # select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
 # select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
 # select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
+
+
+## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
+
+const message1 = "Attempting to transform a level not in pool of specified "*
+   "categorical element. "
+
+function transform_(pool, x)
+    ismissing(x) && return missing
+    _classes = classes(pool)
+    x in _classes || error(message1)
+    ref = pool.invindex[x]
+    return _classes[ref]
+end
+
+"""
+
+    transform(e::Union{CategoricalElement,CategoricalArray},  X)
+
+Transform the specified object `X` into a categorical version, using
+the pool contained in `e`. Here `X` is a raw value (an element of
+`levels(e)`) or an `AbstractArray` of such values.
+
+```julia
+v = categorical([:x, :y, :y, :x, :x])
+julia> transform(v, :x)
+CategoricalValue{Symbol,UInt32} :x
+
+julia> transform(v[1], [:x :x; missing :y])
+2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
+ :x       :x
+ missing  :y
+
+"""
+transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
+
+MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
+                            arg) = transform_(CategoricalArrays.pool(e), arg)
+
