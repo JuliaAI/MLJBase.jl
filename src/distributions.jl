@@ -5,6 +5,19 @@ support_scitype(::Type{<:UnivariateFinite}) = Finite
 # NOTE: see also interface/univariate_finite.jl
 
 """
+    classes(d::UnivariateFinite)
+
+A list of categorial elements in the common pool of classes used to
+construct `d`.
+
+    v = categorical(["yes", "maybe", "no", "yes"])
+    d = UnivariateFinite(v[1:2], [0.3, 0.7])
+    classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "yes"]
+
+"""
+MMI.classes(d::UnivariateFinite) = d.decoder.classes
+
+"""
     levels(d::UnivariateFinite)
 
 A list of the raw levels in the common pool of classes used to
@@ -14,16 +27,15 @@ construct `d`, equal to `get.(classes(d))`.
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
     levels(d) # Array{String, 1}["maybe", "no", "yes"]
 """
-levels(d::UnivariateFinite)  = d.decoder.pool.levels
+levels(d::UnivariateFinite)  = get.(classes(d))
 
 # get the internal integer representations of the support
-raw_support(d::UnivariateFinite) =
-    sort!(collect(keys(d.prob_given_class)))
+raw_support(d::UnivariateFinite) = collect(keys(d.prob_given_class))
 
 """
     Distributions.support(d::UnivariateFinite)
 
-Those classes associated with non-zero probabilities.
+Ordered list of classes associated with non-zero probabilities.
 
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
@@ -31,10 +43,9 @@ Those classes associated with non-zero probabilities.
 """
 Distributions.support(d::UnivariateFinite) = map(d.decoder, raw_support(d))
 
-
 function Base.show(stream::IO, d::UnivariateFinite)
-    raw = sort!(raw_support(d)) # reflects order of pool at
-                                # instantiation of d
+    raw = raw_support(d) # reflects order of pool at
+                         # instantiation of d
     x1 = d.decoder(first(raw))
     p1 = d.prob_given_class[first(raw)]
     str = "UnivariateFinite($x1=>$(round(p1, sigdigits=3))"
@@ -66,7 +77,6 @@ function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
     return true
 end
 
-
 function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
                  weights=nothing) where {L,U,T}
 
@@ -75,9 +85,9 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     Dist.@check_args(UnivariateFinite, weights == nothing || n==length(weights))
 
     # check all distributions have consistent pool:
-    first_index = first(dvec).decoder.pool.index
+    first_index = first(dvec).decoder.classes
     for d in dvec
-        d.decoder.pool.index == first_index ||
+        d.decoder.classes == first_index ||
             error("Averaging UnivariateFinite distributions with incompatible"*
                   " pools. ")
     end
@@ -133,7 +143,7 @@ Probability of `d` at `x`.
 
 Other similar methods are available too:
 
-    mode(d)    # CategoricalString{UInt32} "maybe"
+    mode(d)    # CategoricalValue{String, UInt32} "maybe"
     rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
     d = fit(UnivariateFinite, v)
     pdf(d, "maybe") # 0.25
@@ -144,22 +154,18 @@ One can also do weighted fits:
     d = fit(UnivariateFinite, v, w)
     pdf(d, "maybe") ≈ 4/11 # true
 
-*Warning:* The `pdf` function will give wrong answers if the order of
- levels of any categorical element passed to the UnivariateFinite
- constructor is changed.
-
 See also `classes`, `support`.
 """
-Distributions.pdf(d::UnivariateFinite, x::CategoricalElement) = _pdf(d, int(x))
+Distributions.pdf(d::UnivariateFinite, x::CategoricalValue) = _pdf(d, int(x))
 
-function Distributions.pdf(d::UnivariateFinite, level)
-    p = d.decoder.pool
-    if level in p.levels
-        ref = p.order[p.invindex[level]]
-        return _pdf(d, ref)
-    else
-        throw(ArgumentError(""))
-    end
+# probably slow:
+function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,T}, x) where T
+    x in classes(d) || throw(DomainError("Value not in pool. "))
+    _support = Distributions.support(d)
+     for j in eachindex(_support)
+        x == _support[j] && return pdf(d, _support[j])
+     end
+    return zero(T)
 end
 
 function Distributions.mode(d::UnivariateFinite)
@@ -180,12 +186,14 @@ end
     _cumulative(d::UnivariateFinite)
 
 Return the cumulative probability vector `[0, ..., 1]` for the
-distribution `d`, using whatever ordering is used in the dictionary
-`d.prob_given_class`. Used only for to implement random sampling from
-`d`.
+distribution `d`, using only classes in the support of `d`, ordered
+according to the categorical elements used at instantiation of
+`d`. Used only to implement random sampling from `d`.
 
 """
 function _cumulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
+
+    # the keys of `d` are in order; see constructor
     p = collect(values(d.prob_given_class))
     K = length(p)
     p_cumulative = Array{T}(undef, K + 1)
@@ -197,46 +205,52 @@ function _cumulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
     return p_cumulative
 end
 
+"""
+_rand(rng, p_cumulative, U)
+
+Randomly sample the distribution with discrete support `U(1):U(n)`
+which has cumulative probability vector `p_cumulative=[0, ..., 1]` (of
+length `n+1`). Does not check the first and last elements of
+`p_cumulative` but does not use them either.
 
 """
-_rand(p_cumulative)
-
-Randomly sample the distribution with discrete support `1:n` which has
-cumulative probability vector `p_cumulative=[0, ..., 1]` (of length
-`n+1`). Does not check the first and last elements of `p_cumulative`
-but does not use them either.
-
-"""
-function _rand(p_cumulative)
-    real_sample = rand()
-    K = length(p_cumulative)
+function _rand(rng, p_cumulative, U)
+    real_sample = rand(rng)
+    K = U(length(p_cumulative))
     index = K
-    for i in 2:K
+    for i in U(2):U(K)
         if real_sample < p_cumulative[i]
-            index = i - 1
+            index = i - U(1)
             break
         end
     end
     return index
 end
 
-function Base.rand(d::UnivariateFinite)
+function Base.rand(rng::AbstractRNG, d::UnivariateFinite{<:Any,U}) where U
     p_cumulative = _cumulative(d)
-    classes = d.decoder.pool.valindex[collect(keys(d.prob_given_class))]
-    return classes[_rand(p_cumulative)]
+    return Distributions.support(d)[_rand(rng, p_cumulative, U)]
 end
 
-function Base.rand(d::UnivariateFinite, n::Int)
+function Base.rand(rng::AbstractRNG,
+                   d::UnivariateFinite{<:Any, U},
+                   dim1::Int, moredims::Int...) where U # ref type
     p_cumulative = _cumulative(d)
-    classes = d.decoder.pool.valindex[collect(keys(d.prob_given_class))]
-    return [classes[_rand(p_cumulative)] for i in 1:n]
+    A = Array{U}(undef, dim1, moredims...)
+    for i in eachindex(A)
+        @inbounds A[i] = _rand(rng, p_cumulative, U)
+    end
+    support = Distributions.support(d)
+    return broadcast(i -> support[i], A)
 end
+
+rng(d::UnivariateFinite, args...) = rng(Random.GLOBAL_RNG, d, args...)
 
 function Distributions.fit(d::Type{<:UnivariateFinite},
                            v::AbstractVector{L}) where L
-    L <: CategoricalElement ||
+    L <: CategoricalValue ||
         error("Can only fit a UnivariateFinite distribution to samples of "*
-              "CategoricalValue or CategoricalString type. ")
+              "`CategoricalValue type`. ")
     y = skipmissing(v) |> collect
     isempty(y) && error("No non-missing data to fit. ")
     N = length(y)
@@ -253,12 +267,13 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     return Distributions.fit(d, v)
 end
 
+
 function Distributions.fit(d::Type{<:UnivariateFinite},
                            v::AbstractVector{L},
                            weights::AbstractVector{<:Real}) where L
-    L <: CategoricalElement ||
+    L <: CategoricalValue ||
         error("Can only fit a UnivariateFinite distribution to samples of "*
-              "CategoricalValue or CategoricalString type. ")
+              "`CategoricalValue` type. ")
     y = broadcast(identity, skipmissing(v))
     isempty(y) && error("No non-missing data to fit. ")
     classes_seen = filter(in(unique(y)), classes(y[1]))
@@ -292,5 +307,3 @@ end
 #     σ = sum([d.σ^2 for d in ds]) |> sqrt
 #     return Dist.Normal(μ, σ)
 # end
-
-

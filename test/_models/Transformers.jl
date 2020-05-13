@@ -8,7 +8,7 @@ export FeatureSelector,
 using Statistics
 
 const N_VALUES_THRESH = 16 # for BoxCoxTransformation
-const CategoricalElement = MLJBase.CategoricalElement
+const CategoricalValue = MLJBase.CategoricalValue
 
 ## DESCRIPTIONS (see also metadata at the bottom)
 
@@ -65,35 +65,6 @@ end
 ##
 
 # helper functions
-# TODO: move these to MLJBase/src/data.jl
-
-const message1 = "Attempting to transform a level not in pool of specified "*
-   "categorical element. "
-
-# Transform a raw level `x` in the pool of some categorical element,
-# `element`, into a categorical element (with the same pool):
-function MLJBase.transform(element::C, x) where C<:CategoricalElement
-    pool = element.pool
-    x in levels(pool) || error(message1)
-    ref = pool.invindex[x]
-    return C(ref, pool)
-end
-
-# Transform ordinary array `X` into a categorical array with the same
-# pool as the categorical element `element`:
-function MLJBase.transform(element::CategoricalElement,
-                           X::AbstractArray{T,N}) where {T,N}
-    pool = element.pool
-
-    levels_presented = unique(X)
-    issubset(levels_presented, levels(pool)) || error(message1)
-    Missing <: T &&
-        error("Missing values not supported. ")
-
-    refs = broadcast(x -> pool.invindex[x], X)
-
-    return CategoricalArray{T,N}(refs, pool)
-end
 
 reftype(::CategoricalArray{<:Any,<:Any,R}) where R = R
 
@@ -160,7 +131,7 @@ end
 
 # acts on scalars:
 function transform_to_int(
-    result::UnivariateDiscretizerResult{<:MLJBase.CategoricalElement},
+    result::UnivariateDiscretizerResult{<:MLJBase.CategoricalValue},
     r::Real) where R
 
     k = R(1)
@@ -193,7 +164,7 @@ end
 
 # inverse transforming a categorical value:
 function MLJBase.inverse_transform(
-    transformer::UnivariateDiscretizer, result, e::CategoricalElement)
+    transformer::UnivariateDiscretizer, result, e::CategoricalValue)
     k = get(e)
     return inverse_transform(transformer, result, k)
 end
@@ -205,7 +176,7 @@ MLJBase.inverse_transform(transformer::UnivariateDiscretizer, result,
 
 # inverse transforming vectors of categorical elements:
 function MLJBase.inverse_transform(transformer::UnivariateDiscretizer, result,
-                          wcat::AbstractVector{<:CategoricalElement})
+                          wcat::AbstractVector{<:CategoricalValue})
     w = MLJBase.int(wcat)
     return [inverse_transform(transformer, result, k) for k in w]
 end
@@ -223,7 +194,8 @@ mutable struct UnivariateStandardizer <: MLJBase.Unsupervised end
 function MLJBase.fit(transformer::UnivariateStandardizer, verbosity::Int,
              v::AbstractVector{T}) where T<:Real
     std(v) > eps(Float64) ||
-        @warn "Extremely small standard deviation encountered in standardization."
+        @warn "Extremely small standard deviation encountered "*
+    "in standardization."
     fitresult = (mean(v), std(v))
     cache = nothing
     report = NamedTuple()
@@ -562,7 +534,7 @@ end
 
 # If v=categorical('a', 'a', 'b', 'a', 'c') and MLJBase.int(v[1]) = ref
 # then `_hot(v, ref) = [true, true, false, true, false]`
-_hot(v::AbstractVector{<:CategoricalElement}, ref) = map(v) do c
+_hot(v::AbstractVector{<:CategoricalValue}, ref) = map(v) do c
     MLJBase.int(c) == ref
 end
 

@@ -5,8 +5,10 @@ using MLJBase
 using CategoricalArrays
 import Distributions:pdf, support
 import Distributions
+using StableRNGs
+import Random
 import Random.seed!
-seed!(1234)
+rng = StableRNG(123)
 
 v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
 V = categorical(collect("asqfasqffqsaaaa"))
@@ -14,23 +16,24 @@ a, s, q, f = v[1], v[2], v[3], v[4]
 A, S, Q, F = V[1], V[2], V[3], V[4]
 
 @testset "classes" begin
-    p = a.pool
-    @test classes(p) == [a, f, q, s]
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
     levels!(v, reverse(levels(v)))
-    @test classes(p) == reverse([a, f, q, s])
-    levels!(v, reverse(levels(v)))
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
 
-    p = A.pool
-    @test classes(p) == [A, F, Q, S]
-    levels!(V, reverse(levels(V)))
-    @test classes(p) == reverse([A, F, Q, S])
-    levels!(V, reverse(levels(V)))
+    # no longer true:
+    # @test classes(a) == levels(v)
 end
 
 @testset "UnivariateFinite constructor" begin
+
+    # ordered (OrderedFactor)
     dict = Dict(s=>0.1, q=> 0.2, f=> 0.7)
     d    = UnivariateFinite(dict)
     @test classes(d) == [a, f, q, s]
+    @test classes(d) == classes(s)
+    @test levels(d) == levels(s)
     @test support(d) == [f, q, s]
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
@@ -38,31 +41,107 @@ end
 
     @test pdf(d, s) ≈ 0.1
     @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, q) ≈ 0.2
+    @test pdf(d, 'q') ≈ 0.2
+    @test pdf(d, f) ≈ 0.7
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, a) ≈ 0.0
     @test mode(d) == f
-    @test Set(unique(rand(d, 100))) == Set(support(d))
 
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
 
-    @test_throws ArgumentError UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1])
-    @test_throws ArgumentError UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1))
+    N = 50
+    seed!(123)
+    samples = [rand(d) for i in 1:50];
+    seed!(123)
+    @test samples == [rand(Random.GLOBAL_RNG, d) for i in 1:N]
 
+    N = 10000
+    samples = rand(rng, d, N);
+    @test Set(samples) == Set(support(d))
+    freq = Distributions.countmap(samples)
+    @test isapprox(freq[f]/N, 0.7, atol=0.05)
+    @test isapprox(freq[s]/N, 0.1, atol=0.05)
+    @test isapprox(freq[q]/N, 0.2, atol=0.05)
+
+    #
+    # unordered (Multiclass):
     dict = Dict(S=>0.1, Q=> 0.2, F=> 0.7)
+    dict = Dict(s=>0.1, q=> 0.2, f=> 0.7)
     d    = UnivariateFinite(dict)
-    @test classes(d) == [A, F, Q, S]
-    @test support(d) == [F, Q, S]
+    @test classes(d) == [a, f, q, s]
+    @test classes(d) == classes(s)
+    @test levels(d) == levels(s)
+    @test support(d) == [f, q, s]
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]
 
     @test pdf(d, S) ≈ 0.1
     @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, Q) ≈ 0.2
+    @test pdf(d, 'q') ≈ 0.2
+    @test pdf(d, F) ≈ 0.7
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, A) ≈ 0.0
     @test mode(d) == F
-    @test Set(unique(rand(d, 100))) == Set(support(d))
 
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
 
-    @test_throws ArgumentError UnivariateFinite(['F', 'Q', 'S'],  [0.7, 0.2, 0.1])
-    @test_throws ArgumentError UnivariateFinite(Dict('F'=>0.7, 'Q'=>0.2, 'S'=>0.1))
+    N = 50
+    seed!(123)
+    samples = [rand(d) for i in 1:50];
+    seed!(123)
+    @test samples == [rand(Random.GLOBAL_RNG, d) for i in 1:N]
+
+    N = 10000
+    samples = rand(rng, d, N);
+    @test Set(samples) == Set(support(d))
+    freq = Distributions.countmap(samples)
+    @test isapprox(freq[F]/N, 0.7, atol=0.05)
+    @test isapprox(freq[S]/N, 0.1, atol=0.05)
+    @test isapprox(freq[Q]/N, 0.2, atol=0.05)
+end
+
+@testset "constructor arguments not categorical values" begin
+    @test_throws(ArgumentError,
+                 UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
+    @test_throws(ArgumentError,
+                 UnivariateFinite(Dict('f'=>"junk", 'q'=>0.2, 's'=>0.1),
+                                  pool=missing))
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=missing)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+    @test_throws(ArgumentError,
+                 UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
+    @test_throws(ArgumentError,
+                 UnivariateFinite(['f', 'q', 's'],  ["junk", 0.2, 0.1],
+                                  pool=missing))
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=missing)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=f)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=a)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=v)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
+
+    d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=v)
+    @test pdf(d, 'f') ≈ 0.7
+    @test pdf(d, 's') ≈ 0.1
+    @test pdf(d, 'q') ≈ 0.2
 end
 
 @testset "Univariate mode" begin
@@ -110,7 +189,7 @@ end
     @test pdf(d, 'c') ≈ 0.125
     @test pdf(d, 'f') == 0
     @test pdf(d, f) == 0
-    @test_throws ArgumentError pdf(d, 'j')
+    @test_throws DomainError pdf(d, 'j')
 
     d2 = Distributions.fit(UnivariateFinite, v, nothing)
     @test d2 ≈ d
@@ -124,7 +203,7 @@ end
     @test pdf(d, 'c') ≈ 5/22
     @test pdf(d, 'f') == 0
     @test pdf(d, f) == 0
-    @test_throws ArgumentError pdf(d, 'j')
+    @test_throws DomainError pdf(d, 'j')
 end
 
 @testset "approx for UnivariateFinite" begin

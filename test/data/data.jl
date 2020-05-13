@@ -13,8 +13,8 @@ seed!(1234)
 
 import MLJBase
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
-    CategoricalElement, selectrows, select, table, nrows, restrict,
-    corestrict, complement
+    CategoricalValue, selectrows, select, table, nrows, restrict,
+    corestrict, complement, transform
 
 @testset "partition" begin
     train, test = partition(1:100, 0.9)
@@ -146,8 +146,8 @@ end
                                    :Entry=>Continuous,
                                    :Cens=>Multiclass))
 
-    # shuffling: 
-    small = (x=collect(1:5), y = collect("abcde")) 
+    # shuffling:
+    small = (x=collect(1:5), y = collect("abcde"))
     x, y = unpack(small, ==(:x), ==(:y); shuffle=true, rng=1)
     @test x == [5, 1, 4, 2, 3]
     @test y == ['e', 'a', 'd', 'b', 'c']
@@ -187,6 +187,37 @@ end
 
     X = MLJBase.table((x=[1,2,3], y=[4,5,6]))
     @test select(X, 1, :y) == 4
+end
+
+@testset "transforming from raw values and categorical values" begin
+    values = vcat([missing, ], collect("asdfjklqwerpoi"))
+    Xraw = rand(values, 15, 10)
+    X = categorical(Xraw)
+    element = skipmissing(X) |> first
+
+    @test transform(element, missing) |> ismissing
+
+    raw = first(skipmissing(Xraw))
+    c = transform(element, raw)
+    @test Set(classes(c)) == Set(classes(X))
+    @test c == first(skipmissing(X))
+
+    RAW = Xraw[2:end-1,2:end-1]
+    C = transform(element, RAW)
+    @test Set(classes(C)) == Set(classes(X))
+    @test identity.(skipmissing(C)) ==
+        identity.(skipmissing(X[2:end-1,2:end-1]))
+
+    raw = first(skipmissing(Xraw))
+    c = transform(X, raw)
+    @test Set(classes(c)) == Set(classes(X))
+    @test c == first(skipmissing(X))
+
+    RAW = Xraw[2:end-1,2:end-1]
+    C = transform(X, RAW)
+    @test Set(classes(C)) == Set(classes(X))
+    @test identity.(skipmissing(C)) ==
+        identity.(skipmissing(X[2:end-1,2:end-1]))
 end
 
 end # module
