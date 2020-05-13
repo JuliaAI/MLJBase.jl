@@ -61,7 +61,7 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target. 
 
 """
-function confusion_matrix(ŷ::Vec{<:CategoricalElement}, y::Vec{<:CategoricalElement};
+function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue};
                           rev::Union{Nothing,Bool}=nothing,
                           perm::Union{Nothing,Vector{<:Integer}}=nothing,
                           warn::Bool=true)

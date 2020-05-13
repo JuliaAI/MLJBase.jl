@@ -165,7 +165,7 @@ export orientation, reports_each_observation,
        aggregate, default_measure, value
 
 # measures/continuous.jl:
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat
@@ -219,8 +219,6 @@ const COLUMN_WIDTH = 24
 const DEFAULT_SHOW_DEPTH = 0
 const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
 const INDENT = 4
-
-const CategoricalElement = Union{CategoricalValue,CategoricalString}
 
 const Arr = AbstractArray
 const Vec = AbstractVector
