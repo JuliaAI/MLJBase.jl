@@ -699,11 +699,7 @@ function evaluate!(mach::Machine, resampling, weights,
      if acceleration isa CPUThreads
         if acceleration.settings === nothing 
             nthreads = Threads.nthreads()
-            #Tasks have some ovehead so tried to avoid excessive creation
-             # set default threshold at 50
-            n = div(nfolds, EVALUATE_THRESHOLD)
-            # The parameter passes as input to CPUThreads is the ntasks
-            acceleration = CPUThreads(n >= nthreads ? nthreads : max(1, n))
+            acceleration = CPUThreads(nthreads)
         end
         acceleration.settings > 0 || 
                 throw(error("Can't create $(acceleration.settings) tasks)"))
