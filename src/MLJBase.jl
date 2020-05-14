@@ -227,7 +227,6 @@ const Vec = AbstractVector
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
-const EVALUATE_THRESHOLD = 50
 # ===================================================================
 # Computational Resource
 # default_resource allows to switch the mode of parallelization
