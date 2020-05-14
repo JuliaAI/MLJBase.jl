@@ -573,33 +573,32 @@ end
 
 function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity) 
     
-local ret
-@sync begin
+    local ret
+    @sync begin
         channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
-    verbosity < 1 || (p = Progress(nfolds,
-                 dt = 0,
-                 desc = "Evaluating over $nfolds folds: ",
-                 barglyphs = BarGlyphs("[=> ]"),
-                 barlen = 25,
-                 color = :yellow))
+        verbosity < 1 || (p = Progress(nfolds,
+                     dt = 0,
+                     desc = "Evaluating over $nfolds folds: ",
+                     barglyphs = BarGlyphs("[=> ]"),
+                     barlen = 25,
+                     color = :yellow))
         # printing the progress bar
-       verbosity < 1 || @async begin
-                    while take!(channel)
-                    next!(p)
-                    end
-                    end
-        
-    
-     @sync begin
-            ret = @distributed vcat for k in 1:nfolds
-        	r = func(mach, k)
-        	verbosity < 1 || begin
-                            put!(channel, true)
-                            yield()
-                            end
-        	r
-    	   end
-    verbosity < 1 || put!(channel, false)
+        verbosity < 1 || @async begin
+                          while take!(channel)
+                            next!(p)
+                          end
+                         end
+
+         @sync begin
+           ret = @distributed vcat for k in 1:nfolds
+                     r = func(mach, k)
+                     verbosity < 1 || begin
+                                        put!(channel, true)
+                                        yield()
+                                      end
+                     r
+        	     end
+         verbosity < 1 || put!(channel, false)
     end
     close(channel)
     end
@@ -609,47 +608,43 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
-function _evaluate!(func, mach, ::CPUThreads, nfolds,verbosity)
-   n_threads = Threads.nthreads()
+function _evaluate!(func, mach, accel::CPUThreads{T},
+                        nfolds,verbosity) where T<: Integer
+   nthreads = Threads.nthreads()
     
-   if n_threads == 1
+   if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
-    
-    results = Array{Any, 1}(undef, nfolds)
+    ntasks = accel.settings
+    ret = Array{Any,1}(undef, nfolds)
     loc = ReentrantLock()
+    
     verbosity < 1 || (p = Progress(nfolds,
                     dt = 0,
                     desc = "Evaluating over $nfolds folds: ",
                     barglyphs = BarGlyphs("[=> ]"),
                     barlen = 25,
                     color = :yellow))
-    partitions = chunks(1:nfolds, n_threads) 
-   
-     @sync begin  
-      
-        @sync for parts in partitions    
-        Threads.@spawn begin
-            for k in parts
-            id = Threads.threadid()
-    # one tmach for each thread; cycle through available threads:
-            tmach = machine(mach.model, mach.args...)
-            end
-           results[k] = func(tmach, k) 
-           verbosity < 1 || (begin
+    partitions = chunks(1:nfolds, ntasks) 
+
+   @sync for parts in partitions    
+     Threads.@spawn begin
+       #One tmach for each task:
+       tmach = machine(mach.model, mach.args...)
+         for k in parts 
+            ret[k] = func(tmach, k)
+            verbosity < 1 || (begin
                               lock(loc)do
                                 p.counter +=1
                                 ProgressMeter.updateProgress!(p)
                               end
-
                             end)
-            end
-        end
+          end
+      end
+        
     end
-
-    end
-  
-    return reduce(vcat, results)
+    results = reduce(vcat, ret) ## has the right Type
+     return results
 end
 
 end
@@ -701,7 +696,17 @@ function evaluate!(mach::Machine, resampling, weights,
                   "among $(nworkers()) workers."
         end
     end
-    if acceleration isa CPUThreads
+     if acceleration isa CPUThreads
+        if acceleration.settings === nothing 
+            nthreads = Threads.nthreads()
+            #Tasks have some ovehead so tried to avoid excessive creation
+             # set default threshold at 50
+            n = div(nfolds, 50)
+            # The parameter passes as input to CPUThreads is the ntasks
+            acceleration = CPUThreads(n >= nthreads ? nthreads : max(1, n))
+        end
+        acceleration.settings > 0 || 
+                throw(error("Can't create $(acceleration.settings) tasks)"))
         if verbosity > 0
                 @info "Performing evaluations " *
                       "using $(Threads.nthreads()) threads."
