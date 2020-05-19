@@ -125,7 +125,7 @@ Supposing a supervised learning network's final predictions are
 obtained by calling a node `yhat`, then the following code
 
 ```julia
-mach = machine(predict=yhat)
+mach = machine!(predict=yhat)
 fit!(mach; rows=train)
 predictions = predict(mach, Xnew) # `Xnew` concrete data
 ```
@@ -137,11 +137,11 @@ predictions = yhat(Xnew)
 ```
 
 In a unsupervised learning network that performs clustering, for
-example,in which node `Xout` delivers the output of dimension
-reduction and `yhat` class labels, one can write
+example, and in which the node `Xout` delivers the output of dimension
+reduction, and `yhat` class labels, one can write
 
 ```julia
-mach = machine(transform=Xout, predict=yhat)
+mach = machine!(transform=Xout, predict=yhat)
 fit!(mach)
 transformed = transform(mach, Xnew) # `Xnew` concrete data
 predictions = predict(mach, Xnew)
