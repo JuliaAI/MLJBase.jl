@@ -176,7 +176,7 @@ end
     fit!(mach)
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
-    m = r.machines[1]
+    m = r.machines[end]
     @test r.report_given_machine[m].centres == MLJBase.matrix(X)[1:3,:]
     fp = fitted_params(mach)
     levs = fp.fitted_params_given_machine[m].fitresult

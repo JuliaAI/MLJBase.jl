@@ -265,7 +265,7 @@ end
 # Both of these exposed but not intended for public use
 
 function report(N::Node)
-    machs = machines(N)
+    machs = machines(N) |> reverse
     reports = NamedTuple[]
     try
         reports = [report(m) for m in machs]
@@ -284,7 +284,7 @@ end
 report(::Source) = NamedTuple()
 
 function MLJModelInterface.fitted_params(N::Node)
-    machs = machines(N)
+    machs = machines(N) |> reverse
     _fitted_params = NamedTuple[]
     try
         _fitted_params = [fitted_params(m) for m in machs]

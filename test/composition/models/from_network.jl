@@ -196,7 +196,7 @@ fit!(yhat)
 r = MLJBase.report(yhat)
 d = r.report_given_machine
 ms = machines(yhat)
-@test ms == r.machines
+@test ms == r.machines |> reverse
 @test all(mach -> report(mach) == d[mach], ms)
 
 hot2 = deepcopy(hot)
