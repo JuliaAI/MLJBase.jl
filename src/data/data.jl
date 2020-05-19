@@ -126,12 +126,12 @@ end
 
 
 """
-    t1, t2, ...., tk = unnpack(table, t1, t2, ... tk; wrap_singles=false)
+    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
 
 Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
-from the column names defined by the tests `t1`, `t2`, ...,
-`tk`. A *test* is any object `t` such that `t(name)` is `true`
+from the column names defined by the filters `f1`, `f2`, ...,
+`fk`. A *filter* is any object `f` such that `f(name)` is `true`
 or `false` for each column `name::Symbol` of `table`.
 
 Whenever a returned table contains a single column, it is converted to
