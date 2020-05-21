@@ -302,8 +302,9 @@ function transform_(pool, x)
     return _classes[ref]
 end
 
-"""
+transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
 
+"""
     transform(e::Union{CategoricalElement,CategoricalArray},  X)
 
 Transform the specified object `X` into a categorical version, using
@@ -321,8 +322,5 @@ julia> transform(v[1], [:x :x; missing :y])
  missing  :y
 
 """
-transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
-
 MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
                             arg) = transform_(CategoricalArrays.pool(e), arg)
-
