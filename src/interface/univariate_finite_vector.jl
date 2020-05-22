@@ -14,6 +14,10 @@ struct UnivariateFiniteVector{R,C,L<:CategoricalValue,E<:Union{R,Vector{R}}} <: 
         R = eltype(s)
         C = length(c)
         L = eltype(c)
+        if !(L <: CategoricalValue)
+            c = categorical(c)
+            L = eltype(c)
+        end
         E = R
         cl = c isa NTuple ? c : tuple(c...)
         new{R,C,L,E}(s, cl)
@@ -27,6 +31,10 @@ struct UnivariateFiniteVector{R,C,L<:CategoricalValue,E<:Union{R,Vector{R}}} <: 
         R = eltype(s)
         C = length(c)
         L = eltype(c)
+        if !(L <: CategoricalValue)
+            c = categorical(c)
+            L = eltype(c)
+        end
         E = Vector{R}
         cl = c isa NTuple ? c : tuple(c...)
         new{R,C,L,E}(s, cl)

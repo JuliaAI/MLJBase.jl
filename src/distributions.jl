@@ -172,8 +172,7 @@ function pdf(u::UnivariateFiniteVector{R,C}, x) where {R,C}
     i = findfirst(u.classes .== x)
     i === nothing && throw(DomainError("Value not in pool. "))
     if C == 2
-        i == 1 && return 1 .- u.scores
-        return u.scores
+        return i == 1 ? 1 .- u.scores : u.scores
     end
     return u.scores[:,i]
 end
