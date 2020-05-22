@@ -151,10 +151,10 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
 end
 
 nominal_range(T, field, values) = throw(ArgumentError(
-    "`values` does not have an appropriate type."))
+   "`$values` is not an instance of the specified type `$T`."  ))
 
 nominal_range(T, field, ::Nothing) = throw(ArgumentError(
-    "You must specify values=... for a nominal parameter."))
+    "You must specify values=... for a nominal parameter."  ))
 
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
     return NominalRange{T,length(values)}(field, Tuple(values))
