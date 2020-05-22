@@ -294,3 +294,45 @@ function unwind(iterators...)
     end
     return A
 end
+
+
+"""
+    chunks(range, n)
+split a given range into `n` subranges of approximately equal length.
+
+### Example
+```julia
+julia> collect(chunks(1:5, 2))
+2-element Array{UnitRange{Int64},1}:
+ 1:3
+ 4:5
+
+```
+"""
+function chunks(c::AbstractRange, n::Integer)
+    n < 1 && throw(ArgumentError("cannot split range into $n subranges"))
+    return Chunks(c, divrem(length(c), Int(n))...)
+end
+
+struct Chunks{T <: AbstractRange}
+    range::T
+    div::Int
+    rem::Int
+end
+
+Base.eltype(::Type{Chunks{T}}) where {T <: AbstractRange} = T
+
+function Base.length(itr::Chunks{<:AbstractRange})
+   l = length(itr.range)
+   return itr.div == 0 ? l : div(l - itr.rem, itr.div)
+end
+
+function Base.iterate(itr::Chunks{<:AbstractRange}, state=(1,itr.rem))
+    first(state) > length(itr.range) && return nothing
+    rem = last(state)
+    r = min(first(state) + itr.div - (rem > 0 ? 0 : 1),
+                length(itr.range))
+   return @inbounds itr.range[first(state):r], (r + 1, rem-1)
+end
+
+

@@ -225,7 +225,6 @@ const Vec = AbstractVector
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
-
 # ===================================================================
 # Computational Resource
 # default_resource allows to switch the mode of parallelization

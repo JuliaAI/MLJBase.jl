@@ -30,11 +30,13 @@ end
         nmeasures = 2
         func(mach, k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
     end
-
-    machines = Dict(1 => machine(ConstantRegressor(), X, y))
+    mach = machine(ConstantRegressor(), X, y)
     p = Progress(nfolds, dt=0)
-    result = MLJBase._evaluate!(func, machines, accel, nfolds, 1)
-
+    if accel isa CPUThreads
+    result = MLJBase._evaluate!(func, mach, CPUThreads(Threads.nthreads()), nfolds, 1)
+    else
+       result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
+    end 
     @test result ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
 

@@ -98,5 +98,17 @@ end
     default_resource(CPU1())
 end
 
+@static if VERSION >= v"1.3.0-DEV.573"
+@testset "Chunks" begin 
+    nthreads = Threads.nthreads()
+    #test for cases with exactly same work as threads
+    @test length(MLJBase.chunks(1:nthreads, nthreads)) == nthreads
+    #test for cases with more work than threads
+    @test length(MLJBase.chunks(1:nthreads + rand(1:nthreads), nthreads)) == nthreads
+    #test for cases with less work than threads
+    @test length(MLJBase.chunks(1:nthreads-1, nthreads)) == nthreads - 1
+end
+end
+
 end # module
 true
