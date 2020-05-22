@@ -4,9 +4,9 @@
 end
 @testset "int, classes, decoder" begin
     N = 10
-    mix = shuffle(0:N - 1)
+    mix = shuffle(rng, 0:N - 1)
 
-    Xraw = broadcast(x->mod(x,N), rand(Int, 2N, 3N))
+    Xraw = broadcast(x->mod(x,N), rand(rng, Int, 2N, 3N))
     Yraw = string.(Xraw)
 
     # to turn a categ matrix into a ordinary array with categorical
@@ -63,12 +63,12 @@ end
 end
 
 @testset "matrix, table" begin
-    B = rand(UInt8, (4, 5))
+    B = rand(rng, UInt8, (4, 5))
     @test matrix(DataFrame(B)) == B
     @test matrix(table(B)) == B
     @test matrix(table(B), transpose=true) == B'
 
-    X  = (x1=rand(5), x2=rand(5))
+    X  = (x1=rand(rng, 5), x2=rand(rng, 5))
 
     @test table(X, prototype=DataFrame()) == DataFrame(X)
     T = table((x1=(1,2,3), x2=(:x, :y, :z)))
@@ -85,7 +85,7 @@ end
 
 @testset "select etc" begin
     N = 10
-    A = broadcast(x->Char(65+mod(x,5)), rand(Int, N, 5))
+    A = broadcast(x->Char(65+mod(x,5)), rand(rng, Int, N, 5))
     X = CategoricalArrays.categorical(A)
     df = DataFrame(A)
     df.z  = 1:N
@@ -128,7 +128,7 @@ end
     @test Tables.rowtable(selectrows(ct, 5))[1] == rt[5,1]
 
     # vector accessors
-    v = rand(Int, 4)
+    v = rand(rng, Int, 4)
     @test selectrows(v, 2:3) == v[2:3]
     @test selectrows(v, 2)   == [v[2]]
     @test nrows(v)           == 4
@@ -139,12 +139,12 @@ end
     @test nrows(v) == 8
 
     # matrix accessors
-    A = rand(5, 10)
+    A = rand(rng, 5, 10)
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2)   == A[2:2,:]
 
-    A = rand(5, 10) |> categorical
+    A = rand(rng, 5, 10) |> categorical
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2)   == A[2:2,:]
