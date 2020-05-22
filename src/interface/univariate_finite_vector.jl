@@ -64,7 +64,6 @@ MMI.UnivariateFiniteVector(::FI, a...) = UnivariateFiniteVector(a...)
 
 
 function Base.show(io::IO, ::MIME"text/plain", u::UFV{R,C}) where {R,C}
-    write(io, "UnivariateFiniteVector: \n")
     header = [String(Symbol(e)) for e in u.classes]
     table = u.scores
     if C === 2
@@ -77,6 +76,7 @@ function Base.show(io::IO, ::MIME"text/plain", u::UFV{R,C}) where {R,C}
         PrettyTables.pretty_table(io, table, header;
                                   row_names=1:size(table, 1))
     end
+    write(io, "UnivariateFiniteVector (length: $(length(u)), #classes: $(C))\n")
 end
 
 Base.length(u::UFV) = size(u.scores, 1)
