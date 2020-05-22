@@ -5,7 +5,9 @@ using MLJBase
 using Random
 import Distributions
 using Statistics
-Random.seed!(123)
+using StableRNGs
+
+rng = StableRNG(66600099)
 
 const Dist = Distributions
 
@@ -75,27 +77,27 @@ end
     @test iterator(rr, 3) == ['a', 'b', 'c']
 
     # random:
-    rng = MersenneTwister(123)
-    @test iterator(rng, p1, 5) == [1, 6, 2, 3, 10]
-    @test iterator(rng, p1, 5) != [1, 6, 2, 3, 10]
-    @test iterator(rng, rr) == ['g', 'f', 'a', 'e', 'c', 'd', 'b']
-    @test iterator(rng, rr) != ['g', 'f', 'a', 'e', 'c', 'd', 'b']
-    @test iterator(rng, rr, 3) == ['a', 'c', 'b']
-    @test iterator(rng, rr, 3) != ['a', 'c', 'b']
+    rng = StableRNG(66); @test iterator(rng, p1, 5) == [10, 2, 3, 6, 1]
+    rng = StableRNG(22); @test iterator(rng, p1, 5) != [10, 2, 3, 6, 1]
+    rng = StableRNG(33); @test iterator(rng, rr) == ['b', 'c', 'a', 'g',
+                                    'f', 'd', 'e']
+    rng = StableRNG(44); @test iterator(rng, rr) != ['b', 'c', 'a', 'g',
+                                    'f', 'd', 'e']
+    rng = StableRNG(88); @test iterator(rng, rr, 3) == ['b', 'c', 'a']
+    rng = StableRNG(99); @test iterator(rng, rr, 3) != ['a', 'c', 'b']
 
     # with callable as scale:
     r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
     expecting = map(x->round(Int,10^x), range(1,2,length=10))
     @test iterator(r, 10) == expecting
-
 end
 
 @testset "fitting distributions to NumericRange objects" begin
 
     # characterizations
 
-    l = rand()
-    u = max(l, rand())
+    l = rand(rng)
+    u = max(l, rand(rng)) + 1
     r = range(Int, :dummy, lower=l, upper=u)
     for D in [:Arcsine, :Uniform, :Biweight, :Cosine, :Epanechnikov,
               :SymTriangularDist, :Triweight]
@@ -107,8 +109,8 @@ end
              )
     end
 
-    o = randn()
-    s = rand()
+    o = randn(rng)
+    s = rand(rng)
     r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
     for D in [:Cauchy, :Gumbel, :Normal, :Laplace]
         eval(quote
@@ -119,8 +121,8 @@ end
              )
     end
 
-    o = rand()
-    s = o/(1 + rand())
+    o = rand(rng)
+    s = o/(1 + rand(rng))
     r = range(Int, :dummy, lower=-Inf, upper=Inf, origin=o, unit=s)
     for D in [:Normal, :Gamma, :InverseGaussian, :LogNormal, :Logistic]
         eval(quote
@@ -156,15 +158,15 @@ end
 
         s = MLJBase.sampler(r, d)
 
-        Random.seed!(1);
-        dict = Dist.countmap(rand(s, 1000))
-        eleven, twelve, thirteen = map(x -> dict[x], 11:13)
-        @test eleven == 271 && twelve == 486 && thirteen == 243
-
-        rng = Random.MersenneTwister(1);
+        rng = StableRNG(0)
         dict = Dist.countmap(rand(rng, s, 1000))
         eleven, twelve, thirteen = map(x -> dict[x], 11:13)
-        @test eleven == 271 && twelve == 486 && thirteen == 243
+        @test eleven == 252 && twelve == 514 && thirteen == 234
+
+        rng = StableRNG(999);
+        dict = Dist.countmap(rand(rng, s, 1000))
+        eleven, twelve, thirteen = map(x -> dict[x], 11:13)
+        @test eleven == 236 && twelve == 494 && thirteen == 270
     end
 
     @testset "right-unbounded floats" begin
@@ -227,28 +229,28 @@ end
 
     @testset "probability vector specified" begin
         s = MLJBase.sampler(r, [0.1, 0.2, 0.7])
-        Random.seed!(1);
-        dict = Dist.countmap(rand(s, 1000))
+        rng = StableRNG(600)
+        dict = Dist.countmap(rand(rng,s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 186 && b == 699 && c == 115
+        @test a == 213 && b == 694 && c == 93
 
-        rng = Random.MersenneTwister(1);
+        rng = StableRNG(89);
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 186 && b == 699 && c == 115
+        @test a == 208 && b == 691 && c == 101
     end
 
     @testset "probability vector unspecified (uniform)" begin
         s = MLJBase.sampler(r)
-        Random.seed!(1);
-        dict = Dist.countmap(rand(s, 1000))
+        rng = StableRNG(55)
+        dict = Dist.countmap(rand(rng,s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 306 && b == 356 && c == 338
+        @test a == 320 && b == 340 && c == 340
 
-        rng = Random.MersenneTwister(1);
+        rng = StableRNG(550)
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 306 && b == 356 && c == 338
+        @test a == 347 && b == 320 && c == 333
     end
 
 end

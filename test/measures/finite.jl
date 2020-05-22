@@ -1,4 +1,4 @@
-seed!(51803)
+rng = StableRNG(51803)
 
 @testset "built-in classifier measures" begin
     y    = categorical(collect("asdfasdfaaassdd"))
@@ -40,7 +40,7 @@ end
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
             accuracy(confmat(ŷ, y, warn=false))  == 1-mcr(confmat(ŷ, y, warn=false))
-    w = randn(length(y))
+    w = randn(rng,length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
     ## balanced accuracy
