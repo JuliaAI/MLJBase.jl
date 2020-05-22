@@ -156,7 +156,7 @@ end
 
 nominal_range(T, field, values) = throw(ArgumentError(
    "`$values` must be an instance of type `AbstractVector{<:$T}`."
-    * (T() isa Model ? "\n Perharps you forgot to instantiate model"
+    * (T <: Model ? "\n Perharps you forgot to instantiate model"
      * "as `$(T)()`" : "") ))
 
 nominal_range(T, field, ::Nothing) = throw(ArgumentError(
