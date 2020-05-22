@@ -103,14 +103,6 @@ end
 MMI.UnivariateFinite(::FI, c::AbstractVector, p; kwargs...) =
     throw(prob_error)
 
-# function MMI.UnivariateFinite(::FI, c::AbstractVector,
-#                      p::AbstractVector{P};
-#                      kwargs...) where P<:Real
-#     # check that the vectors have appropriate length
-#     Dist.@check_args(UnivariateFinite, length(c) == length(p))
-# end
-
-
 # Univariate Finite from a vector of classes and vector of probs
 function MMI.UnivariateFinite(::FI,
                               c::AbstractVector{C},

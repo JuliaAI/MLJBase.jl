@@ -60,7 +60,7 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
        Probabilistic, Deterministic, Interval, Static,
-       UnivariateFinite
+       UnivariateFinite, UnivariateFiniteVector
 
 # MLJType equality
 export is_same_except
@@ -247,6 +247,7 @@ include("info_dict.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 include("interface/univariate_finite.jl")
+include("interface/univariate_finite_vector.jl")
 
 include("distributions.jl")
 

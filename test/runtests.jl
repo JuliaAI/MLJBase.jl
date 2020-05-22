@@ -16,6 +16,7 @@ end
     using CategoricalArrays
     using Logging
     using ComputationalResources
+    using StableRNGs
 end
 
 function include_everywhere(filepath)

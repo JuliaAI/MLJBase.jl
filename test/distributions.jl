@@ -52,9 +52,9 @@ end
 
     N = 50
     seed!(123)
-    samples = [rand(d) for i in 1:50];
+    samples = [rand(rng,d) for i in 1:50];
     seed!(123)
-    @test samples == [rand(Random.GLOBAL_RNG, d) for i in 1:N]
+    @test samples == [rand(rng, d) for i in 1:N]
 
     N = 10000
     samples = rand(rng, d, N);
@@ -90,9 +90,9 @@ end
 
     N = 50
     seed!(123)
-    samples = [rand(d) for i in 1:50];
+    samples = [rand(rng,d) for i in 1:50];
     seed!(123)
-    @test samples == [rand(Random.GLOBAL_RNG, d) for i in 1:N]
+    @test samples == [rand(rng, d) for i in 1:N]
 
     N = 10000
     samples = rand(rng, d, N);
@@ -146,7 +146,7 @@ end
 
 @testset "Univariate mode" begin
     v = categorical(1:101)
-    p = rand(101)
+    p = rand(rng,101)
     s = sum(p) - p[42]
     p[42] = 0.5
     p = p/2/s
@@ -168,7 +168,7 @@ end
 
     v = categorical(collect("abcd"))
     d = UnivariateFinite(v, [0.2, 0.3, 0.1, 0.4])
-    sample = rand(d, 10^4)
+    sample = rand(rng,d, 10^4)
     freq_given_class = Distributions.countmap(sample)
     pairs = collect(freq_given_class)
     sort!(pairs, by=pair->pair[2], alg=QuickSort)
@@ -233,6 +233,39 @@ end
     @test pdf(d, 'b') ≈ 0.4*0.8 + 0.6*0.3
     @test pdf(d, 'c') ≈ 0.6*0.7
 end
+
+
+@testset "UnivariateFiniteVector" begin
+    UFV = UnivariateFiniteVector
+    # Binary example
+    u = UFV(rand(rng,5));
+    @test length(u) == 5
+    @test size(u) == (5,)
+    u[1] = 0.5
+    @test u.scores[1] == 0.5
+    @test u[1:2] isa UnivariateFiniteVector
+    u12 = u[1:2]
+    @test u12.scores == u.scores[1:2]
+    @test u12.classes == u.classes
+    @test u[1] isa UnivariateFinite
+    c = u[1].decoder.classes
+    @test c == [:class_0, :class_1]
+    @test pdf(u[1], c[1]) == 0.5
+
+    # Multiclass example
+    P = rand(rng,5, 3)
+    P ./= sum(P, dims=2)
+    u = UFV(P);
+    @test length(u) == 5
+    @test size(u) == (5,)
+    u[1] = [0.3, 0.6, 0.1]
+    @test u[1] isa UnivariateFinite
+    c = u[1].decoder.classes
+    @test pdf(u[1], c[1]) == 0.3
+    @test pdf(u[1], c[2]) == 0.6
+    @test pdf.(u, c[1]) == P[:, 1]
+end
+
 
 end # module
 
