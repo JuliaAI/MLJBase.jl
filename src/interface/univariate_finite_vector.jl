@@ -57,7 +57,7 @@ MMI.UnivariateFiniteVector(::FI, a...) = UnivariateFiniteVector(a...)
 
 function Base.show(io::IO, ::MIME"text/plain", u::UFV{R,C}) where {R,C}
     write(io, "UnivariateFiniteVector: \n")
-    header = [String(Symbol(e)) for e in u.classes[1:end]]
+    header = [String(Symbol(e)) for e in u.classes]
     table = u.scores
     if C === 2
         table = hcat(1 .- table, table)

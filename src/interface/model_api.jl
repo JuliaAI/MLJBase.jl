@@ -8,7 +8,7 @@ const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
 predict_mode(m::Probabilistic, fitres, Xnew) =
     predict_mode(m, fitres, Xnew, Val(target_scitype(m)))
 predict_mode(m, fitresult, Xnew, ::Any) =
-    mode.(predict(m, fitresult, Xnew))
+    mode(predict(m, fitresult, Xnew))
 predict_mode(m, fitresult, Xnew, ::Val{<:BadModeTypes}) =
     throw(ArgumentError("Attempting to compute mode of predictions made "*
                         "by a model expecting `Continuous` targets. "))

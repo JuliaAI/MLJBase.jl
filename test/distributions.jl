@@ -7,7 +7,6 @@ import Distributions:pdf, support
 import Distributions
 using StableRNGs
 import Random
-import Random.seed!
 rng = StableRNG(123)
 
 v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
@@ -236,6 +235,7 @@ end
 
 
 @testset "UnivariateFiniteVector" begin
+    rng = StableRNG(11)
     UFV = UnivariateFiniteVector
     # Binary example
     u = UFV(rand(rng,5));
@@ -264,6 +264,10 @@ end
     @test pdf(u[1], c[1]) == 0.3
     @test pdf(u[1], c[2]) == 0.6
     @test pdf.(u, c[1]) == P[:, 1]
+
+    # faster versions
+    @test mode(u) == [:class_2, :class_2, :class_2, :class_3, :class_1]
+    @test pdf(u, :class_2) == P[:,2]
 end
 
 
