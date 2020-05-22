@@ -51,9 +51,9 @@ end
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
 
     N = 50
-    seed!(123)
+    rng = StableRNG(125)
     samples = [rand(rng,d) for i in 1:50];
-    seed!(123)
+    rng = StableRNG(125)
     @test samples == [rand(rng, d) for i in 1:N]
 
     N = 10000
@@ -89,9 +89,9 @@ end
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
 
     N = 50
-    seed!(123)
+    rng = StableRNG(661)
     samples = [rand(rng,d) for i in 1:50];
-    seed!(123)
+    rng = StableRNG(661)
     @test samples == [rand(rng, d) for i in 1:N]
 
     N = 10000
