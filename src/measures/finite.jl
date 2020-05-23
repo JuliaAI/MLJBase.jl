@@ -3,6 +3,8 @@
 # >> CrossEntropy
 # >> BriersScore
 
+const VecUF = Union{UnivariateFiniteVector,Vec{<:UnivariateFinite}}
+
 # -----------------------------------------------------
 # cross entropy
 
@@ -52,8 +54,7 @@ cross_entropy = CrossEntropy()
 # for single observation:
 _cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
-function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
-                           y::Vec{<:CategoricalValue})
+function (c::CrossEntropy)(ŷ::VecUF, y::Vec{<:CategoricalValue})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(_cross_entropy, ŷ, y, c.eps)
@@ -138,7 +139,7 @@ end
 # For multiple observations:
 
 # UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
+function (::BrierScore{<:UnivariateFinite})(ŷ::VecUF,
                                             y::Vec{<:CategoricalValue})
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
@@ -403,8 +404,7 @@ For more information, run `info(area_under_curve)`.
 const area_under_curve = AUC()
 const auc = AUC()
 
-function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec{<:CategoricalValue})
+function (::AUC)(ŷ::VecUF, y::Vec{<:CategoricalValue})
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
     lab_pos = levels(y)[2]         # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
@@ -868,8 +868,7 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
-function roc_curve(ŷ::Vec{<:UnivariateFinite},
-                   y::Vec{<:CategoricalValue})
+function roc_curve(ŷ::VecUF, y::Vec{<:CategoricalValue})
 
     n       = length(y)
     lab_pos = levels(y)[2]
