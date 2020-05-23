@@ -84,3 +84,7 @@ end
 @testset "openml" begin
     @test include("openml.jl")
 end
+
+@testset "UFVector" begin
+    @test include("ufvector.jl")
+end

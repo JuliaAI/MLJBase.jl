@@ -233,44 +233,6 @@ end
     @test pdf(d, 'c') ≈ 0.6*0.7
 end
 
-
-@testset "UnivariateFiniteVector" begin
-    rng = StableRNG(11)
-    UFV = UnivariateFiniteVector
-    # Binary example
-    u = UFV(rand(rng,5));
-    @test length(u) == 5
-    @test size(u) == (5,)
-    u[1] = 0.5
-    @test u.scores[1] == 0.5
-    @test u[1:2] isa UnivariateFiniteVector
-    u12 = u[1:2]
-    @test u12.scores == u.scores[1:2]
-    @test u12.classes == u.classes
-    @test u[1] isa UnivariateFinite
-    c = u[1].decoder.classes
-    @test c == [:class_0, :class_1]
-    @test pdf(u[1], c[1]) == 0.5
-
-    # Multiclass example
-    P = rand(rng,5, 3)
-    P ./= sum(P, dims=2)
-    u = UFV(P);
-    @test length(u) == 5
-    @test size(u) == (5,)
-    u[1] = [0.3, 0.6, 0.1]
-    @test u[1] isa UnivariateFinite
-    c = u[1].decoder.classes
-    @test pdf(u[1], c[1]) == 0.3
-    @test pdf(u[1], c[2]) == 0.6
-    @test pdf.(u, c[1]) == P[:, 1]
-
-    # faster versions
-    @test mode(u) == [:class_2, :class_2, :class_2, :class_3, :class_1]
-    @test pdf(u, :class_2) == P[:,2]
-end
-
-
 end # module
 
 true
