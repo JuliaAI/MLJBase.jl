@@ -146,9 +146,9 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         end
     end
-    lower <: Union{Float64, T} || throw(ArgumentError("`lower` must either be `-Inf`"
+    typeof(lower) <: Union{Float64, T} || throw(ArgumentError("`lower` must either be `-Inf`"
             * "or a finite value of type $(T)."  ))
-    upper <: Union{Float64, T} || throw(ArgumentError("`upper` must either be `Inf`"
+    typeof(upper) <: Union{Float64, T} || throw(ArgumentError("`upper` must either be `Inf`"
             * "or a finite value of type $(T)."  ))
     scale isa Symbol && (D = Symbol)
     return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
