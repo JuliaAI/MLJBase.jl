@@ -168,6 +168,12 @@ end
 
 #specific def for T<:AbstractFloat
 function nominal_range(::Type{T}, field, 
-               values::AbstractVector{<:Real}) where T<: AbstractFloat
+               values::AbstractVector{<:AbstractFloat}) where T<: AbstractFloat
+    return NominalRange{T,length(values)}(field, Tuple(values))
+end
+
+#specific def for T<:Signed
+function nominal_range(::Type{T}, field, 
+               values::AbstractVector{<:Signed}) where T<: Signed
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
