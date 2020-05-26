@@ -165,3 +165,9 @@ nominal_range(T, field, ::Nothing) = throw(ArgumentError(
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
+
+#specific def for T<:AbstractFloat
+function nominal_range(::Type{T}, field, 
+               values::AbstractVector{<:Real}) where T<: AbstractFloat
+    return NominalRange{T,length(values)}(field, Tuple(values))
+end
