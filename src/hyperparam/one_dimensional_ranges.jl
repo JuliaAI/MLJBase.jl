@@ -146,16 +146,34 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         end
     end
+    #typeof(lower) <: Union{Float64, T} || throw(ArgumentError("`lower` must either be `-Inf`"
+    #        * "or a finite value of type $(T)."  ))
+    #typeof(upper) <: Union{Float64, T} || throw(ArgumentError("`upper` must either be `Inf`"
+    #        * "or a finite value of type $(T)."  ))
     scale isa Symbol && (D = Symbol)
     return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
 end
 
 nominal_range(T, field, values) = throw(ArgumentError(
-    "`values` does not have an appropriate type."))
+   "`$values` must be an instance of type `AbstractVector{<:$T}`."
+    * (T <: Model ? "\n Perharps you forgot to instantiate model"
+     * "as `$(T)()`" : "") ))
 
 nominal_range(T, field, ::Nothing) = throw(ArgumentError(
-    "You must specify values=... for a nominal parameter."))
+    "You must specify values=... for a nominal parameter."  ))
 
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
+    return NominalRange{T,length(values)}(field, Tuple(values))
+end
+
+#specific def for T<:AbstractFloat(Allows conversion btw AbstractFloats and Signed types)
+function nominal_range(::Type{T}, field, 
+        values::AbstractVector{<:<:Union{AbstractFloat,Signed}}) where T<: AbstractFloat
+    return NominalRange{T,length(values)}(field, Tuple(values))
+end
+
+#specific def for T<:Signed (Allows conversion btw Signed types)
+function nominal_range(::Type{T}, field, 
+               values::AbstractVector{<:Signed}) where T<: Signed
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
