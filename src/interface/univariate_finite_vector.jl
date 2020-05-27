@@ -25,14 +25,14 @@ const CVal = CategoricalValue
 # C: number of classes (>=2)
 # L: type of the class labels
 # E: type of slices of probs, either R (binary) or Vector{R} (multiclass)
-struct UnivariateFiniteVector{R,C,L<:CVal,E<:Union{R,Vector{R}}} <: Vec{E}
-    scores::Array{R}
+struct UnivariateFiniteVector{C,L<:CVal,R,E<:Union{R,Vector{R}}} <: Vec{E}
     classes::NTuple{C,L}
-    function UnivariateFiniteVector(s::Arr{<:Real,N}, c) where N
+    scores::Array{R}
+    function UnivariateFiniteVector(c, s::Arr{<:Real,N}) where N
         N <= 2 || throw(DimensionMismatch("Scores must be a VecOrMat."))
         N == 1 ? _check_dims(c, 2) : _check_dims(c, size(s, 2))
         _check_scores(s)
-        R, C, L = eltype(s), length(c), eltype(c)
+        C, L, R = length(c), eltype(c), eltype(s)
         # auto categorical if labels passed as simple vector
         if !(L <: CategoricalValue)
             c = categorical(c)
@@ -40,36 +40,37 @@ struct UnivariateFiniteVector{R,C,L<:CVal,E<:Union{R,Vector{R}}} <: Vec{E}
         end
         E = N == 1 ? R : Vector{R}
         cl = c isa NTuple ? c : tuple(c...)
-        new{R,C,L,E}(s, cl)
+        new{C,L,R,E}(cl, s)
     end
 end
+
+# convenience shortcut for here (only)
+const UV = UnivariateFiniteVector
 
 #
 # Resolve MLJModelInterface
 #
 
-MMI.UnivariateFiniteVector(::FI, a...) = UnivariateFiniteVector(a...)
+MMI.UnivariateFiniteVector(::FI, a...; kw...) = UV(a...; kw...)
 
 #
 # Convenience functions for auto classes and display
 #
 
-const UFV = UnivariateFiniteVector
-
 # Auto classes
-function UFV(s::Arr{<:Real,1})
+function UV(s::Arr{<:Real,1})
     c = classes(categorical([:negative, :positive])[1])
-    return UFV(s, c)
+    return UV(c, s)
 end
-function UFV(s::Arr{<:Real,2})
+function UV(s::Arr{<:Real,2})
     c = classes(categorical([Symbol("class_$i") for i in 1:size(s, 2)])[1])
-    return UFV(s, c)
+    return UV(c, s)
 end
 
-# keep track of the support
-UFV(s::Arr{<:Real}, u::UFV) = UFV(s, u.classes)
+# keep track of the classes
+UV(u::UV, s::Arr{<:Real}) = UV(u.classes, s)
 
-function Base.show(io::IO, m::MIME"text/plain", u::UFV{R,C}) where {R,C}
+function Base.show(io::IO, m::MIME"text/plain", u::UV{C}) where {C}
     Base.show(io, m, u.scores)
     classes = get.(u.classes)
     type = C == 2 ? "(binary)" : "(multiclass)"
@@ -83,10 +84,10 @@ end
 # Functions for array-like behaviour
 #
 
-Base.length(u::UFV) = size(u.scores, 1)
-Base.size(u::UFV)   = (size(u.scores, 1),)
+Base.length(u::UV) = size(u.scores, 1)
+Base.size(u::UV)   = (size(u.scores, 1),)
 
-function Base.setindex!(u::UFV{R,C}, s, i::Int) where {R,C}
+function Base.setindex!(u::UV{C}, s, i::Int) where {C}
     _check_scores(s)
     if C == 2
         u.scores[i] = s
@@ -94,7 +95,7 @@ function Base.setindex!(u::UFV{R,C}, s, i::Int) where {R,C}
         u.scores[i,:] = s
     end
 end
-function Base.setindex!(u::UFV{R,C}, s, I) where {R,C}
+function Base.setindex!(u::UV{C}, s, I) where {C}
     _check_scores(s)
     if C == 2
         u.scores[I] = s
@@ -103,17 +104,17 @@ function Base.setindex!(u::UFV{R,C}, s, I) where {R,C}
     end
 end
 
-Base.getindex(u::UFV{R,2,L}, I) where {R,L}   = UFV(u.scores[I], u)
-Base.getindex(u::UFV{R,C,L}, I) where {R,C,L} = UFV(u.scores[I, :], u)
+Base.getindex(u::UV{2,L}, I) where {L}   = UV(u, u.scores[I])
+Base.getindex(u::UV{C,L}, I) where {C,L} = UV(u, u.scores[I, :])
 # cast back to UnivariateFinite // Binary case
-function Base.getindex(u::UFV{R,2,L}, i::Int) where {R,L}
+function Base.getindex(u::UV{2,L,R}, i::Int) where {L,R}
     prob_given_class = LittleDict{L,R}(
         u.classes[1] => 1 - u.scores[i],
         u.classes[2] => u.scores[i])
     MMI.UnivariateFinite(prob_given_class)
 end
 # cast back to UnivariateFinite // Multiclass case
-function Base.getindex(u::UFV{R,C,L}, i::Int) where {R,C,L}
+function Base.getindex(u::UV{C,L,R}, i::Int) where {C,L,R}
     prob_given_class = LittleDict{L,R}(
         u.classes[j] => u.scores[i, j] for j in 1:C)
     MMI.UnivariateFinite(prob_given_class)
@@ -121,5 +122,5 @@ end
 
 # Hijack broadcasting for pdf and mode to use more efficient functions
 
-Base.Broadcast.broadcasted(::typeof(mode), u::UFV)   = mode(u)
-Base.Broadcast.broadcasted(::typeof(pdf), u::UFV, c) = pdf(u, c)
+Base.Broadcast.broadcasted(::typeof(mode), u::UV)   = mode(u)
+Base.Broadcast.broadcasted(::typeof(pdf), u::UV, c) = pdf(u, c)

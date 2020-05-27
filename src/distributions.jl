@@ -168,7 +168,7 @@ function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,T}, x) where T
     return zero(T)
 end
 
-function pdf(u::UnivariateFiniteVector{R,C}, x) where {R,C}
+function pdf(u::UnivariateFiniteVector{C}, x) where {C}
     i = findfirst(u.classes .== x)
     i === nothing && throw(DomainError("Value not in pool. "))
     if C == 2
@@ -192,9 +192,9 @@ function Distributions.mode(d::UnivariateFinite)
 end
 
 mode(v::Vector{UnivariateFinite}) = mode.(v)
-mode(u::UnivariateFiniteVector{R,2}) where {R} =
+mode(u::UnivariateFiniteVector{2}) =
     [u.classes[ifelse(s > 0.5, 2, 1)] for s in u.scores]
-mode(u::UnivariateFiniteVector{R,C}) where {R,C} =
+mode(u::UnivariateFiniteVector{C}) where {C} =
     [u.classes[findmax(s)[2]] for s in eachrow(u.scores)]
 
 """

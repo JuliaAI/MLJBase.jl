@@ -1,11 +1,11 @@
-module TestUFV
+module TestUV
 
 using Test
 using MLJBase
 using StableRNGs
 using CategoricalArrays
 
-UFV = UnivariateFiniteVector
+UV = UnivariateFiniteVector
 rng = StableRNG(111)
 n   = 10
 c   = 3
@@ -14,7 +14,7 @@ c   = 3
     scores  = rand(rng, n)
     classes = ["class1", "class2"]
 
-    u = UFV(scores, classes)
+    u = UV(classes, scores)
     @test length(u) == n
     @test size(u) == (n,)
     @test u.scores[1] == scores[1]
@@ -22,21 +22,21 @@ c   = 3
     @test u.classes[2] == classes[2]
 
     # autoclasses
-    u = UFV(scores)
+    u = UV(scores)
     @test u.classes[1] == :negative
     @test u.classes[2] == :positive
 
     # errors
     scores = [-1,0,1]
-    @test_throws DomainError UFV(scores)
+    @test_throws DomainError UV(scores)
 end
 
 @testset "Constr:multi" begin
     P   = rand(rng, n, c)
-    @test_throws DomainError UFV(P)
+    @test_throws DomainError UV(P)
 
     P ./= sum(P, dims=2)
-    u   = UFV(P)
+    u   = UV(P)
 
     @test length(u) == n
     @test length(u.classes) == c
@@ -49,7 +49,7 @@ end
 @testset "Get and Set" begin
     # binary
     s = rand(rng, n)
-    u = UFV(s)
+    u = UV(s)
 
     @test u[1] isa UnivariateFinite
     @test all(MLJBase.classes(u[1]) .== u.classes)
@@ -65,7 +65,7 @@ end
     # multiclass
     P   = rand(rng, n, c)
     P ./= sum(P, dims=2)
-    u   = UFV(P)
+    u   = UV(P)
 
     @test u[1] isa UnivariateFinite
     @test all(MLJBase.classes(u[1]) .== u.classes)
@@ -86,7 +86,7 @@ end
     # binary
     rng = StableRNG(668)
     s = rand(rng, n)
-    u = UFV(s)
+    u = UV(s)
     @test pdf(u, :negative) == 1 .- s
     @test pdf.(u, :negative) == 1 .- s
     @test mode(u) isa CategoricalArray
@@ -99,7 +99,7 @@ end
     rng = StableRNG(554)
     P   = rand(rng, n, c)
     P ./= sum(P, dims=2)
-    u   = UFV(P)
+    u   = UV(P)
     @test pdf(u, :class_1) == P[:,1]
     @test pdf.(u, :class_1) == P[:,1]
     expected = u.classes[[findmax(r)[2] for r in eachrow(P)]]
@@ -114,10 +114,10 @@ end
     y = [1, -1, 1, -1, 1, -1, 1, -1, -1, 1, 1, -1, -1, -1, -1, -1, 1, -1, -1, 1]
     yc = categorical(y)
     skref = 0.6197916 # sklearn.metrics.roc_auc_score(y, a) == 0.619
-    ufv = UFV(s, classes(yc))
-    uv = [UnivariateFinite(classes(yc), [1-si, si]) for si in s]
-    auc1 = auc(ufv, yc)
-    auc2 = auc(uv, yc)
+    U = UV(MLJBase.classes(yc), s)
+    u = [UnivariateFinite(MLJBase.classes(yc), [1-si, si]) for si in s]
+    auc1 = auc(U, yc)
+    auc2 = auc(u, yc)
     @test auc1 == auc2
     @test abs(skref - auc1) < 1e-2
     s = [0.37, 0.2 , 0.32, 0.6 , 0.27, 0.39, 0.48, 0.32, 0.73, 0.36, 0.54,
@@ -130,7 +130,7 @@ end
         1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,
         1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.,  1.]
     skref = 0.448979
-    auc1 = auc(UFV(s, [-1,1]), categorical(y))
+    auc1 = auc(UV([-1,1], s), categorical(y))
     @test abs(skref - auc1) < 1e-5
 end
 
