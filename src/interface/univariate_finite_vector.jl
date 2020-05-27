@@ -28,14 +28,15 @@ const CVal = CategoricalValue
 struct UnivariateFiniteVector{C,L<:CVal,R,E<:Union{R,Vector{R}}} <: Vec{E}
     classes::NTuple{C,L}
     scores::Array{R}
-    function UnivariateFiniteVector(c, s::Arr{<:Real,N}) where N
+    function UnivariateFiniteVector(c, s::Arr{<:Real,N};
+                                    ordered=false) where N
         N <= 2 || throw(DimensionMismatch("Scores must be a VecOrMat."))
         N == 1 ? _check_dims(c, 2) : _check_dims(c, size(s, 2))
         _check_scores(s)
         C, L, R = length(c), eltype(c), eltype(s)
         # auto categorical if labels passed as simple vector
         if !(L <: CategoricalValue)
-            c = categorical(c)
+            c = categorical(c, ordered=ordered, compress=true)
             L = eltype(c)
         end
         E = N == 1 ? R : Vector{R}
@@ -58,17 +59,18 @@ MMI.UnivariateFiniteVector(::FI, a...; kw...) = UV(a...; kw...)
 #
 
 # Auto classes
-function UV(s::Arr{<:Real,1})
-    c = classes(categorical([:negative, :positive])[1])
+function UV(s::Arr{<:Real,1}; ordered=false)
+    cat = categorical([:negative, :positive],
+                      ordered=ordered, compress=true)
+    c = classes(cat[1])
     return UV(c, s)
 end
-function UV(s::Arr{<:Real,2})
-    c = classes(categorical([Symbol("class_$i") for i in 1:size(s, 2)])[1])
+function UV(s::Arr{<:Real,2}; ordered=false)
+    cat = categorical([Symbol("class_$i") for i in 1:size(s, 2)],
+                      ordered=ordered, compress=true)
+    c = classes(cat[1])
     return UV(c, s)
 end
-
-# keep track of the classes
-UV(u::UV, s::Arr{<:Real}) = UV(u.classes, s)
 
 function Base.show(io::IO, m::MIME"text/plain", u::UV{C}) where {C}
     Base.show(io, m, u.scores)
@@ -103,6 +105,9 @@ function Base.setindex!(u::UV{C}, s, I) where {C}
         u.scores[I,:] = s
     end
 end
+
+# constructor keeping track with similar classes than parent object
+UV(u::UV, s::Arr{<:Real}) = UV(u.classes, s)
 
 Base.getindex(u::UV{2,L}, I) where {L}   = UV(u, u.scores[I])
 Base.getindex(u::UV{C,L}, I) where {C,L} = UV(u, u.scores[I, :])
