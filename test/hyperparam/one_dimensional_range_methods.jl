@@ -232,12 +232,12 @@ end
         rng = StableRNG(600)
         dict = Dist.countmap(rand(rng,s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 213 && b == 694 && c == 93
+        @test a == 201 && b == 714 && c == 85
 
         rng = StableRNG(89);
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 208 && b == 691 && c == 101
+        @test a == 173 && b == 733 && c == 94
     end
 
     @testset "probability vector unspecified (uniform)" begin
@@ -245,12 +245,12 @@ end
         rng = StableRNG(55)
         dict = Dist.countmap(rand(rng,s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 320 && b == 340 && c == 340
+        @test a == 361 && b == 335 && c == 304
 
         rng = StableRNG(550)
         dict = Dist.countmap(rand(rng, s, 1000))
         c, a, b = map(x -> dict[x], collect("cab"))
-        @test a == 347 && b == 320 && c == 333
+        @test a == 332 && b == 356 && c == 312
     end
 
 end
