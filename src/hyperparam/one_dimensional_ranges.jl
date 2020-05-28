@@ -47,9 +47,11 @@ Define a one-dimensional `NominalRange` object for a field `hyper` of
 `model`. Note that `r` is not directly iterable but `iterator(r)`
 is. 
 
-The behaviour of range methods depends on the type of the value of the
-hyperparameter at `model` during range construction. To override (or
-if `model` is not available) specify a type in place of `model`.
+By default, the behaviour of range methods depends on the type of the value of the
+hyperparameter `:hyper` at `model` during range construction. 
+
+To override this behaviour (for instance if `model` is not available) specify a type
+in place of `model` so the behaviour depends on the value of the specified type.
 
 A nested hyperparameter is specified using dot notation. For example,
 `:(atom.max_depth)` specifies the `max_depth` hyperparameter of
@@ -58,7 +60,7 @@ the submodel `model.atom`.
     r = range(model, :hyper; upper=nothing, lower=nothing,
               scale=nothing, values=nothing)
 
-Assuming `values` is not specified, define a one-dimensional
+Assuming `values` is not specified, defines a one-dimensional
 `NumericRange` object for a `Real` field `hyper` of `model`.  Note
 that `r` is not directly iteratable but `iterator(r, n)`is an iterator
 of length `n`. To generate random elements from `r`, instead apply
@@ -146,10 +148,8 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         end
     end
-    #typeof(lower) <: Union{Float64, T} || throw(ArgumentError("`lower` must either be `-Inf`"
-    #        * "or a finite value of type $(T)."  ))
-    #typeof(upper) <: Union{Float64, T} || throw(ArgumentError("`upper` must either be `Inf`"
-    #        * "or a finite value of type $(T)."  ))
+    lower isa Union(T, Float64} || (lower = convert(T, lower)
+    upper isa Union(T, Float64} || (upper = convert(T, upper)
     scale isa Symbol && (D = Symbol)
     return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
 end
