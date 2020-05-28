@@ -75,14 +75,14 @@ function MMI.UnivariateFinite(::FI,
     # After https://github.com/JuliaData/CategoricalArrays.jl/issues/269
     # is resolved:
     # OPTION A BEGINS
-    # given_classes  = keys(prob_given_class) |> collect |> sort
+    given_classes  = keys(prob_given_class) |> collect |> sort
     # OPTION A ENDS
 
     # Hack for now:
     # OPTION B BEGINS
-    given_classes_unsorted = keys(prob_given_class) |> collect
-    given_classes_int = int.(given_classes_unsorted) |> sort
-    given_classes = parent_classes[given_classes_int]
+    # given_classes_unsorted = keys(prob_given_class) |> collect
+    # given_classes_int = int.(given_classes_unsorted) |> sort
+    # given_classes = parent_classes[given_classes_int]
     # OPTION B ENDS
 
     given_probs    = values(prob_given_class)
