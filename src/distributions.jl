@@ -58,6 +58,10 @@ function Base.show(stream::IO, d::UnivariateFinite)
     str *= ")"
     print(stream, str)
 end
+function Base.show(stream::IO, ::MIME"text/plain", d::UnivariateFinite)
+    show(stream, d)
+    print(stream, " ($(_scitype(d)) samples)")
+end
 
 
 """
