@@ -175,7 +175,7 @@ function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,T}, x) where T
 end
 
 function pdf(u::UnivariateFiniteVector{C}, x) where {C}
-    i = findfirst(u.classes .== x)
+    i = findfirst(u.support .== x)
     i === nothing && throw(DomainError("Value not in pool. "))
     if C == 2
         return i == 1 ? 1 .- u.scores : u.scores
@@ -199,9 +199,9 @@ end
 
 mode(v::Vector{UnivariateFinite}) = mode.(v)
 mode(u::UnivariateFiniteVector{2}) =
-    [u.classes[ifelse(s > 0.5, 2, 1)] for s in u.scores]
+    [u.support[ifelse(s > 0.5, 2, 1)] for s in u.scores]
 mode(u::UnivariateFiniteVector{C}) where {C} =
-    [u.classes[findmax(s)[2]] for s in eachrow(u.scores)]
+    [u.support[findmax(s)[2]] for s in eachrow(u.scores)]
 
 """
     _cumulative(d::UnivariateFinite)

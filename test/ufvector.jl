@@ -12,19 +12,19 @@ c   = 3
 
 @testset "Constr:binary" begin
     scores  = rand(rng, n)
-    classes = ["class1", "class2"]
+    support = ["class1", "class2"]
 
-    u = UV(classes, scores)
+    u = UV(support, scores)
     @test length(u) == n
     @test size(u) == (n,)
     @test u.scores[1] == scores[1]
-    @test u.classes[1] == classes[1]
-    @test u.classes[2] == classes[2]
+    @test u.support[1] == support[1]
+    @test u.support[2] == support[2]
 
-    # autoclasses
+    # autosupport
     u = UV(scores)
-    @test u.classes[1] == :negative
-    @test u.classes[2] == :positive
+    @test u.support[1] == :negative
+    @test u.support[2] == :positive
 
     # errors
     scores = [-1,0,1]
@@ -39,11 +39,11 @@ end
     u   = UV(P)
 
     @test length(u) == n
-    @test length(u.classes) == c
+    @test length(u.support) == c
     @test size(u) == (n,)
-    @test u.classes[1] == :class_1
-    @test u.classes[2] == :class_2
-    @test u.classes[3] == :class_3
+    @test u.support[1] == :class_1
+    @test u.support[2] == :class_2
+    @test u.support[3] == :class_3
 end
 
 @testset "Get and Set" begin
@@ -52,10 +52,10 @@ end
     u = UV(s)
 
     @test u[1] isa UnivariateFinite
-    @test all(MLJBase.classes(u[1]) .== u.classes)
+    @test all(MLJBase.classes(u[1]) .== u.support)
 
     u[1] = 0.3
-    @test pdf(u[1], u.classes[2]) == 0.3
+    @test pdf(u[1], u.support[2]) == 0.3
     u[1:2] = [0.3,0.2]
     @test pdf(u[2], :positive) == 0.2
 
@@ -68,15 +68,15 @@ end
     u   = UV(P)
 
     @test u[1] isa UnivariateFinite
-    @test all(MLJBase.classes(u[1]) .== u.classes)
+    @test all(MLJBase.classes(u[1]) .== u.support)
 
     u[1] = [0.3, 0.5, 0.2]
-    @test pdf(u[1], u.classes[1]) == 0.3
-    @test pdf(u[1], u.classes[2]) == 0.5
-    @test pdf(u[1], u.classes[2]) == 0.5
+    @test pdf(u[1], u.support[1]) == 0.3
+    @test pdf(u[1], u.support[2]) == 0.5
+    @test pdf(u[1], u.support[2]) == 0.5
     u[1:2] = [0.3 0.4 0.3; 0.2 0.2 0.6]
-    @test pdf(u[1], u.classes[2]) == 0.4
-    @test pdf(u[2], u.classes[3]) == 0.6
+    @test pdf(u[1], u.support[2]) == 0.4
+    @test pdf(u[2], u.support[3]) == 0.6
 
     @test_throws DomainError (u[1] = [-0.2,0.3,0.9])
     @test_throws DomainError (u[1:2] = rand(2,3))
@@ -90,7 +90,7 @@ end
     @test pdf(u, :negative) == 1 .- s
     @test pdf.(u, :negative) == 1 .- s
     @test mode(u) isa CategoricalArray
-    expected = [ifelse(si > 0.5, u.classes[2], u.classes[1]) for si in s]
+    expected = [ifelse(si > 0.5, u.support[2], u.support[1]) for si in s]
     @test all(mode(u) .== expected)
     @test mode.(u) isa CategoricalArray
     @test all(mode.(u) .== expected)
@@ -102,7 +102,7 @@ end
     u   = UV(P)
     @test pdf(u, :class_1) == P[:,1]
     @test pdf.(u, :class_1) == P[:,1]
-    expected = u.classes[[findmax(r)[2] for r in eachrow(P)]]
+    expected = u.support[[findmax(r)[2] for r in eachrow(P)]]
     @test all(mode(u) .== expected)
     @test all(mode.(u) .== expected)
 end
