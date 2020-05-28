@@ -52,7 +52,6 @@ Tables = "^0.2,^1.0"
 julia = "1"
 
 [extras]
-CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
@@ -64,4 +63,5 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [targets]
-test = ["CSV", "DataFrames", "DecisionTree", "Distances", "Logging", "NearestNeighbors", "MultivariateStats", "Test", "TypedTables", "StableRNGs"]
+test = ["DataFrames", "DecisionTree", "Distances", "Logging", "NearestNeighbors", "MultivariateStats", "Test", "TypedTables"]
+

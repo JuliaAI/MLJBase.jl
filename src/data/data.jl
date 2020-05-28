@@ -126,7 +126,9 @@ end
 
 
 """
+
     t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
+
 
 Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
