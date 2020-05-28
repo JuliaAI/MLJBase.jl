@@ -1,4 +1,4 @@
-# Extend Distributions type hiearchy to account for non-euclidean supports
+# Extend Ditributions type hiearchy to account for non-euclidean supports
 abstract type NonEuclidean <: Dist.ValueSupport end
 
 const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
@@ -31,7 +31,7 @@ _classes(::Nothing) = throw(ArgumentError(
     "`CategoricalArray` or "*
     "CategoricalValue` with a complete pool;\n"*
     "(ii) Specify `pool=missing` to create a "*
-    "new pool limited to the classes given. \n In case (ii) you must "*
+    "new pool limited to the classes given. \nIn case (ii) you must "*
     "also specify `ordered=true` to order the pool. "))
 
 prob_error = ArgumentError("Probabilities must have `Real` type. ")
@@ -44,10 +44,13 @@ MMI.UnivariateFinite(::FI, d::AbstractDict; kwargs...) = throw(prob_error)
 function MMI.UnivariateFinite(::FI, d::AbstractDict{C,T};
                               pool=nothing,
                               ordered=false) where {C,T<:Real}
+
     if ismissing(pool)
         v = categorical(collect(keys(d)), ordered=ordered, compress=true)
         classes = _classes(v)
     else
+        ordered && @warn "Ignoring `ordered` key-word argument as using "*
+        "existing pool. "
         raw_support = keys(d) |> collect
         classes = filter(_classes(pool)) do c
             c in raw_support

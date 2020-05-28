@@ -34,6 +34,7 @@ end
     @test classes(d) == classes(s)
     @test levels(d) == levels(s)
     @test support(d) == [f, q, s]
+    @test MLJBase._scitype(d) == OrderedFactor{4}
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]
@@ -66,12 +67,12 @@ end
     #
     # unordered (Multiclass):
     dict = Dict(S=>0.1, Q=> 0.2, F=> 0.7)
-    dict = Dict(s=>0.1, q=> 0.2, f=> 0.7)
     d    = UnivariateFinite(dict)
     @test classes(d) == [a, f, q, s]
     @test classes(d) == classes(s)
     @test levels(d) == levels(s)
     @test support(d) == [f, q, s]
+    @test MLJBase._scitype(d) == Multiclass{4}
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]

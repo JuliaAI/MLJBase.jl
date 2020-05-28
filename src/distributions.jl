@@ -43,6 +43,8 @@ Ordered list of classes associated with non-zero probabilities.
 """
 Distributions.support(d::UnivariateFinite) = map(d.decoder, raw_support(d))
 
+_scitype(d::UnivariateFinite) = scitype(first(classes(d)))
+
 function Base.show(stream::IO, d::UnivariateFinite)
     raw = raw_support(d) # reflects order of pool at
                          # instantiation of d
