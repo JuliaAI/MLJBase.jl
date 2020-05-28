@@ -148,8 +148,8 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         end
     end
-    lower isa Union(T, Float64} || (lower = convert(T, lower)
-    upper isa Union(T, Float64} || (upper = convert(T, upper)
+    lower isa Union{T, Float64} || (lower = convert(T, lower)
+    upper isa Union{T, Float64} || (upper = convert(T, upper)
     scale isa Symbol && (D = Symbol)
     return NumericRange{T,B,D}(field, lower, upper, origin, unit, scale)
 end
