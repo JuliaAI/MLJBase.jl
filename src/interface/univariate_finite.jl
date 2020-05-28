@@ -47,17 +47,21 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{C,T};
 
     if ismissing(pool)
         v = categorical(collect(keys(d)), ordered=ordered, compress=true)
-        classes = _classes(v)
+        support = _classes(v)
     else
         ordered && @warn "Ignoring `ordered` key-word argument as using "*
         "existing pool. "
         raw_support = keys(d) |> collect
-        classes = filter(_classes(pool)) do c
+        classes = _classes(pool)
+        issubset(raw_support, classes) ||
+            error("Specified support, $raw_support, not contained in "*
+                  "specified pool, $(levels(classes)). ")
+        support = filter(classes) do c
             c in raw_support
         end
     end
 
-    prob_given_class = LittleDict([c=>d[get(c)] for c in classes])
+    prob_given_class = LittleDict([c=>d[get(c)] for c in support])
 
     return UnivariateFinite(FI(), prob_given_class)
 end
@@ -91,7 +95,7 @@ end
 
 ## CONSTRUCTORS - FROM VECTORS
 
-MMI.UnivariateFinite(::FI, c::AbstractVector, p; kwargs...) =
+MMI.UnivariateFinite(::FI, ::AbstractVector, ::AbstractVector; kwargs...) =
     throw(prob_error)
 
 # Univariate Finite from a vector of classes and vector of probs
