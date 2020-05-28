@@ -168,7 +168,7 @@ end
 
 #specific def for T<:AbstractFloat(Allows conversion btw AbstractFloats and Signed types)
 function nominal_range(::Type{T}, field, 
-        values::AbstractVector{<:<:Union{AbstractFloat,Signed}}) where T<: AbstractFloat
+        values::AbstractVector{<:Union{AbstractFloat,Signed}}) where T<: AbstractFloat
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
 
