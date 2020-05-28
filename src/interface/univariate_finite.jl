@@ -31,8 +31,8 @@ _classes(::Nothing) = throw(ArgumentError(
     "`CategoricalArray` or "*
     "CategoricalValue` with a complete pool;\n"*
     "(ii) Specify `pool=missing` to create a "*
-    "new pool limited to the classes given. \nIn case (ii) you must "*
-    "also specify `ordered=true` to order the pool. "))
+    "new pool with given classes as labels.\nIn case (ii) you must "*
+    "also specify `ordered=true` if samples are to be `OrderedFactor`. "))
 
 prob_error = ArgumentError("Probabilities must have `Real` type. ")
 
@@ -96,14 +96,34 @@ MMI.UnivariateFinite(::FI, c::AbstractVector, p; kwargs...) =
 
 # Univariate Finite from a vector of classes and vector of probs
 function MMI.UnivariateFinite(::FI,
-                              c::AbstractVector{C},
-                              p::AbstractVector{P};
+                              support::AbstractVector{C},
+                              probs::AbstractVector{P};
                               kwargs...) where {C,P<:Real}
     # check that the vectors have appropriate length
-    Dist.@check_args(UnivariateFinite, length(c) == length(p))
+    Dist.@check_args(UnivariateFinite, length(support) == length(probs))
 
     # it's necessary to force the typing of the LittleDict otherwise it
     # flips to Any type (unlike regular Dict):
-    prob_given_class = LittleDict{C,P}(c[i] => p[i] for i in eachindex(c))
+    prob_given_class = LittleDict{C,P}(support[i] => probs[i]
+                                       for i in eachindex(support))
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
+end
+
+function MMI.UnivariateFinite(::FI,
+                              probs::AbstractVector{P};
+                              pool=nothing,
+                              ordered=false,
+                              kwargs...) where P<:Real
+
+    ismissing(pool) ||
+        error("No support specified. To automatically generate labels for "*
+              "a new categorical pool, specify `pool=missing`. "*
+              "Additionally specify `ordered=true` if samples "*
+              "are to be `OrderedFactor`. ")
+
+    support = categorical([Symbol("class_$i") for i in 1:length(probs)],
+                          ordered=ordered,
+                          compress=true)
+
+    return MMI.UnivariateFinite(FI(), support, probs; pool=pool, kwargs...)
 end

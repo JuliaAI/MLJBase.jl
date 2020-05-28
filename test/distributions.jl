@@ -101,6 +101,11 @@ end
     @test isapprox(freq[F]/N, 0.7, atol=0.05)
     @test isapprox(freq[S]/N, 0.1, atol=0.05)
     @test isapprox(freq[Q]/N, 0.2, atol=0.05)
+
+    # no support specified:
+    @test_throws Exception UnivariateFinite([0.7, 0.3])
+    d = UnivariateFinite([0.7, 0.3], pool=missing)
+    @test pdf(d, :class_1) == 0.7
 end
 
 @testset "constructor arguments not categorical values" begin
