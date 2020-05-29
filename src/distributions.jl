@@ -30,7 +30,7 @@ construct `d`, equal to `get.(classes(d))`.
 levels(d::UnivariateFinite)  = get.(classes(d))
 
 # get the internal integer representations of the support
-raw_support(d::UnivariateFinite) = collect(keys(d.prob_given_class))
+raw_support(d::UnivariateFinite) = collect(keys(d.prob_given_ref))
 
 """
     Distributions.support(d::UnivariateFinite)
@@ -49,9 +49,9 @@ function Base.show(stream::IO, d::UnivariateFinite)
     raw = raw_support(d) # reflects order of pool at
                          # instantiation of d
     x1 = d.decoder(first(raw))
-    p1 = d.prob_given_class[first(raw)]
+    p1 = d.prob_given_ref[first(raw)]
     str = "UnivariateFinite($x1=>$(round(p1, sigdigits=3))"
-    pairs = (d.decoder(r)=>d.prob_given_class[r] for r in raw[2:end])
+    pairs = (d.decoder(r)=>d.prob_given_ref[r] for r in raw[2:end])
     for pair in pairs
         str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
     end
@@ -100,14 +100,14 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     end
 
     # get all refs:
-    refs = Tuple(reduce(union, [keys(d.prob_given_class) for d in dvec]))
+    refs = reduce(union, [keys(d.prob_given_ref) for d in dvec]) |> collect
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_class = LittleDict{U,T}(refs, zeros(T, length(refs)))
+    prob_given_ref = LittleDict{U,T}([refs...], zeros(T, length(refs)))
 
     # make vector of all the distributions dicts padded to have same common keys:
-    prob_given_class_vec = map(dvec) do d
-        merge(prob_given_class, d.prob_given_class)
+    prob_given_ref_vec = map(dvec) do d
+        merge(prob_given_ref, d.prob_given_ref)
     end
 
     # sum up:
@@ -115,25 +115,25 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
         scale = 1/n
         for x in refs
             for k in 1:n
-                prob_given_class[x] += scale*prob_given_class_vec[k][x]
+                prob_given_ref[x] += scale*prob_given_ref_vec[k][x]
             end
         end
     else
         scale = 1/sum(weights)
         for x in refs
             for k in 1:n
-                prob_given_class[x] +=
-                    weights[k]*prob_given_class_vec[k][x]*scale
+                prob_given_ref[x] +=
+                    weights[k]*prob_given_ref_vec[k][x]*scale
             end
         end
     end
 
-    return UnivariateFinite(first(dvec).decoder, prob_given_class)
+    return UnivariateFinite(first(dvec).decoder, prob_given_ref)
 end
 
 
 function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
-    return get(d.prob_given_class, ref, zero(T))
+    return get(d.prob_given_ref, ref, zero(T))
 end
 
 """
@@ -185,7 +185,7 @@ function pdf(u::UnivariateFiniteVector{C}, x) where {C}
 end
 
 function Distributions.mode(d::UnivariateFinite)
-    dic = d.prob_given_class
+    dic = d.prob_given_ref
     p = values(dic)
     max_prob = maximum(p)
     m = first(first(dic)) # mode, just some ref for now
@@ -216,7 +216,7 @@ according to the categorical elements used at instantiation of
 function _cumulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
 
     # the keys of `d` are in order; see constructor
-    p = collect(values(d.prob_given_class))
+    p = collect(values(d.prob_given_ref))
     K = length(p)
     p_cumulative = Array{T}(undef, K + 1)
     p_cumulative[1] = zero(T)

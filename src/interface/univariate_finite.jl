@@ -3,15 +3,16 @@ abstract type NonEuclidean <: Dist.ValueSupport end
 
 const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 
-# V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
+# S - size of support (>=2)
 # R - reference type <: Unsigned
+# V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
 # P - raw probability type
 
 # Note that the keys of `prob_given_class` need not exhaust all the
 # refs of all classes but will be ordered (LittleDicts preserve order)
 struct UnivariateFinite{V,R,P<:Real} <: UnivariateFiniteSuper
     decoder::CategoricalDecoder{V,R}
-    prob_given_class::LittleDict{R,P} # here "class" actually means "ref"
+    prob_given_ref::LittleDict{R,P,Vector{R}, Vector{P}}
 end
 
 

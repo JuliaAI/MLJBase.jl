@@ -25,8 +25,8 @@ const CVal = CategoricalValue
 # https://juliadata.github.io/CategoricalArrays.jl/stable/implementation.html
 
 # S - size of support (>=2)
-# C - type of categorical values, ie, CategoricalValue{V,R} for some V and R
 # R - reference type <: Unsigned
+# C - type of categorical values, ie, CategoricalValue{V,R} for some V and R
 # P - type of probabilities
 # E - type of slices of probs, either P (binary) or Vector{P} (multiclass)
 

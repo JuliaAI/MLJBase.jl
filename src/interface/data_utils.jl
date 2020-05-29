@@ -36,16 +36,16 @@ MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
 # ------------------------------------------------------------------------
 # decoder
 
-struct CategoricalDecoder{T,R}
-    classes::CategoricalVector{T,R}
+struct CategoricalDecoder{V,R}
+    classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
 end
 
 MMI.decoder(::FI, x::CategoricalValue) =
     CategoricalDecoder(classes(x))
 MMI.decoder(::FI, v::CategoricalArray) = decoder(first(v))
 
-(d::CategoricalDecoder{T,R})(i::Integer) where {T,R} =
-    CategoricalValue{T,R}(d.classes[i])
+(d::CategoricalDecoder{V,R})(i::Integer) where {V,R} =
+    CategoricalValue{V,R}(d.classes[i])
 (d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
 
 # ------------------------------------------------------------------------
