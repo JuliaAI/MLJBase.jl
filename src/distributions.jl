@@ -84,8 +84,8 @@ function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
     return true
 end
 
-function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
-                 weights=nothing) where {L,U,T}
+function average(dvec::AbstractVector{UnivariateFinite{V,R,P}};
+                 weights=nothing) where {V,R,P}
 
     n = length(dvec)
 
@@ -103,7 +103,7 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
     refs = reduce(union, [keys(d.prob_given_ref) for d in dvec]) |> collect
 
     # initialize the prob dictionary for the distribution sum:
-    prob_given_ref = LittleDict{U,T}([refs...], zeros(T, length(refs)))
+    prob_given_ref = LittleDict{R,P}([refs...], zeros(P, length(refs)))
 
     # make vector of all the distributions dicts padded to have same common keys:
     prob_given_ref_vec = map(dvec) do d
@@ -132,8 +132,8 @@ function average(dvec::AbstractVector{UnivariateFinite{L,U,T}};
 end
 
 
-function _pdf(d::UnivariateFinite{L,U,T}, ref) where {L,U,T}
-    return get(d.prob_given_ref, ref, zero(T))
+function _pdf(d::UnivariateFinite{V,R,P}, ref) where {V,R,P}
+    return get(d.prob_given_ref, ref, zero(P))
 end
 
 """
@@ -166,13 +166,13 @@ See also `classes`, `support`.
 Distributions.pdf(d::UnivariateFinite, x::CategoricalValue) = _pdf(d, int(x))
 
 # probably slow:
-function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,T}, x) where T
+function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,P}, x) where P
     x in classes(d) || throw(DomainError("Value not in pool. "))
     _support = Distributions.support(d)
      for j in eachindex(_support)
         x == _support[j] && return pdf(d, _support[j])
      end
-    return zero(T)
+    return zero(P)
 end
 
 function pdf(u::UnivariateFiniteVector{C}, x) where {C}
@@ -213,14 +213,14 @@ according to the categorical elements used at instantiation of
 `d`. Used only to implement random sampling from `d`.
 
 """
-function _cumulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
+function _cumulative(d::UnivariateFinite{V,R,P}) where {V,R,P<:Real}
 
     # the keys of `d` are in order; see constructor
     p = collect(values(d.prob_given_ref))
     K = length(p)
-    p_cumulative = Array{T}(undef, K + 1)
-    p_cumulative[1] = zero(T)
-    p_cumulative[K + 1] = one(T)
+    p_cumulative = Array{P}(undef, K + 1)
+    p_cumulative[1] = zero(P)
+    p_cumulative[K + 1] = one(P)
     for i in 2:K
         p_cumulative[i] = p_cumulative[i-1] + p[i-1]
     end
@@ -228,39 +228,39 @@ function _cumulative(d::UnivariateFinite{L,U,T}) where {L,U,T<:Real}
 end
 
 """
-_rand(rng, p_cumulative, U)
+_rand(rng, p_cumulative, R)
 
-Randomly sample the distribution with discrete support `U(1):U(n)`
+Randomly sample the distribution with discrete support `R(1):R(n)`
 which has cumulative probability vector `p_cumulative=[0, ..., 1]` (of
 length `n+1`). Does not check the first and last elements of
 `p_cumulative` but does not use them either.
 
 """
-function _rand(rng, p_cumulative, U)
+function _rand(rng, p_cumulative, R)
     real_sample = rand(rng)
-    K = U(length(p_cumulative))
+    K = R(length(p_cumulative))
     index = K
-    for i in U(2):U(K)
+    for i in R(2):R(K)
         if real_sample < p_cumulative[i]
-            index = i - U(1)
+            index = i - R(1)
             break
         end
     end
     return index
 end
 
-function Base.rand(rng::AbstractRNG, d::UnivariateFinite{<:Any,U}) where U
+function Base.rand(rng::AbstractRNG, d::UnivariateFinite{<:Any,R}) where R
     p_cumulative = _cumulative(d)
-    return Distributions.support(d)[_rand(rng, p_cumulative, U)]
+    return Distributions.support(d)[_rand(rng, p_cumulative, R)]
 end
 
 function Base.rand(rng::AbstractRNG,
-                   d::UnivariateFinite{<:Any, U},
-                   dim1::Int, moredims::Int...) where U # ref type
+                   d::UnivariateFinite{<:Any, R},
+                   dim1::Int, moredims::Int...) where R # ref type
     p_cumulative = _cumulative(d)
-    A = Array{U}(undef, dim1, moredims...)
+    A = Array{R}(undef, dim1, moredims...)
     for i in eachindex(A)
-        @inbounds A[i] = _rand(rng, p_cumulative, U)
+        @inbounds A[i] = _rand(rng, p_cumulative, R)
     end
     support = Distributions.support(d)
     return broadcast(i -> support[i], A)
@@ -269,8 +269,8 @@ end
 rng(d::UnivariateFinite, args...) = rng(Random.GLOBAL_RNG, d, args...)
 
 function Distributions.fit(d::Type{<:UnivariateFinite},
-                           v::AbstractVector{L}) where L
-    L <: CategoricalValue ||
+                           v::AbstractVector{C}) where C
+    C <: CategoricalValue ||
         error("Can only fit a UnivariateFinite distribution to samples of "*
               "`CategoricalValue type`. ")
     y = skipmissing(v) |> collect
@@ -284,16 +284,15 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
 end
 
 function Distributions.fit(d::Type{<:UnivariateFinite},
-                           v::AbstractVector{L},
-                           weights::Nothing) where L
+                           v::AbstractVector{C},
+                           weights::Nothing) where C
     return Distributions.fit(d, v)
 end
 
-
 function Distributions.fit(d::Type{<:UnivariateFinite},
-                           v::AbstractVector{L},
-                           weights::AbstractVector{<:Real}) where L
-    L <: CategoricalValue ||
+                           v::AbstractVector{C},
+                           weights::AbstractVector{<:Real}) where C
+    C <: CategoricalValue ||
         error("Can only fit a UnivariateFinite distribution to samples of "*
               "`CategoricalValue` type. ")
     y = broadcast(identity, skipmissing(v))
@@ -301,7 +300,7 @@ function Distributions.fit(d::Type{<:UnivariateFinite},
     classes_seen = filter(in(unique(y)), classes(y[1]))
 
     # instantiate and initialize prob dictionary:
-    prob_given_class = LittleDict{L,Float64}()
+    prob_given_class = LittleDict{C,Float64}()
     for c in classes_seen
         prob_given_class[c] = 0
     end
