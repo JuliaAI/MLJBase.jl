@@ -34,7 +34,7 @@ end
     @test classes(d) == classes(s)
     @test levels(d) == levels(s)
     @test support(d) == [f, q, s]
-    @test MLJBase._scitype(d) == OrderedFactor{4}
+    @test MLJBase.sample_scitype(d) == OrderedFactor{4}
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]
@@ -72,7 +72,7 @@ end
     @test classes(d) == classes(s)
     @test levels(d) == levels(s)
     @test support(d) == [f, q, s]
-    @test MLJBase._scitype(d) == Multiclass{4}
+    @test MLJBase.sample_scitype(d) == Multiclass{4}
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]
@@ -109,18 +109,18 @@ end
 end
 
 @testset "constructor arguments not categorical values" begin
-    @test_throws(ArgumentError,
-                 UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
-    @test_throws(ArgumentError,
+    @test_logs((:warn, r"No "),
+               UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
+    @test_throws(MethodError,
                  UnivariateFinite(Dict('f'=>"junk", 'q'=>0.2, 's'=>0.1),
                                   pool=missing))
     d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=missing)
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, 's') ≈ 0.1
     @test pdf(d, 'q') ≈ 0.2
-    @test_throws(ArgumentError,
-                 UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
-    @test_throws(ArgumentError,
+    @test_logs((:warn, r"No "),
+               UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
+    @test_throws(MethodError,
                  UnivariateFinite(['f', 'q', 's'],  ["junk", 0.2, 0.1],
                                   pool=missing))
     d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=missing)
@@ -225,6 +225,7 @@ end
 @testset "UnivariateFinite arithmetic" begin
     v = categorical(collect("abc"))
     a , b, c = v[1], v[2], v[3]
+
     d1  = UnivariateFinite([a, b], [0.2, 0.8])
     d2  = UnivariateFinite([b, c], [0.3, 0.7])
     dvec = [d1, d2]

@@ -247,9 +247,9 @@ include("info_dict.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 include("interface/univariate_finite.jl")
-include("interface/univariate_finite_vector.jl")
 
 include("distributions.jl")
+include("univariate_finite_array.jl")
 
 include("machines.jl")
 

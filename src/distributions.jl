@@ -1,11 +1,13 @@
-support_scitype(::Type) = Unknown
-support_scitype(d) = support_scitype(typeof(d))
-support_scitype(::Type{<:UnivariateFinite}) = Finite
-
 # NOTE: see also interface/univariate_finite.jl
+
+const UnivariateFiniteUnion{S,V,R,P} =
+    Union{UnivariateFinite{S,V,R,P}, UnivariateFiniteArray{S,V,R,P}}
+
+# NOT EXPORTED!!!!
 
 """
     classes(d::UnivariateFinite)
+    classes(d::UnivariateFiniteArray)
 
 A list of categorial elements in the common pool of classes used to
 construct `d`.
@@ -15,10 +17,11 @@ construct `d`.
     classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "yes"]
 
 """
-MMI.classes(d::UnivariateFinite) = d.decoder.classes
+MMI.classes(d::UnivariateFiniteUnion) = d.decoder.classes
 
 """
     levels(d::UnivariateFinite)
+    levels(d::UnivariateFiniteArray)
 
 A list of the raw levels in the common pool of classes used to
 construct `d`, equal to `get.(classes(d))`.
@@ -26,31 +29,38 @@ construct `d`, equal to `get.(classes(d))`.
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
     levels(d) # Array{String, 1}["maybe", "no", "yes"]
+
 """
-levels(d::UnivariateFinite)  = get.(classes(d))
+levels(d::UnivariateFiniteUnion)  = get.(classes(d))
 
 # get the internal integer representations of the support
-raw_support(d::UnivariateFinite) = collect(keys(d.prob_given_ref))
+raw_support(d::UnivariateFiniteUnion) = collect(keys(d.prob_given_ref))
 
 """
     Distributions.support(d::UnivariateFinite)
+    Distributions.support(d::UnivariateFiniteArray)
 
 Ordered list of classes associated with non-zero probabilities.
 
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
     support(d) # CategoricalArray{String,1,UInt32}["maybe", "no"]
-"""
-Distributions.support(d::UnivariateFinite) = map(d.decoder, raw_support(d))
 
-_scitype(d::UnivariateFinite) = scitype(first(classes(d)))
+"""
+Distributions.support(d::UnivariateFiniteUnion) =
+    map(d.decoder, raw_support(d))
+
+sample_scitype(d::UnivariateFiniteUnion) = d.scitype
+
+
+## DISPLAY
 
 function Base.show(stream::IO, d::UnivariateFinite)
     raw = raw_support(d) # reflects order of pool at
                          # instantiation of d
     x1 = d.decoder(first(raw))
     p1 = d.prob_given_ref[first(raw)]
-    str = "UnivariateFinite($x1=>$(round(p1, sigdigits=3))"
+    str = "UnivariateFinite{$(d.scitype)}($x1=>$(round(p1, sigdigits=3))"
     pairs = (d.decoder(r)=>d.prob_given_ref[r] for r in raw[2:end])
     for pair in pairs
         str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
@@ -59,33 +69,66 @@ function Base.show(stream::IO, d::UnivariateFinite)
     print(stream, str)
 end
 
-function Base.show(stream::IO, ::MIME"text/plain", d::UnivariateFinite)
-    show(stream, d)
-    print(stream, " ($(_scitype(d)) samples)")
+# function Base.show(stream::IO, ::MIME"text/plain", d::UnivariateFinite)
+#     show(stream, d)
+#     print(stream, " ($(sample_scitype(d)) samples)")
+# end
+
+show_prefix(u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P} =
+    "$(length(u))-element"
+show_prefix(u::UnivariateFiniteArray) = join(size(u),'x')
+
+function show_compact(io::IO, v)
+    K = 4
+    n = length(v)
+    if !isempty(v)
+        for i in 1:min(n - 1, K - 1)
+            println(io, " ", v[i])
+        end
+        if n > K
+            println(io, "   ⋮")
+        end
+        if n > 1
+            println(" ", last(v))
+        end
+    end
+end
+
+function Base.show(io::IO,
+                   u::UnivariateFiniteArray{S,V,R,P,N}) where {S,V,R,P,N}
+    print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,$N}(...)")
+end
+
+function Base.show(io::IO, m::MIME"text/plain",
+                   u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P}
+    support = get.(Dist.support(u))
+    println(io, show_prefix(u), " UnivariateFiniteVector{$S,$V,$R,$P}:")
+    show_compact(io, u)
 end
 
 
 """
     isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
 
-Returns `true` if and only if `Set(classes(d1) == Set(classes(d2))` and the
-corresponding probabilities are approximately equal. The key-word arguments
-`kwargs` are passed through to each call of `isapprox` on probability pairs.
-Returns `false` otherwise.
+Returns `true` if and only if `d1` and `d2` have the same support and
+the corresponding probabilities are approximately equal. The key-word
+arguments `kwargs` are passed through to each call of `isapprox` on
+probability pairs.  Returns `false` otherwise.
+
 """
 function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
-    classes1 = classes(d1)
-    classes2 = classes(d2)
-    for c in classes1
-        c in classes2 || return false
+    support1 = Dist.support(d1)
+    support2 = Dist.support(d2)
+    for c in support1
+        c in support2 || return false
         isapprox(pdf(d1, c), pdf(d2, c); kwargs...) ||
             return false # pdf defined below
     end
     return true
 end
 
-function average(dvec::AbstractVector{UnivariateFinite{V,R,P}};
-                 weights=nothing) where {V,R,P}
+function average(dvec::AbstractVector{UnivariateFinite{S,V,R,P}};
+                 weights=nothing) where {S,V,R,P}
 
     n = length(dvec)
 
@@ -127,12 +170,12 @@ function average(dvec::AbstractVector{UnivariateFinite{V,R,P}};
             end
         end
     end
-
-    return UnivariateFinite(first(dvec).decoder, prob_given_ref)
+    d1 = first(dvec)
+    return UnivariateFinite(sample_scitype(d1), d1.decoder, prob_given_ref)
 end
 
 
-function _pdf(d::UnivariateFinite{V,R,P}, ref) where {V,R,P}
+function _pdf(d::UnivariateFinite{S,V,R,P}, ref) where {S,V,R,P}
     return get(d.prob_given_ref, ref, zero(P))
 end
 
@@ -166,7 +209,7 @@ See also `classes`, `support`.
 Distributions.pdf(d::UnivariateFinite, x::CategoricalValue) = _pdf(d, int(x))
 
 # probably slow:
-function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,P}, x) where P
+function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,<:Any,P}, x) where P
     x in classes(d) || throw(DomainError("Value not in pool. "))
     _support = Distributions.support(d)
      for j in eachindex(_support)
@@ -213,7 +256,7 @@ according to the categorical elements used at instantiation of
 `d`. Used only to implement random sampling from `d`.
 
 """
-function _cumulative(d::UnivariateFinite{V,R,P}) where {V,R,P<:Real}
+function _cumulative(d::UnivariateFinite{S,V,R,P}) where {S,V,R,P<:Real}
 
     # the keys of `d` are in order; see constructor
     p = collect(values(d.prob_given_ref))
@@ -249,13 +292,14 @@ function _rand(rng, p_cumulative, R)
     return index
 end
 
-function Base.rand(rng::AbstractRNG, d::UnivariateFinite{<:Any,R}) where R
+function Base.rand(rng::AbstractRNG,
+                   d::UnivariateFinite{<:Any,<:Any,R}) where R
     p_cumulative = _cumulative(d)
     return Distributions.support(d)[_rand(rng, p_cumulative, R)]
 end
 
 function Base.rand(rng::AbstractRNG,
-                   d::UnivariateFinite{<:Any, R},
+                   d::UnivariateFinite{<:Any,<:Any,R},
                    dim1::Int, moredims::Int...) where R # ref type
     p_cumulative = _cumulative(d)
     A = Array{R}(undef, dim1, moredims...)

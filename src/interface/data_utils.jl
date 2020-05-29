@@ -40,9 +40,7 @@ struct CategoricalDecoder{V,R}
     classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
 end
 
-MMI.decoder(::FI, x::CategoricalValue) =
-    CategoricalDecoder(classes(x))
-MMI.decoder(::FI, v::CategoricalArray) = decoder(first(v))
+MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
 
 (d::CategoricalDecoder{V,R})(i::Integer) where {V,R} =
     CategoricalValue{V,R}(d.classes[i])
