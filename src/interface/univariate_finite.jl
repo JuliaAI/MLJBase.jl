@@ -3,17 +3,15 @@ abstract type NonEuclidean <: Dist.ValueSupport end
 
 const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 
-# C - original type (eg, Char in `categorical(['a', 'b'])`)
-# U - reference type <: Unsigned
-# T - raw probability type
-# L - subtype of CategoricalValue, eg CategoricalValue{Char,UInt32}
-
+# V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
+# R - reference type <: Unsigned
+# P - raw probability type
 
 # Note that the keys of `prob_given_class` need not exhaust all the
 # refs of all classes but will be ordered (LittleDicts preserve order)
-struct UnivariateFinite{C,U,T<:Real} <: UnivariateFiniteSuper
-    decoder::CategoricalDecoder{C,U}
-    prob_given_class::LittleDict{U,T} # here "class" actually means "ref"
+struct UnivariateFinite{V,R,P<:Real} <: UnivariateFiniteSuper
+    decoder::CategoricalDecoder{V,R}
+    prob_given_class::LittleDict{R,P} # here "class" actually means "ref"
 end
 
 
@@ -41,9 +39,9 @@ prob_error = ArgumentError("Probabilities must have `Real` type. ")
 
 MMI.UnivariateFinite(::FI, d::AbstractDict; kwargs...) = throw(prob_error)
 
-function MMI.UnivariateFinite(::FI, d::AbstractDict{C,T};
+function MMI.UnivariateFinite(::FI, d::AbstractDict{V,P};
                               pool=nothing,
-                              ordered=false) where {C,T<:Real}
+                              ordered=false) where {V,P<:Real}
 
     if ismissing(pool)
         v = categorical(collect(keys(d)), ordered=ordered, compress=true)
@@ -67,7 +65,7 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{C,T};
 end
 
 function MMI.UnivariateFinite(::FI,
-        prob_given_class::AbstractDict{<:CategoricalValue,T}) where T<:Real
+        prob_given_class::AbstractDict{<:CategoricalValue,P}) where P<:Real
 
     # retrieve decoder and classes from element
     an_element     = first(keys(prob_given_class))
@@ -100,15 +98,15 @@ MMI.UnivariateFinite(::FI, ::AbstractVector, ::AbstractVector; kwargs...) =
 
 # Univariate Finite from a vector of classes and vector of probs
 function MMI.UnivariateFinite(::FI,
-                              support::AbstractVector{C},
+                              support::AbstractVector{V},
                               probs::AbstractVector{P};
-                              kwargs...) where {C,P<:Real}
+                              kwargs...) where {V,P<:Real}
     # check that the vectors have appropriate length
     Dist.@check_args(UnivariateFinite, length(support) == length(probs))
 
     # it's necessary to force the typing of the LittleDict otherwise it
     # flips to Any type (unlike regular Dict):
-    prob_given_class = LittleDict{C,P}(support[i] => probs[i]
+    prob_given_class = LittleDict{V,P}(support[i] => probs[i]
                                        for i in eachindex(support))
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
 end

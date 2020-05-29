@@ -21,27 +21,32 @@ _check_dims(c, exp) = length(c) == exp || throw(DimensionMismatch(
 
 const CVal = CategoricalValue
 
-# R: type of probabilities
-# C: size of support (>=2)
-# L: type of the class labels
-# E: type of slices of probs, either R (binary) or Vector{R} (multiclass)
-struct UnivariateFiniteVector{C,L<:CVal,R,E<:Union{R,Vector{R}}} <: Vec{E}
-    support::NTuple{C,L}
-    scores::Array{R}
+# terminology consistent with
+# https://juliadata.github.io/CategoricalArrays.jl/stable/implementation.html
+
+# S - size of support (>=2)
+# C - type of categorical values, ie, CategoricalValue{V,R} for some V and R
+# R - reference type <: Unsigned
+# P - type of probabilities
+# E - type of slices of probs, either P (binary) or Vector{P} (multiclass)
+
+struct UnivariateFiniteVector{S,C<:CVal,P,E<:Union{P,Vector{P}}} <: Vec{E}
+    support::NTuple{S,C}
+    scores::Array{P}
     function UnivariateFiniteVector(c, s::Arr{<:Real,N};
                                     ordered=false) where N
         N <= 2 || throw(DimensionMismatch("Scores must be a VecOrMat."))
         N == 1 ? _check_dims(c, 2) : _check_dims(c, size(s, 2))
         _check_scores(s)
-        C, L, R = length(c), eltype(c), eltype(s)
+        S, C, P = length(c), eltype(c), eltype(s)
         # auto categorical if labels passed as simple vector
-        if !(L <: CategoricalValue)
+        if !(C <: CategoricalValue)
             c = categorical(c, ordered=ordered, compress=true)
-            L = eltype(c)
+            C = eltype(c)
         end
-        E = N == 1 ? R : Vector{R}
+        E = N == 1 ? P : Vector{P}
         cl = c isa NTuple ? c : tuple(c...)
-        new{C,L,R,E}(cl, s)
+        new{S,C,P,E}(cl, s)
     end
 end
 
@@ -72,10 +77,10 @@ function UV(s::Arr{<:Real,2}; ordered=false)
     return UV(c, s)
 end
 
-function Base.show(io::IO, m::MIME"text/plain", u::UV{C}) where {C}
+function Base.show(io::IO, m::MIME"text/plain", u::UV{S}) where {S}
     Base.show(io, m, u.scores)
     support = get.(u.support)
-    type = C == 2 ? "(binary)" : "(multiclass)"
+    type = S == 2 ? "(binary)" : "(multiclass)"
     write(io, """\n
         UnivariateFiniteVector $type
         → length:  $(length(u)),
@@ -89,17 +94,17 @@ end
 Base.length(u::UV) = size(u.scores, 1)
 Base.size(u::UV)   = (size(u.scores, 1),)
 
-function Base.setindex!(u::UV{C}, s, i::Int) where {C}
+function Base.setindex!(u::UV{S}, s, i::Int) where {S}
     _check_scores(s)
-    if C == 2
+    if S == 2
         u.scores[i] = s
     else
         u.scores[i,:] = s
     end
 end
-function Base.setindex!(u::UV{C}, s, I) where {C}
+function Base.setindex!(u::UV{S}, s, I) where {S}
     _check_scores(s)
-    if C == 2
+    if S == 2
         u.scores[I] = s
     else
         u.scores[I,:] = s
@@ -109,19 +114,19 @@ end
 # constructor keeping track with similar support than parent object
 UV(u::UV, s::Arr{<:Real}) = UV(u.support, s)
 
-Base.getindex(u::UV{2,L}, I) where {L}   = UV(u, u.scores[I])
-Base.getindex(u::UV{C,L}, I) where {C,L} = UV(u, u.scores[I, :])
+Base.getindex(u::UV{2,C}, I) where {C}   = UV(u, u.scores[I])
+Base.getindex(u::UV{S,C}, I) where {S,C} = UV(u, u.scores[I, :])
 # cast back to UnivariateFinite // Binary case
-function Base.getindex(u::UV{2,L,R}, i::Int) where {L,R}
-    prob_given_class = LittleDict{L,R}(
+function Base.getindex(u::UV{2,C,P}, i::Int) where {C,P}
+    prob_given_class = LittleDict{C,P}(
         u.support[1] => 1 - u.scores[i],
         u.support[2] => u.scores[i])
     MMI.UnivariateFinite(prob_given_class)
 end
 # cast back to UnivariateFinite // Multiclass case
-function Base.getindex(u::UV{C,L,R}, i::Int) where {C,L,R}
-    prob_given_class = LittleDict{L,R}(
-        u.support[j] => u.scores[i, j] for j in 1:C)
+function Base.getindex(u::UV{S,C,P}, i::Int) where {S,C,P}
+    prob_given_class = LittleDict{C,P}(
+        u.support[j] => u.scores[i, j] for j in 1:S)
     MMI.UnivariateFinite(prob_given_class)
 end
 
