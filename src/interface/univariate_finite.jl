@@ -3,7 +3,6 @@ abstract type NonEuclidean <: Dist.ValueSupport end
 
 const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 
-# S - size of support (>=2)
 # R - reference type <: Unsigned
 # V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
 # P - raw probability type

@@ -175,14 +175,14 @@ function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,P}, x) where P
     return zero(P)
 end
 
-function pdf(u::UnivariateFiniteVector{C}, x) where {C}
-    i = findfirst(u.support .== x)
-    i === nothing && throw(DomainError("Value not in pool. "))
-    if C == 2
-        return i == 1 ? 1 .- u.scores : u.scores
-    end
-    return u.scores[:,i]
-end
+# function pdf(u::UnivariateFiniteVector{C}, x) where {C}
+#     i = findfirst(u.support .== x)
+#     i === nothing && throw(DomainError("Value not in pool. "))
+#     if C == 2
+#         return i == 1 ? 1 .- u.scores : u.scores
+#     end
+#     return u.scores[:,i]
+# end
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
@@ -198,11 +198,11 @@ function Distributions.mode(d::UnivariateFinite)
     return d.decoder(m)
 end
 
-mode(v::Vector{UnivariateFinite}) = mode.(v)
-mode(u::UnivariateFiniteVector{2}) =
-    [u.support[ifelse(s > 0.5, 2, 1)] for s in u.scores]
-mode(u::UnivariateFiniteVector{C}) where {C} =
-    [u.support[findmax(s)[2]] for s in eachrow(u.scores)]
+# mode(v::Vector{UnivariateFinite}) = mode.(v)
+# mode(u::UnivariateFiniteVector{2}) =
+#     [u.support[ifelse(s > 0.5, 2, 1)] for s in u.scores]
+# mode(u::UnivariateFiniteVector{C}) where {C} =
+#     [u.support[findmax(s)[2]] for s in eachrow(u.scores)]
 
 """
     _cumulative(d::UnivariateFinite)
