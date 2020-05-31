@@ -103,7 +103,7 @@ end
     @test isapprox(freq[Q]/N, 0.2, atol=0.05)
 
     # no support specified:
-    @test_throws Exception UnivariateFinite([0.7, 0.3])
+    @test_logs (:warn, r"No ") UnivariateFinite([0.7, 0.3])
     d = UnivariateFinite([0.7, 0.3], pool=missing)
     @test pdf(d, :class_1) == 0.7
 end
@@ -148,6 +148,7 @@ end
     @test pdf(d, 's') ≈ 0.1
     @test pdf(d, 'q') ≈ 0.2
 end
+
 
 @testset "Univariate mode" begin
     v = categorical(1:101)

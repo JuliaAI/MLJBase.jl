@@ -24,7 +24,7 @@ struct UnivariateFiniteArray{S,V,R,P,N} <:
 end
 
 
-## HELPERS
+## CHECKS AND ERROR MESSAGES
 
 const Prob{P} = Union{P, AbstractArray{P}} where P <: Real
 
@@ -32,24 +32,56 @@ prob_error = ArgumentError("Probabilities must have `Real` type. ")
 
 _err_01() = throw(DomainError("Probabilities must be in [0,1]."))
 _err_sum_1() = throw(DomainError(
-    "Probabilities must sum to one. If "*
-    "specifying as a single array, the array should sum to one "*
-    "along the first axis. "))
+"Probability arrays must sum to one along the last axis. "))
+_err_dim(support, probs) = throw(DimensionMismatch(
+"Probability array is incompatible "*
+"with the number of classes, $(length(support)), which should "*
+"be equal to `$(size(probs)[end])`, the last dimension "*
+"of the array. Perhaps you meant to set `augment=true`? "))
+_err_dim_augmented(support, probs) = throw(DimensionMismatch(
+"Probability array to be augmented is incompatible "*
+"with the number of classes, $(length(support)), which should "*
+"be one more than `$(size(probs)[end])`, the last dimension "*
+    "of the array. "))
+_err_aug() = throw(ArgumentError(
+    "Array cannot be augmented. There are "*
+    "sums along the last axis exceeding one. "))
 
+function _check_pool(pool)
+    ismissing(pool) || pool == nothing ||
+        @warn "Specified pool ignored, as class labels being "*
+    "generated automatically. "
+    return nothing
+end
 _check_probs_01(probs) =
     all(0 .<= probs .<= 1) || _err_01()
-
 _check_probs_sum(probs::Vector{<:Prob{P}}) where P<:Real =
     all(x -> x≈one(P), sum(probs)) || _err_sum_1()
-
 _check_probs(probs) = (_check_probs_01(probs); _check_probs_sum(probs))
+_check_augmentable(support, probs) = _check_probs_01(probs) &&
+    size(probs)[end] + 1 == length(support) ||
+    _err_dim_augmented(support, probs)
 
-_check_dims(support, probs) = size(probs, 1) == length(support) ||
-    throw(DimensionMismatch(
-        "Encountered a support of size  $(length(support)), "*
-        "which does not match the first dimension of specified "*
-        "probability array, "*
-        "$(size(probs, 1)). "))
+
+## AUGMENTING ARRAYS TO MAKE THEM PROBABILITY ARRAYS
+
+_unwrap(A::Array) = A
+_unwrap(A::Vector) = first(A)
+
+# augmentation inserts the sum-subarray *before* the array:
+function _augment_probs(support, probs::AbstractArray{P,N}) where {P,N}
+    C = length(support)
+    _check_augmentable(support, probs)
+    size(probs)[end] + 1 == C || _err_dim_augmented(support, probs)
+    aug_size = size(probs) |> collect
+    aug_size[end] += 1
+    augmentation = _unwrap(1 .- sum(probs, dims=N))
+    all(0 .<= augmentation .<= 1) || _err_aug()
+    aug_probs = Array{P}(undef, aug_size...)
+    aug_probs[fill(:, N - 1)..., 2:end] = probs
+    aug_probs[fill(:, N - 1)..., 1] = augmentation
+    return aug_probs
+end
 
 
 ## CONSTRUCTORS - FROM DICTIONARY
@@ -139,15 +171,20 @@ end
 _get(probs::Array{<:Any,N}, i) where N = probs[i,fill(:,N-1)...]
 
 
-# Univariate Finite from a vector of classes and array of probs
-# summing to one along first axis (M is one more than array dimension):
+# Univariate Finite from a vector of classes and array of probs.
 function MMI.UnivariateFinite(::FI,
                               support::AbstractVector{V},
                               probs::AbstractArray{P,M};
+                              augment=false,
                               kwargs...) where {V,P<:Real,M}
-    N = M - 1
 
-    _check_dims(support, probs)
+    if augment
+        _probs = _augment_probs(probs)
+        N = M
+    else
+        _probs = probs
+        N = M -1
+    end
 
     # it's necessary to force the typing of the LittleDict otherwise it
     # flips to Any type (unlike regular Dict):
@@ -158,7 +195,7 @@ function MMI.UnivariateFinite(::FI,
         prob_given_class = LittleDict{V, AbstractArray{P,N}}()
     end
     for i in eachindex(support)
-        prob_given_class[support[i]] = _get(probs, i)
+        prob_given_class[support[i]] = _get(_probs, i)
     end
 
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
@@ -170,16 +207,14 @@ function MMI.UnivariateFinite(::FI,
                               pool=nothing,
                               ordered=false,
                               kwargs...)
-
-    ismissing(pool) ||
-        error("No support specified. To automatically generate labels for "*
-              "a new categorical pool, specify `pool=missing`. "*
-              "Additionally specify `ordered=true` if samples "*
-              "are to be `OrderedFactor`. ")
-
-    support = categorical([Symbol("class_$i") for i in 1:length(probs)],
+    _check_pool(pool)
+    support = categorical([Symbol("class_$i") for i in 1:size(probs)[end]],
                           ordered=ordered,
                           compress=true)
-
-    return MMI.UnivariateFinite(FI(), support, probs; pool=pool, kwargs...)
+    return MMI.UnivariateFinite(FI(),
+                                support,
+                                probs;
+                                pool=pool,
+                                ordered=ordered,
+                                kwargs...)
 end
