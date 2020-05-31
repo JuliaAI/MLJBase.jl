@@ -149,6 +149,46 @@ end
     @test pdf(d, 'q') ≈ 0.2
 end
 
+rng = StableRNG(111)
+n   = 10
+c   = 3
+
+@testset "constructing of UnivariateFinite arrays" begin
+
+    probs  = rand(rng, n)
+    support = ["class1", "class2"]
+
+    @test_throws DomainError UnivariateFinite(support, probs, pool=missing)
+    u = UnivariateFinite(support, probs, pool=missing, augment=true)
+    @test length(u) == n
+    @test size(u) == (n,)
+    @test pdf.(u, "class2") ≈ probs
+
+    # autosupport:
+    @test_throws DomainError UnivariateFinite(probs, pool=missing)
+    u = UnivariateFinite(probs, pool=missing, augment=true)
+    @test length(u) == n
+    @test size(u) == (n,)
+    @test pdf.(u, :class_2) ≈ probs
+    probs = probs ./ sum(probs)
+    u = UnivariateFinite(probs, pool=missing)
+    @test u isa UnivariateFinite
+    @test pdf(u, :class_1) == probs[1]
+    probs = rand(10, 2)
+    probs = probs ./ sum(probs, dims=2)
+    u = UnivariateFinite(probs, pool=missing)
+    @test length(u) == 10
+    u.scitype == Multiclass{2}
+    pdf.(u, :class_1) == probs[:, 1]
+    u = UnivariateFinite(probs, pool=missing, augment=true)
+    @test length(u) == 10
+    u.scitype == Multiclass{3}
+    pdf.(u, :class_2) == probs[:, 1]
+
+    probs = [-1,0,1]
+    @test_throws(DomainError,
+                 UnivariateFinite(probs, pool=missing, augment=true))
+end
 
 @testset "Univariate mode" begin
     v = categorical(1:101)

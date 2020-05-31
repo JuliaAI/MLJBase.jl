@@ -32,7 +32,8 @@ prob_error = ArgumentError("Probabilities must have `Real` type. ")
 
 _err_01() = throw(DomainError("Probabilities must be in [0,1]."))
 _err_sum_1() = throw(DomainError(
-"Probability arrays must sum to one along the last axis. "))
+    "Probability arrays must sum to one along the last axis. Perhaps "*
+"you meant to specify `augment=true`? "))
 _err_dim(support, probs) = throw(DimensionMismatch(
 "Probability array is incompatible "*
 "with the number of classes, $(length(support)), which should "*
@@ -68,18 +69,34 @@ _check_augmentable(support, probs) = _check_probs_01(probs) &&
 _unwrap(A::Array) = A
 _unwrap(A::Vector) = first(A)
 
+isbinary(support) = length(support) == 2
+
 # augmentation inserts the sum-subarray *before* the array:
-function _augment_probs(support, probs::AbstractArray{P,N}) where {P,N}
-    C = length(support)
+_augment_probs(support, probs) =
+    _augment_probs(Val(isbinary(support)), support, probs,)
+function _augment_probs(::Val{false},
+                        support,
+                        probs::AbstractArray{P,N}) where {P,N}
     _check_augmentable(support, probs)
-    size(probs)[end] + 1 == C || _err_dim_augmented(support, probs)
     aug_size = size(probs) |> collect
     aug_size[end] += 1
-    augmentation = _unwrap(1 .- sum(probs, dims=N))
+    augmentation = _unwrap(one(P) .- sum(probs, dims=N))
     all(0 .<= augmentation .<= 1) || _err_aug()
     aug_probs = Array{P}(undef, aug_size...)
     aug_probs[fill(:, N - 1)..., 2:end] = probs
     aug_probs[fill(:, N - 1)..., 1] = augmentation
+    return aug_probs
+end
+function _augment_probs(::Val{true},
+                        support,
+                        probs::AbstractArray{P,N}) where {P,N}
+    _check_probs_01(probs)
+    aug_size = [size(probs)..., 2]
+    augmentation = one(P) .- probs
+    all(0 .<= augmentation .<= 1) || _err_aug()
+    aug_probs = Array{P}(undef, aug_size...)
+    aug_probs[fill(:, N)..., 2] = probs
+    aug_probs[fill(:, N)..., 1] = augmentation
     return aug_probs
 end
 
@@ -167,24 +184,27 @@ end
 
 ## CONSTRUCTORS - FROM VECTORS
 
-# example: _get(A, 4) = A[4, :, :] if A has 3 dims:
-_get(probs::Array{<:Any,N}, i) where N = probs[i,fill(:,N-1)...]
-
+# example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
+_get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
 # Univariate Finite from a vector of classes and array of probs.
-function MMI.UnivariateFinite(::FI,
+MMI.UnivariateFinite(
+    ::FI,
+    support::AbstractVector,
+    probs::AbstractArray;
+    kwargs...) = UnivariateFinite(
+        Val(isbinary(support)), support, probs; kwargs...)
+
+# 1. generic (non-binary) case:
+function MMI.UnivariateFinite(::Val{false},
                               support::AbstractVector{V},
                               probs::AbstractArray{P,M};
                               augment=false,
                               kwargs...) where {V,P<:Real,M}
 
-    if augment
-        _probs = _augment_probs(probs)
-        N = M
-    else
-        _probs = probs
-        N = M -1
-    end
+    N = M - 1
+
+    _probs = augment ? _augment_probs(support, probs) : probs
 
     # it's necessary to force the typing of the LittleDict otherwise it
     # flips to Any type (unlike regular Dict):
@@ -202,13 +222,62 @@ function MMI.UnivariateFinite(::FI,
 
 end
 
+# 2. degenerate (binary) case:
+function MMI.UnivariateFinite(::Val{true},
+                              support::AbstractVector{V},
+                              probs::AbstractArray{P,M};
+                              augment=false,
+                              kwargs...) where {V,P<:Real,M}
+
+    N = augment ? M : M - 1
+
+    _probs = augment ? _augment_probs(support, probs) : probs
+
+    # it's necessary to force the typing of the LittleDict otherwise it
+    # flips to Any type (unlike regular Dict):
+
+    if N == 0
+        prob_given_class = LittleDict{V,P}()
+    else
+        prob_given_class = LittleDict{V, AbstractArray{P,N}}()
+    end
+    for i in eachindex(support)
+        prob_given_class[support[i]] = _get(_probs, i)
+    end
+
+    return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
+
+end
+
+# unspecified support:
 function MMI.UnivariateFinite(::FI,
-                              probs::AbstractArray{<:Real};
+                              probs::AbstractArray{<:Real,N};
                               pool=nothing,
                               ordered=false,
-                              kwargs...)
+                              augment=false,
+                              kwargs...) where N
     _check_pool(pool)
-    support = categorical([Symbol("class_$i") for i in 1:size(probs)[end]],
+
+    # try to infer number of classes:
+    if N == 1
+        if augment
+            c = 2
+        else
+            c = length(probs)
+        end
+    elseif N == 2
+        if augment
+            c = size(probs, 2) + 1
+        else
+            c = size(probs, 2)
+        end
+    else
+        throw(ArgumentError(
+            "Explicitly specify a support for probablility arrays of three "*
+            "or more dimensions. "))
+    end
+
+    support = categorical([Symbol("class_$i") for i in 1:c],
                           ordered=ordered,
                           compress=true)
     return MMI.UnivariateFinite(FI(),
@@ -216,5 +285,6 @@ function MMI.UnivariateFinite(::FI,
                                 probs;
                                 pool=pool,
                                 ordered=ordered,
+                                augment=augment,
                                 kwargs...)
 end
