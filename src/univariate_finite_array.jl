@@ -31,17 +31,33 @@ function Base.setindex!(u::UniFinArr{S,V,R,P,N},
     return u
 end
 
-#Base.Broadcast.broadcasted(::typeof(mode), u::UniFinArr)   = mode(u)
-
+# performant broadcasting of pdf:
 Base.Broadcast.broadcasted(::typeof(pdf),
                            u::UniFinArr{S,V,R,P,N},
                            cv::CategoricalValue) where {S,V,R,P,N} =
     get(u.prob_given_ref, int(cv), zero(P))
 
-function Base.Broadcast.broadcasted(::typeof(pdf), u::UniFinArr, x)
+function Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::UnivariateFiniteArray{S,V,R,P,N},
+    c::V) where {S,V,R,P,N}
+
     _classes = classes(u)
-    x in _classes || throw(DomainError("Value not in pool. "))
+    c in _classes || throw(DomainError("Value $c not in pool. "))
     pool = CategoricalArrays.pool(_classes)
-    class = pool[get(pool, x)]
-    return Base.Broadcast.broadcasted(pdf, u, class)
+    class = pool[get(pool, c)]
+    return broadcast(pdf, u, class)
+end
+
+# convenient broadasting of pdf for multiples classes:
+function Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::AbstractArray{UnivariateFinite{S,V,R,P},N},
+    C::AbstractVector{<:V}) where {S,V,R,P,N}
+
+    ret = Array{P,N+1}(undef, size(u)..., length(C))
+    for i in eachindex(C)
+        ret[fill(:,N)...,i] = broadcast(pdf, u, C[i])
+    end
+    return ret
 end

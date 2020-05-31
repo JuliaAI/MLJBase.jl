@@ -191,7 +191,7 @@ _get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 MMI.UnivariateFinite(
     ::FI,
     support::AbstractVector,
-    probs::AbstractArray;
+    probs::Union{AbstractArray,Real};
     kwargs...) = UnivariateFinite(
         Val(isbinary(support)), support, probs; kwargs...)
 
@@ -248,6 +248,13 @@ function MMI.UnivariateFinite(::Val{true},
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
 
 end
+
+# 3. corner case, probs a scalar:
+MMI.UnivariateFinite(::Val{true},
+                     support::AbstractVector,
+                     probs::P;
+                     kwargs...) where {V,P<:Real} =
+                         UnivariateFinite(support, [probs,]; kwargs...)[1]
 
 # unspecified support:
 function MMI.UnivariateFinite(::FI,

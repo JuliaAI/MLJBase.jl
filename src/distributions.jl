@@ -215,11 +215,13 @@ See also `classes`, `support`.
 """
 Distributions.pdf(d::UnivariateFinite, cv::CategoricalValue) = _pdf(d, int(cv))
 
-function Distributions.pdf(d::UnivariateFinite, x)
+function Distributions.pdf(
+    d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P}
+
     _classes = classes(d)
-    x in _classes || throw(DomainError("Value not in pool. "))
+    c in _classes || throw(DomainError("Value $c not in pool. "))
     pool = CategoricalArrays.pool(_classes)
-    class = pool[get(pool, x)]
+    class = pool[get(pool, c)]
     return pdf(d, class)
 end
 

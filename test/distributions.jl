@@ -223,11 +223,15 @@ end
     @test pdf.(u, s[1])[2:end] == P[2:end,1]
 end
 
-@testset "broadcasting over UnivariateFiniteArrays" begin
-    n = 10_000
+@testset "broadcasting pdf" begin
+    n = 10
     P = rand(n);
     u = UnivariateFinite([:no, :yes], P, augment=true, pool=missing)
     @test pdf.(u,:yes) == P
+    @test pdf.(u, [:yes, :no]) == hcat(P, 1 .- P)
+
+    # check last also works for unwrapped arrays:
+    @test pdf.([u...], [:yes, :no]) == hcat(P, 1 .- P)
 end
 
 @testset "Univariate mode" begin
