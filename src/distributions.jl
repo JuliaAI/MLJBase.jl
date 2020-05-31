@@ -82,14 +82,18 @@ function show_compact(io::IO, v)
     K = 4
     n = length(v)
     if !isempty(v)
-        for i in 1:min(n - 1, K - 1)
+        L = min(n, K - 1)
+        for i in 1:min(n, L - 1)
             println(io, " ", v[i])
         end
+        print(io, " ", v[L])
         if n > K
-            println(io, "   ⋮")
+            println(io, "\n  ⋮")
+        else
+            println(io)
         end
-        if n > 1
-            println(" ", last(v))
+        if n > K - 1
+            println(io, " ", last(v))
         end
     end
 end
@@ -102,8 +106,11 @@ end
 function Base.show(io::IO, m::MIME"text/plain",
                    u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P}
     support = get.(Dist.support(u))
-    println(io, show_prefix(u), " UnivariateFiniteVector{$S,$V,$R,$P}:")
-    show_compact(io, u)
+    print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,1}")
+    if !isempty(u)
+        println(io, ":")
+        show_compact(io, u)
+    end
 end
 
 
@@ -206,26 +213,15 @@ One can also do weighted fits:
 
 See also `classes`, `support`.
 """
-Distributions.pdf(d::UnivariateFinite, x::CategoricalValue) = _pdf(d, int(x))
+Distributions.pdf(d::UnivariateFinite, cv::CategoricalValue) = _pdf(d, int(cv))
 
-# probably slow:
-function Distributions.pdf(d::UnivariateFinite{<:Any,<:Any,<:Any,P}, x) where P
-    x in classes(d) || throw(DomainError("Value not in pool. "))
-    _support = Distributions.support(d)
-     for j in eachindex(_support)
-        x == _support[j] && return pdf(d, _support[j])
-     end
-    return zero(P)
+function Distributions.pdf(d::UnivariateFinite, x)
+    _classes = classes(d)
+    x in _classes || throw(DomainError("Value not in pool. "))
+    pool = CategoricalArrays.pool(_classes)
+    class = pool[get(pool, x)]
+    return pdf(d, class)
 end
-
-# function pdf(u::UnivariateFiniteVector{C}, x) where {C}
-#     i = findfirst(u.support .== x)
-#     i === nothing && throw(DomainError("Value not in pool. "))
-#     if C == 2
-#         return i == 1 ? 1 .- u.scores : u.scores
-#     end
-#     return u.scores[:,i]
-# end
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref

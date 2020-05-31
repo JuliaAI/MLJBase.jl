@@ -190,6 +190,46 @@ c   = 3
                  UnivariateFinite(probs, pool=missing, augment=true))
 end
 
+@testset "get and set" begin
+    # binary
+    s = rand(rng, n)
+    u = UnivariateFinite([:yes, :no], s, augment=true, pool=missing)
+
+    @test u[1] isa UnivariateFinite
+    v = u[3:4]
+    @test v isa UnivariateFiniteArray
+    @test v[1] ≈ u[3]
+
+    # set:
+    u[1] = UnivariateFinite([:yes, :no], [0.1, 0.9], pool=u[1])
+    @test pdf(u[1], :yes) == 0.1
+    @test pdf(u[1], :no) == 0.9
+
+    # multiclass
+    P   = rand(rng, n, c)
+    P ./= sum(P, dims=2)
+    u   = UnivariateFinite(P, pool=missing)
+
+    @test u[1] isa UnivariateFinite
+    v = u[3:4]
+    @test v isa UnivariateFiniteArray
+    @test v[1] ≈ u[3]
+
+    # set:
+    s = Distributions.support(u)
+    scalar = UnivariateFinite(s, P[end,:])
+    u[1] = scalar
+    @test u[1] ≈ u[end]
+    @test pdf.(u, s[1])[2:end] == P[2:end,1]
+end
+
+@testset "broadcasting over UnivariateFiniteArrays" begin
+    n = 10_000
+    P = rand(n);
+    u = UnivariateFinite([:no, :yes], P, augment=true, pool=missing)
+    @test pdf.(u,:yes) == P
+end
+
 @testset "Univariate mode" begin
     v = categorical(1:101)
     p = rand(rng,101)

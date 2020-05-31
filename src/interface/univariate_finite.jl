@@ -127,13 +127,13 @@ function MMI.UnivariateFinite(
 
     # `LittleDict`s preserve order of keys, which we need for rand():
 
-    _classes  = keys(prob_given_class) |> collect |> sort
+    support  = keys(prob_given_class) |> collect |> sort
 
-    issubset(_classes, parent_classes) ||
+    issubset(support, parent_classes) ||
         error("Categorical elements are not from the same pool. ")
 
     pairs = [int(c) => prob_given_class[c]
-                for c in _classes]
+                for c in support]
 
     probs1 = first(values(prob_given_class))
     if probs1 isa Real

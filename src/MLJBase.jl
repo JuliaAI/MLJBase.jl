@@ -60,7 +60,7 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
        Probabilistic, Deterministic, Interval, Static,
-       UnivariateFinite, UnivariateFiniteVector
+       UnivariateFinite
 
 # MLJType equality
 export is_same_except
@@ -118,7 +118,7 @@ export @set_defaults, flat_values, recursive_setproperty!,
 export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
 # distributions.jl:
-export average
+export average, UnivariateFiniteArray
 
 # info_dict.jl:
 export info_dict
