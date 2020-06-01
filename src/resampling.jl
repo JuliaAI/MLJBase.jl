@@ -620,8 +620,7 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
-function _evaluate!(func, mach, accel::CPUThreads{T},
-                        nfolds,verbosity) where T<: Integer
+function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    nthreads = Threads.nthreads()
     
    if nthreads == 1
@@ -719,7 +718,7 @@ function evaluate!(mach::Machine, resampling, weights,
         if verbosity > 0
                 @info "Performing evaluations " *
                       "using $(Threads.nthreads()) threads."
-            end
+        end
     end
    
     measurements_flat =
