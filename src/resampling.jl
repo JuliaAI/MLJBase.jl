@@ -850,6 +850,17 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
+    if resampler.acceleration isa CPUThreads
+        if resampler.acceleration.settings === nothing 
+            nthreads = Threads.nthreads()
+            resampler.acceleration = CPUThreads(nthreads)
+        end
+        typeof(resampler.acceleration.settings) <: Signed || 
+          throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
+                            "be an instance of type `T<:Signed`"))
+        resampler.acceleration.settings > 0 || 
+                throw(error("Can't create $(resampler.acceleration.settings) tasks)"))
+    end
     return warning
 end
 
