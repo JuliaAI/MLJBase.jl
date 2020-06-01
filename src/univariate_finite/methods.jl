@@ -82,13 +82,14 @@ function show_compact(io::IO, v)
     K = 4
     n = length(v)
     if !isempty(v)
+        indent = div(length(string(v[1])), 2)
         L = min(n, K - 1)
         for i in 1:min(n, L - 1)
             println(io, " ", v[i])
         end
         print(io, " ", v[L])
         if n > K
-            println(io, "\n  ⋮")
+            println(io, "\n", fill(" ", indent)..., " ⋮")
         else
             println(io)
         end

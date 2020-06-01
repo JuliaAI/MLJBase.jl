@@ -94,6 +94,27 @@ end
     @test pdf.([u...], [:yes, :no]) == hcat(P, 1 .- P)
 end
 
+@testset "broadcasting mode" begin
+    # binary
+    rng = StableRNG(668)
+    probs = rand(rng, n)
+    u = UnivariateFinite(probs, augment = true, pool=missing)
+    support = Distributions.support(u)
+    modes = mode.(u)
+    @test modes isa CategoricalArray
+    expected = [ifelse(p > 0.5, support[2], support[1]) for p in probs]
+    @test all(modes .== expected)
+
+    # multiclass
+    rng = StableRNG(554)
+    P   = rand(rng, n, c)
+    P ./= sum(P, dims=2)
+    u   = UnivariateFinite(P, pool=missing)
+    support = Distributions.support(u)
+    expected = support[[findmax(r)[2] for r in eachrow(P)]]
+    @test all(mode.(u) .== expected)
+end
+
 end
 
 true

@@ -1,6 +1,5 @@
 const UniFinArr = UnivariateFiniteArray
 
-# TODO: make this faster by making size a field value?
 Base.size(u::UniFinArr, args...) =
     size(first(values(u.prob_given_ref)), args...)
 
@@ -31,12 +30,13 @@ function Base.setindex!(u::UniFinArr{S,V,R,P,N},
     return u
 end
 
-# performant broadcasting of pdf:
+# performant broadcasting of pdf - sample is a cat. value:
 Base.Broadcast.broadcasted(::typeof(pdf),
                            u::UniFinArr{S,V,R,P,N},
                            cv::CategoricalValue) where {S,V,R,P,N} =
     get(u.prob_given_ref, int(cv), zero(P))
 
+# performant broadcasting of pdf - sample is a raw label:
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
     u::UnivariateFiniteArray{S,V,R,P,N},
@@ -47,5 +47,25 @@ function Base.Broadcast.broadcasted(
     pool = CategoricalArrays.pool(_classes)
     class = pool[get(pool, c)]
     return broadcast(pdf, u, class)
+end
+
+# performant broadcasting of mode:
+function Base.Broadcast.broadcasted(::typeof(mode),
+                                    u::UniFinArr{S,V,R,P,N}) where {S,V,R,P,N}
+    dic = u.prob_given_ref
+
+    # using linear indexing:
+    mode_flat = map(1:length(u)) do i
+        max_prob = maximum(dic[ref][i] for ref in keys(dic))
+        m = zero(R)
+        for ref in keys(dic)
+            if dic[ref][i] == max_prob
+                m = ref
+                break
+            end
+        end
+        return u.decoder(m)
+    end
+    return reshape(mode_flat, size(u))
 end
 
