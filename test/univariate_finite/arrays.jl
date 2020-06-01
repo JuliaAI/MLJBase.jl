@@ -110,8 +110,7 @@ end
     P   = rand(rng, n, c)
     P ./= sum(P, dims=2)
     u   = UnivariateFinite(P, pool=missing)
-    support = Distributions.support(u)
-    expected = support[[findmax(r)[2] for r in eachrow(P)]]
+    expected = mode.([u...])
     @test all(mode.(u) .== expected)
 end
 
