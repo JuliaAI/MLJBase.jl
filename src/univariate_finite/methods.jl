@@ -225,6 +225,19 @@ function Distributions.pdf(
     return pdf(d, class)
 end
 
+# convenient broadasting of pdf for multiples classes (MLJBase issue #137):
+function Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::AbstractArray{UnivariateFinite{S,V,R,P},N},
+    C::AbstractVector{<:V}) where {S,V,R,P,N}
+
+    ret = Array{P,N+1}(undef, size(u)..., length(C))
+    for i in eachindex(C)
+        ret[fill(:,N)...,i] = broadcast(pdf, u, C[i])
+    end
+    return ret
+end
+
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
     p = values(dic)

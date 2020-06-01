@@ -121,3 +121,8 @@ project(t::NamedTuple, i::Integer) = project(t, [i,])
 typename(X)    = split(string(supertype(typeof(X)).name), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
 
+# ----------------------------------------------------------------
+# univariate finite
+
+# see src/univariate_finite/
+

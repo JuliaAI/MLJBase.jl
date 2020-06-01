@@ -2,6 +2,16 @@
     x = 1:5
     @test MLJModelInterface.categorical(x) == categorical(x)
 end
+
+@testset "classes" begin
+    v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
+    levels!(v, reverse(levels(v)))
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
+end
+
 @testset "int, classes, decoder" begin
     N = 10
     mix = shuffle(rng, 0:N - 1)

@@ -24,6 +24,12 @@ struct UnivariateFiniteArray{S,V,R,P,N} <:
 end
 
 
+## CONSTRUCTORS TO EXTEND MLJModelInterface
+
+"""$(MMI.UNIVARIATE_FINITE_DOCSTRING)"""
+UnivariateFinite(a...; kwargs...) = MMI.UnivariateFinite(a...; kwargs...)
+
+
 ## CHECKS AND ERROR MESSAGES
 
 const Prob{P} = Union{P, AbstractArray{P}} where P <: Real
@@ -103,14 +109,10 @@ end
 
 ## CONSTRUCTORS - FROM DICTIONARY
 
-"""$(MMI.UNIVARIATE_FINITE_DOCSTRING)"""
-UnivariateFinite(a...; kwargs...) = MMI.UnivariateFinite(a...; kwargs...)
-
 # The following constructor will get called by all the others. It
-# returns a UnivariateFinite object *or* a
-# UnivariateFiniteArray, depending on the values of the dictionary -
-# scalar or array - which represent the probabilities, one for each
-# class in the support.
+# returns a UnivariateFinite object *or* a UnivariateFiniteArray,
+# depending on the values of the dictionary - scalar or array - which
+# represent the probabilities, one for each class in the support.
 function MMI.UnivariateFinite(
     ::FI,
     prob_given_class::AbstractDict{<:CategoricalValue, <:Prob})

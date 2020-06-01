@@ -1,4 +1,4 @@
-module TestDistributions
+module TestUnivariateFiniteMethods
 
 using Test
 using MLJBase
@@ -13,17 +13,6 @@ v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
 V = categorical(collect("asqfasqffqsaaaa"))
 a, s, q, f = v[1], v[2], v[3], v[4]
 A, S, Q, F = V[1], V[2], V[3], V[4]
-
-@testset "classes" begin
-    @test classes(v[1]) == levels(v)
-    @test classes(v) == levels(v)
-    levels!(v, reverse(levels(v)))
-    @test classes(v[1]) == levels(v)
-    @test classes(v) == levels(v)
-
-    # no longer true:
-    # @test classes(a) == levels(v)
-end
 
 @testset "UnivariateFinite constructor" begin
 
@@ -147,91 +136,6 @@ end
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, 's') ≈ 0.1
     @test pdf(d, 'q') ≈ 0.2
-end
-
-rng = StableRNG(111)
-n   = 10
-c   = 3
-
-@testset "constructing of UnivariateFinite arrays" begin
-
-    probs  = rand(rng, n)
-    support = ["class1", "class2"]
-
-    @test_throws DomainError UnivariateFinite(support, probs, pool=missing)
-    u = UnivariateFinite(support, probs, pool=missing, augment=true)
-    @test length(u) == n
-    @test size(u) == (n,)
-    @test pdf.(u, "class2") ≈ probs
-
-    # autosupport:
-    @test_throws DomainError UnivariateFinite(probs, pool=missing)
-    u = UnivariateFinite(probs, pool=missing, augment=true)
-    @test length(u) == n
-    @test size(u) == (n,)
-    @test pdf.(u, :class_2) ≈ probs
-    probs = probs ./ sum(probs)
-    u = UnivariateFinite(probs, pool=missing)
-    @test u isa UnivariateFinite
-    @test pdf(u, :class_1) == probs[1]
-    probs = rand(10, 2)
-    probs = probs ./ sum(probs, dims=2)
-    u = UnivariateFinite(probs, pool=missing)
-    @test length(u) == 10
-    u.scitype == Multiclass{2}
-    pdf.(u, :class_1) == probs[:, 1]
-    u = UnivariateFinite(probs, pool=missing, augment=true)
-    @test length(u) == 10
-    u.scitype == Multiclass{3}
-    pdf.(u, :class_2) == probs[:, 1]
-
-    probs = [-1,0,1]
-    @test_throws(DomainError,
-                 UnivariateFinite(probs, pool=missing, augment=true))
-end
-
-@testset "get and set" begin
-    # binary
-    s = rand(rng, n)
-    u = UnivariateFinite([:yes, :no], s, augment=true, pool=missing)
-
-    @test u[1] isa UnivariateFinite
-    v = u[3:4]
-    @test v isa UnivariateFiniteArray
-    @test v[1] ≈ u[3]
-
-    # set:
-    u[1] = UnivariateFinite([:yes, :no], [0.1, 0.9], pool=u[1])
-    @test pdf(u[1], :yes) == 0.1
-    @test pdf(u[1], :no) == 0.9
-
-    # multiclass
-    P   = rand(rng, n, c)
-    P ./= sum(P, dims=2)
-    u   = UnivariateFinite(P, pool=missing)
-
-    @test u[1] isa UnivariateFinite
-    v = u[3:4]
-    @test v isa UnivariateFiniteArray
-    @test v[1] ≈ u[3]
-
-    # set:
-    s = Distributions.support(u)
-    scalar = UnivariateFinite(s, P[end,:])
-    u[1] = scalar
-    @test u[1] ≈ u[end]
-    @test pdf.(u, s[1])[2:end] == P[2:end,1]
-end
-
-@testset "broadcasting pdf" begin
-    n = 10
-    P = rand(n);
-    u = UnivariateFinite([:no, :yes], P, augment=true, pool=missing)
-    @test pdf.(u,:yes) == P
-    @test pdf.(u, [:yes, :no]) == hcat(P, 1 .- P)
-
-    # check last also works for unwrapped arrays:
-    @test pdf.([u...], [:yes, :no]) == hcat(P, 1 .- P)
 end
 
 @testset "Univariate mode" begin
