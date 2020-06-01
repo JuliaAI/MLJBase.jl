@@ -522,6 +522,18 @@ function evaluate!(mach::Machine{<:Supervised};
             " measures, as unsupported: \n$unsupported_as_string "
         end
     end
+    
+    if acceleration isa CPUThreads
+        if acceleration.settings === nothing 
+            nthreads = Threads.nthreads()
+            acceleration = CPUThreads(nthreads)
+        end
+        typeof(acceleration.settings) <: Signed || 
+          throw(ArgumentError("`n`used in `CPUThreads(n)`must" *
+                            "be an instance of type `T<:Signed`"))
+        acceleration.settings > 0 || 
+                throw(error("Can't create $(acceleration.settings) tasks)"))
+    end
 
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
                    _measures, operation, acceleration, force)
@@ -704,12 +716,6 @@ function evaluate!(mach::Machine, resampling, weights,
         end
     end
      if acceleration isa CPUThreads
-        if acceleration.settings === nothing 
-            nthreads = Threads.nthreads()
-            acceleration = CPUThreads(nthreads)
-        end
-        acceleration.settings > 0 || 
-                throw(error("Can't create $(acceleration.settings) tasks)"))
         if verbosity > 0
                 @info "Performing evaluations " *
                       "using $(Threads.nthreads()) threads."
