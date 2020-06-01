@@ -529,7 +529,7 @@ function evaluate!(mach::Machine{<:Supervised};
             acceleration = CPUThreads(nthreads)
         end
         typeof(acceleration.settings) <: Signed || 
-          throw(ArgumentError("`n`used in `CPUThreads(n)`must" *
+          throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
                             "be an instance of type `T<:Signed`"))
         acceleration.settings > 0 || 
                 throw(error("Can't create $(acceleration.settings) tasks)"))
