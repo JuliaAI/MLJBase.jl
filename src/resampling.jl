@@ -615,36 +615,43 @@ function _evaluate!(func, mach, accel::CPUThreads{T},
    if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
-    ntasks = accel.settings
-    ret = Array{Any,1}(undef, nfolds)
-    loc = ReentrantLock()
-    
-    verbosity < 1 || (p = Progress(nfolds,
+   ntasks = accel.settings
+   partitions = chunks(1:nfolds, ntasks)
+   verbosity < 1 || begin
+                    p = Progress(nfolds,
                     dt = 0,
                     desc = "Evaluating over $nfolds folds: ",
                     barglyphs = BarGlyphs("[=> ]"),
                     barlen = 25,
-                    color = :yellow))
-    partitions = chunks(1:nfolds, ntasks) 
-
-   @sync for parts in partitions    
-     Threads.@spawn begin
-       #One tmach for each task:
-       tmach = machine(mach.model, mach.args...)
-         for k in parts 
-            ret[k] = func(tmach, k)
-            verbosity < 1 || (begin
-                              lock(loc)do
-                                p.counter +=1
+                    color = :yellow)
+                    ch = Channel{Bool}(length(partitions))
+                 end
+   tasks = Vector{Task}(undef, length(partitions)) 
+    
+   @sync begin
+       # printing the progress bar
+       verbosity < 1 || @async begin
+                              while take!(ch)
+                                p.counter +=1 
                                 ProgressMeter.updateProgress!(p)
                               end
-                            end)
-          end
-      end
-        
+                              close(ch)
+                        end
+
+   @sync for (i, parts) in enumerate(partitions)    
+     tasks[i] = Threads.@spawn begin
+       #One tmach for each task:
+       tmach = machine(mach.model, mach.args...)
+       mapreduce(vcat, parts) do k  
+            r = func(tmach, k)
+            verbosity < 1 || put!(ch, true)
+            r            
+       end
+      end  
     end
-    results = reduce(vcat, ret) ## has the right Type
-     return results
+     verbosity < 1 || put!(ch, false)   
+    end
+    reduce(vcat, fetch.(tasks))
 end
 
 end
