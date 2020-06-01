@@ -10,31 +10,6 @@ rng = StableRNG(111)
 n   = 10
 c   = 3
 
-@testset "Mode/Pdf" begin
-    # binary
-    rng = StableRNG(668)
-    s = rand(rng, n)
-    u = UV(s)
-    @test pdf(u, :negative) == 1 .- s
-    @test pdf.(u, :negative) == 1 .- s
-    @test mode(u) isa CategoricalArray
-    expected = [ifelse(si > 0.5, u.support[2], u.support[1]) for si in s]
-    @test all(mode(u) .== expected)
-    @test mode.(u) isa CategoricalArray
-    @test all(mode.(u) .== expected)
-
-    # multiclass
-    rng = StableRNG(554)
-    P   = rand(rng, n, c)
-    P ./= sum(P, dims=2)
-    u   = UV(P)
-    @test pdf(u, :class_1) == P[:,1]
-    @test pdf.(u, :class_1) == P[:,1]
-    expected = u.support[[findmax(r)[2] for r in eachrow(P)]]
-    @test all(mode(u) .== expected)
-    @test all(mode.(u) .== expected)
-end
-
 @testset "Metrics" begin
     # AUC
     s = [0.54, 0.25, 0.01, 0.16, 0.41, 0.  , 0.31, 0.8 , 0.32, 0.42, 0.48,
