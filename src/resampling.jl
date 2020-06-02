@@ -401,6 +401,27 @@ function _process_weights_measures(weights, measures, mach,
 
 end
 
+function _process_accel_settings(accel::CPUThreads)
+    if accel.settings === nothing 
+        nthreads = Threads.nthreads()
+        _accel =  CPUThreads(nthreads)
+    else
+      typeof(accel.settings) <: Signed || 
+      throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
+                        "be an instance of type `T<:Signed`"))
+      accel.settings > 0 || 
+            throw(error("Can't create $(acceleration.settings) tasks)"))
+      _accel = accel
+    end
+    return _accel
+end
+
+_process_accel_settings(accel::Union{CPU1,CPUProcesses}) = accel
+
+#fallback
+_process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
+                            " acceleration parameter`acceleration = $accel` ")) 
+
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
 
@@ -523,20 +544,10 @@ function evaluate!(mach::Machine{<:Supervised};
         end
     end
     
-    if acceleration isa CPUThreads
-        if acceleration.settings === nothing 
-            nthreads = Threads.nthreads()
-            acceleration = CPUThreads(nthreads)
-        end
-        typeof(acceleration.settings) <: Signed || 
-          throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
-                            "be an instance of type `T<:Signed`"))
-        acceleration.settings > 0 || 
-                throw(error("Can't create $(acceleration.settings) tasks)"))
-    end
-
+    _acceleration= _process_accel_settings(acceleration)
+    
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
-                   _measures, operation, acceleration, force)
+                   _measures, operation, _acceleration, force)
 
 end
 
@@ -850,17 +861,7 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
-    if resampler.acceleration isa CPUThreads
-        if resampler.acceleration.settings === nothing 
-            nthreads = Threads.nthreads()
-            resampler.acceleration = CPUThreads(nthreads)
-        end
-        typeof(resampler.acceleration.settings) <: Signed || 
-          throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
-                            "be an instance of type `T<:Signed`"))
-        resampler.acceleration.settings > 0 || 
-                throw(error("Can't create $(resampler.acceleration.settings) tasks)"))
-    end
+    
     return warning
 end
 
@@ -886,11 +887,12 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
     
+    _acceleration = _process_accel_settings(resampler.acceleration)
 
     fitresult = evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
-                          resampler.acceleration, false)
+                          _acceleration, false)
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 
