@@ -1,7 +1,7 @@
 # NOTE: see also interface/univariate_finite.jl
 
-const UnivariateFiniteUnion{S,V,R,P} =
-    Union{UnivariateFinite{S,V,R,P}, UnivariateFiniteArray{S,V,R,P}}
+const UnivariateFiniteUnion =
+    Union{UnivariateFinite, UnivariateFiniteArray}
 
 # NOT EXPORTED!!!!
 
@@ -21,7 +21,6 @@ MMI.classes(d::UnivariateFiniteUnion) = d.decoder.classes
 
 """
     levels(d::UnivariateFinite)
-    levels(d::UnivariateFiniteArray)
 
 A list of the raw levels in the common pool of classes used to
 construct `d`, equal to `get.(classes(d))`.
@@ -31,7 +30,7 @@ construct `d`, equal to `get.(classes(d))`.
     levels(d) # Array{String, 1}["maybe", "no", "yes"]
 
 """
-levels(d::UnivariateFiniteUnion)  = get.(classes(d))
+levels(d::UnivariateFinite)  = get.(classes(d))
 
 # get the internal integer representations of the support
 raw_support(d::UnivariateFiniteUnion) = collect(keys(d.prob_given_ref))
@@ -51,6 +50,9 @@ Distributions.support(d::UnivariateFiniteUnion) =
     map(d.decoder, raw_support(d))
 
 sample_scitype(d::UnivariateFiniteUnion) = d.scitype
+
+CategoricalArrays.isordered(d::UnivariateFinite) = isordered(classes(d))
+CategoricalArrays.isordered(u::UnivariateFiniteArray) = isordered(classes(u))
 
 
 ## DISPLAY
@@ -131,6 +133,17 @@ function Base.isapprox(d1::UnivariateFinite, d2::UnivariateFinite; kwargs...)
         c in support2 || return false
         isapprox(pdf(d1, c), pdf(d2, c); kwargs...) ||
             return false # pdf defined below
+    end
+    return true
+end
+function Base.isapprox(d1::UnivariateFiniteArray,
+                       d2::UnivariateFiniteArray; kwargs...)
+    support1 = Dist.support(d1)
+    support2 = Dist.support(d2)
+    for c in support1
+        c in support2 || return false
+        isapprox(pdf.(d1, c), pdf.(d2, c); kwargs...) ||
+            return false 
     end
     return true
 end
@@ -230,7 +243,7 @@ end
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
     u::AbstractArray{UnivariateFinite{S,V,R,P},N},
-    C::AbstractVector{<:V}) where {S,V,R,P,N}
+    C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
 
     ret = Array{P,N+1}(undef, size(u)..., length(C))
     for i in eachindex(C)

@@ -115,7 +115,10 @@ end
 # represent the probabilities, one for each class in the support.
 function MMI.UnivariateFinite(
     ::FI,
-    prob_given_class::AbstractDict{<:CategoricalValue, <:Prob})
+    prob_given_class::AbstractDict{<:CategoricalValue, <:Prob};
+    kwargs...)
+
+    # this constructor ignores kwargs
 
     probs = values(prob_given_class) |> collect
     _check_probs_01.(probs)
@@ -154,7 +157,7 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{V,<:Prob};
             @warn "No `CategoricalValue` found from which to extract a "*
             "complete pool of classes. "*
             "Creating a new pool (ordered=$ordered) "*
-            "from labels specified. You can:\n"*
+            "You can:\n"*
             " (i) specify `pool=missing` to suppress this warning; or\n"*
             " (ii) use an existing pool by specifying `pool=c` "*
             "where `c` is a "*
@@ -184,27 +187,42 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{V,<:Prob};
 end
 
 
-## CONSTRUCTORS - FROM VECTORS
+## CONSTRUCTORS - FROM ARRAYS
 
 # example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
 _get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
-# Univariate Finite from a vector of classes and array of probs.
-MMI.UnivariateFinite(
+# 1. Univariate Finite from a vector of classes or labels and array of probs;
+# first, a dispatcher:
+function MMI.UnivariateFinite(
     ::FI,
     support::AbstractVector,
     probs::Union{AbstractArray,Real};
-    kwargs...) = UnivariateFinite(
-        Val(isbinary(support)), support, probs; kwargs...)
+    kwargs...)
 
-# 1. generic (non-binary) case:
-function MMI.UnivariateFinite(::Val{false},
-                              support::AbstractVector{V},
-                              probs::AbstractArray{P,M};
-                              augment=false,
-                              kwargs...) where {V,P<:Real,M}
+    if support isa AbstractArray{<:CategoricalValue}
+        if :pool in keys(kwargs)
+            @warn "Ignoring value of `pool` as the specified "*
+            "support defines one already. "
+        end
+        if :ordered in keys(kwargs)
+            @warn "Ignoring value of `ordered` as the "*
+            "specified support defines an order already. "
+        end
+    end
 
-    N = M - 1
+    return _UnivariateFinite(Val(isbinary(support)),
+                             support,
+                             probs;
+                             kwargs...)
+end
+
+# the core method:
+function _UnivariateFinite(support::AbstractVector{V},
+                  probs::AbstractArray{P},
+                  N;
+                  augment=false,
+                  kwargs...) where {V,P<:Real}
 
     _probs = augment ? _augment_probs(support, probs) : probs
 
@@ -221,48 +239,43 @@ function MMI.UnivariateFinite(::Val{false},
     end
 
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
-
 end
 
-# 2. degenerate (binary) case:
-function MMI.UnivariateFinite(::Val{true},
-                              support::AbstractVector{V},
-                              probs::AbstractArray{P,M};
-                              augment=false,
-                              kwargs...) where {V,P<:Real,M}
+# 1.1 generic (non-binary) case:
+_UnivariateFinite(::Val{false},
+                  support::AbstractVector,
+                  probs::AbstractArray{<:Any,M};
+                  augment=false,
+                  kwargs...) where M =
+                      _UnivariateFinite(support,
+                                        probs,
+                                        M - 1;
+                                        augment=augment,
+                                        kwargs...)
 
-    N = augment ? M : M - 1
+# 1.2 degenerate (binary) case:
+_UnivariateFinite(::Val{true},
+                  support::AbstractVector,
+                  probs::AbstractArray{<:Any,M};
+                  augment=false,
+                  kwargs...) where M =
+                      _UnivariateFinite(support,
+                                        probs,
+                                        augment ? M : M - 1;
+                                        augment=augment,
+                                        kwargs...)
 
-    _probs = augment ? _augment_probs(support, probs) : probs
-
-    # it's necessary to force the typing of the LittleDict otherwise it
-    # flips to Any type (unlike regular Dict):
-
-    if N == 0
-        prob_given_class = LittleDict{V,P}()
-    else
-        prob_given_class = LittleDict{V, AbstractArray{P,N}}()
-    end
-    for i in eachindex(support)
-        prob_given_class[support[i]] = _get(_probs, i)
-    end
-
-    return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
-
-end
-
-# 3. corner case, probs a scalar:
+# 1.3 corner case, probs a scalar:
 MMI.UnivariateFinite(::Val{true},
                      support::AbstractVector,
-                     probs::P;
-                     kwargs...) where {V,P<:Real} =
+                     probs::Real;
+                     kwargs...) =
                          UnivariateFinite(support, [probs,]; kwargs...)[1]
 
-# unspecified support:
+# 2. probablity only; unspecified support:
 function MMI.UnivariateFinite(::FI,
                               probs::AbstractArray{<:Real,N};
                               pool=nothing,
-                              ordered=false,
                               augment=false,
                               kwargs...) where N
     _check_pool(pool)
@@ -282,18 +295,17 @@ function MMI.UnivariateFinite(::FI,
         end
     else
         throw(ArgumentError(
-            "Explicitly specify a support for probablility arrays of three "*
+            "You need to explicitly specify a support for "*
+            "probablility arrays of three "*
             "or more dimensions. "))
     end
 
-    support = categorical([Symbol("class_$i") for i in 1:c],
-                          ordered=ordered,
-                          compress=true)
+    support = [Symbol("class_$i") for i in 1:c]
+
     return MMI.UnivariateFinite(FI(),
                                 support,
                                 probs;
                                 pool=pool,
-                                ordered=ordered,
                                 augment=augment,
                                 kwargs...)
 end

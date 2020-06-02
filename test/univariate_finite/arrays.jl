@@ -7,7 +7,6 @@ import Distributions:pdf, support
 import Distributions
 using StableRNGs
 import Random
-rng = StableRNG(123)
 
 rng = StableRNG(111)
 n   = 10
@@ -16,10 +15,10 @@ c   = 3
 @testset "constructing UnivariateFiniteArray objects" begin
 
     probs  = rand(rng, n)
-    support = ["class1", "class2"]
+    supp = ["class1", "class2"]
 
-    @test_throws DomainError UnivariateFinite(support, probs, pool=missing)
-    u = UnivariateFinite(support, probs, pool=missing, augment=true)
+    @test_throws DomainError UnivariateFinite(supp, probs, pool=missing)
+    u = UnivariateFinite(supp, probs, pool=missing, augment=true)
     @test length(u) == n
     @test size(u) == (n,)
     @test pdf.(u, "class2") ≈ probs
@@ -48,6 +47,13 @@ c   = 3
     probs = [-1,0,1]
     @test_throws(DomainError,
                  UnivariateFinite(probs, pool=missing, augment=true))
+
+    v = categorical(1:3)
+    @test_logs((:warn, r"Ignoring"),
+               UnivariateFinite(v[1:2], rand(3), augment=true, pool=missing))
+    @test_logs((:warn, r"Ignoring"),
+               UnivariateFinite(v[1:2], rand(3), augment=true, ordered=true))
+
 end
 
 @testset "get and set" begin
@@ -92,6 +98,15 @@ end
 
     # check last also works for unwrapped arrays:
     @test pdf.([u...], [:yes, :no]) == hcat(P, 1 .- P)
+
+    # check unseen probablities are a zero *array*:
+    v = categorical(1:4)
+    probs = rand(3)
+    u = UnivariateFinite(v[1:2], probs, augment=true)
+    @test pdf.(u, v[3]) == zeros(3)
+
+    # check if we can broadcast over vector of categorical *elements*:
+    @test pdf.(u, v[1:2]) == hcat(1 .- probs, probs)
 end
 
 @testset "broadcasting mode" begin
@@ -99,10 +114,10 @@ end
     rng = StableRNG(668)
     probs = rand(rng, n)
     u = UnivariateFinite(probs, augment = true, pool=missing)
-    support = Distributions.support(u)
+    supp = Distributions.support(u)
     modes = mode.(u)
     @test modes isa CategoricalArray
-    expected = [ifelse(p > 0.5, support[2], support[1]) for p in probs]
+    expected = [ifelse(p > 0.5, supp[2], supp[1]) for p in probs]
     @test all(modes .== expected)
 
     # multiclass
@@ -112,6 +127,68 @@ end
     u   = UnivariateFinite(P, pool=missing)
     expected = mode.([u...])
     @test all(mode.(u) .== expected)
+end
+
+@testset "cat for UnivariateFiniteArray" begin
+
+    # ordered:
+    v = categorical([:no, :yes, :maybe, :unseen])
+    u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
+    u2 = UnivariateFinite([v[3], v[2]], rand(6), augment=true)
+    us = (u1, u2)
+    u = cat(us..., dims=1)
+    @test length(u) == length(u1) + length(u2)
+    @test classes(u) == classes(u1)
+    supp = Distributions.support(u)
+    @test Set(supp) == Set([:no, :yes, :maybe])
+    s1 = Distributions.support(u1)
+    s2 = Distributions.support(u2)
+    @test pdf.(u, s1)[1:length(u1),:] == pdf.(u1, s1)
+    @test pdf.(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
+        pdf.(u2, s2)
+    @test pdf.(u, v[1])[length(u1)+1:length(u1)+length(u2)] ==
+        zeros(length(u2))
+    @test pdf.(u, v[3])[1:length(u1)] == zeros(length(u1))
+    @test pdf.(u, v[4]) == zeros(length(u))
+    
+    # unordered:
+    v = categorical([:no, :yes, :maybe, :unseen], ordered=true)
+    u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
+    u2 = UnivariateFinite([v[3], v[2]], rand(6), augment=true)
+    us = (u1, u2)
+    u = cat(us..., dims=1)
+    @test length(u) == length(u1) + length(u2)
+    @test classes(u) == classes(u1)
+    supp = Distributions.support(u)
+    @test Set(supp) == Set([:no, :yes, :maybe])
+    s1 = Distributions.support(u1)
+    s2 = Distributions.support(u2)
+    @test pdf.(u, s1)[1:length(u1),:] == pdf.(u1, s1)
+    @test pdf.(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
+        pdf.(u2, s2)
+    @test pdf.(u, v[1])[length(u1)+1:length(u1)+length(u2)] ==
+        zeros(length(u2))
+    @test pdf.(u, v[3])[1:length(u1)] == zeros(length(u1))
+    @test pdf.(u, v[4]) == zeros(length(u))
+
+    @test vcat(u1, u2) ≈ cat(u1, u2, dims=1)
+    @test hcat(u1, u2) ≈ cat(u1, u2, dims=2)
+
+    # errors
+    v1 = categorical(1:2, ordered=true)
+    v2 = categorical(v1, ordered=true)
+    levels!(v2, levels(v2) |> reverse )
+    probs = rand(3)
+    u1 = UnivariateFinite(v1, probs, augment=true)
+    u2 = UnivariateFinite(v2, probs, augment=true)
+    @test_throws DomainError vcat(u1, u2)
+
+    v1 = categorical(1:2)
+    v2 = categorical(2:3)
+    u1 = UnivariateFinite(v1, probs, augment=true)
+    u2 = UnivariateFinite(v2, probs, augment=true)
+    @test_throws DomainError vcat(u1, u2)
+
 end
 
 end
