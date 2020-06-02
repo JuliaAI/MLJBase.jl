@@ -401,6 +401,27 @@ function _process_weights_measures(weights, measures, mach,
 
 end
 
+function _process_accel_settings(accel::CPUThreads)
+    if accel.settings === nothing 
+        nthreads = Threads.nthreads()
+        _accel =  CPUThreads(nthreads)
+    else
+      typeof(accel.settings) <: Signed || 
+      throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
+                        "be an instance of type `T<:Signed`"))
+      accel.settings > 0 || 
+            throw(error("Can't create $(acceleration.settings) tasks)"))
+      _accel = accel
+    end
+    return _accel
+end
+
+_process_accel_settings(accel::Union{CPU1,CPUProcesses}) = accel
+
+#fallback
+_process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
+                            " acceleration parameter`acceleration = $accel` ")) 
+
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
 
@@ -522,9 +543,11 @@ function evaluate!(mach::Machine{<:Supervised};
             " measures, as unsupported: \n$unsupported_as_string "
         end
     end
-
+    
+    _acceleration= _process_accel_settings(acceleration)
+    
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
-                   _measures, operation, acceleration, force)
+                   _measures, operation, _acceleration, force)
 
 end
 
@@ -608,8 +631,7 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
-function _evaluate!(func, mach, accel::CPUThreads{T},
-                        nfolds,verbosity) where T<: Integer
+function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    nthreads = Threads.nthreads()
     
    if nthreads == 1
@@ -704,16 +726,10 @@ function evaluate!(mach::Machine, resampling, weights,
         end
     end
      if acceleration isa CPUThreads
-        if acceleration.settings === nothing 
-            nthreads = Threads.nthreads()
-            acceleration = CPUThreads(nthreads)
-        end
-        acceleration.settings > 0 || 
-                throw(error("Can't create $(acceleration.settings) tasks)"))
         if verbosity > 0
                 @info "Performing evaluations " *
                       "using $(Threads.nthreads()) threads."
-            end
+        end
     end
    
     measurements_flat =
@@ -845,6 +861,7 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
+    
     return warning
 end
 
@@ -870,11 +887,12 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
     
+    _acceleration = _process_accel_settings(resampler.acceleration)
 
     fitresult = evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
-                          resampler.acceleration, false)
+                          _acceleration, false)
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 
