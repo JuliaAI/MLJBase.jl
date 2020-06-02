@@ -166,6 +166,73 @@ end
 
 
 # ----------------------------------------------------------------
+# Cross-validation (TimeSeriesCV)
+"""
+tscv = TimeSeriesCV(;folds=4)
+
+Cross-validation resampling strategy, for use in `evaluate!`,
+`evaluate` and tuning, when observations are chronological and not
+expected to be independent.
+
+train_test_pairs(tscv, rows)
+
+Return an iterator of `(train, test)` pairs of vectors in which `train` progressively
+grows in  `nfolds` and `test` consists of a `1+nfolds` indexs in `rows`.
+Specifically,
+
+train[k] = rows[1:k]
+test[k] = [rows[k + 1, ]
+for k in 2:(nfold).
+
+# Examples
+
+```julia-repl
+julia> tscv = TimeSeriesCV(nfolds=3)
+julia> MLJBase.train_test_pairs(tscv, collect(1:2:15))
+3-element Array{Tuple{Array{Int64,1},Array{Int64,1}},1}:
+ ([1, 3], [5, 7])
+ ([1, 3, 5, 7], [9, 11])
+ ([1, 3, 5, 7, 9, 11], [13, 15])
+```
+"""
+struct TimeSeriesCV <: ResamplingStrategy
+     nfolds::Int
+     function TimeSeriesCV(nfolds)
+         nfolds > 1 || error("Must have nfolds > 1. ")
+         return new(nfolds)
+     end
+ end
+ # Constructor with keywords
+ TimeSeriesCV(;nfolds::Int=4) =
+       TimeSeriesCV(nfolds)
+
+ function train_test_pairs(tscv::TimeSeriesCV, rows)
+     if rows != sort(rows)
+         @warn("TimeSeriesCV being applied to `rows` not in sequence. ")
+     end
+     n_obs = length(rows)
+     nfolds = tscv.nfolds
+     # number of observations per fold
+     k = floor(Int, n_obs/nfolds)
+     k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
+                    "Try reducing nfolds. ")
+     # define the (trainrows, testrows) pairs:
+     firsts = 1:k:((nfolds)*k + 1) # itr of first `test` rows index
+     seconds = k:k:((nfolds)*k)
+     ret = map(2:nfolds+1) do k
+         f = firsts[k]
+         if  k == nfolds + 1
+             s = n_obs
+         else
+             s = seconds[k]
+         end
+         return (rows[1:f-1], # trainrows
+                 rows[f:s])   # testrows
+    end
+    return ret
+end
+
+# ----------------------------------------------------------------
 # Cross-validation (stratified; for `Finite` targets)
 
 """
@@ -402,14 +469,14 @@ function _process_weights_measures(weights, measures, mach,
 end
 
 function _process_accel_settings(accel::CPUThreads)
-    if accel.settings === nothing 
+    if accel.settings === nothing
         nthreads = Threads.nthreads()
         _accel =  CPUThreads(nthreads)
     else
-      typeof(accel.settings) <: Signed || 
+      typeof(accel.settings) <: Signed ||
       throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
                         "be an instance of type `T<:Signed`"))
-      accel.settings > 0 || 
+      accel.settings > 0 ||
             throw(error("Can't create $(acceleration.settings) tasks)"))
       _accel = accel
     end
@@ -420,7 +487,7 @@ _process_accel_settings(accel::Union{CPU1,CPUProcesses}) = accel
 
 #fallback
 _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
-                            " acceleration parameter`acceleration = $accel` ")) 
+                            " acceleration parameter`acceleration = $accel` "))
 
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
@@ -543,9 +610,9 @@ function evaluate!(mach::Machine{<:Supervised};
             " measures, as unsupported: \n$unsupported_as_string "
         end
     end
-    
+
     _acceleration= _process_accel_settings(acceleration)
-    
+
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
                    _measures, operation, _acceleration, force)
 
@@ -574,7 +641,7 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-            
+
    verbosity < 1 || (p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
@@ -586,16 +653,16 @@ function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
             r = func(mach, k)
             verbosity < 1 || begin
                       p.counter += 1
-                      ProgressMeter.updateProgress!(p)  
-                    end 
+                      ProgressMeter.updateProgress!(p)
+                    end
             return r
         end
-     
+
     return ret
 end
 
-function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity) 
-    
+function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
+
     local ret
     @sync begin
         channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
@@ -620,12 +687,12 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
                                         yield()
                                       end
                      r
-        	     end
+                     end
          verbosity < 1 || put!(channel, false)
     end
     close(channel)
     end
-    
+
     return ret
 end
 
@@ -633,7 +700,7 @@ end
 
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    nthreads = Threads.nthreads()
-    
+
    if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
@@ -648,32 +715,32 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
                     color = :yellow)
                     ch = Channel{Bool}(length(partitions))
                  end
-   tasks = Vector{Task}(undef, length(partitions)) 
-    
+   tasks = Vector{Task}(undef, length(partitions))
+
    @sync begin
        # printing the progress bar
        verbosity < 1 || @async begin
                               while take!(ch)
-                                p.counter +=1 
+                                p.counter +=1
                                 ProgressMeter.updateProgress!(p)
                               end
                               close(ch)
                         end
 
-   @sync for (i, parts) in enumerate(partitions)    
+   @sync for (i, parts) in enumerate(partitions)
      tasks[i] = Threads.@spawn begin
        #One tmach for each task:
        tmach = machine(mach.model, mach.args...)
-       mapreduce(vcat, parts) do k  
+       mapreduce(vcat, parts) do k
             r = func(tmach, k)
             verbosity < 1 || put!(ch, true)
-            r            
+            r
        end
-      end  
-    end
-     verbosity < 1 || put!(ch, false)   
-    end
-    reduce(vcat, fetch.(tasks))
+     end
+   end
+   verbosity < 1 || put!(ch, false)
+   end
+   reduce(vcat, fetch.(tasks))
 end
 
 end
@@ -703,7 +770,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-   
+
     function get_measurements(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
@@ -731,7 +798,7 @@ function evaluate!(mach::Machine, resampling, weights,
                       "using $(Threads.nthreads()) threads."
         end
     end
-   
+
     measurements_flat =
             _evaluate!(get_measurements,
                        mach,
@@ -774,7 +841,7 @@ function evaluate!(mach::Machine, resampling, weights,
            measurement=per_measure,
            per_fold=per_fold,
            per_observation=per_observation)
-    
+
     return ret
 
 end
@@ -861,7 +928,7 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
-    
+
     return warning
 end
 
@@ -886,7 +953,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
         _process_weights_measures(resampler.weights, resampler.measure,
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
-    
+
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     fitresult = evaluate!(mach, resampler.resampling,
@@ -954,4 +1021,3 @@ function evaluate(machine::AbstractMachine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-

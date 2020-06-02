@@ -215,6 +215,16 @@ end
     @test shuffled.measurement[1] != result.measurement[1]
 end
 
+@testset "TimeSeriesCV" begin
+    tscv = TimeSeriesCV(;nfolds=3)
+    @test MLJBase.train_test_pairs(tscv, collect(1:2:15)) ==
+    [([1, 3], [5, 7])
+     ([1, 3, 5, 7], [9, 11])
+     ([1, 3, 5, 7, 9, 11], [13, 15])]
+     @test_logs((:warn, r"TimeSeriesCV being applied to `rows` not in sequence. "),
+                MLJBase.train_test_pairs(tscv, reverse(1:10)))
+end
+
 @testset "stratified_cv" begin
 
     # check in explicit example:
