@@ -128,7 +128,6 @@ function MMI.UnivariateFinite(
 
     # retrieve decoder and classes from element
     class1         = first(keys(prob_given_class))
-    S = scitype(class1)
     parent_decoder = decoder(class1)
     parent_classes = classes(class1)
 
@@ -143,6 +142,7 @@ function MMI.UnivariateFinite(
                 for c in support]
 
     probs1 = first(values(prob_given_class))
+    S = scitype(class1)
     if probs1 isa Real
         return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
     else
