@@ -9,7 +9,7 @@ const EXTRA_KW_MAKE = """
 
 
 """
-finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf)
+	finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf)
 
 Internal function to  finalize the `make_*` functions.
 """
@@ -31,15 +31,15 @@ end
 ### CLASSIFICATION TOY DATASETS
 
 """
-runif_ab(n, p, a, b)
+	runif_ab(rng, n, p, a, b)
 
 Internal function to generate `n` points in `[a, b]ᵖ` uniformly at random.
 """
-runif_ab(n, p, a, b) = (b - a) .* rand(n, p) .+ a
+runif_ab(rng, n, p, a, b) = (b - a) .* rand(rng, n, p) .+ a
 
 
 """
-make_blobs(n=100, p=2; kwargs...)
+	make_blobs(n=100, p=2; kwargs...)
 
 Generate gaussian blobs with `n` examples of `p` features. The function returns
 a `n x p` matrix with the samples and a `n` integer vector indicating the
@@ -75,6 +75,13 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
             "Domain for the centers improperly defined expected a pair " *
             "`a => b` with `a < b`."))
     end
+
+	if rng === nothing
+		rng = Random.MersenneTwister()
+	elseif rng isa Integer
+		rng = Random.MersenneTwister(rng)
+	end
+
     if centers isa Matrix
         if size(centers, 2) != p
             throw(ArgumentError(
@@ -85,7 +92,7 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
     else
         # in case the centers aren't provided, draw them from the box
         n_centers = centers
-        centers   = runif_ab(n_centers, p, center_box...)
+        centers   = runif_ab(rng, n_centers, p, center_box...)
     end
     if cluster_std isa Vector
         if length(cluster_std) != n_centers
@@ -102,9 +109,6 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
         cluster_std = fill(cluster_std, n_centers)
     end
 
-    # Seed the random number generator if required
-    rng === nothing || Random.seed!(rng)
-
     # split points equally among centers
     ni, r    = divrem(n, n_centers)
     ns       = fill(ni, n_centers)
@@ -114,7 +118,7 @@ function make_blobs(n::Integer=100, p::Integer=2; shuffle::Bool=true,
     y = vcat((fill(i, ni) for (i, ni) in enumerate(ns))...)
 
     # Pre-generate random points then modify for each center
-    X    = randn(n, p)
+    X    = randn(rng, n, p)
     nss  = [1, cumsum(ns)...]
     # ranges of rows for each center
     rows = [nss[i]:nss[i+1] for i in 1:n_centers]
@@ -131,7 +135,7 @@ end
 
 
 """
-make_circles(n=100; kwargs...)
+	make_circles(n=100; kwargs...)
 
 Generate `n` points along two circumscribed circles returning the `n x 2`
 matrix of points and a vector of membership (0, 1) depending on whether the points are on the smaller circle (0) or the larger one (1).
@@ -166,10 +170,14 @@ function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
             "Factor argument must be strictly between 0 and 1."))
     end
 
-    rng === nothing || Random.seed!(rng)
+	if rng === nothing
+		rng = Random.MersenneTwister()
+	elseif rng isa Integer
+		rng = Random.MersenneTwister(rng)
+	end
 
     # Generate points on a 2D circle
-    θs = runif_ab(n, 1, 0, 2pi)
+    θs = runif_ab(rng, n, 1, 0, 2pi)
 
     n0 = div(n, 2)
 
@@ -180,7 +188,7 @@ function make_circles(n::Integer=100; shuffle::Bool=true, noise::Real=0.,
     y[1:n0] .= 0
 
     if !iszero(noise)
-        X .+= noise .* randn(n, 2)
+        X .+= noise .* randn(rng, n, 2)
     end
 
 	return finalize_Xy(X, y, shuffle, as_table, eltype, rng)
@@ -188,7 +196,7 @@ end
 
 
 """
-make_moons(n::Int=100; kwargs...)
+	make_moons(n::Int=100; kwargs...)
 
 Generates `n` examples sampling from two interleaved half-circles returning
 the `n x 2` matrix of points and a vector of membership (0, 1) depending on
@@ -223,12 +231,16 @@ function make_moons(n::Int=150; shuffle::Bool=true, noise::Real=0.1,
             "Noise argument cannot be negative."))
     end
 
-    rng === nothing || Random.seed!(rng)
+	if rng === nothing
+		rng = Random.MersenneTwister()
+	elseif rng isa Integer
+		rng = Random.MersenneTwister(rng)
+	end
 
     n1 = div(n, 2)
     n2 = n - n1
 
-    θs = runif_ab(n, 1, 0, pi)
+    θs = runif_ab(rng, n, 1, 0, pi)
     θs[n2+1:end] .*= -1
 
     X = hcat(cos.(θs), sin.(θs))
@@ -240,7 +252,7 @@ function make_moons(n::Int=150; shuffle::Bool=true, noise::Real=0.1,
     y[1:n1] .= 0
 
     if !iszero(noise)
-        X .+= noise .* randn(n, 2)
+        X .+= noise .* randn(rng, n, 2)
     end
 
     return finalize_Xy(X, y, shuffle, as_table, eltype, rng)
@@ -250,7 +262,7 @@ end
 ### REGRESSION TOY DATASETS
 
 """
-augment_X(X, fit_intercept)
+	augment_X(X, fit_intercept)
 
 Given a matrix `X`, append a column of ones if `fit_intercept` is true.
 See [`make_regression`](@ref).
@@ -261,14 +273,16 @@ function augment_X(X::Matrix{<:Real}, fit_intercept::Bool)
 end
 
 """
-sparsify!(θ, s)
+	sparsify!(rng, θ, s)
 
 Make portion `s` of vector `θ` exactly 0.
 """
-sparsify!(θ, s) = (θ .*= (rand(length(θ)) .< s))
+sparsify!(rng, θ, s) =
+	(θ .*= (rand(rng, length(θ)) .< s))
 
 """Add outliers to portion s of vector."""
-outlify!(y, s) = (n = length(y); y .+= 20 * randn(n) .* (rand(n) .< s))
+outlify!(rng, y, s) =
+	(n = length(y); y .+= 20 * randn(rng, n) .* (rand(rng, n) .< s))
 
 const SIGMOID_64 = log(Float64(1)/eps(Float64) - Float64(1))
 const SIGMOID_32 = log(Float32(1)/eps(Float32) - Float32(1))
@@ -336,22 +350,26 @@ function make_regression(n::Int=100, p::Int=2; intercept::Bool=true,
 			"Outliers argument must be in [0, 1]."))
 	end
 
-    rng === nothing || Random.seed!(rng)
+	if rng === nothing
+		rng = Random.MersenneTwister()
+	elseif rng isa Integer
+		rng = Random.MersenneTwister(rng)
+	end
 
-    X = augment_X(randn(n, p), intercept)
-    θ = randn(p + Int(intercept))
-	sparse > 0 && sparsify!(θ, sparse)
+    X = augment_X(randn(rng, n, p), intercept)
+    θ = randn(rng, p + Int(intercept))
+	sparse > 0 && sparsify!(rng, θ, sparse)
 	y = X * θ
 
 	if !iszero(noise)
-		y .+= noise .* randn(n)
+		y .+= noise .* randn(rng, n)
 	end
 
 	if binary
-		y = rand(n) .< sigmoid.(y)
+		y = rand(rng, n) .< sigmoid.(y)
 	else
 		if !iszero(outliers)
-			outlify!(y, outliers)
+			outlify!(rng, y, outliers)
 		end
 	end
 
