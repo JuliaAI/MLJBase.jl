@@ -81,26 +81,79 @@ end
 Base.vcat(us::UnivariateFiniteArray...) = cat(us..., dims=1)
 Base.hcat(us::UnivariateFiniteArray...) = cat(us..., dims=2)
 
-# performant broadcasting of pdf - sample is a cat. value:
-Base.Broadcast.broadcasted(::typeof(pdf),
-                           u::UniFinArr{S,V,R,P,N},
-                           cv::CategoricalValue) where {S,V,R,P,N} =
-    get(u.prob_given_ref, int(cv), zeros(P, size(u)))
 
-# performant broadcasting of pdf - sample is a raw label:
+## CONVENIENCE METHOD pdf(array_of_univariate_finite, labels)
+
+# next bit is not specific to `UnivariateFiniteArray` but is for any
+# abstract array with eltype `UnivariateFinite`.
+
+# this is type piracy that has been adopted only after much
+# agonizing over alternatives. Note that pdf.(u, labels) must
+# necessarily have a different meaning (and only makes sense if u and
+# labels have the same length or labels is a scalar)
+
+function Distributions.pdf(
+    u::AbstractArray{UnivariateFinite{S,V,R,P},N},
+    C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
+
+    ret = Array{P,N+1}(undef, size(u)..., length(C))
+    for i in eachindex(C)
+        ret[fill(:,N)...,i] = broadcast(pdf, u, C[i])
+    end
+    return ret
+end
+
+
+## PERFORMANT BROADCASTING OF pdf
+
+# u - a UnivariateFiniteArray
+# cv - a CategoricalValue
+# v - a vector of CategoricalArrays
+
+# pdf.(u, cv)
+function Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::UniFinArr{S,V,R,P,N},
+    cv::CategoricalValue) where {S,V,R,P,N}
+
+    cv in classes(u) || _err_missing_class(cv)
+
+    return get(u.prob_given_ref, int(cv), zeros(P, size(u)))
+end
+
+# pdf.(u, v)
+function Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::UniFinArr{S,V,R,P,N},
+    v::AbstractArray{<:CategoricalValue{V,R},N}) where {S,V,R,P,N}
+
+    length(u) == length(v) ||throw(DimensionMismatch(
+        "Arrays could not be broadcast to a common size; "*
+        "got a dimension with lengths $(length(u)) and $(length(v))"))
+    for cv in v
+        cv in classes(u) || _err_missing_class(c)
+    end
+
+    # will use linear indexing:
+    v_flat = ((v[i], i) for i in 1:length(v))
+    getter((cv, i)) = get(u.prob_given_ref, int(cv), zero(P))[i]
+    ret_flat = getter.(v_flat)
+    return reshape(ret_flat, size(u))
+end
+
+# pdf.(u, raw) where raw is scalar or vec
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
     u::UnivariateFiniteArray{S,V,R,P,N},
-    c::V) where {S,V,R,P,N}
+    raw::Union{V,AbstractArray{V,N}}) where {S,V,R,P,N}
 
-    _classes = classes(u)
-    c in _classes || throw(DomainError("Value $c not in pool. "))
-    pool = CategoricalArrays.pool(_classes)
-    class = pool[get(pool, c)]
-    return broadcast(pdf, u, class)
+    cat = transform(classes(u), raw)
+    return broadcast(pdf, u, cat)
 end
 
-# performant broadcasting of mode:
+
+## PERFORMANT BROADCASTING OF mode:
+
 function Base.Broadcast.broadcasted(::typeof(mode),
                                     u::UniFinArr{S,V,R,P,N}) where {S,V,R,P,N}
     dic = u.prob_given_ref

@@ -89,24 +89,36 @@ end
     @test pdf.(u, s[1])[2:end] == P[2:end,1]
 end
 
-@testset "broadcasting pdf" begin
-    n = 10
-    P = rand(n);
-    u = UnivariateFinite([:no, :yes], P, augment=true, pool=missing)
-    @test pdf.(u,:yes) == P
-    @test pdf.(u, [:yes, :no]) == hcat(P, 1 .- P)
+n = 10
+P = rand(n);
+all_classes = categorical([:no, :yes], ordered=true)
+u = UnivariateFinite(all_classes, P, augment=true)
 
-    # check last also works for unwrapped arrays:
-    @test pdf.([u...], [:yes, :no]) == hcat(P, 1 .- P)
+# next is not specific to `UnivariateFiniteArray` but is for any
+# abstract array with eltype `UnivariateFinite`:
+@testset "piratical pdf" begin
+    @test pdf(u, [:yes, :no]) == hcat(P, 1 .- P)
+    @test pdf(u, reverse(all_classes)) == hcat(P, 1 .- P)
+    @test pdf([u...], [:yes, :no]) == hcat(P, 1 .- P)
+    @test pdf([u...], all_classes) == hcat(1 .- P, P)
+end
+
+@testset "broadcasting: pdf.(uni_fin_arr, scalar) " begin
+    @test pdf.(u,:yes) == P
+    @test pdf.(u,all_classes[2]) == P
 
     # check unseen probablities are a zero *array*:
     v = categorical(1:4)
     probs = rand(3)
-    u = UnivariateFinite(v[1:2], probs, augment=true)
-    @test pdf.(u, v[3]) == zeros(3)
+    u2 = UnivariateFinite(v[1:2], probs, augment=true)
+    @test pdf.(u2, v[3]) == zeros(3)
+end
 
-    # check if we can broadcast over vector of categorical *elements*:
-    @test pdf.(u, v[1:2]) == hcat(1 .- probs, probs)
+@testset "broadcasting: pdf.(uni_fin_arr, array_same_shape)" begin
+    v = rand(classes(u), n)
+    @test broadcast(pdf, u, v) == [pdf(u[i], v[i]) for i in 1:length(u)]
+    @test broadcast(pdf, u, get.(v)) ==
+        [pdf(u[i], v[i]) for i in 1:length(u)]
 end
 
 @testset "broadcasting mode" begin
@@ -143,14 +155,14 @@ end
     @test Set(supp) == Set([:no, :yes, :maybe])
     s1 = Distributions.support(u1)
     s2 = Distributions.support(u2)
-    @test pdf.(u, s1)[1:length(u1),:] == pdf.(u1, s1)
-    @test pdf.(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
-        pdf.(u2, s2)
+    @test pdf(u, s1)[1:length(u1),:] == pdf(u1, s1)
+    @test pdf(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
+        pdf(u2, s2)
     @test pdf.(u, v[1])[length(u1)+1:length(u1)+length(u2)] ==
         zeros(length(u2))
     @test pdf.(u, v[3])[1:length(u1)] == zeros(length(u1))
     @test pdf.(u, v[4]) == zeros(length(u))
-    
+
     # unordered:
     v = categorical([:no, :yes, :maybe, :unseen], ordered=true)
     u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
@@ -163,9 +175,9 @@ end
     @test Set(supp) == Set([:no, :yes, :maybe])
     s1 = Distributions.support(u1)
     s2 = Distributions.support(u2)
-    @test pdf.(u, s1)[1:length(u1),:] == pdf.(u1, s1)
-    @test pdf.(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
-        pdf.(u2, s2)
+    @test pdf(u, s1)[1:length(u1),:] == pdf(u1, s1)
+    @test pdf(u, s2)[length(u1)+1:length(u1)+length(u2),:] ==
+        pdf(u2, s2)
     @test pdf.(u, v[1])[length(u1)+1:length(u1)+length(u2)] ==
         zeros(length(u2))
     @test pdf.(u, v[3])[1:length(u1)] == zeros(length(u1))

@@ -293,21 +293,20 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
-const message1 = "Attempting to transform a level not in pool of specified "*
-   "categorical element. "
+_err_missing_class(c) =  throw(DomainError(
+    "Value $c not pool"))
+
 
 function transform_(pool, x)
     ismissing(x) && return missing
-    _classes = classes(pool)
-    x in _classes || error(message1)
-    ref = pool.invindex[x]
-    return _classes[ref]
+    x in levels(pool) || _err_missing_class(x)
+    return pool[get(pool, x)]
 end
 
 transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
 
 """
-    transform(e::Union{CategoricalElement,CategoricalArray},  X)
+    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
 
 Transform the specified object `X` into a categorical version, using
 the pool contained in `e`. Here `X` is a raw value (an element of
@@ -326,3 +325,5 @@ julia> transform(v[1], [:x :x; missing :y])
 """
 MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
                             arg) = transform_(CategoricalArrays.pool(e), arg)
+MLJModelInterface.transform(e::CategoricalPool, arg) =
+    transform_(e, arg)
