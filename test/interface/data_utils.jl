@@ -93,7 +93,7 @@ end
     A = broadcast(x->Char(65+mod(x,5)), rand(Int, N, 5))
     X = CategoricalArrays.categorical(A)
     names = Tuple(Symbol("x$i") for i in 1:size(A,2))
-    tup =NamedTuple{b}(Tuple(A[:,i] for i in 1:size(A,2)))
+    tup =NamedTuple{names}(Tuple(A[:,i] for i in 1:size(A,2)))
     nt = (tup..., z = 1:N)
                 
     tt = TypedTables.Table(nt)
