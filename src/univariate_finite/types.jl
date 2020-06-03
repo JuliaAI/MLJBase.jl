@@ -23,6 +23,8 @@ struct UnivariateFiniteArray{S,V,R,P,N} <:
     prob_given_ref::LittleDict{R,Array{P,N},Vector{R}, Vector{Array{P,N}}}
 end
 
+const UnivariateFiniteVector{S,V,R,P} = UnivariateFiniteArray{S,V,R,P,1}
+
 
 ## CONSTRUCTORS TO EXTEND MLJModelInterface
 

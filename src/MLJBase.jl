@@ -117,8 +117,8 @@ export @set_defaults, flat_values, recursive_setproperty!,
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
-# distributions.jl:
-export average, UnivariateFiniteArray
+# univariate_finite/
+export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # info_dict.jl:
 export info_dict
