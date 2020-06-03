@@ -85,7 +85,7 @@ end
 
     # with callable as scale:
     r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
-    expecting = map(x->round(Int,10^x), range(1,2,length=10))
+    expecting = map(x->round(Int,10^x), range(1, stop= 2, length=10))
     @test iterator(r, 10) == expecting
 
 end
