@@ -64,13 +64,14 @@ end
 
 @testset "matrix, table" begin
     B = rand(UInt8, (4, 5))
-    @test matrix(DataFrame(B)) == B
+    @test matrix(TypedTables.Table(B)) == B
     @test matrix(table(B)) == B
     @test matrix(table(B), transpose=true) == B'
 
     X  = (x1=rand(5), x2=rand(5))
 
-    @test table(X, prototype=DataFrame()) == DataFrame(X)
+    @test table(X, prototype=TypedTables.Table(x1=[],
+                    x2=[]) == TypedTables.Table(X)
     T = table((x1=(1,2,3), x2=(:x, :y, :z)))
     @test selectcols(T, :x1) == [1, 2, 3]
 
@@ -87,25 +88,19 @@ end
     N = 10
     A = broadcast(x->Char(65+mod(x,5)), rand(Int, N, 5))
     X = CategoricalArrays.categorical(A)
-    df = DataFrame(A)
-    df.z  = 1:N
-    tt = TypedTables.Table(df)
+    names = Tuple(Symbol("x$i") for i in 1:size(A,2))
+    tup =NamedTuple{b}(Tuple(A[:,i] for i in 1:size(A,2)))
+    nt = (tup..., z = 1:N)
+                
+    tt = TypedTables.Table(nt)
     rt = Tables.rowtable(tt)
     ct = Tables.columntable(tt)
 
     @test selectcols(nothing, 4:6)   == nothing
-    @test selectcols(df, 4:6)        == df[:,4:6]
-    @test selectcols(df, [:x1, :z])  == df[:,[:x1, :z]]
-    @test selectcols(df, :x2)        == df.x2
-    @test selectcols(nothing, 4:6)   == nothing
-    @test selectcols(df, 2)          == df.x2
-    @test selectrows(df, 4:6)        == selectrows(df[4:6, :], :)
-    @test selectrows(df, 1)          == selectrows(df[1:1, :], :)
-    @test selectrows(nothing, 4:6)   == nothing
-    @test MLJBase.select(df, 2, :x2) == df[2, :x2]
+    @test selectrows(tt, 1)          == selectrows(tt[1:1], :)
     @test MLJBase.select(nothing, 2, :x) == nothing
-    s = schema(df)
-    @test nrows(df) == N
+    s = schema(tt)
+    @test nrows(tt) == N
 
     @test selectcols(tt, 4:6) ==
         selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
@@ -153,8 +148,6 @@ end
 
     # TypedTables
     v = categorical(collect("asdfasdf"))
-    df = DataFrame(v=v, w=v)
-    @test selectcols(df, :w) == v
-    tt = TypedTables.Table(df)
+    tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
 end
