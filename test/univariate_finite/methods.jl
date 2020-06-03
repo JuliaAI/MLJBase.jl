@@ -91,6 +91,14 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     @test isapprox(freq[S]/N, 0.1, atol=0.05)
     @test isapprox(freq[Q]/N, 0.2, atol=0.05)
 
+    # corner case:
+    d = UnivariateFinite([:ying, :yang], 0.3, augment=true,
+                         ordered=true, pool=missing)
+    @test pdf(d, :yang) == 0.3
+    @test classes(d)[1] == :ying
+    d = UnivariateFinite(classes(d), 0.3, augment=true)
+    @test pdf(d, :yang) == 0.3
+
     # no support specified:
     @test_logs (:warn, r"No ") UnivariateFinite([0.7, 0.3])
     d = UnivariateFinite([0.7, 0.3], pool=missing)
@@ -98,12 +106,14 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
 end
 
 @testset "constructor arguments not categorical values" begin
-    @test_logs((:warn, r"No "),
-               UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1)))
-    @test_throws(MethodError,
-                 UnivariateFinite(Dict('f'=>"junk", 'q'=>0.2, 's'=>0.1),
-                                  pool=missing))
-    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=missing)
+    @test_throws ArgumentError UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2))
+    @test_throws ArgumentError UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2),
+                                                pool=missing)
+    @test_logs((:warn, r"Ignoring"),
+               UnivariateFinite(Dict('f'=>0.7, 'q'=>0.3),
+                                pool=f, ordered=true))
+
+    d = UnivariateFinite(Dict('f'=>0.7, 'q'=>0.2, 's'=>0.1), pool=v)
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, 's') ≈ 0.1
     @test pdf(d, 'q') ≈ 0.2

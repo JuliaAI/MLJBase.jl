@@ -7,6 +7,7 @@ const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 # V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
 # P - raw probability type
 # S - scitype of samples
+# L - raw type of labels, eg `Symbol` or `String`
 
 # Note that the keys of `prob_given_ref` need not exhaust all the
 # refs of all classes but will be ordered (LittleDicts preserve order)
@@ -154,33 +155,27 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{V,<:Prob};
                               pool=nothing,
                               ordered=false) where V
 
-    if pool === nothing || ismissing(pool)
-        if pool === nothing
-            @warn "No `CategoricalValue` found from which to extract a "*
-            "complete pool of classes. "*
-            "Creating a new pool (ordered=$ordered) "*
-            "You can:\n"*
-            " (i) specify `pool=missing` to suppress this warning; or\n"*
-            " (ii) use an existing pool by specifying `pool=c` "*
-            "where `c` is a "*
-            "`CategoricalArray`, `CategoricalArray` or "*
-            "CategoricalPool`.\n"*
-            "In case (i) "*
-            "specify `ordered=true` if samples are to be `OrderedFactor`. "
-        end
-        v = categorical(collect(keys(d)), ordered=ordered, compress=true)
-        support = classes(v)
-    else
-        ordered && @warn "Ignoring `ordered` key-word argument as using "*
-        "existing pool. "
-        raw_support = keys(d) |> collect
-        _classes = classes(pool)
-        issubset(raw_support, _classes) ||
-            error("Specified support, $raw_support, not contained in "*
-                  "specified pool, $(levels(classes)). ")
-        support = filter(_classes) do c
-            c in raw_support
-        end
+    ismissing(pool) &&
+        throw(ArgumentError(
+            "You cannot specify `pool=missing` "*
+            "if passing `UnivariateFinite` a dictionary"))
+
+    pool === nothing && throw(ArgumentError(
+        "You must specify `pool=c` "*
+        "where `c` is a "*
+        "`CategoricalArray`, `CategoricalArray` or "*
+        "CategoricalPool`"))
+
+    ordered && @warn "Ignoring `ordered` key-word argument as using "*
+    "specified pool to order. "
+
+    raw_support = keys(d) |> collect
+    _classes = classes(pool)
+    issubset(raw_support, _classes) ||
+        error("Specified support, $raw_support, not contained in "*
+              "specified pool, $(levels(classes)). ")
+    support = filter(_classes) do c
+        c in raw_support
     end
 
     prob_given_class = LittleDict([c=>d[get(c)] for c in support])
@@ -194,8 +189,8 @@ end
 # example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
 _get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
-# 1. Univariate Finite from a vector of classes or labels and array of probs;
-# first, a dispatcher:
+# 1. Univariate Finite from a vector of classes or raw labels and
+# array of probs; first, a dispatcher:
 function MMI.UnivariateFinite(
     ::FI,
     support::AbstractVector,
@@ -219,12 +214,16 @@ function MMI.UnivariateFinite(
                              kwargs...)
 end
 
-# the core method:
-function _UnivariateFinite(support::AbstractVector{V},
-                  probs::AbstractArray{P},
-                  N;
-                  augment=false,
-                  kwargs...) where {V,P<:Real}
+# The core method, ultimately called by 1.0, 1.1, 1.2, 1.3 below, or
+# directly from the dispatcher 1. above
+function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
+                           probs::AbstractArray{P},
+                           N;
+                           augment=false,
+                           kwargs...) where {V,R,P<:Real}
+
+    unique(support) == support ||
+        error("Non-unique vector of classes specified")
 
     _probs = augment ? _augment_probs(support, probs) : probs
 
@@ -232,15 +231,60 @@ function _UnivariateFinite(support::AbstractVector{V},
     # flips to Any type (unlike regular Dict):
 
     if N == 0
-        prob_given_class = LittleDict{V,P}()
+        prob_given_class = LittleDict{CategoricalValue{V,R},P}()
     else
-        prob_given_class = LittleDict{V, AbstractArray{P,N}}()
+        prob_given_class =
+            LittleDict{CategoricalValue{V,R}, AbstractArray{P,N}}()
     end
     for i in eachindex(support)
         prob_given_class[support[i]] = _get(_probs, i)
     end
 
+    # calls dictionary constructor above:
     return MMI.UnivariateFinite(FI(), prob_given_class; kwargs...)
+end
+
+# 1.0 support does not consist of categorical elements:
+function _UnivariateFinite(support::AbstractVector{L},
+                           probs::AbstractArray{P},
+                           N;
+                           augment=false,
+                           pool=nothing,
+                           ordered=false) where {L,P<:Real}
+
+    # If we got here, then L<:CategoricalValue is not true, ie L is a
+    # raw label type
+
+    if pool === nothing || ismissing(pool)
+        if pool === nothing
+            @warn "No `CategoricalValue` found from which to extract a "*
+            "complete pool of classes. "*
+            "Creating a new pool (ordered=$ordered) "*
+            "You can:\n"*
+            " (i) specify `pool=missing` to suppress this warning; or\n"*
+            " (ii) use an existing pool by specifying `pool=c` "*
+            "where `c` is a "*
+            "`CategoricalArray`, `CategoricalArray` or "*
+            "CategoricalPool`.\n"*
+            "In case (i) "*
+            "specify `ordered=true` if samples are to be `OrderedFactor`. "
+        end
+        v = categorical(support, ordered=ordered, compress=true)
+        levels!(v, support)
+        _support = classes(v)
+    else
+        _classes = classes(pool)
+        issubset(support, _classes) ||
+            error("Specified support, $support, not contained in "*
+                  "specified pool, $(levels(classes)). ")
+        _support = filter(_classes) do c
+            c in support
+        end
+    end
+
+    # calls core method:
+    return _UnivariateFinite(_support, probs, N;
+                             augment=augment, pool=pool, ordered=ordered)
 end
 
 # 1.1 generic (non-binary) case:
@@ -268,11 +312,11 @@ _UnivariateFinite(::Val{true},
                                         kwargs...)
 
 # 1.3 corner case, probs a scalar:
-MMI.UnivariateFinite(::Val{true},
-                     support::AbstractVector,
-                     probs::Real;
-                     kwargs...) =
-                         UnivariateFinite(support, [probs,]; kwargs...)[1]
+_UnivariateFinite(::Val{true},
+                  support::AbstractVector,
+                  probs::Real;
+                  kwargs...) =
+                      UnivariateFinite(support, [probs,]; kwargs...)[1]
 
 # 2. probablity only; unspecified support:
 function MMI.UnivariateFinite(::FI,
