@@ -406,9 +406,9 @@ const area_under_curve = AUC()
 const auc = AUC()
 
 function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec{<:CategoricalValue})
+                 y::Vec)
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
-    lab_pos = levels(y)[2]         # 'positive' label
+    lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
     n       = length(y)
