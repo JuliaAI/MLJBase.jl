@@ -161,8 +161,9 @@ export measures, metadata_measure
 
 # measure/measures.jl:
 export orientation, reports_each_observation,
-       is_feature_dependent, aggregation,
-       aggregate, default_measure, value
+    is_feature_dependent, aggregation,
+    aggregate, default_measure, value,
+    spports_weights, prediction_type
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
