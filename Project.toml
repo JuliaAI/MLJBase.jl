@@ -52,7 +52,6 @@ Tables = "^0.2,^1.0"
 julia = "1"
 
 [extras]
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"

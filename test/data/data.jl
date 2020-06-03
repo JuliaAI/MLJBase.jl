@@ -1,7 +1,7 @@
 module TestData
 
 using Test
-using DataFrames
+#using DataFrames
 import TypedTables
 using CategoricalArrays
 import Tables

@@ -2,8 +2,8 @@ module Interface
 
 using Test, Random, MLJBase,
       Tables, CategoricalArrays,
-      OrderedCollections, DataFrames,
-      TypedTables, MLJModelInterface, StableRNGs
+      OrderedCollections,
+      TypedTables, MLJModelInterface
 
 using ..Models
 
