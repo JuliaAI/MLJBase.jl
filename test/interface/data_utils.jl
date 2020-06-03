@@ -71,8 +71,10 @@ end
     X  = (x1=rand(5), x2=rand(5))
 
     @test table(X, prototype=TypedTables.Table(x1=[],
-                    x2=[]) == TypedTables.Table(X)
+                    x2=[])) == TypedTables.Table(X)
+    
     T = table((x1=(1,2,3), x2=(:x, :y, :z)))
+            
     @test selectcols(T, :x1) == [1, 2, 3]
 
     v = categorical(11:20)
