@@ -6,6 +6,8 @@ using Random
 using Statistics
 using CategoricalArrays
 
+using StableRNGs
+
 @testset "make_blobs" begin
     # Standard behaviour
     n, p, centers = 110, 2, 3
@@ -16,9 +18,9 @@ using CategoricalArrays
     @test y isa CategoricalVector
 
     # Specific arguments
-    Random.seed!(55151)
-    n, p = 500, 3
-    centers = randn(4, p)
+    rng = StableRNG(600)
+    n, p = 5000, 3
+    centers = randn(rng,4, p)
     stds    = [1.0, 2.0, 3.0, 7.0]
     X, y = make_blobs(n, p; centers=centers, shuffle=false,
                             center_box=-5. => 5.,
@@ -26,13 +28,13 @@ using CategoricalArrays
                             as_table=false, eltype=Float32)
     @test size(X) == (n, p)
     @test eltype(X) == Float32
-    @test isapprox(std((X[y .== 1, :])), 1.0, rtol=0.1) # roughly 1
-    @test isapprox(std((X[y .== 4, :])), 7.0, rtol=0.1) # roughly 7
+    @test isapprox(std((X[y .== 1, :])), 1.0, rtol=0.2) # roughly 1
+    @test isapprox(std((X[y .== 4, :])), 7.0, rtol=0.2) # roughly 7
 
     # Errors
     @test_throws ArgumentError make_blobs(0, 0)
     @test_throws ArgumentError make_blobs(;center_box=5=>2)
-    @test_throws ArgumentError make_blobs(n, p; centers=randn(4, p+1))
+    @test_throws ArgumentError make_blobs(n, p; centers=randn(rng,4, p+1))
     @test_throws ArgumentError make_blobs(n, p; centers=3, cluster_std=[1,1])
     @test_throws ArgumentError make_blobs(n, p; centers=2, cluster_std=[0,1])
 end

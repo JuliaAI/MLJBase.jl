@@ -1,4 +1,4 @@
-seed!(51803)
+rng = StableRNG(51803)
 
 @testset "built-in classifier measures" begin
     y    = categorical(collect("asdfasdfaaassdd"))
@@ -13,21 +13,24 @@ seed!(51803)
     d3 = UnivariateFinite(L, [0.2, 0.8]) # b
     yhat = [d1, d2, d3]
     @test mean(cross_entropy(yhat, y)) ≈ -(log(0.1) + log(0.6) + log(0.8))/3
+    yhat = UnivariateFinite(L, [0.1 0.9;
+                                0.4 0.6;
+                                0.2 0.8])
+    @test mean(cross_entropy(yhat, y)) ≈ -(log(0.1) + log(0.6) + log(0.8))/3
+
     # sklearn test
     # >>> from sklearn.metrics import log_loss
-    # >>> log_loss(["spam", "ham", "ham", "spam","ham","ham"], [[.1, .9], [.9, .1], [.8, .2], [.35, .65], [0.2, 0.8], [0.3,0.7]])
+    # >>> log_loss(["spam", "ham", "ham", "spam","ham","ham"],
+    #    [[.1, .9], [.9, .1], [.8, .2], [.35, .65], [0.2, 0.8], [0.3,0.7]])
     # 0.6130097025803921
     y2 = categorical(["spam", "ham", "ham", "spam", "ham", "ham"])
     L2 = classes(y2[1])
-    yhat2 = [UnivariateFinite(L2, v) for v in (
-            [.1, .9], [.9, .1], [.8, .2], [.35, .65], [0.2, 0.8], [0.3,0.7]
-            )]
+    probs = vcat([.1 .9], [.9 .1], [.8 .2], [.35 .65], [0.2 0.8], [0.3 0.7])
+    yhat2 = UnivariateFinite(L2, probs)
     @test mean(cross_entropy(yhat2, y2)) ≈ 0.6130097025803921
     # BrierScore
     scores = BrierScore()(yhat, y)
     @test scores ≈ [-1.62, -0.32, -0.08]
-    wscores = BrierScore()(yhat, y, [1, 2, 7])
-    @test wscores ≈ scores .* [0.3, 0.6, 2.1]
     # sklearn test
     # >>> from sklearn.metrics import brier_score_loss
     # >>> brier_score_loss([1, 0, 0, 1, 0, 0], [.9, .1, .2, .65, 0.8, 0.7])
@@ -40,7 +43,7 @@ end
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
             accuracy(confmat(ŷ, y, warn=false))  == 1-mcr(confmat(ŷ, y, warn=false))
-    w = randn(length(y))
+    w = randn(rng,length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
     ## balanced accuracy
@@ -85,7 +88,7 @@ end
                      1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1,
                      1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0,
                      1, 0] .+ 1])
-    ŷ = [UnivariateFinite(y[1:2], [1.0 - p, p]) for p in [
+    probs = [
         0.90237535, 0.41276349, 0.94511611, 0.08390761, 0.55847392,
         0.26043136, 0.78565351, 0.20133953, 0.7404382 , 0.15307601,
         0.59596716, 0.8169512 , 0.88200483, 0.23321489, 0.94050483,
@@ -95,26 +98,33 @@ end
         0.75715379, 0.06550534, 0.12628999, 0.18878245, 0.1283757 ,
         0.76542903, 0.8780248 , 0.86891113, 0.24835709, 0.06528076,
         0.72061354, 0.89451634, 0.95634394, 0.07555979, 0.16345437,
-        0.43498831, 0.37774708, 0.31608861, 0.41369339, 0.95691113]]
+        0.43498831, 0.37774708, 0.31608861, 0.41369339, 0.95691113]
+
+    ŷ = UnivariateFinite(y[1:2], probs, augment=true)
+    # ŷ = [UnivariateFinite(y[1:2], [1.0 - p, p]) for p in [
+    #     0.90237535, 0.41276349, 0.94511611, 0.08390761, 0.55847392,
+    #     0.26043136, 0.78565351, 0.20133953, 0.7404382 , 0.15307601,
+    #     0.59596716, 0.8169512 , 0.88200483, 0.23321489, 0.94050483,
+    #     0.27593662, 0.60702176, 0.36427036, 0.35481784, 0.06416543,
+    #     0.45576954, 0.12354048, 0.79830435, 0.15799818, 0.20981099,
+    #     0.43451663, 0.24020098, 0.11401055, 0.25785748, 0.86490263,
+    #     0.75715379, 0.06550534, 0.12628999, 0.18878245, 0.1283757 ,
+    #     0.76542903, 0.8780248 , 0.86891113, 0.24835709, 0.06528076,
+    #     0.72061354, 0.89451634, 0.95634394, 0.07555979, 0.16345437,
+    #     0.43498831, 0.37774708, 0.31608861, 0.41369339, 0.95691113]]
     @test isapprox(auc(ŷ, y), 0.455716, rtol=1e-4)
-    # flip the ordering and the scores, the AUC is invariant
-    y2 = categorical(c[[1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1,
-                      0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0,
-                      0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-                      0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1,
-                      0, 1] .+ 1])
-    ŷ2 = [UnivariateFinite(y[1:2], [1.0 - p, p]) for p in [
-        0.09762465, 0.58723651, 0.05488389, 0.91609239, 0.44152608,
-        0.73956864, 0.21434649, 0.79866047, 0.2595618 , 0.84692399,
-        0.40403284, 0.1830488 , 0.11799517, 0.76678511, 0.05949517,
-        0.72406338, 0.39297824, 0.63572964, 0.64518216, 0.93583457,
-        0.54423046, 0.87645952, 0.20169565, 0.84200182, 0.79018901,
-        0.56548337, 0.75979902, 0.88598945, 0.74214252, 0.13509737,
-        0.24284621, 0.93449466, 0.87371001, 0.81121755, 0.8716243 ,
-        0.23457097, 0.1219752 , 0.13108887, 0.75164291, 0.93471924,
-        0.27938646, 0.10548366, 0.04365606, 0.92444021, 0.83654563,
-        0.56501169, 0.62225292, 0.68391139, 0.58630661, 0.04308887]]
-    @test auc(ŷ, y) ≈ auc(ŷ2, y2)
+    ŷ_unwrapped = [ŷ...]
+    @test isapprox(auc(ŷ_unwrapped, y), 0.455716, rtol=1e-4)
+
+    # reversing the roles of positive and negative should return very
+    # similar score
+    y2 = deepcopy(y);
+    levels!(y2, reverse(levels(y2)));
+    @test y == y2
+    @test levels(y) != levels(y2)
+    ŷ2 = UnivariateFinite(y2[1:2], probs, augment=true) # same probs
+    @test isapprox(auc(ŷ2, y2), auc(ŷ, y), rtol=1e-4)
+
 end
 
 @testset "confusion matrix {2}" begin

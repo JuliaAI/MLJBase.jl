@@ -7,6 +7,8 @@ using Test, Random, MLJBase,
 
 using ..Models
 
+rng = StableRNG(1551234)
+
 include("data_utils.jl")
 
 include("model_api.jl")

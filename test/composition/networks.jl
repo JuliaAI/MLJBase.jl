@@ -5,16 +5,17 @@ using Test
 using MLJBase
 using ..Models
 using CategoricalArrays
-import Random.seed!
-seed!(1234)
+using StableRNGs
+
+rng = StableRNG(66090909)
 
 @load KNNRegressor
 
 @testset "network #1" begin
 
     N =100
-    X = (x1=rand(N), x2=rand(N), x3=rand(N))
-    y = 2X.x1  - X.x2 + 0.05*rand(N)
+    X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
+    y = 2X.x1  - X.x2 + 0.05*rand(rng,N)
 
     knn_ = KNNRegressor(K=7)
 
@@ -55,12 +56,12 @@ end
 @testset "network #2" begin
 
     N =100
-    X = (x1=rand(N),
-         x2=rand(N),
-         x3=categorical(rand("yn",N)),
-         x4=categorical(rand("yn",N)))
+    X = (x1=rand(rng,N),
+         x2=rand(rng,N),
+         x3=categorical(rand(rng,"yn",N)),
+         x4=categorical(rand(rng,"yn",N)))
 
-    y = 2X.x1  - X.x2 + 0.05*rand(N)
+    y = 2X.x1  - X.x2 + 0.05*rand(rng,N)
     X = source(X)
     y = source(y)
 
@@ -102,8 +103,8 @@ end
 @testset "network #3" begin
 
     N =100
-    X = (x1=rand(N), x2=rand(N), x3=rand(N))
-    y = 2X.x1  - X.x2 + 0.05*rand(N)
+    X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
+    y = 2X.x1  - X.x2 + 0.05*rand(rng,N)
 
     XX = source(X)
     yy = source(y)
@@ -164,7 +165,7 @@ end
 end
 
 @testset "overloading methods for AbstractNode" begin
-    A  = rand(3,7)
+    A  = rand(rng,3,7)
     As = source(A)
     @test MLJBase.matrix(MLJBase.table(As))() == A
 
@@ -177,20 +178,20 @@ end
     @test selectcols(Xs, :x1)() == selectcols(X, :x1)
     @test selectcols(Xs, [:x1, :x3])() == selectcols(X, [:x1, :x3])
 
-    y = rand(4)
+    y = rand(rng,4)
     ys = source(y)
     @test vcat(ys, ys)() == vcat(y, y)
     @test hcat(ys, ys)() == hcat(y, y)
     @test log(ys)() == log.(y)
     @test exp(ys)() == exp.(y)
 
-    Z = (rand(4), rand(4), rand(4))
+    Z = (rand(rng,4), rand(rng,4), rand(rng,4))
     Zs = source(Z)
     @test mean(Zs)() == mean.(Z)
     @test mode(Zs)() == mode.(Z)
     @test median(Zs)() == median.(Z)
 
-    a, b, λ = rand(4), rand(4), rand()
+    a, b, λ = rand(rng,4), rand(rng,4), rand(rng,)
     as, bs = source(a), source(b)
     @test (as + bs)() == a + b
     @test (λ * bs)() == λ * b
@@ -204,7 +205,7 @@ MLJBase.transform(transf::MyTransformer1, verbosity, X) =
     selectcols(X, transf.ftr)
 
 @testset "nodal machine constructor for static transformers" begin
-    X = (x1=rand(3), x2=[1, 2, 3])
+    X = (x1=rand(rng,3), x2=[1, 2, 3])
     mach = machine(MyTransformer1(:x2))
     fit!(mach)
     @test transform(mach, X) == [1, 2, 3]
@@ -213,10 +214,10 @@ end
 
 ## MORE STATIC TRANSFORMER TESTS
 
-x1 = rand(30)
-x2 = rand(30)
-x3 = rand(30)
-y = exp.(x1 - x2 -2x3 + 0.1*rand(30))
+x1 = rand(rng,30)
+x2 = rand(rng,30)
+x3 = rand(rng,30)
+y = exp.(x1 - x2 -2x3 + 0.1*rand(rng,30))
 X = (x1=x1, x2=x2, x3=x3)
 
 f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))

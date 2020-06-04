@@ -49,14 +49,14 @@ For more information, run `info(cross_entropy)`.
 """
 cross_entropy = CrossEntropy()
 
-# for single observation:
+# for single observation NO LONGER USED:
 _cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
 
 function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
-                           y::Vec{<:CategoricalValue})
+                           y::Vec)
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y, c.eps)
+    return -log.(clamp.(broadcast(pdf, ŷ, y), c.eps, 1 - c.eps))
 end
 
 # -----------------------------------------------------
@@ -87,7 +87,7 @@ MLJModelInterface.prediction_type(::Type{<:BrierScore}) = :probabilistic
 orientation(::Type{<:BrierScore}) = :score
 reports_each_observation(::Type{<:BrierScore}) = true
 is_feature_dependent(::Type{<:BrierScore}) = false
-MLJModelInterface.supports_weights(::Type{<:BrierScore}) = true
+MLJModelInterface.supports_weights(::Type{<:BrierScore}) = false
 distribution_type(::Type{<:BrierScore{D}}) where D =
     UnivariateFinite
 
@@ -127,7 +127,7 @@ end
 
 # For single observations (no checks):
 
-# UnivariateFinite:
+# UnivariateFinite: NO LONGER USED
 function _brier_score(d::UnivariateFinite, y)
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
@@ -138,16 +138,18 @@ end
 # For multiple observations:
 
 # UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
-                                            y::Vec{<:CategoricalValue})
-    check_dimensions(ŷ, y)
-    check_pools(ŷ, y)
-    return broadcast(_brier_score, ŷ, y)
-end
+function (::BrierScore{<:UnivariateFinite})(
+    ŷ::Vec{UnivariateFinite{S,V,R,P}},
+    y::Vec) where {S,V,R,P}
 
-function (score::BrierScore{<:UnivariateFinite})(ŷ, y, w::Vec{<:Real})
-    check_dimensions(y, w)
-    return w .* score(ŷ, y) ./ (sum(w)/length(y))
+    check_dimensions(ŷ, y)
+    isempty(y) && return P(0)
+
+    check_pools(ŷ, y)
+
+    probs = pdf(ŷ, classes(first(ŷ)))
+    offset = P(1) .+ sum(probs.^2, dims=2)
+    return P(2) .* broadcast(pdf, ŷ, y) .- offset
 end
 
 const brier_score = BrierScore()
@@ -404,9 +406,9 @@ const area_under_curve = AUC()
 const auc = AUC()
 
 function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec{<:CategoricalValue})
+                 y::Vec)
     # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
-    lab_pos = levels(y)[2]         # 'positive' label
+    lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
     n       = length(y)
