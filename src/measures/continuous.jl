@@ -237,7 +237,7 @@ struct RMSP <: Measure end
 """
     rmsp(ŷ, y)
 
-Root mean squared percentage loss:
+Root mean squared proportional loss:
 
 ``\\text{RMSP} = m^{-1}∑ᵢ \\left({yᵢ-ŷᵢ \\over yᵢ}\\right)^2``
 
@@ -283,7 +283,7 @@ MAPE(; tol=eps()) = MAPE(tol)
 """
      MAPE(; tol=esp())
 
-Mean Absolute Percentage Error:
+Mean Absolute Proportional Error:
 
 ``\\text{MAPE} =  m^{-1}∑ᵢ|{(yᵢ-ŷᵢ) \\over yᵢ}|``
 where the sum is over indices such that `yᵢ > tol` and `m` is the number
@@ -301,7 +301,7 @@ metadata_measure(MAPE;
     reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
-                 docstring                = "Mean Absolute Percentage Error; "*
+    docstring                = "Mean Absolute Proportional Error; "*
                  "aliases: `mape=MAPE()`.")
 
 function (m::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})

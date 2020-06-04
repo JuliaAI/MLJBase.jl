@@ -1,6 +1,9 @@
 module TestStatic
 
 using Test, MLJBase
+using StableRNGs
+
+rng = StableRNG(5312515)
 
 ## SIMPLE UNIVARIATE FUNCTION
 
@@ -19,7 +22,7 @@ function MLJBase.inverse_transform(s::Scale, _, X)
 end
 
 s = Scale(2)
-X = randn(2, 3)
+X = randn(rng, 2, 3)
 Xt = MLJBase.table(X)
 
 R = transform(s, nothing, X)

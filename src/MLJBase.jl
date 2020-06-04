@@ -117,8 +117,8 @@ export @set_defaults, flat_values, recursive_setproperty!,
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
-# distributions.jl:
-export average
+# univariate_finite/
+export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # info_dict.jl:
 export info_dict
@@ -161,8 +161,9 @@ export measures, metadata_measure
 
 # measure/measures.jl:
 export orientation, reports_each_observation,
-       is_feature_dependent, aggregation,
-       aggregate, default_measure, value
+    is_feature_dependent, aggregation,
+    aggregate, default_measure, value,
+    spports_weights, prediction_type
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
@@ -204,7 +205,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not
+       levels, levels!, std, Not, support
 
 
 # ===================================================================
@@ -225,7 +226,6 @@ const Vec = AbstractVector
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
-
 # ===================================================================
 # Computational Resource
 # default_resource allows to switch the mode of parallelization
@@ -247,9 +247,10 @@ include("info_dict.jl")
 
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
-include("interface/univariate_finite.jl")
 
-include("distributions.jl")
+include("univariate_finite/types.jl")
+include("univariate_finite/methods.jl")
+include("univariate_finite/arrays.jl")
 
 include("machines.jl")
 

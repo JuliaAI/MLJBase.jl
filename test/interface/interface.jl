@@ -2,10 +2,12 @@ module Interface
 
 using Test, Random, MLJBase,
       Tables, CategoricalArrays,
-      OrderedCollections, DataFrames,
+      OrderedCollections,
       TypedTables, MLJModelInterface
 
 using ..Models
+
+rng = StableRNG(1551234)
 
 include("data_utils.jl")
 

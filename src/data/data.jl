@@ -126,12 +126,14 @@ end
 
 
 """
-    t1, t2, ...., tk = unnpack(table, t1, t2, ... tk; wrap_singles=false)
+
+    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
+
 
 Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
-from the column names defined by the tests `t1`, `t2`, ...,
-`tk`. A *test* is any object `t` such that `t(name)` is `true`
+from the column names defined by the filters `f1`, `f2`, ...,
+`fk`. A *filter* is any object `f` such that `f(name)` is `true`
 or `false` for each column `name::Symbol` of `table`.
 
 Whenever a returned table contains a single column, it is converted to
@@ -291,20 +293,20 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
-const message1 = "Attempting to transform a level not in pool of specified "*
-   "categorical element. "
+_err_missing_class(c) =  throw(DomainError(
+    "Value $c not pool"))
+
 
 function transform_(pool, x)
     ismissing(x) && return missing
-    _classes = classes(pool)
-    x in _classes || error(message1)
-    ref = pool.invindex[x]
-    return _classes[ref]
+    x in levels(pool) || _err_missing_class(x)
+    return pool[get(pool, x)]
 end
 
-"""
+transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
 
-    transform(e::Union{CategoricalElement,CategoricalArray},  X)
+"""
+    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
 
 Transform the specified object `X` into a categorical version, using
 the pool contained in `e`. Here `X` is a raw value (an element of
@@ -321,8 +323,7 @@ julia> transform(v[1], [:x :x; missing :y])
  missing  :y
 
 """
-transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
-
 MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
                             arg) = transform_(CategoricalArrays.pool(e), arg)
-
+MLJModelInterface.transform(e::CategoricalPool, arg) =
+    transform_(e, arg)

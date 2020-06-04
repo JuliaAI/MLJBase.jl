@@ -401,6 +401,27 @@ function _process_weights_measures(weights, measures, mach,
 
 end
 
+function _process_accel_settings(accel::CPUThreads)
+    if accel.settings === nothing 
+        nthreads = Threads.nthreads()
+        _accel =  CPUThreads(nthreads)
+    else
+      typeof(accel.settings) <: Signed || 
+      throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
+                        "be an instance of type `T<:Signed`"))
+      accel.settings > 0 || 
+            throw(error("Can't create $(acceleration.settings) tasks)"))
+      _accel = accel
+    end
+    return _accel
+end
+
+_process_accel_settings(accel::Union{CPU1,CPUProcesses}) = accel
+
+#fallback
+_process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
+                            " acceleration parameter`acceleration = $accel` ")) 
+
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
 
@@ -522,9 +543,11 @@ function evaluate!(mach::Machine{<:Supervised};
             " measures, as unsupported: \n$unsupported_as_string "
         end
     end
-
+    
+    _acceleration= _process_accel_settings(acceleration)
+    
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
-                   _measures, operation, acceleration, force)
+                   _measures, operation, _acceleration, force)
 
 end
 
@@ -550,9 +573,8 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 # Here `func` is always going to be `get_measurements`; see later
 
-# machines has only one element:
-function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
-   local ret         
+function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
+            
    verbosity < 1 || (p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
@@ -561,7 +583,7 @@ function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
                  color = :yellow))
 
    ret = mapreduce(vcat, 1:nfolds) do k
-            r = func(machines[1], k)
+            r = func(mach, k)
             verbosity < 1 || begin
                       p.counter += 1
                       ProgressMeter.updateProgress!(p)  
@@ -572,37 +594,34 @@ function _evaluate!(func, machines, ::CPU1, nfolds, verbosity)
     return ret
 end
 
-# machines has only one element:
-function _evaluate!(func, machines, ::CPUProcesses, nfolds, verbosity) #where T<:AbstractWorkerPool
+function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity) 
     
-    #verbosity < 1 || update!(p,0)
-local ret
-@sync begin
+    local ret
+    @sync begin
         channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
-    verbosity < 1 || (p = Progress(nfolds,
-                 dt = 0,
-                 desc = "Evaluating over $nfolds folds: ",
-                 barglyphs = BarGlyphs("[=> ]"),
-                 barlen = 25,
-                 color = :yellow))
+        verbosity < 1 || (p = Progress(nfolds,
+                     dt = 0,
+                     desc = "Evaluating over $nfolds folds: ",
+                     barglyphs = BarGlyphs("[=> ]"),
+                     barlen = 25,
+                     color = :yellow))
         # printing the progress bar
-       verbosity < 1 || @async begin
-                    while take!(channel)
-                    next!(p)
-                    end
-                    end
-        
-    
-     @sync begin
-            ret = @distributed vcat for k in 1:nfolds
-        	r = func(machines[1], k)
-        	verbosity < 1 || begin
-                            put!(channel, true)
-                            yield()
-                            end
-        	r
-    	   end
-    verbosity < 1 || put!(channel, false)
+        verbosity < 1 || @async begin
+                          while take!(channel)
+                            next!(p)
+                          end
+                         end
+
+         @sync begin
+           ret = @distributed vcat for k in 1:nfolds
+                     r = func(mach, k)
+                     verbosity < 1 || begin
+                                        put!(channel, true)
+                                        yield()
+                                      end
+                     r
+        	     end
+         verbosity < 1 || put!(channel, false)
     end
     close(channel)
     end
@@ -611,48 +630,50 @@ local ret
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
-# one machine for each thread; cycle through available threads:
-function _evaluate!(func, machines, ::CPUThreads, nfolds,verbosity)
-   n_threads = Threads.nthreads()
+
+function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
+   nthreads = Threads.nthreads()
     
-   if n_threads == 1
-        return _evaluate!(func, machines, CPU1(), nfolds, verbosity)
+   if nthreads == 1
+        return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
-    
-    results = Array{Any, 1}(undef, nfolds)
-    loc = ReentrantLock()
-    verbosity < 1 || (p = Progress(nfolds,
+   ntasks = accel.settings
+   partitions = chunks(1:nfolds, ntasks)
+   verbosity < 1 || begin
+                    p = Progress(nfolds,
                     dt = 0,
                     desc = "Evaluating over $nfolds folds: ",
                     barglyphs = BarGlyphs("[=> ]"),
                     barlen = 25,
-                    color = :yellow))   
-   
-     @sync begin  
-      
-        @sync for parts in Iterators.partition(1:nfolds, max(1,cld(nfolds, n_threads)))    
-        Threads.@spawn begin
-            for k in parts
-            id = Threads.threadid()
-            if !haskey(machines, id)
-                   machines[id] =
-                       machine(machines[1].model, machines[1].args...)
-            end
-           results[k] = func(machines[id], k) 
-           verbosity < 1 || (begin
-                              lock(loc)do
-                                p.counter +=1
+                    color = :yellow)
+                    ch = Channel{Bool}(length(partitions))
+                 end
+   tasks = Vector{Task}(undef, length(partitions)) 
+    
+   @sync begin
+       # printing the progress bar
+       verbosity < 1 || @async begin
+                              while take!(ch)
+                                p.counter +=1 
                                 ProgressMeter.updateProgress!(p)
                               end
+                              close(ch)
+                        end
 
-                            end)
-            end
-        end
+   @sync for (i, parts) in enumerate(partitions)    
+     tasks[i] = Threads.@spawn begin
+       #One tmach for each task:
+       tmach = machine(mach.model, mach.args...)
+       mapreduce(vcat, parts) do k  
+            r = func(tmach, k)
+            verbosity < 1 || put!(ch, true)
+            r            
+       end
+      end  
     end
-
+     verbosity < 1 || put!(ch, false)   
     end
-  
-    return reduce(vcat, results)
+    reduce(vcat, fetch.(tasks))
 end
 
 end
@@ -682,12 +703,7 @@ function evaluate!(mach::Machine, resampling, weights,
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-    
-    # For multithreading we need a clone of `mach` for each thread
-    # doing work. These are instantiated as needed except for
-    # threadid=1.
-    machines = Dict(1 => mach)
-
+   
     function get_measurements(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity-1, force=force)
@@ -709,16 +725,16 @@ function evaluate!(mach::Machine, resampling, weights,
                   "among $(nworkers()) workers."
         end
     end
-    if acceleration isa CPUThreads
+     if acceleration isa CPUThreads
         if verbosity > 0
                 @info "Performing evaluations " *
                       "using $(Threads.nthreads()) threads."
-            end
+        end
     end
    
     measurements_flat =
             _evaluate!(get_measurements,
-                       machines,
+                       mach,
                        acceleration,
                        nfolds,
                       verbosity)
@@ -845,6 +861,7 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
+    
     return warning
 end
 
@@ -870,11 +887,12 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
     
+    _acceleration = _process_accel_settings(resampler.acceleration)
 
     fitresult = evaluate!(mach, resampler.resampling,
                           weights, nothing, verbosity - 1, resampler.repeats,
                           measures, resampler.operation,
-                          resampler.acceleration, false)
+                          _acceleration, false)
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 

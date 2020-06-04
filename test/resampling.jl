@@ -7,8 +7,8 @@ using ProgressMeter
 
 @everywhere begin
     using .Models
-    import Random.seed!
-    seed!(1234)
+    using StableRNGs
+    rng = StableRNG(1513515)
     const verb = 0
 end
 
@@ -28,13 +28,15 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = (sleep(0.01*rand()); fill(1:k, nmeasures))
+        func(mach, k) = (sleep(0.01*rand(rng)); fill(1:k, nmeasures))
     end
-
-    machines = Dict(1 => machine(ConstantRegressor(), X, y))
+    mach = machine(ConstantRegressor(), X, y)
     p = Progress(nfolds, dt=0)
-    result = MLJBase._evaluate!(func, machines, accel, nfolds, 1)
-
+    if accel isa CPUThreads
+    result = MLJBase._evaluate!(func, mach, CPUThreads(Threads.nthreads()), nfolds, 1)
+    else
+       result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
+    end
     @test result ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
 
@@ -62,7 +64,7 @@ end
 
 @testset "checking measure/model compatibility" begin
     model = ConstantRegressor()
-    y = rand(4)
+    y = rand(rng,4)
     override=false
     @test MLJBase._check_measure(:junk, :junk, :junk, :junk, true) == nothing
     @test_throws(ArgumentError,
@@ -129,9 +131,9 @@ end
     x1 = ones(20)
     x2 = ones(20)
     X = (x1=x1, x2=x2)
-    y = rand(20)
+    y = rand(rng,20)
 
-    holdout = Holdout(fraction_train=0.75, rng=123)
+    holdout = Holdout(fraction_train=0.75, rng=rng)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=holdout, verbosity=verb,
@@ -140,7 +142,7 @@ end
     @test unique(per_fold) |> length == 6
     @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
 
-    cv = CV(nfolds=3, rng=123)
+    cv = CV(nfolds=3, rng=rng)
     model = Models.DeterministicConstantRegressor()
     mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv, verbosity=verb,
@@ -171,11 +173,11 @@ end
                       resampling=holdout, measure=rms)
     @test result.measurement[1] ≈ 2/3
 
-    X = (x=rand(100),)
-    y = rand(100)
+    X = (x=rand(rng,100),)
+    y = rand(rng,100)
     mach = machine(model, X, y)
     evaluate!(mach, verbosity=verb,
-              resampling=Holdout(shuffle=true, rng=123), acceleration=accel)
+              resampling=Holdout(shuffle=true, rng=rng), acceleration=accel)
     e1 = evaluate!(mach, verbosity=verb,
                    resampling=Holdout(shuffle=true),
                    acceleration=accel).measurement[1]
@@ -266,8 +268,8 @@ end
 
 @testset_accelerated "resampler as machine" accel begin
     N = 50
-    X = (x1=rand(N), x2=rand(N), x3=rand(N))
-    y = X.x1 -2X.x2 + 0.05*rand(N)
+    X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
+    y = X.x1 -2X.x2 + 0.05*rand(rng,N)
 
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
@@ -283,14 +285,14 @@ end
     fit!(resampling_machine, verbosity=2)
     e2=evaluate(resampling_machine).measurement[1]
     @test e1 != e2
-    resampler.weights = rand(N)
+    resampler.weights = rand(rng,N)
     fit!(resampling_machine, verbosity=verb)
     e3=evaluate(resampling_machine).measurement[1]
     @test e3 != e2
 
     @test MLJBase.package_name(Resampler) == "MLJBase"
     @test MLJBase.is_wrapper(Resampler)
-    rnd = randn(5)
+    rnd = randn(rng,5)
     @test evaluate(resampler, rnd) === rnd
 end
 
@@ -306,7 +308,7 @@ struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
         return [(train, test),]
     end
 
-    X = (x = rand(8), )
+    X = (x = rand(rng,8), )
     y = categorical([:x, :y, :x, :x, :y, :x, :x, :y])
     @test MLJBase.train_test_pairs(DummyResamplingStrategy(), 2:6, X, y) ==
         [([3, 4, 6], [2, 5]),]
@@ -321,7 +323,7 @@ end
 
 @testset_accelerated "sample weights in training and evaluation" accel begin
     yraw = ["Perry", "Antonia", "Perry", "Antonia", "Skater"]
-    X = (x=rand(5),)
+    X = (x=rand(rng,5),)
     y = categorical(yraw)
     w = [1, 10, 1, 10, 5]
 
@@ -363,9 +365,9 @@ end
     model = @load KNNClassifier
 
     N = 200
-    X = (x = rand(3N), );
-    y = categorical(rand("abcd", 3N));
-    w = rand(3N);
+    X = (x = rand(rng,3N), );
+    y = categorical(rand(rng,"abcd", 3N));
+    w = rand(rng,3N);
     rows = StatsBase.sample(1:3N, 2N, replace=false);
     Xsmall = selectrows(X, rows);
     ysmall = selectrows(y, rows);
@@ -400,7 +402,7 @@ end
     @test e1 ≈ e2
 
     # resampler as machine with evaluation weights specified:
-    weval = rand(3N);
+    weval = rand(rng,3N);
     resampler = Resampler(model=model, resampling=CV();
                           measure=misclassification_rate,
                           operation=predict_mode,

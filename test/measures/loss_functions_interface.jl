@@ -1,5 +1,4 @@
-seed!(1234)
-
+rng = StableRNG(614)
 @testset "LossFunctions.jl - binary" begin
     y = categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
@@ -13,17 +12,17 @@ seed!(1234)
     @test MLJBase.value(ZeroOneLoss(), yhat, X, y, w) ≈ [1, 2, 3, 0] ./10 .* 4
 
     N = 10
-    y = categorical(rand(["yes", "no"], N), ordered=true)
+    y = categorical(rand(rng, ["yes", "no"], N), ordered=true)
     levels!(y, ["no", "yes"])
     no, yes = MLJBase.classes(y[1])
     @test MLJBase.pm1([yes, no]) in [[+1, -1], [-1, +1]]
     ym = MLJBase.pm1(y) # observations for raw LossFunctions measure
-    p_vec = rand(N) # probabilities of yes
+    p_vec = rand(rng, N) # probabilities of yes
     yhat  = map(p_vec) do p
         MLJBase.UnivariateFinite([yes, no], [p, 1 - p])
     end
     yhatm = MLJBase._scale.(p_vec) # predictions for raw LossFunctions measure
-    w = rand(N)
+    w = rand(rng, N)
     X = nothing
 
     for m in [ZeroOneLoss(), L1HingeLoss(), L2HingeLoss(), LogitMarginLoss(),
@@ -38,10 +37,10 @@ end
 @testset "LossFunctions.jl - continuous" begin
     # losses for continuous targets:
     N    = 10
-    y    = randn(N)
-    yhat = randn(N)
+    y    = randn(rng, N)
+    yhat = randn(rng, N)
     X    = nothing
-    w    = rand(N)
+    w    = rand(rng, N)
 
     for m in [LPDistLoss(0.5), L1DistLoss(), L2DistLoss(),
               HuberLoss(0.9), EpsilonInsLoss(0.9), L1EpsilonInsLoss(0.9),
