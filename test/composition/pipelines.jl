@@ -4,14 +4,15 @@ using MLJBase
 using ..Models
 using Test
 using Statistics
-import Random.seed!
-seed!(1234)
+using StableRNGs
+
+rng = StableRNG(698790187)
 
 @load KNNRegressor
 
 NN = 7
-X = MLJBase.table(rand(NN, 3));
-y = 2X.x1 - X.x2 + 0.05*rand(NN);
+X = MLJBase.table(rand(rng,NN, 3));
+y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);
 Xs = source(X); ys = source(y, kind=:target)
 
 broadcast_mode(v) = mode.(v)
@@ -283,7 +284,7 @@ MLJBase.tree(mach.fitresult).arg1.arg1.model.features == [:x3, ]
 @test predict(mach) ≈ hand_built
 
 # test a simple probabilistic classifier pipeline:
-X = MLJBase.table(rand(7,3))
+X = MLJBase.table(rand(rng,7,3))
 y = categorical(collect("ffmmfmf"))
 Xs = source(X)
 ys = source(y, kind=:target)
@@ -296,7 +297,7 @@ fit!(mach)
 pdf(predict(mach)[1], 'f') ≈ 4/7
 
 # test a simple deterministic classifier pipeline:
-X = MLJBase.table(rand(7,3))
+X = MLJBase.table(rand(rng,7,3))
 y = categorical(collect("ffmmfmf"))
 Xs = source(X)
 ys = source(y, kind=:target)
@@ -316,8 +317,8 @@ fit!(mach)
 
 # test a pipeline with static transformation of target:
 NN = 100
-X = (x1=rand(NN), x2=rand(NN), x3=categorical(rand("abc", NN)));
-y = 1000*abs.(2X.x1 - X.x2 + 0.05*rand(NN))
+X = (x1=rand(rng,NN), x2=rand(rng,NN), x3=categorical(rand(rng,"abc", NN)));
+y = 1000*abs.(2X.x1 - X.x2 + 0.05*rand(rng,NN))
 # by hand:
 Xs =source(X); ys = source(y, kind=:target);
 hot = OneHotEncoder()

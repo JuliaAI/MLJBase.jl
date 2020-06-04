@@ -117,8 +117,8 @@ export @set_defaults, flat_values, recursive_setproperty!,
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
-# distributions.jl:
-export average
+# univariate_finite/
+export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # info_dict.jl:
 export info_dict
@@ -205,7 +205,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not
+       levels, levels!, std, Not, support
 
 
 # ===================================================================
@@ -247,9 +247,10 @@ include("info_dict.jl")
 
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
-include("interface/univariate_finite.jl")
 
-include("distributions.jl")
+include("univariate_finite/types.jl")
+include("univariate_finite/methods.jl")
+include("univariate_finite/arrays.jl")
 
 include("machines.jl")
 
