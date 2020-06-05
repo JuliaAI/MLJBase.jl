@@ -49,14 +49,23 @@ For more information, run `info(cross_entropy)`.
 """
 cross_entropy = CrossEntropy()
 
-# for single observation NO LONGER USED:
-_cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
+# for single observation:
+_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, eps) where {S,V,R,P} =
+    -log(clamp(pdf(d, y), P(eps), P(1) - P(eps)))
 
+# multiple observations:
 function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
                            y::Vec)
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return -log.(clamp.(broadcast(pdf, ŷ, y), c.eps, 1 - c.eps))
+    return broadcast(_cross_entropy, ŷ, y, c.eps)
+end
+# performant in case of UnivariateFiniteArray:
+function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}},
+                           y::Vec) where {S,V,R,P}
+    check_dimensions(ŷ, y)
+    check_pools(ŷ, y)
+    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.eps), P(1) - P(c.eps)))
 end
 
 # -----------------------------------------------------
@@ -127,20 +136,27 @@ end
 
 # For single observations (no checks):
 
-# UnivariateFinite: NO LONGER USED
-function _brier_score(d::UnivariateFinite, y)
+# UnivariateFinite:
+function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
-    offset = 1 + sum(pvec.^2)
-    return 2 * pdf(d, y) - offset
+    offset = P(1) + sum(pvec.^2)
+    return P(2) * pdf(d, y) - offset
 end
 
 # For multiple observations:
 
 # UnivariateFinite:
+function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
+                                            y::Vec)
+    check_dimensions(ŷ, y)
+    check_pools(ŷ, y)
+    return broadcast(_brier_score, ŷ, y)
+end
+# performant version in case of UnivariateFiniteArray:
 function (::BrierScore{<:UnivariateFinite})(
     ŷ::Vec{UnivariateFinite{S,V,R,P}},
-    y::Vec) where {S,V,R,P}
+    y::Vec) where {S,V,R,P<:Real}
 
     check_dimensions(ŷ, y)
     isempty(y) && return P(0)
@@ -405,15 +421,16 @@ For more information, run `info(area_under_curve)`.
 const area_under_curve = AUC()
 const auc = AUC()
 
-function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec)
-    # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+# implementation drawn from
+# https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
+              y::Vec) where P<:Real # type of probabilities
     lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
     n       = length(y)
     n_neg   = 0  # to keep of the number of negative preds
-    auc     = 0
+    auc     = P(0)
     @inbounds for i in 1:n
         # y[i] == lab_p --> it's a positive label in the ground truth
         # in that case increase the auc by the cumulative sum
@@ -425,6 +442,14 @@ function (::AUC)(ŷ::Vec{<:UnivariateFinite},
     n_pos = n - n_neg
     return auc / (n_neg * n_pos)
 end
+
+# ŷ inhomogeneous type:
+(::AUC)(ŷ::Vec{<:UnivariateFinite}, y::Vec) = _auc(Float64, ŷ, y)
+
+# ŷ homogeneous type (eg UnivariateFiniteVector case):
+(::AUC)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}}, y::Vec) where {S,V,R,P} =
+    _auc(P, ŷ, y)
+
 
 # ==========================================================================
 ## BINARY AND ORDER DEPENDENT

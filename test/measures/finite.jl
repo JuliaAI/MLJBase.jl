@@ -9,15 +9,16 @@ rng = StableRNG(51803)
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
     d1 = UnivariateFinite(L, [0.1, 0.9]) # a
-    d2 = UnivariateFinite(L, [0.4, 0.6]) # b
+    d2 = UnivariateFinite(L, Float32[0.4, 0.6]) # b
     d3 = UnivariateFinite(L, [0.2, 0.8]) # b
     yhat = [d1, d2, d3]
-    @test mean(cross_entropy(yhat, y)) ≈ -(log(0.1) + log(0.6) + log(0.8))/3
+    @test mean(cross_entropy(yhat, y)) ≈
+        Float32(-(log(0.1) + log(0.6) + log(0.8))/3)
     yhat = UnivariateFinite(L, [0.1 0.9;
                                 0.4 0.6;
                                 0.2 0.8])
-    @test mean(cross_entropy(yhat, y)) ≈ -(log(0.1) + log(0.6) + log(0.8))/3
-
+    @test isapprox(mean(cross_entropy(yhat, y)),
+                   -(log(0.1) + log(0.6) + log(0.8))/3, atol=eps(Float32))
     # sklearn test
     # >>> from sklearn.metrics import log_loss
     # >>> log_loss(["spam", "ham", "ham", "spam","ham","ham"],
@@ -30,12 +31,17 @@ rng = StableRNG(51803)
     @test mean(cross_entropy(yhat2, y2)) ≈ 0.6130097025803921
     # BrierScore
     scores = BrierScore()(yhat, y)
-    @test scores ≈ [-1.62, -0.32, -0.08]
+    @test Float32.(scores) ≈ [-1.62, -0.32, -0.08]
     # sklearn test
     # >>> from sklearn.metrics import brier_score_loss
     # >>> brier_score_loss([1, 0, 0, 1, 0, 0], [.9, .1, .2, .65, 0.8, 0.7])
     # 0.21875 NOTE: opposite orientation
     @test -mean(BrierScore()(yhat2, y2)) / 2 ≈ 0.21875
+    probs2 = [[.1, .9], [Float32(0.9), Float32(1) - Float32(0.9)], [.8, .2],
+              [.35, .65], [0.2, 0.8], [0.3, 0.7]]
+    yhat3 = [UnivariateFinite(L2, prob) for prob in probs2]
+    @test -mean(BrierScore()(yhat3, y2) / 2) ≈ 0.21875
+
 end
 
 @testset "mcr, acc, bacc, mcc" begin

@@ -71,50 +71,45 @@ function Base.show(stream::IO, d::UnivariateFinite)
     print(stream, str)
 end
 
-# function Base.show(stream::IO, ::MIME"text/plain", d::UnivariateFinite)
-#     show(stream, d)
-#     print(stream, " ($(sample_scitype(d)) samples)")
-# end
-
 show_prefix(u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P} =
     "$(length(u))-element"
 show_prefix(u::UnivariateFiniteArray) = join(size(u),'x')
 
-function show_compact(io::IO, v)
-    K = 4
-    n = length(v)
-    if !isempty(v)
-        indent = div(length(string(v[1])), 2)
-        L = min(n, K - 1)
-        for i in 1:min(n, L - 1)
-            println(io, " ", v[i])
-        end
-        print(io, " ", v[L])
-        if n > K
-            println(io, "\n", fill(" ", indent)..., " ⋮")
-        else
-            println(io)
-        end
-        if n > K - 1
-            println(io, " ", last(v))
-        end
-    end
-end
+# function show_compact(io::IO, v)
+#     K = 4
+#     n = length(v)
+#     if !isempty(v)
+#         indent = div(length(string(v[1])), 2)
+#         L = min(n, K - 1)
+#         for i in 1:min(n, L - 1)
+#             println(io, " ", v[i])
+#         end
+#         print(io, " ", v[L])
+#         if n > K
+#             println(io, "\n", fill(" ", indent)..., " ⋮")
+#         else
+#             println(io)
+#         end
+#         if n > K - 1
+#             println(io, " ", last(v))
+#         end
+#     end
+# end
 
-function Base.show(io::IO,
-                   u::UnivariateFiniteArray{S,V,R,P,N}) where {S,V,R,P,N}
-    print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,$N}(...)")
-end
+# function Base.show(io::IO,
+#                    u::UnivariateFiniteArray{S,V,R,P,N}) where {S,V,R,P,N}
+#     print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,$N}(...)")
+# end
 
-function Base.show(io::IO, m::MIME"text/plain",
-                   u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P}
-    support = get.(Dist.support(u))
-    print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,1}")
-    if !isempty(u)
-        println(io, ":")
-        show_compact(io, u)
-    end
-end
+# function Base.show(io::IO, m::MIME"text/plain",
+#                    u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P}
+#     support = get.(Dist.support(u))
+#     print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,1}")
+#     if !isempty(u)
+#         println(io, ":")
+#         show_compact(io, u)
+#     end
+# end
 
 
 """
