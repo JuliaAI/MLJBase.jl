@@ -156,7 +156,7 @@ end
 # performant version in case of UnivariateFiniteArray:
 function (::BrierScore{<:UnivariateFinite})(
     ŷ::Vec{UnivariateFinite{S,V,R,P}},
-    y::Vec) where {S,V,R,P}
+    y::Vec) where {S,V,R,P<:Real}
 
     check_dimensions(ŷ, y)
     isempty(y) && return P(0)
