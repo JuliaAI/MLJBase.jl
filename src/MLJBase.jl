@@ -13,10 +13,11 @@ using MLJModelInterface
 
 # Interface
 import MLJModelInterface: fit, update, update_data, transform,
-                          inverse_transform, fitted_params, predict,
-                          predict_mode, predict_mean, predict_median,
-                          evaluate, clean!, is_same_except,
-                          save, restore, is_same_except
+    inverse_transform, fitted_params, predict,
+    predict_mode, predict_mean, predict_median,
+    evaluate, clean!, is_same_except,
+    save, restore, is_same_except, istransparent,
+    params
 
 # Containers & data manipulation
 using Tables
@@ -241,7 +242,6 @@ macro load end
 
 include("init.jl")
 include("utilities.jl")
-include("parameter_inspection.jl")
 include("show.jl")
 include("info_dict.jl")
 
