@@ -634,11 +634,11 @@ end
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    nthreads = Threads.nthreads()
     
-   if nthreads == 1
+   if nthreads == 1 || nfolds == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
    ntasks = accel.settings
-   partitions = chunks(1:nfolds, ntasks)
+   partitions = chunks(2:nfolds, ntasks)
    verbosity < 1 || begin
                     p = Progress(nfolds,
                     dt = 0,
@@ -647,37 +647,51 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
                     barlen = 25,
                     color = :yellow)
                     ch = Channel{Bool}(length(partitions))
-                 end
-   tasks = Vector{Task}(undef, length(partitions)) 
-    
-   @sync begin
-       # printing the progress bar
-       verbosity < 1 || @async begin
-                              while take!(ch)
-                                p.counter +=1 
-                                ProgressMeter.updateProgress!(p)
-                              end
-                              close(ch)
+                    # printing the progress bar
+                   t = @async begin
+                        while take!(ch)
+                           p.counter +=1 
+                           ProgressMeter.updateProgress!(p)
                         end
+                    end
+                end
+   verbosity < 1 && (ch = Channel{Bool}(0))
+   
+   tasks = Vector{Task}(undef, length(partitions))
+    
+   #run one fold outside of threads to precompile
+   # this is to avoid some strange warning that pops when 
+   # this function is first run
+   ret1 = func_threads(func, mach, ch, verbosity, 1)
 
-   @sync for (i, parts) in enumerate(partitions)    
-     tasks[i] = Threads.@spawn begin
-       #One tmach for each task:
-       tmach = machine(mach.model, mach.args...)
-       mapreduce(vcat, parts) do k  
-            r = func(tmach, k)
-            verbosity < 1 || put!(ch, true)
-            r            
-       end
-      end  
-    end
-     verbosity < 1 || put!(ch, false)   
-    end
-    reduce(vcat, fetch.(tasks))
+   for (i, parts) in enumerate(partitions)
+      tasks[i] = Threads.@spawn func_threads(func, mach, ch, verbosity, parts)
+   end
+
+   ret = reduce(vcat, [ret1, fetch.(tasks)...])
+   verbosity < 1 || (put!(ch, false); wait(t))
+   close(ch)
+    
+   return ret
+end
+
+#helper function to be used within Threads.@spawn
+# put this in a function so it can be compiled
+function func_threads(func, mach, ch, verbosity, parts)
+   #One tmach for each task:
+   tmach = machine(mach.model, mach.args...)
+   function f(x)
+      func, tmach, k, ch, verbosity = x
+      r = func(tmach, k)
+      verbosity < 1 || put!(ch, true)
+      return r
+   end
+              
+   mapreduce(f, vcat, Iterators.product((func,),
+                 (tmach,), parts, (ch,), verbosity ))
 end
 
 end
-
 # ------------------------------------------------------------
 # Core `evaluation` method, operating on train-test pairs
 
