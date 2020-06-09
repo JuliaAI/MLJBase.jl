@@ -259,12 +259,12 @@ function _UnivariateFinite(support::AbstractVector{L},
         if pool === nothing
             @warn "No `CategoricalValue` found from which to extract a "*
             "complete pool of classes. "*
-            "Creating a new pool (ordered=$ordered) "*
+            "Creating a new pool (ordered=$ordered). "*
             "You can:\n"*
             " (i) specify `pool=missing` to suppress this warning; or\n"*
             " (ii) use an existing pool by specifying `pool=c` "*
             "where `c` is a "*
-            "`CategoricalArray`, `CategoricalArray` or "*
+            "`CategoricalArray`, `CategoricalValue` or "*
             "CategoricalPool`.\n"*
             "In case (i) "*
             "specify `ordered=true` if samples are to be `OrderedFactor`. "
