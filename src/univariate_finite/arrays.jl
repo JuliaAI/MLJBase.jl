@@ -69,11 +69,9 @@ function Base.cat(us::UnivariateFiniteArray{S,V,R,P,N}...;
     _support = unique(support_with_duplicates) # no-longer categorical!
 
     # build the combined `prob_given_class` dictionary:
-    prob_given_class = LittleDict{V, Array{P,N}}()
-    for class in _support
-        concatenation = vcat((pdf.(u, class) for u in us)...)
-        prob_given_class[class] = concatenation
-    end
+    pairs = (class => cat((pdf.(u, class) for u in us)..., dims=dims)
+             for class in _support)
+    prob_given_class = Dict(pairs)
 
     return UnivariateFinite(prob_given_class, pool=_classes)
 end
