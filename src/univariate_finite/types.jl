@@ -187,7 +187,7 @@ end
 ## CONSTRUCTORS - FROM ARRAYS
 
 # example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
-_get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
+_get(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
 # 1. Univariate Finite from a vector of classes or raw labels and
 # array of probs; first, a dispatcher:
