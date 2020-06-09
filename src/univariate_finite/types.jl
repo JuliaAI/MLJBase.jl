@@ -187,7 +187,7 @@ end
 ## CONSTRUCTORS - FROM ARRAYS
 
 # example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
-_get(probs::Array{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
+_get(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
 # 1. Univariate Finite from a vector of classes or raw labels and
 # array of probs; first, a dispatcher:
@@ -259,12 +259,12 @@ function _UnivariateFinite(support::AbstractVector{L},
         if pool === nothing
             @warn "No `CategoricalValue` found from which to extract a "*
             "complete pool of classes. "*
-            "Creating a new pool (ordered=$ordered) "*
+            "Creating a new pool (ordered=$ordered). "*
             "You can:\n"*
             " (i) specify `pool=missing` to suppress this warning; or\n"*
             " (ii) use an existing pool by specifying `pool=c` "*
             "where `c` is a "*
-            "`CategoricalArray`, `CategoricalArray` or "*
+            "`CategoricalArray`, `CategoricalValue` or "*
             "CategoricalPool`.\n"*
             "In case (i) "*
             "specify `ordered=true` if samples are to be `OrderedFactor`. "

@@ -183,8 +183,13 @@ end
     @test pdf.(u, v[3])[1:length(u1)] == zeros(length(u1))
     @test pdf.(u, v[4]) == zeros(length(u))
 
-    @test vcat(u1, u2) ≈ cat(u1, u2, dims=1)
-    @test hcat(u1, u2) ≈ cat(u1, u2, dims=2)
+    @test pdf([vcat(u1, u2)...], supp) ≈
+        pdf(vcat([u1...], [u2...]), supp)
+    h = hcat(u1, u1)
+    h_nowrap = hcat([u1...], [u1...])
+    @test size(h) == size(h_nowrap)
+    # TODO: why does identity.(h) not work?
+    @test h[3,2] ≈ h_nowrap[3,2]
 
     # errors
     v1 = categorical(1:2, ordered=true)

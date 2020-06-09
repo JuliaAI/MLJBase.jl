@@ -1,4 +1,9 @@
 rng = StableRNG(614)
+
+# convert a Binary vector into vector of +1 or -1 values
+# (for testing only):
+pm1(y) = Int8(2) .* (Int8.(int(y))) .- Int8(3)
+
 @testset "LossFunctions.jl - binary" begin
     y = categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
@@ -15,8 +20,8 @@ rng = StableRNG(614)
     y = categorical(rand(rng, ["yes", "no"], N), ordered=true)
     levels!(y, ["no", "yes"])
     no, yes = MLJBase.classes(y[1])
-    @test MLJBase.pm1([yes, no]) in [[+1, -1], [-1, +1]]
-    ym = MLJBase.pm1(y) # observations for raw LossFunctions measure
+    @test pm1([yes, no]) in [[+1, -1], [-1, +1]]
+    ym = pm1(y) # observations for raw LossFunctions measure
     p_vec = rand(rng, N) # probabilities of yes
     yhat  = map(p_vec) do p
         MLJBase.UnivariateFinite([yes, no], [p, 1 - p])
