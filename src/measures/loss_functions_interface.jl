@@ -31,10 +31,6 @@ end
 MMI.prediction_type(::Type{<:MarginLoss}) = :probabilistic
 MMI.target_scitype(::Type{<:MarginLoss})  = AbstractArray{<:Binary}
 
-# convert a Binary vector into vector of +1 or -1 values
-# (for testing only):
-pm1(y) = Int8(2) .* (Int8.(int(y))) .- Int8(3)
-
 # rescale [0, 1] -> [-1, 1]
 _scale(p) = 2p - 1
 
