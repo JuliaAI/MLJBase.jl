@@ -96,16 +96,17 @@ MLJModelInterface.prediction_type(::Type{<:BrierScore}) = :probabilistic
 orientation(::Type{<:BrierScore}) = :score
 reports_each_observation(::Type{<:BrierScore}) = true
 is_feature_dependent(::Type{<:BrierScore}) = false
-MLJModelInterface.supports_weights(::Type{<:BrierScore}) = false
+MLJModelInterface.supports_weights(::Type{<:BrierScore}) =  true
 distribution_type(::Type{<:BrierScore{D}}) where D =
     UnivariateFinite
 
 """
-    BrierScore(; distribution=UnivariateFinite)(ŷ, y)
+    BrierScore(; distribution=UnivariateFinite)(ŷ, y [, w])
 
 Given an abstract vector of distributions `ŷ` of type `distribution`,
 and an abstract vector of true observations `y`, return the
-corresponding Brier (aka quadratic) scores.
+corresponding Brier (aka quadratic) scores. Weight the scores using
+`w` if provided.
 
 Currently only `distribution=UnivariateFinite` is supported, which is
 applicable to superivised models with `Finite` target scitype. In this
@@ -147,25 +148,44 @@ end
 # For multiple observations:
 
 # UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
-                                            y::Vec)
+function (::BrierScore{<:UnivariateFinite})(
+    ŷ::Vec{<:UnivariateFinite},
+    y::Vec,
+    w::Union{Nothing,Vec{<:Real}}=nothing)
+
     check_dimensions(ŷ, y)
+    w == nothing || check_dimensions(w, y)
+
     check_pools(ŷ, y)
-    return broadcast(_brier_score, ŷ, y)
+    unweighted = broadcast(_brier_score, ŷ, y)
+
+    if w == nothing
+        return unweighted
+    end
+    return w.*unweighted
 end
 # performant version in case of UnivariateFiniteArray:
 function (::BrierScore{<:UnivariateFinite})(
     ŷ::Vec{UnivariateFinite{S,V,R,P}},
-    y::Vec) where {S,V,R,P<:Real}
+    y::Vec,
+    w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
 
     check_dimensions(ŷ, y)
+    w == nothing || check_dimensions(w, y)
+
     isempty(y) && return P(0)
 
     check_pools(ŷ, y)
 
     probs = pdf(ŷ, classes(first(ŷ)))
-    offset = P(1) .+ sum(probs.^2, dims=2)
-    return P(2) .* broadcast(pdf, ŷ, y) .- offset
+    offset = P(1) .+ vec(sum(probs.^2, dims=2))
+
+    unweighted = P(2) .* broadcast(pdf, ŷ, y) .- offset
+
+    if w == nothing
+        return unweighted
+    end
+    return w.*unweighted
 end
 
 const brier_score = BrierScore()

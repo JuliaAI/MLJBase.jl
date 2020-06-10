@@ -31,6 +31,7 @@ rng = StableRNG(51803)
     @test mean(cross_entropy(yhat2, y2)) ≈ 0.6130097025803921
     # BrierScore
     scores = BrierScore()(yhat, y)
+    @test size(scores) == size(y)
     @test Float32.(scores) ≈ [-1.62, -0.32, -0.08]
     # sklearn test
     # >>> from sklearn.metrics import brier_score_loss
