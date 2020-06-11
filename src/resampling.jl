@@ -453,9 +453,10 @@ resampling strategies. If `resampling` is not an object of type
 
 gives two-fold cross-validation using the first 200 rows of data.
 
-The resampling strategy is applied repeatedly if `repeats > 1`. For
-`resampling = CV(nfolds=5)`, for example, this generates a total of
-`5n` test folds for evaluation and subsequent aggregation.
+The resampling strategy is applied repeatedly (Monte Carlo resampling)
+if `repeats > 1`. For example, if `repeats = 10`, then `resampling =
+CV(nfolds=5, shuffle=true)`, generates a total of 50 `(train, test)`
+pairs for evaluation and subsequent aggregation.
 
 If `resampling isa MLJ.ResamplingStrategy` then one may optionally
 restrict the data used in evaluation by specifying `rows`.
