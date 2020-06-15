@@ -1,40 +1,37 @@
 module TestData
 
 using Test
-using DataFrames
+#using DataFrames
 import TypedTables
 using CategoricalArrays
 import Tables
 using ScientificTypes
 
 using Random
-import Random.seed!
-seed!(1234)
+using StableRNGs
+
+rng = StableRNG(55511)
 
 import MLJBase
 import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
-    CategoricalElement, selectrows, select, table, nrows, restrict,
-    corestrict, complement
+    CategoricalValue, selectrows, select, table, nrows, restrict,
+    corestrict, complement, transform
 
 @testset "partition" begin
     train, test = partition(1:100, 0.9)
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
-    seed!(1234)
-    train, test = partition(1:100, 0.9, shuffle=true)
+    rng = StableRNG(666)
+    train, test = partition(1:100, 0.9, shuffle=true, rng=rng)
     @test length(train) == 90
     @test length(test) == 10
-    @test train[1:8] == [40, 88, 59, 94, 79, 7, 67, 62]
-
-    train, test = partition(1:100, 0.9, rng=1)
-    seed!(1)
-    train2, test2 = partition(1:100, 0.9, shuffle=true)
+    @test train[1:8] == [49, 75, 98, 99, 47, 59, 65, 12]
+    rng = StableRNG(888)
+    train, test = partition(1:100, 0.9, rng=rng)
+    rng = StableRNG(888)
+    train2, test2 = partition(1:100, 0.9, shuffle=true, rng=rng)
     @test train2 == train
     @test test2 == test
-
-    train3, test3 = partition(1:100, 0.9, rng=Random.MersenneTwister(1))
-    @test train3 == train
-    @test test3 == test
 
     train, test = partition(1:100, 0.9, shuffle=false, rng=1)
     @test collect(train) == collect(1:90)
@@ -44,7 +41,11 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     y = ones(Int, 1000)
     y[end-100:end] .= 0; # 90%
 
+    train1, test1 =
+        partition(eachindex(y), 0.8, stratify=categorical(y), rng=34)
     train, test = partition(eachindex(y), 0.8, stratify=y, rng=34)
+    @test train == train1
+    @test test == test1
     @test isapprox(sum(y[train])/length(train), 0.9, rtol=1e-2)
     @test isapprox(sum(y[test])/length(test), 0.9, rtol=1e-2)
 
@@ -142,18 +143,16 @@ end
                                    :Entry=>Continuous,
                                    :Cens=>Multiclass))
 
-    # shuffling: 
-    small = (x=collect(1:5), y = collect("abcde")) 
+    # shuffling:
+    small = (x=collect(1:5), y = collect("abcde"))
     x, y = unpack(small, ==(:x), ==(:y); shuffle=true, rng=1)
     @test x == [5, 1, 4, 2, 3]
     @test y == ['e', 'a', 'd', 'b', 'c']
     x, y = unpack(small, ==(:x), ==(:y); rng=1)
     @test x == [5, 1, 4, 2, 3]
     @test y == ['e', 'a', 'd', 'b', 'c']
-    Random.seed!(3)
-    @test unpack(small, ==(:x), ==(:y); shuffle=true) ==
-        unpack(small, ==(:x), ==(:y); rng=3)
-
+    @test unpack(small, ==(:x), ==(:y); shuffle=true, rng=StableRNG(66)) ==
+        unpack(small, ==(:x), ==(:y); rng=StableRNG(66))
 end
 
 @testset "restrict and corestrict" begin
@@ -183,6 +182,37 @@ end
 
     X = MLJBase.table((x=[1,2,3], y=[4,5,6]))
     @test select(X, 1, :y) == 4
+end
+
+@testset "transforming from raw values and categorical values" begin
+    values = vcat([missing, ], collect("asdfjklqwerpoi"))
+    Xraw = rand(rng,values, 15, 10)
+    X = categorical(Xraw)
+    element = skipmissing(X) |> first
+
+    @test transform(element, missing) |> ismissing
+
+    raw = first(skipmissing(Xraw))
+    c = transform(element, raw)
+    @test Set(classes(c)) == Set(classes(X))
+    @test c == first(skipmissing(X))
+
+    RAW = Xraw[2:end-1,2:end-1]
+    C = transform(element, RAW)
+    @test Set(classes(C)) == Set(classes(X))
+    @test identity.(skipmissing(C)) ==
+        identity.(skipmissing(X[2:end-1,2:end-1]))
+
+    raw = first(skipmissing(Xraw))
+    c = transform(X, raw)
+    @test Set(classes(c)) == Set(classes(X))
+    @test c == first(skipmissing(X))
+
+    RAW = Xraw[2:end-1,2:end-1]
+    C = transform(X, RAW)
+    @test Set(classes(C)) == Set(classes(X))
+    @test identity.(skipmissing(C)) ==
+        identity.(skipmissing(X[2:end-1,2:end-1]))
 end
 
 end # module

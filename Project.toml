@@ -31,7 +31,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [compat]
-CategoricalArrays = "^0.7.3"
+CategoricalArrays = "^0.8.1"
 ComputationalResources = "^0.3"
 Distributions = "^0.22,^0.23"
 HTTP = "^0.8"
@@ -39,28 +39,27 @@ InvertedIndices = "^1"
 JLSO = "^2.1,^2.2"
 JSON = "^0.21"
 LossFunctions = "0.5, 0.6"
-MLJModelInterface = "^0.2.3"
+MLJModelInterface = "^0.3.0"
 MLJScientificTypes = "^0.1,^0.2"
 Missings = "^0.4"
 OrderedCollections = "^1.1"
 Parameters = "^0.12"
 PrettyTables = "^0.8,^0.9"
-ProgressMeter = "^1.1"
+ProgressMeter = "^1.3"
 ScientificTypes = "^0.7, 0.8"
 StatsBase = "^0.32,^0.33"
 Tables = "^0.2,^1.0"
 julia = "1"
 
 [extras]
-CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
+StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [targets]
-test = ["CSV", "DataFrames", "DecisionTree", "Distances", "Logging", "NearestNeighbors", "MultivariateStats", "Test", "TypedTables"]
+test = ["DecisionTree", "Distances", "Logging", "NearestNeighbors", "MultivariateStats", "StableRNGs", "Test", "TypedTables"]

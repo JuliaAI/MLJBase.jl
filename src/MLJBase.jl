@@ -14,10 +14,11 @@ using MLJModelInterface
 
 # Interface
 import MLJModelInterface: fit, update, update_data, transform,
-                          inverse_transform, fitted_params, predict,
-                          predict_mode, predict_mean, predict_median,
-                          evaluate, clean!, is_same_except,
-                          save, restore, is_same_except
+    inverse_transform, fitted_params, predict,
+    predict_mode, predict_mean, predict_median,
+    evaluate, clean!, is_same_except,
+    save, restore, is_same_except, istransparent,
+    params
 
 # Containers & data manipulation
 using Tables
@@ -120,8 +121,8 @@ export @set_defaults, flat_values, recursive_setproperty!,
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 
-# distributions.jl:
-export average
+# univariate_finite/
+export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # info_dict.jl:
 export info_dict
@@ -169,11 +170,12 @@ export measures, metadata_measure
 
 # measure/measures.jl:
 export orientation, reports_each_observation,
-       is_feature_dependent, aggregation,
-       aggregate, default_measure, value
+    is_feature_dependent, aggregation,
+    aggregate, default_measure, value,
+    spports_weights, prediction_type
 
 # measures/continuous.jl:
-export mav, mae, rms, rmsl, rmslp1, rmsp, l1, l2
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat
@@ -212,7 +214,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not
+       levels, levels!, std, Not, support
 
 
 # ===================================================================
@@ -228,14 +230,11 @@ const DEFAULT_SHOW_DEPTH = 0
 const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
 const INDENT = 4
 
-const CategoricalElement = Union{CategoricalValue,CategoricalString}
-
 const Arr = AbstractArray
 const Vec = AbstractVector
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
-
 # ===================================================================
 # Computational Resource
 # default_resource allows to switch the mode of parallelization
@@ -251,13 +250,15 @@ macro load end
 
 include("init.jl")
 include("utilities.jl")
-include("parameter_inspection.jl")
 include("show.jl")
 include("info_dict.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
-include("interface/univariate_finite.jl")
-include("distributions.jl")
+
+include("univariate_finite/types.jl")
+include("univariate_finite/methods.jl")
+include("univariate_finite/arrays.jl")
+
 include("sources.jl")
 include("machines.jl")
 

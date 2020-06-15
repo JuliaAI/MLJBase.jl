@@ -3,9 +3,9 @@ module TestMeasures
 using MLJBase, Test
 import Distributions
 using CategoricalArrays
-import Random.seed!
 using Statistics
 using LossFunctions
+using StableRNGs
 
 @testset "aggregation" begin
     v = rand(5)

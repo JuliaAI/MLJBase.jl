@@ -2,11 +2,21 @@
     x = 1:5
     @test MLJModelInterface.categorical(x) == categorical(x)
 end
+
+@testset "classes" begin
+    v = categorical(collect("asqfasqffqsaaaa"), ordered=true)
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
+    levels!(v, reverse(levels(v)))
+    @test classes(v[1]) == levels(v)
+    @test classes(v) == levels(v)
+end
+
 @testset "int, classes, decoder" begin
     N = 10
-    mix = shuffle(0:N - 1)
+    mix = shuffle(rng, 0:N - 1)
 
-    Xraw = broadcast(x->mod(x,N), rand(Int, 2N, 3N))
+    Xraw = broadcast(x->mod(x,N), rand(rng, Int, 2N, 3N))
     Yraw = string.(Xraw)
 
     # to turn a categ matrix into a ordinary array with categorical
@@ -26,23 +36,17 @@ end
     y = Y[1]
     V = matrix_(X)
     W = matrix_(Y)
-    Xo = levels!(deepcopy(X), mix)
-    xo = Xo[1]
-    Yo = levels!(deepcopy(Y), string.(mix))
-    yo = Yo[1]
-    Vo = matrix_(Xo)
-    Wo = matrix_(Yo)
 
-    raw(x::MLJBase.CategoricalElement) = x.pool.index[x.level]
+    # raw(x::MLJBase.CategoricalValue) = x.pool.index[x.level]
 
-    @test raw.(classes(xo)) == xo.pool.levels
-    @test raw.(classes(yo)) == yo.pool.levels
+    # @test raw.(classes(xo)) == xo.pool.levels
+    # @test raw.(classes(yo)) == yo.pool.levels
 
-    # getting all possible elements from one:
-    @test raw.(X) == Xraw
-    @test raw.(Y) == Yraw
-    @test raw.(classes(xo)) == levels(Xo)
-    @test raw.(classes(yo)) == levels(Yo)
+    # # getting all possible elements from one:
+    # @test raw.(X) == Xraw
+    # @test raw.(Y) == Yraw
+    # @test raw.(classes(xo)) == levels(Xo)
+    # @test raw.(classes(yo)) == levels(Yo)
 
     # broadcasted encoding:
     @test int(X) == int(V)
@@ -51,13 +55,12 @@ end
     @test int(X; type=Int8) isa AbstractArray{Int8}
 
     # encoding is right-inverse to decoding:
-    d = decoder(xo)
-    @test d(int(Vo)) == Vo # ie have the same elements
-    e = decoder(yo)
-    @test e(int(Wo)) == Wo
+    d = decoder(x)
+    @test d(int(V)) == V # ie have the same elements
+    e = decoder(y)
+    @test e(int(W)) == W
 
-    # classes return value is in correct order:
-    @test int(classes(xo)) == 1:length(classes(xo))
+    @test int(classes(y)) == 1:length(classes(x))
 
     # int is based on ordering not index
     v = categorical(['a', 'b', 'c'], ordered=true)
@@ -71,14 +74,19 @@ end
 
 @testset "matrix, table" begin
     B = rand(UInt8, (4, 5))
-    @test matrix(DataFrame(B)) == B
+    names = Tuple(Symbol("x$i") for i in 1:size(B,2))
+    tup =NamedTuple{names}(Tuple(B[:,i] for i in 1:size(B,2)))
+    @test matrix(TypedTables.Table(tup)) == B
     @test matrix(table(B)) == B
     @test matrix(table(B), transpose=true) == B'
 
-    X  = (x1=rand(5), x2=rand(5))
+    X  = (x1=rand(rng, 5), x2=rand(rng, 5))
 
-    @test table(X, prototype=DataFrame()) == DataFrame(X)
+    @test table(X, prototype=TypedTables.Table(x1=[],
+                    x2=[])) == TypedTables.Table(X)
+
     T = table((x1=(1,2,3), x2=(:x, :y, :z)))
+
     @test selectcols(T, :x1) == [1, 2, 3]
 
     v = categorical(11:20)
@@ -92,27 +100,21 @@ end
 
 @testset "select etc" begin
     N = 10
-    A = broadcast(x->Char(65+mod(x,5)), rand(Int, N, 5))
+    A = broadcast(x->Char(65+mod(x,5)), rand(rng, Int, N, 5))
     X = CategoricalArrays.categorical(A)
-    df = DataFrame(A)
-    df.z  = 1:N
-    tt = TypedTables.Table(df)
+    names = Tuple(Symbol("x$i") for i in 1:size(A,2))
+    tup =NamedTuple{names}(Tuple(A[:,i] for i in 1:size(A,2)))
+    nt = (tup..., z = 1:N)
+
+    tt = TypedTables.Table(nt)
     rt = Tables.rowtable(tt)
     ct = Tables.columntable(tt)
 
     @test selectcols(nothing, 4:6)   == nothing
-    @test selectcols(df, 4:6)        == df[:,4:6]
-    @test selectcols(df, [:x1, :z])  == df[:,[:x1, :z]]
-    @test selectcols(df, :x2)        == df.x2
-    @test selectcols(nothing, 4:6)   == nothing
-    @test selectcols(df, 2)          == df.x2
-    @test selectrows(df, 4:6)        == selectrows(df[4:6, :], :)
-    @test selectrows(df, 1)          == selectrows(df[1:1, :], :)
-    @test selectrows(nothing, 4:6)   == nothing
-    @test MLJBase.select(df, 2, :x2) == df[2, :x2]
+    @test selectrows(tt, 1)          == selectrows(tt[1:1], :)
     @test MLJBase.select(nothing, 2, :x) == nothing
-    s = schema(df)
-    @test nrows(df) == N
+    s = schema(tt)
+    @test nrows(tt) == N
 
     @test selectcols(tt, 4:6) ==
         selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
@@ -135,7 +137,7 @@ end
     @test Tables.rowtable(selectrows(ct, 5))[1] == rt[5,1]
 
     # vector accessors
-    v = rand(Int, 4)
+    v = rand(rng, Int, 4)
     @test selectrows(v, 2:3) == v[2:3]
     @test selectrows(v, 2)   == [v[2]]
     @test nrows(v)           == 4
@@ -146,12 +148,12 @@ end
     @test nrows(v) == 8
 
     # matrix accessors
-    A = rand(5, 10)
+    A = rand(rng, 5, 10)
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2)   == A[2:2,:]
 
-    A = rand(5, 10) |> categorical
+    A = rand(rng, 5, 10) |> categorical
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2:4) == A[2:4,:]
     @test selectrows(A, 2)   == A[2:2,:]
@@ -160,8 +162,6 @@ end
 
     # TypedTables
     v = categorical(collect("asdfasdf"))
-    df = DataFrame(v=v, w=v)
-    @test selectcols(df, :w) == v
-    tt = TypedTables.Table(df)
+    tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
 end

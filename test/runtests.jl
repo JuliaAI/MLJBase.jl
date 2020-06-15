@@ -16,6 +16,7 @@ end
     using CategoricalArrays
     using Logging
     using ComputationalResources
+    using StableRNGs
 end
 
 function include_everywhere(filepath)
@@ -36,15 +37,18 @@ include_everywhere("_models/models.jl")
 print("\r                                           \r")
 
 @testset "misc" begin
-    @test include("utilities.jl")
-    @test include("distributions.jl")
-    @test include("parameter_inspection.jl")
-    @test include("info_dict.jl")
-    @test include("static.jl")
+   @test include("utilities.jl")
+   @test include("info_dict.jl")
+   @test include("static.jl")
 end
 
 @testset "interface" begin
-    @test include("interface/interface.jl")
+     @test include("interface/interface.jl")
+end
+
+@testset "univariate finite" begin
+     @test include("univariate_finite/methods.jl")
+     @test include("univariate_finite/arrays.jl")
 end
 
 @testset "measures" begin

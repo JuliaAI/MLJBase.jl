@@ -20,8 +20,8 @@ metadata_measure(CrossEntropy;
     is_feature_dependent     = false,
     supports_weights         = false,
     docstring                = "Cross entropy loss with probabilities " *
-                               "clamped between eps and 1-eps; aliases: " *
-                               "`cross_entropy`.",
+                 "clamped between `eps()` and `1-eps()`; "*
+                 "aliases: `cross_entropy`.",
     distribution_type        = UnivariateFinite)
 
 """
@@ -29,11 +29,11 @@ metadata_measure(CrossEntropy;
 
 $(docstring(CrossEntropy()))
 
-    CrossEntropy(; eps=eps())
+    ce = CrossEntropy(; eps=eps())
     ce(ŷ, y)
 
 Given an abstract vector of distributions `ŷ` and an abstract vector
-of true observations `y`, return the corresponding Cross-Entropy
+of true observations `y`, return the corresponding cross-entropy
 loss (aka log loss) scores.
 
 Since the score is undefined in the case of the true observation has
@@ -50,13 +50,22 @@ For more information, run `info(cross_entropy)`.
 cross_entropy = CrossEntropy()
 
 # for single observation:
-_cross_entropy(d, y, eps) = -log(clamp(pdf(d, y), eps, 1 - eps))
+_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, eps) where {S,V,R,P} =
+    -log(clamp(pdf(d, y), P(eps), P(1) - P(eps)))
 
+# multiple observations:
 function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
-                           y::Vec{<:CategoricalElement})
+                           y::Vec)
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
     return broadcast(_cross_entropy, ŷ, y, c.eps)
+end
+# performant in case of UnivariateFiniteArray:
+function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}},
+                           y::Vec) where {S,V,R,P}
+    check_dimensions(ŷ, y)
+    check_pools(ŷ, y)
+    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.eps), P(1) - P(c.eps)))
 end
 
 # -----------------------------------------------------
@@ -87,16 +96,17 @@ MLJModelInterface.prediction_type(::Type{<:BrierScore}) = :probabilistic
 orientation(::Type{<:BrierScore}) = :score
 reports_each_observation(::Type{<:BrierScore}) = true
 is_feature_dependent(::Type{<:BrierScore}) = false
-MLJModelInterface.supports_weights(::Type{<:BrierScore}) = true
+MLJModelInterface.supports_weights(::Type{<:BrierScore}) =  true
 distribution_type(::Type{<:BrierScore{D}}) where D =
     UnivariateFinite
 
 """
-    BrierScore(; distribution=UnivariateFinite)(ŷ, y)
+    BrierScore(; distribution=UnivariateFinite)(ŷ, y [, w])
 
 Given an abstract vector of distributions `ŷ` of type `distribution`,
 and an abstract vector of true observations `y`, return the
-corresponding Brier (aka quadratic) scores.
+corresponding Brier (aka quadratic) scores. Weight the scores using
+`w` if provided.
 
 Currently only `distribution=UnivariateFinite` is supported, which is
 applicable to superivised models with `Finite` target scitype. In this
@@ -128,26 +138,54 @@ end
 # For single observations (no checks):
 
 # UnivariateFinite:
-function _brier_score(d::UnivariateFinite, y)
+function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
-    offset = 1 + sum(pvec.^2)
-    return 2 * pdf(d, y) - offset
+    offset = P(1) + sum(pvec.^2)
+    return P(2) * pdf(d, y) - offset
 end
 
 # For multiple observations:
 
 # UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(ŷ::Vec{<:UnivariateFinite},
-                                            y::Vec{<:CategoricalElement})
-    check_dimensions(ŷ, y)
-    check_pools(ŷ, y)
-    return broadcast(_brier_score, ŷ, y)
-end
+function (::BrierScore{<:UnivariateFinite})(
+    ŷ::Vec{<:UnivariateFinite},
+    y::Vec,
+    w::Union{Nothing,Vec{<:Real}}=nothing)
 
-function (score::BrierScore{<:UnivariateFinite})(ŷ, y, w::Vec{<:Real})
-    check_dimensions(y, w)
-    return w .* score(ŷ, y) ./ (sum(w)/length(y))
+    check_dimensions(ŷ, y)
+    w == nothing || check_dimensions(w, y)
+
+    check_pools(ŷ, y)
+    unweighted = broadcast(_brier_score, ŷ, y)
+
+    if w == nothing
+        return unweighted
+    end
+    return w.*unweighted
+end
+# performant version in case of UnivariateFiniteArray:
+function (::BrierScore{<:UnivariateFinite})(
+    ŷ::Vec{UnivariateFinite{S,V,R,P}},
+    y::Vec,
+    w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
+
+    check_dimensions(ŷ, y)
+    w == nothing || check_dimensions(w, y)
+
+    isempty(y) && return P(0)
+
+    check_pools(ŷ, y)
+
+    probs = pdf(ŷ, classes(first(ŷ)))
+    offset = P(1) .+ vec(sum(probs.^2, dims=2))
+
+    unweighted = P(2) .* broadcast(pdf, ŷ, y) .- offset
+
+    if w == nothing
+        return unweighted
+    end
+    return w.*unweighted
 end
 
 const brier_score = BrierScore()
@@ -201,11 +239,11 @@ const misclassification_rate = MisclassificationRate()
 const mcr = misclassification_rate
 const MCR = MisclassificationRate
 
-(::MCR)(ŷ::Vec{<:CategoricalElement},
-        y::Vec{<:CategoricalElement}) = mean(y .!= ŷ)
+(::MCR)(ŷ::Vec{<:CategoricalValue},
+        y::Vec{<:CategoricalValue}) = mean(y .!= ŷ)
 
-(::MCR)(ŷ::Vec{<:CategoricalElement},
-        y::Vec{<:CategoricalElement},
+(::MCR)(ŷ::Vec{<:CategoricalValue},
+        y::Vec{<:CategoricalValue},
         w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
 
 (::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
@@ -286,15 +324,15 @@ const bacc = balanced_accuracy
 const bac  = bacc
 const BACC = BalancedAccuracy
 
-function (::BACC)(ŷ::Vec{<:CategoricalElement},
-                  y::Vec{<:CategoricalElement})
+function (::BACC)(ŷ::Vec{<:CategoricalValue},
+                  y::Vec{<:CategoricalValue})
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
     return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
 end
 
-function (::BACC)(ŷ::Vec{<:CategoricalElement},
-                  y::Vec{<:CategoricalElement},
+function (::BACC)(ŷ::Vec{<:CategoricalValue},
+                  y::Vec{<:CategoricalValue},
                   w::Vec{<:Real})
     levels_ = levels(y)
     ŵ = similar(w)
@@ -366,8 +404,8 @@ function (::MCC)(cm::ConfusionMatrix{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ::Vec{<:CategoricalElement},
-         y::Vec{<:CategoricalElement}) =
+(m::MCC)(ŷ::Vec{<:CategoricalValue},
+         y::Vec{<:CategoricalValue}) =
              confmat(ŷ, y, warn=false) |> m
 
 # ---------------------------------------------------------
@@ -403,15 +441,16 @@ For more information, run `info(area_under_curve)`.
 const area_under_curve = AUC()
 const auc = AUC()
 
-function (::AUC)(ŷ::Vec{<:UnivariateFinite},
-                 y::Vec{<:CategoricalElement})
-    # implementation drawn from https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
-    lab_pos = levels(y)[2]         # 'positive' label
+# implementation drawn from
+# https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
+              y::Vec) where P<:Real # type of probabilities
+    lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
     n       = length(y)
     n_neg   = 0  # to keep of the number of negative preds
-    auc     = 0
+    auc     = P(0)
     @inbounds for i in 1:n
         # y[i] == lab_p --> it's a positive label in the ground truth
         # in that case increase the auc by the cumulative sum
@@ -423,6 +462,14 @@ function (::AUC)(ŷ::Vec{<:UnivariateFinite},
     n_pos = n - n_neg
     return auc / (n_neg * n_pos)
 end
+
+# ŷ inhomogeneous type:
+(::AUC)(ŷ::Vec{<:UnivariateFinite}, y::Vec) = _auc(Float64, ŷ, y)
+
+# ŷ homogeneous type (eg UnivariateFiniteVector case):
+(::AUC)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}}, y::Vec) where {S,V,R,P} =
+    _auc(P, ŷ, y)
+
 
 # ==========================================================================
 ## BINARY AND ORDER DEPENDENT
@@ -869,7 +916,7 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
 function roc_curve(ŷ::Vec{<:UnivariateFinite},
-                   y::Vec{<:CategoricalElement})
+                   y::Vec{<:CategoricalValue})
 
     n       = length(y)
     lab_pos = levels(y)[2]

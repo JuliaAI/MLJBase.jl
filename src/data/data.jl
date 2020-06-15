@@ -28,10 +28,20 @@ function _partition(rows, fractions, ::Nothing)
     return tuple((rows[h:t] for (h, t) in zip(heads, tails))...)
 end
 
+_make_numerical(v::AbstractVector) =
+    throw(ArgumentError("`stratify` must have `Count`, `Continuous` "*
+                        "or `Finite` element scitpye. Consider "*
+                        "`coerce(stratify, Finite)`. "))
+_make_numerical(v::AbstractVector{<:Union{Missing,Real}}) = v
+_make_numerical(v::AbstractVector{<:Union{Missing,CategoricalValue}}) =
+                                int.(v)
+
 # Helper function for partitioning in the stratified case
-function _partition(rows, fractions, stratify::AbstractVector)
+function _partition(rows, fractions, raw_stratify::AbstractVector)
+    stratify = _make_numerical(raw_stratify)
     length(stratify) == length(rows) ||
-        throw(ArgumentError("The stratification vector must have as many entries as " *
+        throw(ArgumentError("The stratification vector must "*
+                            "have as many entries as " *
                             "the rows to partition."))
     uv    = unique(stratify)
     # construct table (n_classes * idx_of_that_class)
@@ -72,7 +82,7 @@ end
 
 """
     partition(rows::AbstractVector{Int}, fractions...;
-              shuffle=nothing, rng=Random.GLOBAL_RNG)
+              shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
 
 Splits the vector `rows` into a tuple of vectors whose lengths are
 given by the corresponding `fractions` of `length(rows)` where valid
@@ -116,12 +126,14 @@ end
 
 
 """
-    t1, t2, ...., tk = unnpack(table, t1, t2, ... tk; wrap_singles=false)
+
+    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
+
 
 Split any Tables.jl compatible `table` into smaller tables (or
 vectors) `t1, t2, ..., tk` by making selections *without replacement*
-from the column names defined by the tests `t1`, `t2`, ...,
-`tk`. A *test* is any object `t` such that `t(name)` is `true`
+from the column names defined by the filters `f1`, `f2`, ...,
+`fk`. A *filter* is any object `f` such that `f(name)` is `true`
 or `false` for each column `name::Symbol` of `table`.
 
 Whenever a returned table contains a single column, it is converted to
@@ -277,3 +289,41 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 # select(::Val{:sparse}, X, r::Integer, c::AbstractVector{Symbol}) = X[r,sort(c)]
 # select(::Val{:sparse}, X, r::Integer, ::Colon) = X[r,:]
 # select(::Val{:sparse}, X, r, c) = X[r,sort(c)]
+
+
+## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
+
+_err_missing_class(c) =  throw(DomainError(
+    "Value $c not pool"))
+
+
+function transform_(pool, x)
+    ismissing(x) && return missing
+    x in levels(pool) || _err_missing_class(x)
+    return pool[get(pool, x)]
+end
+
+transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
+
+"""
+    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
+
+Transform the specified object `X` into a categorical version, using
+the pool contained in `e`. Here `X` is a raw value (an element of
+`levels(e)`) or an `AbstractArray` of such values.
+
+```julia
+v = categorical([:x, :y, :y, :x, :x])
+julia> transform(v, :x)
+CategoricalValue{Symbol,UInt32} :x
+
+julia> transform(v[1], [:x :x; missing :y])
+2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
+ :x       :x
+ missing  :y
+
+"""
+MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
+                            arg) = transform_(CategoricalArrays.pool(e), arg)
+MLJModelInterface.transform(e::CategoricalPool, arg) =
+    transform_(e, arg)

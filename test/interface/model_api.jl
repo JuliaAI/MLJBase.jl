@@ -5,9 +5,12 @@ using MLJBase
 import MLJModelInterface
 using ..Models
 using Distributions
+using StableRNGs
+
+rng = StableRNG(661)
 
 @testset "predict_*" begin
-    X = (x = rand(5),)
+    X = (x = rand(rng, 5),)
     yfinite = categorical(collect("abaaa"))
     ycont = float.(1:5)
 
@@ -86,8 +89,8 @@ DistributionFitter(; distribution=Distributions.Normal()) =
                               ::Nothing) =
                                   fitresult
 
-    y = randn(10);
-    mach = MLJBase.machine(DistributionFitter(), nothing, y) |> fit!
+    y = randn(rng,10);
+    mach = MLJBase.Machine(DistributionFitter(), nothing, y) |> fit!
     yhat = predict(mach, nothing)
     @test Distributions.params(yhat) == report(mach).params
     @test yhat isa Distributions.Normal

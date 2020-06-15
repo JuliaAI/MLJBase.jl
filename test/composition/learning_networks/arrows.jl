@@ -4,13 +4,14 @@ using MLJBase
 using ..Models
 using Test
 using Random
+using StableRNGs
 
 @testset "|> syntax for pipelines" begin
-    Random.seed!(142)
+    rng = StableRNG(56161)
     @load RidgeRegressor pkg="MultivariateStats"
     @load KNNRegressor pkg="NearestNeighbors"
-    X = MLJBase.table(randn(500, 5))
-    y = abs.(randn(500))
+    X = MLJBase.table(randn(rng, 500, 5))
+    y = abs.(randn(rng, 500))
     train, test = partition(eachindex(y), 0.7)
 
     # Feeding data directly to a supervised model
@@ -31,21 +32,22 @@ using Random
 
     fit!(ŷ, rows=train, verbosity=0)
 
-    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.627123, atol=0.07)
+    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.59, atol=1e-2)
 
     # shortcut to get and set hyperparameters of a node
     ẑ[:lambda] = 5.0
     fit!(ŷ, rows=train, verbosity=0)
-    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.62699, atol=0.07)
+    @test isapprox(rms(ŷ(rows=test), ys(rows=test)), 0.59, atol=1e-2)
+
 end
 
 @testset "Auto-source" begin
     @load PCA
     @load RidgeRegressor pkg="MultivariateStats"
-    Random.seed!(5615151)
+    rng = StableRNG(51616161)
 
-    X = MLJBase.table(randn(500, 5))
-    y = abs.(randn(500))
+    X = MLJBase.table(randn(rng,500, 5))
+    y = abs.(randn(rng,500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=2)
     fit!(W, verbosity=0)
@@ -53,7 +55,7 @@ end
     Wraw = W()
     sch = schema(Wraw)
     @test sch.names == (:x1, :x2)
-    @test sch.scitypes == (Continuous, Continuous)
+    @test sch.scitypes == (MLJBase.Continuous, MLJBase.Continuous)
     @test sch.nrows == 500
 
     yhat = (W, y) |> RidgeRegressor()
@@ -67,10 +69,10 @@ end
 @testset "Auto-table" begin
     @load PCA
     @load RidgeRegressor pkg="MultivariateStats"
-    Random.seed!(5615151)
+    rng = StableRNG(5661)
 
-    X = randn(500, 5)
-    y = abs.(randn(500))
+    X = randn(rng,500, 5)
+    y = abs.(randn(rng,500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=2)
     yhat = (W, y) |> RidgeRegressor()
@@ -85,10 +87,10 @@ end
     @load PCA
     @load RidgeRegressor pkg=MultivariateStats
     @load DecisionTreeRegressor pkg=DecisionTree
-    Random.seed!(5615151)
+    rng = StableRNG(66161)
 
-    X = randn(500, 5)
-    y = abs.(randn(500))
+    X = randn(rng,500, 5)
+    y = abs.(randn(rng,500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=3)
     z = y |> UnivariateBoxCoxTransformer()
@@ -106,11 +108,12 @@ end
 end
 
 @testset "functions and static transfomers" begin
-    x1 = rand(30);
-    x2 = rand(30);
-    x3 = rand(30);
-    yy = exp.(x1 - x2 -2x3 + 0.1*rand(30));
-    XX = (x1=x1, x2=x2, x3=x3);
+    rng = StableRNG(66666)
+    x1 = rand(rng,30)
+    x2 = rand(rng,30)
+    x3 = rand(rng,30)
+    y = exp.(x1 - x2 -2x3 + 0.1*rand(rng,30))
+    X = (x1=x1, x2=x2, x3=x3)
 
     f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 

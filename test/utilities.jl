@@ -2,7 +2,8 @@ module Utilities
 
 using Test
 using MLJBase
-using Random
+using StableRNGs
+import Random
 using ComputationalResources
 
 @test MLJBase.finaltypes(Union{Missing,Int}) == [Union{Missing,Int64}]
@@ -53,10 +54,11 @@ end
 end
 
 @testset "shuffle rows" begin
+    rng = StableRNG(5996661)
     # check dims
-    x = randn(5)
-    y = randn(5, 5)
-    z = randn(5, 5)
+    x = randn(rng, 5)
+    y = randn(rng, 5, 5)
+    z = randn(rng, 5, 5)
     @test MLJBase.check_dimensions(x, y) === nothing
     @test MLJBase.check_dimensions(z, x) === nothing
     @test MLJBase.check_dimensions(y, z) === nothing
@@ -66,7 +68,7 @@ end
     y = 1:5 |> collect
     rng = 555
     Random.seed!(rng)
-    perm = randperm(5)
+    perm = Random.randperm(5)
     @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm])
     y = randn(5,5)
     @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm,:])
@@ -96,6 +98,18 @@ end
     default_resource(ComputationalResources.CPUProcesses())
     @test default_resource() == ComputationalResources.CPUProcesses()
     default_resource(CPU1())
+end
+
+@static if VERSION >= v"1.3.0-DEV.573"
+    @testset "Chunks" begin
+        nthreads = Threads.nthreads()
+        #test for cases with exactly same work as threads
+        @test length(MLJBase.chunks(1:nthreads, nthreads)) == nthreads
+        #test for cases with more work than threads
+        @test length(MLJBase.chunks(1:nthreads + rand(1:nthreads), nthreads)) == nthreads
+        #test for cases with less work than threads
+        @test length(MLJBase.chunks(1:nthreads-1, nthreads)) == nthreads - 1
+    end
 end
 
 end # module
