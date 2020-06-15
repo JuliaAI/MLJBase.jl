@@ -5,6 +5,7 @@ using ..Models
 using Test
 using Statistics
 import Random.seed!
+using MLJScientificTypes
 seed!(1234)
 
 @load KNNRegressor
@@ -196,7 +197,7 @@ out = MLJBase.pipeline_preprocess(TestPipelines, ex)
 @test eval.(out[4]) == [F, MLJBase.matrix, MLJBase.table, H, K]
 @test eval.(out[5]) == U
 @test eval.(out[6]) == nothing
-@test out[7] == :DeterministicNetwork
+@test out[7] == :DeterministicComposite
 @test out[8][:supports_weights] = true
 
 ex =  pipe(f, m, t, h, k, e, l)
@@ -208,7 +209,7 @@ out = MLJBase.pipeline_preprocess(TestPipelines, ex)
 @test eval.(out[4]) == [F, MLJBase.matrix, MLJBase.table, H, K]
 @test eval.(out[5]).f == exp
 @test eval.(out[6]).f == log
-@test out[7] == :DeterministicNetwork
+@test out[7] == :DeterministicComposite
 @test out[8][:supports_weights] = true
 
 ex =  pipe(f, k)
@@ -219,7 +220,7 @@ out = MLJBase.pipeline_preprocess(TestPipelines, ex)
 @test eval.(out[4]) == [F, K]
 @test eval.(out[5]) == nothing
 @test eval.(out[6]) == nothing
-@test out[7] == :DeterministicNetwork
+@test out[7] == :DeterministicComposite
 @test out[8][:supports_weights] = true
 
 ex =  pipe(f, c)
@@ -230,7 +231,7 @@ out = MLJBase.pipeline_preprocess(TestPipelines, ex, :(prediction_type=:probabil
 @test eval.(out[4]) == [F, C]
 @test eval.(out[5]) == nothing
 @test eval.(out[6]) == nothing
-@test out[7] == :ProbabilisticNetwork
+@test out[7] == :ProbabilisticComposite
 @test out[8][:supports_weights] = true
 
 ex =  pipe(f, h)
@@ -241,7 +242,7 @@ out = MLJBase.pipeline_preprocess(TestPipelines, ex)
 @test eval.(out[4]) == [F, H]
 @test eval.(out[5]) == nothing
 @test eval.(out[6]) == nothing
-@test out[7] == :UnsupervisedNetwork
+@test out[7] == :UnsupervisedComposite
 @test !haskey(out[8],:supports_weights)
 
 ex =  :(Pipe())
@@ -280,7 +281,7 @@ mach = machine(p, X, y)
 fit!(mach)
 @test MLJBase.tree(mach.fitresult).arg1.model.K == 3
 MLJBase.tree(mach.fitresult).arg1.arg1.model.features == [:x3, ]
-@test predict(mach) ≈ hand_built
+@test predict(mach, X) ≈ hand_built
 
 # test a simple probabilistic classifier pipeline:
 X = MLJBase.table(rand(7,3))
@@ -292,8 +293,8 @@ p = @pipeline(Pipe21(hot=OneHotEncoder(),
               prediction_type=:probabilistic)
 mach = machine(p, X, y)
 fit!(mach)
-@test p isa ProbabilisticNetwork
-pdf(predict(mach)[1], 'f') ≈ 4/7
+@test p isa ProbabilisticComposite
+pdf(predict(mach, X)[1], 'f') ≈ 4/7
 
 # test a simple deterministic classifier pipeline:
 X = MLJBase.table(rand(7,3))
@@ -304,7 +305,7 @@ p = @pipeline(Piper3(hot=OneHotEncoder(), cnst=ConstantClassifier(),
                      broadcast_mode))
 mach = machine(p, X, y)
 fit!(mach)
-@test predict(mach) == fill('f', 7)
+@test predict(mach, X) == fill('f', 7)
 
 # test pipelines with weights:
 w = map(y) do η
@@ -312,7 +313,7 @@ w = map(y) do η
 end
 mach = machine(p, X, y, w)
 fit!(mach)
-@test predict(mach) == fill('m', 7)
+@test predict(mach, X) == fill('m', 7)
 
 # test a pipeline with static transformation of target:
 NN = 100
@@ -343,7 +344,7 @@ p.sel.features = [:x1, :x3__a]
 p.knn.K = 4
 p_ = machine(p, X, y)
 fit!(p_)
-pred2 = predict(p_)
+pred2 = predict(p_, X)
 @test pred1 ≈ pred2
 
 # and another:
@@ -371,7 +372,10 @@ p99 = @pipeline Pipe99(X -> coerce(X, :age=>Continuous),
                        hot = OneHotEncoder(),
                        selector = MyTransformer(:age))
 
-@test transform(fit!(machine(p99, X)), X) == float.(age)
+mach  = machine(p99, X) |> fit!
+
+@test transform(mach, X) == float.(X.age)
 
 end
 true
+

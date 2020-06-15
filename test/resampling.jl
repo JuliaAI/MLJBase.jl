@@ -322,7 +322,7 @@ end
 
 struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
 
-@testset_accelerated "custom strategy using resampling depending on X, y" accel begin
+@testset_accelerated "custom strategy depending on X, y" accel begin
     function MLJBase.train_test_pairs(resampling::DummyResamplingStrategy,
                               rows, X, y)
         train = filter(rows) do j

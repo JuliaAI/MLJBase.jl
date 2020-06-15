@@ -608,8 +608,8 @@ metadata_pkg.((FeatureSelector, UnivariateStandardizer,
               license="MIT")
 
 metadata_model(FeatureSelector,
-               input=MLJBase.Table(MLJBase.Scientific),
-               output=MLJBase.Table(MLJBase.Scientific),
+               input=MLJBase.Table,
+               output=MLJBase.Table,
                weights=false,
                descr=FEATURE_SELECTOR_DESCR,
                path="MLJBase.FeatureSelector")
@@ -629,8 +629,8 @@ metadata_model(UnivariateStandardizer,
                path="MLJBase.UnivariateStandardizer")
 
 metadata_model(Standardizer,
-               input=MLJBase.Table(MLJBase.Scientific),
-               output=MLJBase.Table(MLJBase.Scientific),
+               input=MLJBase.Table,
+               output=MLJBase.Table,
                weights=false,
                descr=STANDARDIZER_DESCR,
                path="MLJBase.Standardizer")
@@ -643,8 +643,8 @@ metadata_model(UnivariateBoxCoxTransformer,
                path="MLJBase.UnivariateBoxCoxTransformer")
 
 metadata_model(OneHotEncoder,
-               input=MLJBase.Table(MLJBase.Scientific),
-               output=MLJBase.Table(MLJBase.Scientific),
+               input=MLJBase.Table,
+               output=MLJBase.Table,
                weights=false,
                descr=ONE_HOT_DESCR,
                path="MLJBase.OneHotEncoder")

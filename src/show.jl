@@ -47,11 +47,22 @@ macro constant(ex)
         $(esc(handle))
     end
 end
+macro bind(ex)
+    ex.head == :(=) || throw(error("Expression must be an assignment."))
+    handle = ex.args[1]
+    value = ex.args[2]
+    quote
+        $(esc(handle)) = $(esc(value))
+        id = objectid($(esc(handle)))
+        HANDLE_GIVEN_ID[id] = @colon $handle
+        $(esc(handle))
+    end
+end
 
 """to display abbreviated versions of integers"""
 function abbreviated(n)
     as_string = string(n)
-    return as_string[1]*"…"*as_string[end-1:end]
+    return "@"*as_string[end-2:end]
 end
 
 """return abbreviated object id (as string) or it's registered handle
@@ -124,7 +135,7 @@ end
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
     repr = simple_repr(typeof(object))
-    str = "$repr @ $(handle(object))"
+    str = "$repr $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
         printstyled(IOContext(stream, :color=> SHOW_COLOR),
                     str, bold=false, color=:blue)
@@ -180,7 +191,7 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
         end
         print(stream, ")")
         if current_depth == 0
-            description = " @ $(handle(object))"
+            description = " $(handle(object))"
             printstyled(IOContext(stream, :color=> SHOW_COLOR), description, bold=false, color=:blue)
         end
     end

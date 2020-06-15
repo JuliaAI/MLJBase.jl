@@ -46,3 +46,13 @@ function MLJModelInterface.restore(file; kwargs...)
     dict = JLSO.load(file)
     return dict[:model], dict[:fitresult], dict[:report]
 end
+
+# to suppress inclusion of abstract types in the model registry.
+for T in (:Supervised, :Unsupervised,
+          :Interval, :Static, :Deterministic, :Probabilistic)
+    ex = quote
+        MLJModelInterface.is_wrapper(::Type{$T}) = true
+    end
+    eval(ex)
+end
+

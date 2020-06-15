@@ -1,96 +1,81 @@
 # We wish to extend operations to identically named methods dispatched
-# on `Machine`s and `NodalMachine`s. For example, we have from the model API
+# on `Machine`s. For example, we have from the model API
 #
 # `predict(model::M, fitresult, X) where M<:Supervised`
 #
-# but want also want
+# but want also want to define
 #
-# `predict(machine::Machine, X)` where `X` is data
-#
-# and "networks.jl" requires us to define
-#
-# `predict(machine::NodalMachine, X)` where `X` is data
+# 1. `predict(machine::Machine, X)` where `X` is concrete data
 #
 # and we would like the syntactic sugar (for `X` a node):
 #
-# `predict(machine::NodalMachine, X::Node)=node(predict, machine, X)`
+# 2. `predict(machine::Machine, X::Node) = node(predict, machine, X)`
 #
-# (If an operation has zero arguments, we cannot achieve the last
-# desire because of ambiguity with the preceding one.)
+# Finally, for a `model` that is `ProbabilisticComposite`,
+# `DetermisiticComposite`, or `UnsupervisedComposite`, we want
+#
+# 3. `predict(model, fitresult, X) = fitresult.predict(X)`
+#
+# which makes sense because `fitresult` in those cases is a named
+# tuple keyed on supported operations and with nodes as values.
 
 ## TODO: need to add checks on the arguments of
-## predict(::AbstractMachine, ) and transform(::AbstractMachine, )
+## predict(::Machine, ) and transform(::Machine, )
 
 for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform, :inverse_transform)
+                  :transform)
     ex = quote
-        function $(operation)(machine::AbstractMachine{M}, args...) where M
-            if isdefined(machine, :fitresult) || M <: Static
-                return $(operation)(machine.model, machine.fitresult, args...)
-            else
-                error("$machine has not been trained.")
+        # 0. operations on machs, given empty data:
+        function $(operation)(mach::Machine; rows=:)
+            Base.depwarn("`$($operation)(mach)` and "*
+                         "`$($operation)(mach, rows=...)` are "*
+                         "deprecated. Data or nodes "*
+                         "must be explictly specified, "*
+                         "as in `$($operation)(mach, X)`. ",
+                         Base.Core.Typeof($operation).name.mt.name)
+            if isempty(mach.args) # deserialized machine with no data
+                throw(ArgumentError("Calling $($operation) on a "*
+                                    "deserialized machine with no data "*
+                                    "bound to it. "))
             end
-        end
-        function $(operation)(machine::Machine; rows=:)
-            isempty(machine.args) &&
-                throw(ArgumentError("Attempt to accesss non-existent data "*
-                                    "bound to a machine, "*
-                                    "probably because machine was "*
-                                    "deserialized. Specify data `X` "*
-                                    "with `$($operation)(mach, X)`. "))
-            return $(operation)(machine, selectrows(machine.args[1], rows))
-        end
-        function $(operation)(machine::NodalMachine, args::AbstractNode...)
-            length(args) > 0 ||
-                throw(ArgumentError("`args` in `$($operation)(mach, args...)`"*
-                                    " cannot be empty if `mach` is a "*
-                                    "`NodalMachine`. "))
-            return node($(operation), machine, args...)
+            return ($operation)(mach, mach.args[1]())
         end
     end
     eval(ex)
 end
 
-# the zero argument special cases:
-"""
-    fitted_params(mach)
-
-Return the learned parameters for a machine `mach` that has been
-`fit!`, for example the coefficients in a linear model.
-
-This is a named tuple and human-readable if possible.
-
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `fitted_params_given_machine`, whose
-corresponding values are a vector of (nodal) machines appearing in the
-underlying learning network, and a dictionary of reports keyed on
-those machines.
-
-```julia
-using MLJ
-X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-fp = fitted_params(mach)
-machs = fp.machines
-2-element Array{Any,1}:
- NodalMachine{LinearBinaryClassifier{LogitLink}} @ 1…57
- NodalMachine{Standardizer} @ 7…33
-
-fp.fitted_params_given_machine[machs[1]]
-(coef = [121.05433477939319, 1.5863921128182814,
-         61.0770377473622, -233.42699281787324, 72.74253591435117],
- intercept = 10.384459260848505,)
-```
-
-"""
-function fitted_params(machine::AbstractMachine)
-    if isdefined(machine, :fitresult)
-        return fitted_params(machine.model, machine.fitresult)
-    else
-        throw(error("$machine has not been trained."))
+for operation in (:inverse_transform,)
+    ex = quote
+        # 0. operations on machines, given empty data:
+        $(operation)(mach::Machine; rows=:) =
+            throw(ArgumentError("`$($operation)(mach)` and "*
+                                "`$($operation)(mach, rows=...)` is "*
+                                "not supported. Data or nodes "*
+                                "must be explictly specified, "*
+                                "as in `$($operation)(mach, X)`. "))
     end
+    eval(ex)
+end
+
+for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
+                  :transform, :inverse_transform)
+    ex = quote
+        # 1. operations on machines, given *concrete* data:
+        function $(operation)(mach::Machine{M}, Xraw) where M
+            if mach.state > 0 || M <: Static
+                return $(operation)(mach.model, mach.fitresult, Xraw)
+            else
+                error("$mach has not been trained.")
+            end
+        end
+
+        # 2. operations on machines, given *dynamic* data (nodes):
+        $(operation)(mach::Machine, X::AbstractNode) =
+            node($(operation), mach, X)
+
+        # 3. operations on composite models:
+        $(operation)(model::Composite, fitresult, X) =
+            fitresult.$operation(X)
+    end
+    eval(ex)
 end

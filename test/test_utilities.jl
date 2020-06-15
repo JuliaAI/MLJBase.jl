@@ -1,8 +1,10 @@
 module TestUtilities
 
 using Test
+using MLJBase
 
-export @testset_accelerated, include_everywhere
+export @testset_accelerated, include_everywhere, @test_mach_sequence,
+    @test_model_sequence
 
 using ComputationalResources
 using ComputationalResources: CPUProcesses
@@ -38,6 +40,55 @@ function testset_accelerated(name::String, var, ex; exclude=[])
         end
     end
     return esc(final_ex)
+end
+
+function sedate!(fit_ex)
+    kwarg_exs = filter(fit_ex.args) do arg
+        arg isa Expr && arg.head == :kw
+    end
+    keys = map(kwarg_exs) do arg
+        arg.args[1]
+    end
+    :verbosity in keys &&
+        error("You cannot specify `verbosity` in @test_mach_sequence. ")
+    push!(fit_ex.args, Expr(:kw, :verbosity, -5000))
+    return fit_ex
+end
+
+macro test_mach_sequence(fit_ex, sequence_exs...)
+    sedate!(fit_ex)
+    seq = gensym(:sequence)
+    esc(quote
+        MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+        $fit_ex
+        $seq = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+        for s in $seq
+            println(s)
+        end
+        @test $seq in [$(sequence_exs...)]
+    end)
+end
+
+# function weakly_in(object:Tuple{Symbol,Model}, itr)
+#     for tup in itr
+#         tup[1] === object[1] && tup[2] == tup
+
+
+
+macro test_model_sequence(fit_ex, sequence_exs...)
+    sedate!(fit_ex)
+    seq = gensym(:sequence)
+    esc(quote
+        MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+        $fit_ex
+        $seq = map(MLJBase.flush!(MLJBase.MACHINE_CHANNEL)) do tup
+            (tup[1], tup[2].model)
+        end
+        for s in $seq
+            println(s)
+        end
+        @test $seq in [$(sequence_exs...)]
+    end)
 end
 
 end

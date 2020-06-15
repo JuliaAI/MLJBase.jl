@@ -3,21 +3,28 @@
 # over abstract types
 
 # This allows implicit: data |> machine
-(mach::AbstractMachine{<:Unsupervised})(data) = transform(mach, data)
-(mach::AbstractMachine{<:Supervised})(data)   = predict(mach, data)
-(mach::AbstractMachine)(data::AbstractMatrix) = data |> table |> mach
+(mach::Machine{<:Unsupervised})(data) = transform(mach, data)
+(mach::Machine{<:Unsupervised})(data::NTuple{<:Any,AbstractNode}) =
+    transform(mach, data...)
+(mach::Machine{<:Supervised})(data)   = predict(mach, data)
+(mach::Machine)(data::AbstractMatrix) = data |> table |> mach
 
 # This allows implicit: data |> Unsupervised
 (m::Unsupervised)(data::AbstractNode) = data |> machine(m, data)
+(m::Static)(data:: AbstractNode) = data |> machine(m)
+(m::Static)(data::NTuple{<:Any, AbstractNode}) = data |> machine(m)
 (m::Unsupervised)(data) = source(data) |> m
 (m::Unsupervised)(data::AbstractMatrix) = data |> table |> m
 
+
 # This allows implicit: data |> Supervised
 (m::Supervised)(data::NTuple{2,AbstractNode}) = data[1] |> machine(m, data...)
-(m::Supervised)(data::Tuple{AbstractNode,Any}) = (data[1], source(data[2], kind=:target)) |> m
+(m::Supervised)(data::Tuple{AbstractNode,Any}) =
+    (data[1], source(data[2], kind=:target)) |> m
 (m::Supervised)(data::Tuple) = (source(data[1]), data[2]) |> m
-(m::Supervised)(data::Tuple{AbstractMatrix,Any}) = (data[1] |> table, data[2]) |> m
+(m::Supervised)(data::Tuple{AbstractMatrix,Any}) =
+    (data[1] |> table, data[2]) |> m
 
 # This allows implicit: data |> inverse_transform(node)
-inverse_transform(node::Node{<:NodalMachine{<:Unsupervised}}) =
+inverse_transform(node::Node{<:Machine{<:Unsupervised}}) =
     data -> inverse_transform(node.machine, data)
