@@ -112,8 +112,8 @@ end
     x1 = rand(rng,30)
     x2 = rand(rng,30)
     x3 = rand(rng,30)
-    y = exp.(x1 - x2 -2x3 + 0.1*rand(rng,30))
-    X = (x1=x1, x2=x2, x3=x3)
+    yy = exp.(x1 - x2 -2x3 + 0.1*rand(rng,30))
+    XX = (x1=x1, x2=x2, x3=x3)
 
     f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 

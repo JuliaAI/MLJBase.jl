@@ -90,7 +90,7 @@ DistributionFitter(; distribution=Distributions.Normal()) =
                                   fitresult
 
     y = randn(rng,10);
-    mach = MLJBase.Machine(DistributionFitter(), nothing, y) |> fit!
+    mach = MLJBase.machine(DistributionFitter(), nothing, y) |> fit!
     yhat = predict(mach, nothing)
     @test Distributions.params(yhat) == report(mach).params
     @test yhat isa Distributions.Normal
