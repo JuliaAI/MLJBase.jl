@@ -755,7 +755,7 @@ function evaluate!(mach::Machine, resampling, weights,
     per_observation = map(1:nmeasures) do k
         m = measures[k]
         if reports_each_observation(m)
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         else
             missing
         end
@@ -767,7 +767,7 @@ function evaluate!(mach::Machine, resampling, weights,
         if reports_each_observation(m)
             broadcast(MLJBase.aggregate, per_observation[k], [m,])
         else
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         end
     end
 
