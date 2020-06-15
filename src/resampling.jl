@@ -623,7 +623,6 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
                  r = func(mach, k)
                  verbosity < 1 || begin
                                     put!(channel, true)
-                                   #yield()
                                   end
                  r
     	     end
@@ -646,16 +645,16 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    end
    ntasks = accel.settings
    partitions = chunks(1:nfolds, ntasks)
-   verbosity < 1 || begin
-                    p = Progress(nfolds,
-                    dt = 0,
-                    desc = "Evaluating over $nfolds folds: ",
-                    barglyphs = BarGlyphs("[=> ]"),
-                    barlen = 25,
-                    color = :yellow)
-                    ch = Channel{Bool}(min(1000, length(partitions)))
-                 end
-   tasks = Vector{Task}(undef, length(partitions)) 
+
+   p = Progress(nfolds,
+                dt = 0,
+                desc = "Evaluating over $nfolds folds: ",
+                barglyphs = BarGlyphs("[=> ]"),
+                barlen = 25,
+                color = :yellow)
+    ch = Channel{Bool}(min(1000, length(partitions)))
+
+   results = Vector(undef, length(partitions)) 
 
    @sync begin 
     # printing the progress bar
@@ -669,8 +668,8 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
     #One tmach for each task:
     machines = [mach, [machine(mach.model, mach.args...) for _ in 2:length(partitions)]...]  
    @sync for (i, parts) in enumerate(partitions)    
-     tasks[i] = Threads.@spawn begin
-       z = mapreduce(vcat, parts) do k  
+     Threads.@spawn begin
+       results[i] = mapreduce(vcat, parts) do k  
             r = func(machines[i], k)
             verbosity < 1 || put!(ch, true)
             r            
@@ -682,7 +681,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
      verbosity < 1 || put!(ch, false)   
 
     end
-    reduce(vcat, fetch.(tasks))
+    reduce(vcat, results)
 end
 
 end
