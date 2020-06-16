@@ -133,6 +133,34 @@ end
     ridge.lambda = 1.0
     fit!(mach)
     @test predict(mach, Xin) != yhat
+
+    # test depreciated version:
+    function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
+        Xs = source(X)
+        ys = source(y, kind=:target)
+
+        stand = Standardizer()
+        standM = machine(stand, Xs)
+        W = transform(standM, Xs)
+
+        boxcox = UnivariateBoxCoxTransformer()
+        boxcoxM = machine(boxcox, ys)
+        z = transform(boxcoxM, ys)
+
+        ridgeM = machine(model.ridge, W, z)
+        zhat = predict(ridgeM, W)
+        yhat = inverse_transform(boxcoxM, zhat)
+
+        fit!(yhat)
+
+        return fitresults(yhat)
+    end
+    ridge = FooBarRegressor(lambda=0.1)
+    model_ = WrappedRidge(ridge)
+    mach = machine(model_, Xin, yin)
+    @test_deprecated fit!(mach)
+    @test yhat ≈ predict(mach, Xin);
+
 #end
 
 # A dummy clustering model:
@@ -160,18 +188,18 @@ mutable struct WrappedDummyClusterer <: UnsupervisedComposite
 end
 WrappedDummyClusterer(; model=DummyClusterer()) =
     WrappedDummyClusterer(model)
-function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
-    Xs = source(X)
-    W = transform(machine(OneHotEncoder(), Xs), Xs)
-    m = machine(model.model, W)
-    yhat = predict(m, W)
-    Wout = transform(m, W)
-    mach = machine!(Unsupervised(), predict=yhat, transform=Wout)
-    fit!(mach)
-    return mach()
-end
 
 @testset "third test of hand-exported network" begin
+    function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
+        Xs = source(X)
+        W = transform(machine(OneHotEncoder(), Xs), Xs)
+        m = machine(model.model, W)
+        yhat = predict(m, W)
+        Wout = transform(m, W)
+        mach = machine!(Unsupervised(), predict=yhat, transform=Wout)
+        fit!(mach)
+        return mach()
+    end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
     mach = machine(model, X) |> fit!

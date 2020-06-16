@@ -8,10 +8,10 @@
 
 # legacy method:
 function fitresults(yhat::AbstractNode)
-    # Base.depwarn("`fitresults(yhat::Node)` is deprecated. "*
-    #              "See \"Composing Models\" section of MLJ manual "*
-    #              "on preferred way to export learning networks "*
-    #              "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
+    Base.depwarn("`fitresults(::Node)` is deprecated. "*
+                 "See \"Composing Models\" section of MLJ manual "*
+                 "on preferred way to export learning networks "*
+                 "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
     inputs = sources(yhat, kind=:input)
     targets = sources(yhat, kind=:target)
     weights = sources(yhat, kind=:weights)
@@ -46,7 +46,7 @@ fitted_params(::Composite, fitresult::NamedTuple) =
 fitted_params(::Composite, fitresult::Node) = fitted_params(fitresult)
 
 function update(model::Composite,
-                verb::Integer,
+                verbosity::Integer,
                 fitresult::NamedTuple,
                 cache,
                 args...)
@@ -66,7 +66,7 @@ function update(model::Composite,
     submodels    = filter(f->f isa Model, field_values)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
-        return fit(model, verb, args...)
+        return fit(model, verbosity, args...)
     end
 
     is_anonymized = cache isa NamedTuple{(:sources, :data)}
@@ -78,7 +78,7 @@ function update(model::Composite,
         end
     end
 
-    fit!(glb_node; verbosity=verb)
+    fit!(glb_node; verbosity=verbosity)
     if is_anonymized
         for s in sources
             rebind!(s, nothing)
@@ -89,7 +89,7 @@ function update(model::Composite,
 end
 
 # legacy version of above (private) method:
-function update(model::Composite, verb::Integer,
+function update(model::Composite, verbosity::Integer,
                 yhat::Node, cache, args...)
 
     # If any `model` field has been replaced (and not just mutated)
@@ -102,7 +102,7 @@ function update(model::Composite, verb::Integer,
     submodels    = filter(f->f isa Model, fields)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
-        return fit(model, verb, args...)
+        return fit(model, verbosity, args...)
     end
 
     is_anonymized = cache isa NamedTuple{(:sources, :data)}
@@ -114,7 +114,7 @@ function update(model::Composite, verb::Integer,
         end
     end
 
-    fit!(yhat; verbosity=verb)
+    fit!(yhat; verbosity=verbosity)
     if is_anonymized
         for s in sources
             rebind!(s, nothing)
@@ -129,3 +129,7 @@ predict(::SupervisedComposite, fitresult::Node, Xnew)     = fitresult(Xnew)
 
 # legacy method (replacements defined in operations.jl):
 transform(::UnsupervisedComposite, fitresult::Node, Xnew) = fitresult(Xnew)
+
+
+## USER FRIENDLY INSPECTION OF COMPOSITE MACHINES
+
