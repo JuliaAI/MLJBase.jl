@@ -103,8 +103,9 @@ origins(s::Source) = [s,]
 ## DISPLAY FOR SOURCES AND OTHER ABSTRACT NODES
 
 _extra(::Any) = ""
-_extra(S::Source) = " of kind `:$(S.kind)`"
+_extra(S::Source) = "$(S.kind) "
 function Base.show(stream::IO, object::AbstractNode)
+    print(stream, _extra(object))
     repr = simple_repr(typeof(object))
     str = "$repr $(handle(object))"
     if !isempty(fieldnames(typeof(object)))
@@ -113,6 +114,6 @@ function Base.show(stream::IO, object::AbstractNode)
     else
         print(stream, str)
     end
-    print(stream, _extra(object), " returning `$(elscitype(object))`")
+    print(stream, " \u23CE `$(elscitype(object))`")
     return nothing
 end

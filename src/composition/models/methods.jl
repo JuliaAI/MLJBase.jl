@@ -37,6 +37,8 @@ end
 # *Note.* Be sure to read Note 4 in src/operations.jl to see see how
 # fallbacks are provided for operations acting on Composite models.
 
+try_scalarize(v) = length(v) == 1 ? v[1] : v
+
 fitted_params(::Composite, fitresult::NamedTuple) =
     fitted_params(glb(values(fitresult)...))
 
