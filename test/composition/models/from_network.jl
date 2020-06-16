@@ -275,10 +275,11 @@ knn = model_.knn_rgs
                      [(:update, model_), (:skip, hot), (:skip, stand),
                       (:skip, oak), (:update, knn)])
 
-@test MLJBase.tree(mach.fitresult).arg1.arg1.arg1.arg1.model.K == 55
+@test MLJBase.tree(mach.fitresult.predict).arg1.arg1.arg1.arg1.model.K == 55
 
 # check data anonymity:
-@test all(x->(x===nothing), [s.data for s in sources(mach.fitresult)])
+@test all(x->(x===nothing),
+          [s.data for s in sources(mach.fitresult.predict)])
 
 
 ## TEST MACRO-EXPORTED UNSUPERVISED NETWORK
@@ -304,7 +305,8 @@ ms = FP.machines
 @test all(mach -> fitted_params(mach) == d[mach], ms)
 
 # check data anomynity:
-@test all(x->(x===nothing), [s.data for s in sources(mach.fitresult)])
+@test all(x->(x===nothing),
+          [s.data for s in sources(mach.fitresult.transform)])
 
 transform(mach, X);
 

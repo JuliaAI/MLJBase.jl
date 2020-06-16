@@ -84,7 +84,11 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
  end
 
 # closure for later:
-function fit_method(network, models...)
+function fit_method(mach, models...)
+
+    # ***temporary hack:
+    signature = mach.fitresult
+    network = signature[1] # glb(values(signature)...)
 
     network_Xs = sources(network, kind=:input)[1]
 
@@ -117,9 +121,10 @@ function fit_method(network, models...)
             throw(ArgumentError)
         end
 
-        fit!(yhat, verbosity=verb)
+        mach = machine!(predict=yhat)
+        fit!(mach, verbosity=verb)
 
-        return fitresults(yhat)
+        return mach.fitresult, mach.cache, mach.report
     end
 
     function _fit(model::M, verb::Integer, X) where M <:Unsupervised
@@ -134,9 +139,10 @@ function fit_method(network, models...)
         Set([Xs]) == Set(sources(Xout)) ||
             error("Failed to replace learning network :input source ")
 
-        fit!(Xout, verbosity=verb)
+        mach = machine!(transform=Xout)
+        fit!(mach, verbosity=verb)
 
-        return fitresults(Xout)
+        return mach.fitresult, mach.cache, mach.report
     end
 
     return _fit
@@ -226,10 +232,10 @@ function from_network_preprocess(modl, ex,
 
     models_ = [modl.eval(e) for e in model_exs]
     issubset(models_, models(N)) ||
-        net_alert("One or more specified models are not in the learning network "*
-                  "terminating at $N_ex.\n Use models($N_ex) to inspect models. ")
-
-    nodes_  = nodes(N)
+        net_alert("One or more specified models are not "*
+                  "in the learning network "*
+                  "terminating at $N_ex.\n Use models($N_ex) "*
+                  "to inspect models. ")
 
     return modeltype_ex, fieldname_exs, model_exs, N_ex,
            kind, trait_ex_given_name_ex
@@ -267,25 +273,42 @@ function from_network_(modl, modeltype_ex, fieldname_exs, model_exs,
                           N_ex, kind, trait_value_ex_given_name_ex)
 
     args = gensym(:args)
+    mach = gensym(:mach)
+
+    # ***temporary hack until learning network machine is specified by
+    # user:
+    if kind == :ProbabilisticComposite
+        kind_super = :Probabilistic
+        operation = :predict
+    elseif kind == :DeterministicComposite
+        kind_super = :Deterministic
+        operation = :predict
+    else
+        kind_super = :Unsupervised
+        operation = :transform
+    end
 
     # code defining the composite model struct and fit method:
     program1 = quote
 
         $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase) : :(import MLJBase))
         $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase.MLJModelInterface) :
-            :(import MLJBase.MLJModelInterface))
+          :(import MLJBase.MLJModelInterface))
+
+        # ***temporary hack until machine is specified by user:
+        $mach = machine!($kind_super(); $operation=$N_ex)
 
         mutable struct $modeltype_ex <: MLJBase.$kind
             $(fieldname_exs...)
         end
 
         MLJModelInterface.fit(model::$modeltype_ex, verb::Integer, $args...) =
-            MLJBase.fit_method($N_ex, $(model_exs...))(model, verb, $args...)
+            MLJBase.fit_method($mach, $(model_exs...))(model, verb, $args...)
 
     end
 
     program2 = quote
-        # defined keyword constructor for composite model:
+        # define keyword constructor for composite model:
         defaults =
             MLJBase.@set_defaults $modeltype_ex deepcopy.([$(model_exs...)])
     end

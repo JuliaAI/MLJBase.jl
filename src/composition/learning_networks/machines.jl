@@ -99,14 +99,15 @@ Learning network machines are constructed before exporting a learning
 
 Same as above, but specifying explicitly the source nodes, to force
 the roles (kinds) implied by the order in which they appear
-(`:input`[, `:target`, `:weights`]).
+(`:input`[, `:target`, `:weights`]). May mutate the source nodes
+specified.
 
     machine!(Probablistic(), args...; kwargs...)
     machine!(Deterministic(), args...; kwargs...)
     machine!(Unsupervised(), args...; kwargs...)
 
 Same as above, but specifying explicitly the kind of model the
-learning network is to meant to represent. 
+learning network is to meant to represent.
 
 For declaring scitype traits intended for an exported version of the
 learning newtork, give the model constructor arguments, as in

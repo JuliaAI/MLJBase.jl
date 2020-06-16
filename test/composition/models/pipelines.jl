@@ -280,8 +280,8 @@ p = @pipeline(Pipe(sel=FeatureSelector(), knn=KNNRegressor(),
 p.knn.K = 3; p.sel.features = [:x3,]
 mach = machine(p, X, y)
 fit!(mach)
-@test MLJBase.tree(mach.fitresult).arg1.model.K == 3
-MLJBase.tree(mach.fitresult).arg1.arg1.model.features == [:x3, ]
+@test MLJBase.tree(mach.fitresult.predict).arg1.model.K == 3
+MLJBase.tree(mach.fitresult.predict).arg1.arg1.model.features == [:x3, ]
 @test predict(mach, X) ≈ hand_built
 
 # test a simple probabilistic classifier pipeline:
