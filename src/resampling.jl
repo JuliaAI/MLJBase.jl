@@ -453,9 +453,10 @@ resampling strategies. If `resampling` is not an object of type
 
 gives two-fold cross-validation using the first 200 rows of data.
 
-The resampling strategy is applied repeatedly if `repeats > 1`. For
-`resampling = CV(nfolds=5)`, for example, this generates a total of
-`5n` test folds for evaluation and subsequent aggregation.
+The resampling strategy is applied repeatedly (Monte Carlo resampling)
+if `repeats > 1`. For example, if `repeats = 10`, then `resampling =
+CV(nfolds=5, shuffle=true)`, generates a total of 50 `(train, test)`
+pairs for evaluation and subsequent aggregation.
 
 If `resampling isa MLJ.ResamplingStrategy` then one may optionally
 restrict the data used in evaluation by specifying `rows`.
@@ -622,7 +623,6 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
                  r = func(mach, k)
                  verbosity < 1 || begin
                                     put!(channel, true)
-                                   #yield()
                                   end
                  r
     	     end
@@ -645,16 +645,16 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    end
    ntasks = accel.settings
    partitions = chunks(1:nfolds, ntasks)
-   verbosity < 1 || begin
-                    p = Progress(nfolds,
-                    dt = 0,
-                    desc = "Evaluating over $nfolds folds: ",
-                    barglyphs = BarGlyphs("[=> ]"),
-                    barlen = 25,
-                    color = :yellow)
-                    ch = Channel{Bool}(min(1000, length(partitions)))
-                 end
-   tasks = Vector{Task}(undef, length(partitions)) 
+
+   p = Progress(nfolds,
+                dt = 0,
+                desc = "Evaluating over $nfolds folds: ",
+                barglyphs = BarGlyphs("[=> ]"),
+                barlen = 25,
+                color = :yellow)
+    ch = Channel{Bool}(min(1000, length(partitions)))
+
+   results = Vector(undef, length(partitions)) 
 
    @sync begin 
     # printing the progress bar
@@ -668,8 +668,8 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
     #One tmach for each task:
     machines = [mach, [machine(mach.model, mach.args...) for _ in 2:length(partitions)]...]  
    @sync for (i, parts) in enumerate(partitions)    
-     tasks[i] = Threads.@spawn begin
-       z = mapreduce(vcat, parts) do k  
+     Threads.@spawn begin
+       results[i] = mapreduce(vcat, parts) do k  
             r = func(machines[i], k)
             verbosity < 1 || put!(ch, true)
             r            
@@ -681,7 +681,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
      verbosity < 1 || put!(ch, false)   
 
     end
-    reduce(vcat, fetch.(tasks))
+    reduce(vcat, results)
 end
 
 end
@@ -755,7 +755,7 @@ function evaluate!(mach::Machine, resampling, weights,
     per_observation = map(1:nmeasures) do k
         m = measures[k]
         if reports_each_observation(m)
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         else
             missing
         end
@@ -767,7 +767,7 @@ function evaluate!(mach::Machine, resampling, weights,
         if reports_each_observation(m)
             broadcast(MLJBase.aggregate, per_observation[k], [m,])
         else
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         end
     end
 
