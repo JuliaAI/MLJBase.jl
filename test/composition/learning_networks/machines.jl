@@ -52,7 +52,7 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
 
     mach = machine!(predict=yhat, transform=Wout)
     @test mach.args == (Xs, )
-    @test isempty(mach.args[1])
+    @test mach.args[1] == Xs
     fit!(mach, force=true)
 
     report(mach)

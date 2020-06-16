@@ -1,17 +1,23 @@
 ## EXPORTING LEARNING NETWORKS AS MODELS WITH @from_network
 
 """
-    replace(W::Node, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
+    replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
 
-Create a deep copy of a node `W`, and thereby replicate the learning
-network terminating at `W`, but replacing any specified sources and
-models `a1, a2, ...` of the original network with `b1, b2, ...`.
+Create a deep copy of a learning network machine `mach` but replacing
+any specified sources and models `a1, a2, ...` of the original
+underlying network with `b1, b2, ...`.
 
 If `empty_unspecified_sources=true` then any source nodes not
 specified are replaced with empty version of the same kind.
 
 """
-function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
+function Base.replace(mach::Machine{<:Surrogate},
+                      pairs::Pair...; empty_unspecified_sources=false)
+
+    signature = mach.fitresult
+    interface_nodes = values(signature)
+
+    W = glb(interface_nodes...)
 
     # Note: We construct nodes of the new network as values of a
     # dictionary keyed on the nodes of the old network. Additionally,
@@ -59,6 +65,8 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
     # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
+    newinterface_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
     newmach_given_old = IdDict{Machine,Machine}()
 
     # build the new network:
@@ -68,63 +76,68 @@ function Base.replace(W::Node, pairs::Pair...; empty_unspecified_sources=false)
              newnode_given_old[N] = node(N.operation, args...)
          else
              if N.machine in keys(newmach_given_old)
-                 mach = newmach_given_old[N.machine]
+                 m = newmach_given_old[N.machine]
              else
                  train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                 mach = Machine(newmodel_given_old[N.machine.model],
+                 m = Machine(newmodel_given_old[N.machine.model],
                                 train_args...)
-                 newmach_given_old[N.machine] = mach
+                 newmach_given_old[N.machine] = m
              end
-             newnode_given_old[N] = N.operation(mach, args...)
+             newnode_given_old[N] = N.operation(m, args...)
+         end
+        if N in interface_nodes
+            newinterface_node_given_old[N] = newnode_given_old[N]
         end
     end
 
-    return newnode_given_old[nodes_[end]]
+    newinterface_nodes = Tuple(newinterface_node_given_old[N] for N in
+                          interface_nodes)
+    newsignature = NamedTuple{keys(signature)}(newinterface_nodes)
 
- end
+    return machine!(mach.model; newsignature...)
+
+end
 
 # closure for later:
 function fit_method(mach, models...)
 
-    # ***temporary hack:
     signature = mach.fitresult
-    network = signature[1] # glb(values(signature)...)
-
-    network_Xs = sources(network, kind=:input)[1]
+    mach_args = mach.args
+    network_Xs = mach_args[1]
 
     function _fit(model::M, verb::Integer, args...) where M <: Supervised
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]
                               for j in eachindex(models)]
-        network_ys = sources(network, kind=:target)[1]
+        network_ys = mach_args[2]
         Xs = source(args[1])
         ys = source(args[2], kind=:target)
         source_replacements = [network_Xs => Xs, network_ys => ys]
         if length(args) == 3
             ws = source(args[3], kind=:weights)
-            network_ws = sources(network, kind=:weights)[1]
+            network_ws = mach_args[3]
             push!(source_replacements, network_ws => ws)
         end
         replacements = vcat(model_replacements, source_replacements)
-        yhat = replace(network, replacements...; empty_unspecified_sources=true)
+        new_mach =
+            replace(mach, replacements...; empty_unspecified_sources=true)
 
-        if length(args) == 2
-            issubset([Xs, ys], sources(yhat)) ||
-                error("Failed to replace learning network "*
-                      ":input or :target source")
-        elseif length(args) == 3
-            issubset([Xs, ys, ws], sources(yhat)) ||
-                error("Failed to replace learning network "*
-                      ":input or :target source")
-        else
-            throw(ArgumentError)
-        end
+        # if length(args) == 2
+        #     issubset([Xs, ys], mach2.args) ||
+        #         error("Failed to replace learning network "*
+        #               ":input or :target source")
+        # elseif length(args) == 3
+        #     issubset([Xs, ys, ws], mach2.args) ||
+        #         error("Failed to replace learning network "*
+        #               ":input or :target source")
+        # else
+        #     throw(ArgumentError)
+        # end
 
-        mach = machine!(predict=yhat)
-        fit!(mach, verbosity=verb)
+        fit!(new_mach, verbosity=verb)
 
-        return mach.fitresult, mach.cache, mach.report
+        return new_mach()
     end
 
     function _fit(model::M, verb::Integer, X) where M <:Unsupervised
@@ -135,14 +148,14 @@ function fit_method(mach, models...)
         Xs = source(X)
         source_replacements = [network_Xs => Xs,]
         replacements = vcat(model_replacements, source_replacements)
-        Xout = replace(network, replacements...)
-        Set([Xs]) == Set(sources(Xout)) ||
-            error("Failed to replace learning network :input source ")
+        new_mach =
+            replace(mach, replacements...; empty_unspecified_sources=true)
+#        Set([Xs]) == Set(sources(Xout)) ||
+#            error("Failed to replace learning network :input source ")
 
-        mach = machine!(transform=Xout)
-        fit!(mach, verbosity=verb)
+         fit!(new_mach, verbosity=verb)
 
-        return mach.fitresult, mach.cache, mach.report
+        return new_mach()
     end
 
     return _fit

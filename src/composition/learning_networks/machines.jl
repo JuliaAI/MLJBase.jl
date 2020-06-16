@@ -218,7 +218,7 @@ function machine!(model::Model, _sources::Source...; pair_itr...)
     mach = Machine(model, sources...)
 
     mach.fitresult = signature
-    mach.cache = anonymize!(mach.args)
+#    mach.cache = anonymize!(mach.args)
 
     return mach
 
@@ -282,21 +282,29 @@ See also [`machine!`](@ref)
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
 
-    # de-anonymize sources:
-    sources, data = mach.cache.sources, mach.cache.data
-    for k in eachindex(sources)
-        rebind!(sources[k], data[k])
-    end
+    # # de-anonymize sources:
+    # sources, data = mach.cache.sources, mach.cache.data
+    # for k in eachindex(sources)
+    #     rebind!(sources[k], data[k])
+    # end
 
     signature = mach.fitresult
     glb_node = glb(values(signature)...) # greatest lower bound node
     fit!(glb_node; kwargs...)
 
-    mach.cache = anonymize!(mach.args)
+    # mach.cache = anonymize!(mach.args)
     mach.state += 1
     mach.report = report(glb_node)
     return mach
 
+end
+
+# make learning network machines callable for use in manual export of
+# learning networks:
+function (mach::Machine{<:Surrogate})()
+    # anonymize sources:
+    mach.cache = anonymize!(mach.args)
+    return mach.fitresult, mach.cache, mach.report
 end
 
 MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =

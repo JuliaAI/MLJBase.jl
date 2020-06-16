@@ -204,14 +204,24 @@ hot2 = deepcopy(hot)
 knn2 = deepcopy(knn)
 ys2 = source(nothing, kind=:target)
 
-# duplicate a network:
-yhat2 = replace(yhat, hot=>hot2, knn=>knn2,
+# duplicate a learning network machine:
+mach  = machine!(Deterministic(), predict=yhat)
+mach2 = replace(mach, hot=>hot2, knn=>knn2,
                 ys=>source(ys.data, kind=:target);
                 empty_unspecified_sources=true)
-@test isempty(sources(yhat2, kind=:input)[1])
-yhat2 = @test_logs((:warn, r"No replacement"),
-                   replace(yhat, hot=>hot2, knn=>knn2,
+ss = sources(glb(mach2.fitresult...), kind=:input)
+@test isempty(ss[1])
+mach2 = @test_logs((:warn, r"No replacement"),
+                   replace(mach, hot=>hot2, knn=>knn2,
                            ys=>source(ys.data, kind=:target)))
+fit!(mach, verbosity=0)
+fit!(mach2, verbosity=0)
+@test predict(mach, X) ≈ predict(mach2, X)
+
+mach2 = @test_logs((:warn, r"No replacement"),
+                   replace(mach, hot=>hot2, knn=>knn2,
+                           ys=>source(ys.data, kind=:target)))
+yhat2 = mach2.fitresult[1]
 @test !isempty(sources(yhat2, kind=:input)[1])
 
 # pickout the newly created machines:

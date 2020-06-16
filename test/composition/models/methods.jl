@@ -35,6 +35,9 @@ selector_model = FeatureSelector()
 
     fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
 
+    # test data anonymity:
+    @test isempty(sources(fitresult[1])[1])
+
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
     selector = MLJBase.machines(fitresult.predict)[2]
@@ -110,9 +113,9 @@ end
         zhat = predict(ridgeM, W)
         yhat = inverse_transform(boxcoxM, zhat)
 
-        mach = machine!(predict=yhat)
+        mach = machine!(Deterministic(), predict=yhat)
         fit!(mach, verbosity=verbosity)
-        return mach.fitresult, mach.cache, mach.report
+        return mach()
     end
 
     MLJBase.input_scitype(::Type{<:WrappedRidge}) =
@@ -126,7 +129,7 @@ end
     id = objectid(mach)
     fit!(mach)
     @test  objectid(mach) == id  # *********
-    yhat=predict(mach, Xin)
+    yhat=predict(mach, Xin);
     ridge.lambda = 1.0
     fit!(mach)
     @test predict(mach, Xin) != yhat
@@ -163,9 +166,9 @@ function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
     m = machine(model.model, W)
     yhat = predict(m, W)
     Wout = transform(m, W)
-    mach = machine!(predict=yhat, transform=Wout)
+    mach = machine!(Unsupervised(), predict=yhat, transform=Wout)
     fit!(mach)
-    return mach.fitresult, mach.cache, mach.report
+    return mach()
 end
 
 @testset "third test of hand-exported network" begin
