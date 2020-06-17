@@ -577,12 +577,12 @@ evaluate(model::Supervised, args...; kwargs...) =
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
             
-   verbosity < 1 || (p = Progress(nfolds,
+   p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
                  barglyphs = BarGlyphs("[=> ]"),
                  barlen = 25,
-                 color = :yellow))
+                 color = :yellow)
 
    ret = mapreduce(vcat, 1:nfolds) do k
             r = func(mach, k)
@@ -601,15 +601,13 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
     
     local ret
     @sync begin
-        verbosity < 1 || begin
-                      p = Progress(nfolds,
-                     dt = 0,
-                     desc = "Evaluating over $nfolds folds: ",
-                     barglyphs = BarGlyphs("[=> ]"),
-                     barlen = 25,
-                     color = :yellow)
-                     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
-                     end
+      p = Progress(nfolds,
+         dt = 0,
+         desc = "Evaluating over $nfolds folds: ",
+         barglyphs = BarGlyphs("[=> ]"),
+         barlen = 25,
+         color = :yellow)
+     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
         # printing the progress bar
         verbosity < 1 || @async begin
                          while take!(channel)
