@@ -158,7 +158,7 @@ predictions = yhat(Xnew)
 ```
 
 """
-function machine!(model::Model, _sources::Source...; pair_itr...)
+function machine!(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
@@ -206,7 +206,7 @@ function machine!(model::Model, _sources::Source...; pair_itr...)
                     "`machine!(model, X, y, w; ...)` when "*
                     "`model isa Supervised`. ")
         elseif model isa Unsupervised
-            length(sources) == 1
+            length(sources) == 1 ||
                 error("Incorrect number of source nodes specified.\n"*
             "Use `machine!(model, X; ...)` when "*
             "`model isa Unsupervised. `")

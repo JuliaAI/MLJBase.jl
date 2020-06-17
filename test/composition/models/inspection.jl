@@ -67,7 +67,7 @@ function MLJBase.fit(model::Bar, verbosity, X, y)
     mach3 = machine(model.rgs, X1, z)
     zhat = predict(mach3, X1)
     yhat = inverse_transform(mach2, zhat)
-    mach = machine!(Deterministic(), Xs, ys, predict=yhat)
+    mach = machine!(Deterministic(), Xs, ys; predict=yhat)
     fit!(mach)
     return mach()
 end

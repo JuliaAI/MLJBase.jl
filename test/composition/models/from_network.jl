@@ -202,10 +202,9 @@ ms = machines(yhat)
 
 hot2 = deepcopy(hot)
 knn2 = deepcopy(knn)
-ys2 = source(nothing, kind=:target)
 
 # duplicate a learning network machine:
-mach  = machine!(Deterministic(), predict=yhat)
+mach  = machine!(Deterministic(), Xs, ys; predict=yhat)
 mach2 = replace(mach, hot=>hot2, knn=>knn2,
                 ys=>source(ys.data, kind=:target);
                 empty_unspecified_sources=true)

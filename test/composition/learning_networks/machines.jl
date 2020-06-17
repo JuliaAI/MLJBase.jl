@@ -50,7 +50,7 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     @test MLJBase.args(signature) == (Xs, )
     @test MLJBase.model_supertype(signature) == Unsupervised
 
-    mach = machine!(predict=yhat, transform=Wout)
+    mach = machine!(Unsupervised(), Xs; predict=yhat, transform=Wout)
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
     fit!(mach, force=true)
@@ -63,17 +63,16 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     ys = source(y)
     mm = machine(ConstantClassifier(), W, ys)
     yhat = predict(mm, W)
-    @test_throws Exception machine!(predict=yhat)
+#    @test_throws Exception machine!(predict=yhat)
     ys.kind = :target
-    machine!(predict=yhat)
     ys.kind = :input
     Xs.kind = :target
-    machine!(Probabilistic(), Xs, ys, predict=yhat)
+    mach = machine!(Probabilistic(), Xs, ys; predict=yhat)
+    @test mach.model isa Probabilistic
     @test Xs.kind == :input
     @test ys.kind == :target
     @test_throws ArgumentError machine!(Probabilistic(), Xs, ys)
-    m = machine!(Probabilistic(), predict=yhat)
-    @test m.model isa Probabilistic
+
 
 end
 
