@@ -170,7 +170,11 @@ end
 
     # error handling:
     MLJBase.rebind!(X, "junk")
-    @test_throws Exception fit!(yhat)
+    @test_logs((:info, r"Not"),
+               (:info, r"Not"),
+               (:error, r"Problem"),
+               (:error, r"Problem"),
+               @test_throws Exception fit!(yhat))
 
 end
 

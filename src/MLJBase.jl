@@ -272,6 +272,7 @@ end
 
 include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
+include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/pipeline_static.jl")
 

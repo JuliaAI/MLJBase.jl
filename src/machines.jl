@@ -414,6 +414,7 @@ function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
         fit_only!(mach; kwargs...)
     catch e
         put!(mach.fit_okay, false)
+        @error "Problem fitting $mach"
         throw(e)
     end
     put!(mach.fit_okay, true)

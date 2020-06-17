@@ -310,9 +310,8 @@ hot = model_.one_hot
 
 # check nested fitted_params:
 FP = MLJBase.fitted_params(mach)
-d = FP.fitted_params_given_machine
-ms = FP.machines
-@test all(mach -> fitted_params(mach) == d[mach], ms)
+@test keys(FP) == (:one_hot, :fitted_params_given_machine)
+@test Set(FP.one_hot.fitresult.all_features) == Set(keys(X))
 
 # check data anomynity:
 @test all(x->(x===nothing),

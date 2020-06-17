@@ -9,7 +9,7 @@ struct DeterministicSurrogate <: Deterministic
     target_scitype::DataType
     output_scitype::DataType
 end
-struct ProbabilisticSurrogate <: Probabilistic 
+struct ProbabilisticSurrogate <: Probabilistic
     input_scitype::DataType
     target_scitype::DataType
     output_scitype::DataType
@@ -51,11 +51,7 @@ const Surrogate = Union{DeterministicSurrogate,
                         ProbabilisticSurrogate,
                         UnsupervisedSurrogate}
 
-const Composite =
-    Union{SupervisedComposite,
-          UnsupervisedComposite,
-          SupervisedSurrogate,
-          UnsupervisedSurrogate}
+const Composite = Union{SupervisedComposite,UnsupervisedComposite}
 
 # to suppress inclusion of these types in models():
 MMI.is_wrapper(::Type{DeterministicComposite}) = true

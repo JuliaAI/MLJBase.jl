@@ -73,8 +73,8 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
         $(operation)(mach::Machine, X::AbstractNode) =
             node($(operation), mach, X)
 
-        # 3. operations on composite models:
-        $(operation)(model::Composite, fitresult, X) =
+        # 3. operations on composite and surrogate models:
+        $(operation)(model::Union{Composite,Surrogate}, fitresult, X) =
             fitresult.$operation(X)
     end
     eval(ex)

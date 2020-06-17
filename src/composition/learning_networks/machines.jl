@@ -218,7 +218,6 @@ function machine!(model::Model, _sources::Source...; pair_itr...)
     mach = Machine(model, sources...)
 
     mach.fitresult = signature
-#    mach.cache = anonymize!(mach.args)
 
     return mach
 

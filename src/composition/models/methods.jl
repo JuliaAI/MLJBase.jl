@@ -37,15 +37,16 @@ end
 # *Note.* Be sure to read Note 4 in src/operations.jl to see see how
 # fallbacks are provided for operations acting on Composite models.
 
-try_scalarize(v) = length(v) == 1 ? v[1] : v
+fitted_params(::Union{Composite,Surrogate},
+              fitresult::NamedTuple) =
+                  fitted_params(glb(values(fitresult)...))
 
-fitted_params(::Composite, fitresult::NamedTuple) =
-    fitted_params(glb(values(fitresult)...))
+# legacy code (fitresult a Node):
+fitted_params(::Union{Composite,Surrogate},
+              fitresult::Node) =
+                  fitted_params(fitresult)
 
-# legacy code:
-fitted_params(::Composite, fitresult::Node) = fitted_params(fitresult)
-
-function update(model::Composite,
+function update(model::Union{Composite,Surrogate},
                 verbosity::Integer,
                 fitresult::NamedTuple,
                 cache,
@@ -55,7 +56,8 @@ function update(model::Composite,
     # then we actually need to fit rather than update (which will
     # force build of a new learning network). If `model` has been
     # created using a learning network export macro, the test used
-    # below is perfect. In any other case it is at least conservative.
+    # below is perfect. In any other case it is at least conservative,
+    # ie it might force a cold restart when a warm restart suffices.
 
     # greatest lower bound of all nodes delivering predictions:
     glb_node = glb(values(fitresult)...)
@@ -88,9 +90,12 @@ function update(model::Composite,
     return fitresult, cache, report(glb_node)
 end
 
-# legacy version of above (private) method:
-function update(model::Composite, verbosity::Integer,
-                yhat::Node, cache, args...)
+# legacy version of above (fitresult a Node):
+function update(model::Union{Composite,Surrogate},
+                verbosity::Integer,
+                yhat::Node,
+                cache,
+                args...)
 
     # If any `model` field has been replaced (and not just mutated)
     # then we actually need to fit rather than update (which will
@@ -130,6 +135,4 @@ predict(::SupervisedComposite, fitresult::Node, Xnew)     = fitresult(Xnew)
 # legacy method (replacements defined in operations.jl):
 transform(::UnsupervisedComposite, fitresult::Node, Xnew) = fitresult(Xnew)
 
-
-## USER FRIENDLY INSPECTION OF COMPOSITE MACHINES
 

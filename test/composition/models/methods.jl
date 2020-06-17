@@ -6,6 +6,7 @@ using Tables
 import MLJBase
 using ..Models
 using CategoricalArrays
+using OrderedCollections
 import Random.seed!
 seed!(1234)
 
@@ -207,12 +208,13 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     fit!(mach)
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
-    m = r.machines[end]
-    @test r.report_given_machine[m].centres == MLJBase.matrix(X)[1:3,:]
+    @test r.model.centres == MLJBase.matrix(X)[1:3,:]
     fp = fitted_params(mach)
-    levs = fp.fitted_params_given_machine[m].fitresult
+    levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
+
+
 
 end
 true
