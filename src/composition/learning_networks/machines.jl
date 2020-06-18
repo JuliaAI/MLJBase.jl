@@ -1,8 +1,10 @@
 ## LEARNING NETWORK MACHINES
 
+# ***
 surrogate(::Type{<:Deterministic})  = Deterministic()
 surrogate(::Type{<:Probabilistic})  = Probabilistic()
 surrogate(::Type{<:Unsupervised}) = Unsupervised()
+surrogate(::Type{<:Static}) = Static()
 
 """
     args(signature)
@@ -79,7 +81,7 @@ function model_supertype(signature)
 end
 
 """
-    machine!(oper1=node1, oper2=node2, ...)
+    machine(oper1=node1, oper2=node2, ...)
 
 Construct a learning network machine, i.e., a machine directly
 wrapping a learning network, without exporting the network. The
@@ -93,18 +95,18 @@ machine constructed.
 Learning network machines are constructed before exporting a learning
  network as a stand-alone model type. See the MLJ manual for details.
 
-    machine!(X; kwargs...)
-    machine!(X, y; kwargs...)
-    machine!(X, y, W; kwargs...)
+    machine(X; kwargs...)
+    machine(X, y; kwargs...)
+    machine(X, y, W; kwargs...)
 
 Same as above, but specifying explicitly the source nodes, to force
 the roles (kinds) implied by the order in which they appear
 (`:input`[, `:target`, `:weights`]). May mutate the source nodes
 specified.
 
-    machine!(Probablistic(), args...; kwargs...)
-    machine!(Deterministic(), args...; kwargs...)
-    machine!(Unsupervised(), args...; kwargs...)
+    machine(Probablistic(), args...; kwargs...)
+    machine(Deterministic(), args...; kwargs...)
+    machine(Unsupervised(), args...; kwargs...)
 
 Same as above, but specifying explicitly the kind of model the
 learning network is to meant to represent.
@@ -126,7 +128,7 @@ Supposing a supervised learning network's final predictions are
 obtained by calling a node `yhat`, then the following code
 
 ```julia
-mach = machine!(predict=yhat)
+mach = machine(predict=yhat)
 fit!(mach; rows=train)
 predictions = predict(mach, Xnew) # `Xnew` concrete data
 ```
@@ -142,7 +144,7 @@ example, and in which the node `Xout` delivers the output of dimension
 reduction, and `yhat` class labels, one can write
 
 ```julia
-mach = machine!(transform=Xout, predict=yhat)
+mach = machine(transform=Xout, predict=yhat)
 fit!(mach)
 transformed = transform(mach, Xnew) # `Xnew` concrete data
 predictions = predict(mach, Xnew)
@@ -158,10 +160,14 @@ predictions = yhat(Xnew)
 ```
 
 """
-function machine!(model::Surrogate, _sources::Source...; pair_itr...)
+function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
+    for op in keys(signature)
+        op in OPERATIONS || throw(ArgumentError(
+            "`$op` is not an admissible operation. "))
+    end
     if isempty(signature)
         model isa Supervised &&
             throw(ArgumentError(
@@ -179,19 +185,19 @@ function machine!(model::Surrogate, _sources::Source...; pair_itr...)
     if isempty(_sources)
         sources = network_sources
         kinds = kind.(sources)
-        kinds in [(:input, ),
-                  (:input, :target),
-                  (:input, :target, :weights)] ||
-                      error(
-                          "Encountered learning network sources "*
-                          "with incompatible kinds, "*
-                          "$kinds. \n"*
-                          "Use one of the following to "*
-                          "explicitly specify sources, whose "*
-                          "kinds will be mutated appropriately:\n"*
-                          "  `machine!(model, X; ...)`\n"*
-                          "  `machine!(model, X, y; ...)`\n"*
-                          "  `machine!(model, X, y, w; ...)`\n")
+        # kinds in [(:input, ),
+        #           (:input, :target),
+        #           (:input, :target, :weights)] ||
+        #               error(
+        #                   "Encountered learning network sources "*
+        #                   "with incompatible kinds, "*
+        #                   "$kinds. \n"*
+        #                   "Use one of the following to "*
+        #                   "explicitly specify sources, whose "*
+        #                   "kinds will be mutated appropriately:\n"*
+        #                   "  `machine(model, X; ...)`\n"*
+        #                   "  `machine(model, X, y; ...)`\n"*
+        #                   "  `machine(model, X, y, w; ...)`\n")
     else
         sources = _sources
         roles = (:input, :target, :weights)
@@ -202,13 +208,13 @@ function machine!(model::Surrogate, _sources::Source...; pair_itr...)
         if model isa Supervised
             length(sources) in [2, 3] ||
                 error("Incorrect number of source nodes specified.\n"*
-                    "Use  `machine!(model, X, y; ...)` or "*
-                    "`machine!(model, X, y, w; ...)` when "*
+                    "Use  `machine(model, X, y; ...)` or "*
+                    "`machine(model, X, y, w; ...)` when "*
                     "`model isa Supervised`. ")
         elseif model isa Unsupervised
             length(sources) == 1 ||
                 error("Incorrect number of source nodes specified.\n"*
-            "Use `machine!(model, X; ...)` when "*
+            "Use `machine(model, X; ...)` when "*
             "`model isa Unsupervised. `")
         else
             throw(DomainError)
@@ -223,7 +229,7 @@ function machine!(model::Surrogate, _sources::Source...; pair_itr...)
 
 end
 
-function machine!(sources::Source...; pair_itr...)
+function machine(sources::Source...; pair_itr...)
 
     signature = (; pair_itr...)
 
@@ -242,7 +248,7 @@ function machine!(sources::Source...; pair_itr...)
         model = surrogate(T)
     end
 
-    return machine!(model, sources...; pair_itr...)
+    return machine(model, sources...; pair_itr...)
 
 end
 
@@ -276,7 +282,7 @@ is a greatest lower bound on the nodes appearing in the signature. For
 example, if `s = (predict=yhat, transform=W)`, then call
 `fit!(glb(yhat, W))`. Here `glb` is `tuple` overloaded for nodes.
 
-See also [`machine!`](@ref)
+See also [`machine`](@ref)
 
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
@@ -308,3 +314,104 @@ end
 
 MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
     fitted_params(glb(values(mach.fitresult)...))
+
+
+## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
+
+"""
+    replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
+
+Create a deep copy of a learning network machine `mach` but replacing
+any specified sources and models `a1, a2, ...` of the original
+underlying network with `b1, b2, ...`.
+
+If `empty_unspecified_sources=true` then any source nodes not
+specified are replaced with empty version of the same kind.
+
+"""
+function Base.replace(mach::Machine{<:Surrogate},
+                      pairs::Pair...; empty_unspecified_sources=false)
+
+    signature = mach.fitresult
+    interface_nodes = values(signature)
+
+    W = glb(interface_nodes...)
+
+    # Note: We construct nodes of the new network as values of a
+    # dictionary keyed on the nodes of the old network. Additionally,
+    # there are dictionaries of models keyed on old models and
+    # machines keyed on old machines. The node and machine
+    # dictionaries must be built simultaneously.
+
+    # build model dict:
+    model_pairs = filter(collect(pairs)) do pair
+        first(pair) isa Model
+    end
+    models_ = models(W)
+    models_to_copy = setdiff(models_, first.(model_pairs))
+    model_copy_pairs = [model=>deepcopy(model) for model in models_to_copy]
+    newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
+
+    # build complete source replacement pairs:
+    sources_ = sources(W)
+    specified_source_pairs = filter(collect(pairs)) do pair
+        first(pair) isa Source
+    end
+    unspecified_sources = setdiff(sources_, first.(specified_source_pairs))
+    unspecified_sources_wrapping_something =
+        filter(s -> !isempty(s), unspecified_sources)
+    if !isempty(unspecified_sources_wrapping_something) &&
+        !empty_unspecified_sources
+        @warn "No replacement specified for one or more non-empty source "*
+        "nodes. Contents will be duplicated. "
+    end
+    if empty_unspecified_sources
+        unspecified_source_pairs = [s => source(kind=MLJBase.kind(s)) for
+                                    s in unspecified_sources]
+    else
+        unspecified_source_pairs = [s => deepcopy(s) for
+                                    s in unspecified_sources]
+    end
+
+    all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
+
+    # drop source nodes from all nodes of network terminating at W:
+    nodes_ = filter(nodes(W)) do N
+        !(N isa Source)
+    end
+    isempty(nodes_) && error("All nodes in network are source nodes. ")
+    # instantiate node and machine dictionaries:
+    newnode_given_old =
+        IdDict{AbstractNode,AbstractNode}(all_source_pairs)
+    newinterface_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newmach_given_old = IdDict{Machine,Machine}()
+
+    # build the new network:
+    for N in nodes_
+       args = [newnode_given_old[arg] for arg in N.args]
+         if N.machine === nothing
+             newnode_given_old[N] = node(N.operation, args...)
+         else
+             if N.machine in keys(newmach_given_old)
+                 m = newmach_given_old[N.machine]
+             else
+                 train_args = [newnode_given_old[arg] for arg in N.machine.args]
+                 m = Machine(newmodel_given_old[N.machine.model],
+                                train_args...)
+                 newmach_given_old[N.machine] = m
+             end
+             newnode_given_old[N] = N.operation(m, args...)
+         end
+        if N in interface_nodes
+            newinterface_node_given_old[N] = newnode_given_old[N]
+        end
+    end
+
+    newinterface_nodes = Tuple(newinterface_node_given_old[N] for N in
+                          interface_nodes)
+    newsignature = NamedTuple{keys(signature)}(newinterface_nodes)
+
+    return machine(mach.model; newsignature...)
+
+end

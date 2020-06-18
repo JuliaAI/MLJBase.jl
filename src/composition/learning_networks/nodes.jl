@@ -202,43 +202,32 @@ istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 
 # overload show method
 
-function _recursive_show(stream::IO, X::AbstractNode)
-    if X isa Source
-        printstyled(IOContext(stream, :color=>SHOW_COLOR),
-                    handle(X),
-                    color=color(X))
-    else
-        operation_name = typeof(X.operation).name.mt.name
-        print(stream, operation_name, "(")
-        if X.machine !== nothing
-            printstyled(IOContext(stream, :color=>SHOW_COLOR),
-                        handle(X.machine),
-                        bold=SHOW_COLOR)
-            print(stream, ", ")
-        end
-        n_args = length(X.args)
-        counter = 1
-        for arg in X.args
-            _recursive_show(stream, arg)
-            counter >= n_args || print(stream, ", ")
-            counter += 1
-        end
-        print(stream, ")")
-    end
-end
 
-# function Base.show(stream::IO, object::Node)
-#     repr = simple_repr(typeof(object))
-#     str = "$repr $(handle(object))"
-#     if !isempty(fieldnames(typeof(object)))
-#         printstyled(IOContext(stream, :color=> SHOW_COLOR),
-#                     str, bold=false, color=:blue)
-#     else
-#         print(stream, str)
-#     end
-#     print(stream, ", returning $(elscitype(object))")
-#     return nothing
-# end
+_formula(stream::IO, X::AbstractNode, indent) =
+    (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
+_formula(stream::IO, X::Source, depth, indent) = show(stream, X)
+function _formula(stream, X::Node, depth, indent)
+    operation_name = string(typeof(X.operation).name.mt.name)
+    anti = max(length(operation_name) - INDENT)
+    print(stream, operation_name, "(")
+    n_args = length(X.args)
+    if X.machine !== nothing
+        print(stream, crind(indent + length(operation_name) - anti))
+        printstyled(IOContext(stream, :color=>SHOW_COLOR),
+#                        handle(X.machine),
+                        X.machine,
+                        bold=SHOW_COLOR)
+        n_args == 0 || print(stream, ", ")
+    end
+    for k in 1:n_args
+        print(stream, crind(indent + length(operation_name) - anti))
+        _formula(stream, X.args[k],
+                        depth + 1,
+                        indent + length(operation_name) - anti )
+        k == n_args || print(stream, ",")
+    end
+    print(stream, ")")
+end
 
 function Base.show(io::IO, ::MIME"text/plain", X::Node)
 #    description = string(typeof(X).name.name)
@@ -249,8 +238,8 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
         arg = X.args[i]
         println(io, "    $i:\t$arg")
     end
-    print("  formula:\n    ")
-    _recursive_show(io, X)
+    print("  formula:\n")
+    _formula(io, X, 4)
     # print(io, " ")
     # printstyled(IOContext(io, :color=>SHOW_COLOR),
     #             handle(X),

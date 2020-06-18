@@ -1,159 +1,28 @@
 ## EXPORTING LEARNING NETWORKS AS MODELS WITH @from_network
 
-"""
-    replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
 
-Create a deep copy of a learning network machine `mach` but replacing
-any specified sources and models `a1, a2, ...` of the original
-underlying network with `b1, b2, ...`.
-
-If `empty_unspecified_sources=true` then any source nodes not
-specified are replaced with empty version of the same kind.
-
-"""
-function Base.replace(mach::Machine{<:Surrogate},
-                      pairs::Pair...; empty_unspecified_sources=false)
-
-    signature = mach.fitresult
-    interface_nodes = values(signature)
-
-    W = glb(interface_nodes...)
-
-    # Note: We construct nodes of the new network as values of a
-    # dictionary keyed on the nodes of the old network. Additionally,
-    # there are dictionaries of models keyed on old models and
-    # machines keyed on old machines. The node and machine
-    # dictionaries must be built simultaneously.
-
-    # build model dict:
-    model_pairs = filter(collect(pairs)) do pair
-        first(pair) isa Model
-    end
-    models_ = models(W)
-    models_to_copy = setdiff(models_, first.(model_pairs))
-    model_copy_pairs = [model=>deepcopy(model) for model in models_to_copy]
-    newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
-
-    # build complete source replacement pairs:
-    sources_ = sources(W)
-    specified_source_pairs = filter(collect(pairs)) do pair
-        first(pair) isa Source
-    end
-    unspecified_sources = setdiff(sources_, first.(specified_source_pairs))
-    unspecified_sources_wrapping_something =
-        filter(s -> !isempty(s), unspecified_sources)
-    if !isempty(unspecified_sources_wrapping_something) &&
-        !empty_unspecified_sources
-        @warn "No replacement specified for one or more non-empty source "*
-        "nodes. Contents will be duplicated. "
-    end
-    if empty_unspecified_sources
-        unspecified_source_pairs = [s => source(kind=MLJBase.kind(s)) for
-                                    s in unspecified_sources]
-    else
-        unspecified_source_pairs = [s => deepcopy(s) for
-                                    s in unspecified_sources]
-    end
-
-    all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
-
-    # drop source nodes from all nodes of network terminating at W:
-    nodes_ = filter(nodes(W)) do N
-        !(N isa Source)
-    end
-    isempty(nodes_) && error("All nodes in network are source nodes. ")
-    # instantiate node and machine dictionaries:
-    newnode_given_old =
-        IdDict{AbstractNode,AbstractNode}(all_source_pairs)
-    newinterface_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newmach_given_old = IdDict{Machine,Machine}()
-
-    # build the new network:
-    for N in nodes_
-       args = [newnode_given_old[arg] for arg in N.args]
-         if N.machine === nothing
-             newnode_given_old[N] = node(N.operation, args...)
-         else
-             if N.machine in keys(newmach_given_old)
-                 m = newmach_given_old[N.machine]
-             else
-                 train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                 m = Machine(newmodel_given_old[N.machine.model],
-                                train_args...)
-                 newmach_given_old[N.machine] = m
-             end
-             newnode_given_old[N] = N.operation(m, args...)
-         end
-        if N in interface_nodes
-            newinterface_node_given_old[N] = newnode_given_old[N]
-        end
-    end
-
-    newinterface_nodes = Tuple(newinterface_node_given_old[N] for N in
-                          interface_nodes)
-    newsignature = NamedTuple{keys(signature)}(newinterface_nodes)
-
-    return machine!(mach.model; newsignature...)
-
-end
-
-# closure for later:
+# closure to generate the fit methods for exported composite. Here `mach`
 function fit_method(mach, models...)
 
     signature = mach.fitresult
     mach_args = mach.args
-    network_Xs = mach_args[1]
 
-    function _fit(model::M, verb::Integer, args...) where M <: Supervised
+    function _fit(model::M, verb::Integer, args...) where M
+#        length(args) > length(mach_args) &&
+#            throw(ArgumentError("$M does not support more than "*
+#                                "$(length(mach_args)) training arguments"))
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]
                               for j in eachindex(models)]
-        network_ys = mach_args[2]
-        Xs = source(args[1])
-        ys = source(args[2], kind=:target)
-        source_replacements = [network_Xs => Xs, network_ys => ys]
-        if length(args) == 3
-            ws = source(args[3], kind=:weights)
-            network_ws = mach_args[3]
-            push!(source_replacements, network_ws => ws)
-        end
+        source_replacements = [mach_args[i] => source(args[i])
+                               for i in eachindex(args)]
         replacements = vcat(model_replacements, source_replacements)
+
         new_mach =
             replace(mach, replacements...; empty_unspecified_sources=true)
-
-        # if length(args) == 2
-        #     issubset([Xs, ys], mach2.args) ||
-        #         error("Failed to replace learning network "*
-        #               ":input or :target source")
-        # elseif length(args) == 3
-        #     issubset([Xs, ys, ws], mach2.args) ||
-        #         error("Failed to replace learning network "*
-        #               ":input or :target source")
-        # else
-        #     throw(ArgumentError)
-        # end
 
         fit!(new_mach, verbosity=verb)
-
-        return new_mach()
-    end
-
-    function _fit(model::M, verb::Integer, X) where M <:Unsupervised
-        replacement_models = [getproperty(model, fld)
-                              for fld in fieldnames(M)]
-        model_replacements = [models[j] => replacement_models[j]
-                          for j in eachindex(models)]
-        Xs = source(X)
-        source_replacements = [network_Xs => Xs,]
-        replacements = vcat(model_replacements, source_replacements)
-        new_mach =
-            replace(mach, replacements...; empty_unspecified_sources=true)
-#        Set([Xs]) == Set(sources(Xout)) ||
-#            error("Failed to replace learning network :input source ")
-
-         fit!(new_mach, verbosity=verb)
 
         return new_mach()
     end
@@ -161,223 +30,234 @@ function fit_method(mach, models...)
     return _fit
 end
 
-net_alert(message) = throw(ArgumentError("Learning network export error.\n"*
+net_error(message) = throw(ArgumentError("Learning network export error.\n"*
                                      string(message)))
-net_alert(k::Int) = throw(ArgumentError("Learning network export error $k. "))
+net_error(k::Int) = throw(ArgumentError("Learning network export error $k. "))
 
-# returns Model supertype - or `missing` if arguments are incompatible
-function kind_(is_supervised, is_probabilistic)
-    if is_supervised
-        if ismissing(is_probabilistic) || !is_probabilistic
-            return :DeterministicComposite
-        else
-            return :ProbabilisticComposite
-        end
+_insert_subtyping(ex, subtype_ex) =
+    Expr(:(<:), ex, subtype_ex)
+
+_exported_type(::Probabilistic) = :ProbabilisticComposite
+_exported_type(::Deterministic) = :DeterministicComposite
+_exported_type(::Unsupervised) = :UnsupervisedComposite
+_exported_type(::Static) = :StaticComposite
+
+function eval_and_reassign(modl, ex)
+    s = gensym()
+    evaluated = modl.eval(ex)
+    if evaluated isa Symbol
+        hack = String(evaluated)
+        modl.eval(:($s = Symbol($hack)))
     else
-        if ismissing(is_probabilistic) || !is_probabilistic
-            return :UnsupervisedComposite
-        else
-            return missing
-        end
+        modl.eval(:($s = $evaluated))
     end
+    return s, evaluated
 end
 
-function from_network_preprocess(modl, ex,
-                                 is_probabilistic::Union{Missing,Bool})
+function without_line_numbers(block_ex)
+    block_ex.head == :block || throw(ArgumentError)
+    args = filter(block_ex.args) do arg
+        !(arg isa LineNumberNode)
+    end
+    return Expr(:block, args...)
+end
 
+function from_network_preprocess(modl, mach_ex, block_ex)
+
+    mach_ex, mach  = eval_and_reassign(modl, mach_ex)
+    mach isa Machine{<:Surrogate} ||
+        net_error("$mach is not a learning network machine. ")
+    if block_ex.head == :block
+        block_ex = without_line_numbers(block_ex)
+        struct_ex = block_ex.args[1]
+        trait_declaration_exs = block_ex.args[2:end]
+    elseif block_ex.head == :struct
+        struct_ex = block_ex
+        trait_declaration_exs = []
+    else
+        net_error("Expected `struct`, `mutable struct` or "*
+                  "`begin ... end` block, but got `$block_ex` ")
+    end
+
+    # if necessary add or modify struct subtyping:
+    if struct_ex.args[2] isa Symbol
+        struct_ex.args[2] = _insert_subtyping(struct_ex.args[2],
+                                              _exported_type(mach.model))
+        modeltype_ex = struct_ex.args[2].args[1]
+    elseif struct_ex.args[2] isa Expr
+        struct_ex.args[2].head == :(<:) ||
+                    net_error("Badly formed `struct` subtying. ")
+        modeltype_ex = struct_ex.args[2].args[1]
+        super = eval(struct_ex.args[2].args[2])
+        inferred_super_ex = _exported_type(mach.model)
+        if !(super <: Composite)
+            @warn "New composite type must subtype `Composite` but "*
+            "`$super` does not. Instead declaring "*
+            "`$modeltype_ex <: $inferred_super_ex`. "
+            struct_ex.args[2].args[2] = inferred_super_ex
+        end
+    else
+        net_error(41)
+    end
+
+    # test if there are no fields:
+    field_exs = without_line_numbers(struct_ex.args[3]).args
+    no_fields = isempty(field_exs)
+
+    # extract trait definitions:
     trait_ex_given_name_ex = Dict{Symbol,Any}()
 
-    ex isa Expr || net_alert(1)
-    ex.head == :call || net_alert(2)
-    ex.args[1] == :(<=) || net_alert(3)
-    ex.args[2] isa Expr || net_alert(4)
-    ex.args[2].head == :call || net_alert(5)
-    modeltype_ex = ex.args[2].args[1]
-    modeltype_ex isa Symbol || net_alert(6)
-    if length(ex.args[2].args) == 1
-        kw_exs = []
-    else
-        kw_exs = ex.args[2].args[2:end]
-    end
-    fieldname_exs = []
-    model_exs = []
-    for ex in kw_exs
-        ex isa Expr || net_alert(7)
-        ex.head == :kw || net_alert(8)
-        variable_ex = ex.args[1]
-        value_ex = ex.args[2]
-        variable_ex isa Symbol || net_alert(9)
-        push!(fieldname_exs, variable_ex)
-        value = modl.eval(value_ex)
-        value isa Model ||
-            net_alert("Got $value but expected something of type `Model`.")
-        push!(model_exs, value_ex)
-    end
-    N_ex = ex.args[3]
-    N = modl.eval(N_ex)
-    N isa AbstractNode ||
-        net_alert("Got $N but expected something of type `AbstractNode`. ")
-
-    inputs = sources(N, kind=:input)
-    targets = sources(N, kind=:target)
-    weights = sources(N, kind=:weights)
-
-    length(inputs) == 0 &&
-        net_alert("Learning network has no source with `kind=:input`.")
-    length(inputs) > 1  &&
-        net_alert("Learning network has multiple sources with `kind=:input`.")
-    length(targets) > 1 &&
-        net_alert("Learning network has multiple sources with `kind=:target`.")
-    length(weights) > 1 &&
-        net_alert("Learning network has multiple sources with `kind=:weights`.")
-
-    if length(weights) == 1
-        trait_ex_given_name_ex[:supports_weights] = true
+    ne() = net_error("Bad trait declaration. ")
+    for ex in trait_declaration_exs
+        ex isa Expr           || ne()
+        ex.head == :(=)       || ne()
+        ex.args[1] isa Symbol || ne()
+        ex.args[1] in MLJModelInterface.MODEL_TRAITS ||
+            net_error("Expected a model trait as keywork but "*
+                      "got $(ex.args[2]). Options are:\n"*
+                      "$MLJModelInterface.MODEL_TRAIES. ")
+        length(ex.args) == 2  || ne()
+        trait_ex_given_name_ex[ex.args[1]] = ex.args[2]
     end
 
-    is_supervised = length(targets) == 1
-
-    kind = kind_(is_supervised, is_probabilistic)
-    ismissing(kind) &&
-        net_alert("Composite appears unsupervised (has no source with "*
-                  "`kind=:target`) and so `is_probabilistic=true` "*
-                  "declaration is not allowed. ")
-
-    models_ = [modl.eval(e) for e in model_exs]
-    issubset(models_, models(N)) ||
-        net_alert("One or more specified models are not "*
-                  "in the learning network "*
-                  "terminating at $N_ex.\n Use models($N_ex) "*
-                  "to inspect models. ")
-
-    return modeltype_ex, fieldname_exs, model_exs, N_ex,
-           kind, trait_ex_given_name_ex
+    return mach_ex, modeltype_ex, struct_ex, no_fields, trait_ex_given_name_ex
 
 end
 
-from_network_preprocess(modl, ex) = from_network_preprocess(modl, ex, missing)
-
-function from_network_preprocess(modl, ex, kw_ex)
-    kw_ex isa Expr || net_alert(10)
-    kw_ex.head == :(=) || net_alert(11)
-    if kw_ex.args[1] == :is_probabilistic
-        value = kw_ex.args[2]
-        if value isa Bool
-            return from_network_preprocess(modl, ex, value)
-        else
-            net_alert("`is_probabilistic` can only be `true` or `false`.")
-        end
-    elseif kw_ex.args[1] == :prediction_type
-        value = kw_ex.args[2].value
-        if value == :probabilistic
-            return from_network_preprocess(modl, ex, true)
-        elseif value == :deterministic
-            return from_network_preprocess(modl, ex, false)
-        else
-            net_alert("`prediction_type` can only be `:probabilistic` "*
-                      "or `:deterministic`.")
-        end
-    else
-        net_alert("Unrecognized keywork `$(kw_ex.args[1])`.")
-    end
-end
-
-function from_network_(modl, modeltype_ex, fieldname_exs, model_exs,
-                          N_ex, kind, trait_value_ex_given_name_ex)
+function from_network_(modl,
+                       mach_ex,
+                       modeltype_ex,
+                       struct_ex,
+                       no_fields,
+                       trait_ex_given_name_ex)
 
     args = gensym(:args)
-    mach = gensym(:mach)
+    models = gensym(:models)
+    instance = gensym(:instance)
 
-    # ***temporary hack until learning network machine is specified by
-    # user:
-    if kind == :ProbabilisticComposite
-        kind_super = :Probabilistic
-        operation = :predict
-    elseif kind == :DeterministicComposite
-        kind_super = :Deterministic
-        operation = :predict
+    # Define the new model type with keyword constructor:
+    if no_fields
+        modl.eval(struct_ex)
     else
-        kind_super = :Unsupervised
-        operation = :transform
+        modl.eval(MLJBase.Parameters.with_kw(struct_ex, modl, false))
     end
 
-    # code defining the composite model struct and fit method:
+    # Test that an instance can be created:
+    try
+        modl.eval(:($modeltype_ex()))
+    catch e
+        @error "Problem instantiating a default instance of the "*
+        "new composite type. Each field name in the struct expression "*
+        "must have a corresponding model instance (that also appears "*
+        "somewhere in the network). "*
+        "Perhaps you forgot to specify one of these?"
+        throw(e)
+    end
+
+    # code defining fit method:
     program1 = quote
 
         $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase) : :(import MLJBase))
         $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase.MLJModelInterface) :
           :(import MLJBase.MLJModelInterface))
 
-        # ***temporary hack until machine is specified by user:
-        $mach = machine!($kind_super(); $operation=$N_ex)
-
-        mutable struct $modeltype_ex <: MLJBase.$kind
-            $(fieldname_exs...)
-        end
+        $instance = $modeltype_ex()
+        $models = [getproperty($instance, name)
+                   for name in fieldnames($modeltype_ex)]
 
         MLJModelInterface.fit(model::$modeltype_ex, verb::Integer, $args...) =
-            MLJBase.fit_method($mach, $(model_exs...))(model, verb, $args...)
+            MLJBase.fit_method($mach_ex, $models...)(model, verb, $args...)
 
-    end
-
-    program2 = quote
-        # define keyword constructor for composite model:
-        defaults =
-            MLJBase.@set_defaults $modeltype_ex deepcopy.([$(model_exs...)])
     end
 
     modl.eval(program1)
 
     # define composite model traits:
-    for (name_ex, value_ex) in trait_value_ex_given_name_ex
+    for (name_ex, value_ex) in trait_ex_given_name_ex
         program = quote
             MLJBase.$name_ex(::Type{<:$modeltype_ex}) = $value_ex
         end
         modl.eval(program)
     end
 
-    modl.eval(program2)
+    return nothing
 
 end
 
+
 """
-    @from_network(NewCompositeModel(fld1=model1, fld2=model2, ...) <= N
-    @from_network(NewCompositeModel(fld1=model1, fld2=model2, ...) <= N is_probabilistic=false
+
+    @from_network mach mutable struct NewCompositeModel
+           ...
+    end
+
+    @from_network mach begin
+        [mutable] struct NewCompositeModel
+           ...
+        end
+        <optional trait declarations>
+    end
 
 Create a new stand-alone model type called `NewCompositeModel`, using
-a learning network as a blueprint. Here `N` refers to the terminal
-node of the learning network (from which final predictions or
-transformations are fetched).
+the specified learning network machine `mach` as a blueprint.
 
-*Important.* If the learning network is supervised (has a source with
-`kind=:target`) and makes probabilistic predictions, then one must
-declare `is_probabilistic=true`. In the deterministic case the keyword
-argument can be omitted.
+For more on learning network machines, see [`machine`](@ref).
 
-The model type `NewCompositeModel` is equipped with fields named
-`:fld1`, `:fld2`, ..., which correspond to component models `model1`,
-`model2`, ...,  appearing in the network (which must therefore be elements of
-`models(N)`).  Deep copies of the specified component models are used
-as default values in an automatically generated keyword constructor
-for `NewCompositeModel`.
 
-### Return value
+### Example
 
- A new `NewCompositeModel` instance, with default field values.
+Consider the following simple learning network for training a decision
+tree after one-hot encoding the inputs, and forcing the predictions to
+be point-predictions (rather than probabilistic):
 
-For details and examples refer to the "Learning Networks" section of
-the documentation.
+```julia
+Xs = source()
+ys = source()
+
+hot = OneHotEncoder()
+tree = DecisionTreeClassifier()
+
+W = transform(machine(hot, Xs), Xs)
+yhat = predict_mode(machine(tree, W, ys), W)
+```
+
+A learning network machine is defined by
+
+```julia
+mach = machine(Deterministic(), Xs, ys; predict=yhat)
+```
+
+To specify a new `Deterministic` composite model type `WrappedTree` we
+specify the model instances appearing in the network as "default"
+values in the following decorated struct definition:
+
+```julia
+@from_network mach struct WrappedTree
+    encoder=hot
+    decision_tree=tree
+end
+```
+and create a new instance with `WrappedTree()`.
+
+To allow the second model component to be replaced by any other
+probabilistic model we instead make a mutable struct declaration and,
+if desired, annotate types appropriately.  In the following code
+illustration some model trait declarations have also been added:
+
+```julia
+@from_network mach begin
+    mutable struct WrappedTree
+        encoder::OneHotEncoder=hot
+        classifier::Probabilistic=tree
+    end
+    input_scitype = Table(Continuous, Finite)
+    is_pure_julia = true
+end
+```
 
 """
 macro from_network(exs...)
-
     args = from_network_preprocess(__module__, exs...)
-    modeltype_ex = args[1]
-
+    modeltype_ex = args[2]
     from_network_(__module__, args...)
-
-    esc(quote
-        $modeltype_ex()
-        end)
-
 end

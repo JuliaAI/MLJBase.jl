@@ -54,7 +54,7 @@ function check(model::Supervised, args... ; full=false)
     nargs = length(args)
     if nargs == 2
         X, y = args
-    elseif nargs == 3
+    elseif nargs > 2
         supports_weights(model) ||
             @info("$(typeof(model)) does not support sample weights and " *
                   "the supplied weights will be ignored in training.\n" *
@@ -72,17 +72,17 @@ function check(model::Supervised, args... ; full=false)
         # checks on input type:
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-            "`machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(X) = $(scitype(X))\n" *
+            @warn "The scitype of `X`, in `machine(model, X, ...)` "
+            "is incompatible with " *
+            "`model`:\nscitype(X) = $(elscitype(X))\n" *
             "input_scitype(model) = $(input_scitype(model))."
 
         # checks on target type:
         target_scitype(model) <: Unknown ||
             elscitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y)` " *
-            "or `machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(y) = $(scitype(y))\n" *
+            @warn "The scitype of `y`, in `machine(model, X, y, ...)` " *
+            "is incompatible with " *
+            "`model`:\nscitype(y) = $(elscitype(y))\n" *
             "target_scitype(model) = $(target_scitype(model))."
 
         # checks on dimension matching:
@@ -90,14 +90,14 @@ function check(model::Supervised, args... ; full=false)
             nrows(X()) == nrows(y()) ||
             throw(DimensionMismatch("Differing number of observations "*
                                     "in input and target. "))
-        if nargs == 3
-            w.data isa AbstractVector{<:Real} ||
+        if nargs > 2
+            w.data isa AbstractVector{<:Real} || w.data === nothing ||
                 throw(ArgumentError("Weights must be real."))
             nrows(w()) == nrows(y()) ||
                 throw(DimensionMismatch("Weights and target "*
                                         "differ in length."))
         end
-end
+    end
     return nothing
 end
 
@@ -107,14 +107,14 @@ function check(model::Unsupervised, args...; full=false)
         throw(ArgumentError("Wrong number of arguments. Use " *
                             "`machine(model, X)` for an unsupervised model, "*
                             "or `machine(model)` if there are no training "*
-                            "arguments (`Static` tranformers).) "))
+                            "arguments (`Static` transformers).) "))
     if full && nargs == 1
         X = args[1]
         # check input scitype
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
             @warn "The scitype of `X`, in `machine(model, X)` is "*
-        "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
+        "incompatible with `model`:\nscitype(X) = $(elscitype(X))\n" *
             "input_scitype(model) = $(input_scitype(model))."
     end
     return nothing
@@ -210,7 +210,12 @@ function Base.show(io::IO, ::MIME"text/plain", mach::Machine)
     println("  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
-        println(io, "    $i:\t$arg")
+        print(io, "    $i:\t$arg")
+        if arg isa Source
+            println(io, " \u23CE `$(elscitype(arg))`")
+        else
+            println(io)
+        end
     end
 end
 

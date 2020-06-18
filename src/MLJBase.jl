@@ -20,6 +20,9 @@ import MLJModelInterface: fit, update, update_data, transform,
     save, restore, is_same_except, istransparent,
     params
 
+# Macros
+using Parameters
+
 # Containers & data manipulation
 using Tables
 import PrettyTables
@@ -61,8 +64,14 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
-       Probabilistic, Deterministic, Interval, Static,
-    UnivariateFinite
+    Probabilistic, Deterministic, Interval, Static,
+    ProbabilisticComposite, DeterministicComposite,
+    IntervalComposite, UnsupervisedComposite, StaticComposite,
+    ProbabilisticSurrogate, DeterministicSurrogate,
+    IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
+    Surrogate, Composite
+
+export UnivariateFinite
 
 # MLJType equality
 export is_same_except
@@ -145,7 +154,7 @@ export make_blobs, make_moons, make_circles, make_regression
 # composition:
 export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
     glb, @tuple, node, @node, sources, origins,
-    nrows_at_source, machine!,
+    nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
     DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
@@ -274,6 +283,7 @@ include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
+include("composition/models/deprecated.jl")
 include("composition/models/pipeline_static.jl")
 
 include("operations.jl")

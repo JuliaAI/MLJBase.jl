@@ -114,7 +114,7 @@ end
         zhat = predict(ridgeM, W)
         yhat = inverse_transform(boxcoxM, zhat)
 
-        mach = machine!(Deterministic(), Xs, ys; predict=yhat)
+        mach = machine(Deterministic(), Xs, ys; predict=yhat)
         fit!(mach, verbosity=verbosity)
         return mach()
     end
@@ -197,7 +197,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         m = machine(model.model, W)
         yhat = predict(m, W)
         Wout = transform(m, W)
-        mach = machine!(Unsupervised(), Xs; predict=yhat, transform=Wout)
+        mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
         fit!(mach)
         return mach()
     end

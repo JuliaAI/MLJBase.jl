@@ -102,18 +102,19 @@ origins(s::Source) = [s,]
 
 ## DISPLAY FOR SOURCES AND OTHER ABSTRACT NODES
 
-_extra(::Any) = ""
-_extra(S::Source) = "$(S.kind) "
+# show within other objects:
 function Base.show(stream::IO, object::AbstractNode)
-    print(stream, _extra(object))
     repr = simple_repr(typeof(object))
     str = "$repr $(handle(object))"
-    if !isempty(fieldnames(typeof(object)))
-        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+    printstyled(IOContext(stream, :color=> SHOW_COLOR),
                     str, bold=false, color=:blue)
-    else
-        print(stream, str)
-    end
-    print(stream, " \u23CE `$(elscitype(object))`")
     return nothing
 end
+
+# show when alone:
+function Base.show(stream::IO, ::MIME"text/plain", source::Source)
+    show(stream, source)
+    print(stream, " \u23CE `$(elscitype(source))`")
+    return nothing
+end
+
