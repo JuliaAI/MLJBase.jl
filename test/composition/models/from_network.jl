@@ -161,8 +161,8 @@ ex = Meta.parse(
 mach_, modeltype_ex, struct_ex =
     MLJBase.from_network_preprocess(TestFromComposite, mach_ex, ex)
 eval(Parameters.with_kw(struct_ex, TestFromComposite, false))
-@test fieldtypes(Composite8) == (KNNRegressor, Any)
-
+VERSION ≥ v"1.3.0-" &&
+    @test fieldtypes(Composite8) == (KNNRegressor, Any)
 
 # test that you cannot leave "default" component models unspecified:
 modeltype_ex = :Composite9
