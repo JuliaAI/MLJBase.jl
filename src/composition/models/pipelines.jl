@@ -421,9 +421,9 @@ function pipeline_preprocess(modl, exs...)
         @warn "Pipeline is applying a target inversion "*
         "immediately after a probabilistic target prediction. "*
         "Perhaps you want to set "*
-        "`operation=predict_mean` or `operation=predict_mode`. "
+        "`operation=predict_mean` or `operation=predict_mode`. "*
         "Alternatively, you may want to "*
-        "insert a function/model after the "
+        "insert a function/model after the "*
         "supervised model and set `invert_last=true`. "
     end
 
