@@ -413,6 +413,20 @@ function pipeline_preprocess(modl, exs...)
         pipe_alert("`target=...` has been specified but no "*
                    "supervised components have been specified. ")
 
+    # check if attempting a target inversion immediately after a
+    # probablisitic prediction:
+    if target != nothing  &&
+        supervised_model isa Probabilistic &&
+        operation == predict && (supervised_is_last || !invert_last)
+        @warn "Pipeline is applying a target inversion "*
+        "immediately after a probabilistic target prediction. "*
+        "Perhaps you want to set "*
+        "`operation=predict_mean` or `operation=predict_mode`. "
+        "Alternatively, you may want to "*
+        "insert a function/model after the "
+        "supervised model and set `invert_last=true`. "
+    end
+
     return (pipetype_, fieldnames_, models_, model_supertypes_,
             models_and_functions_, target_, inverse_,
             invert_last, operation,

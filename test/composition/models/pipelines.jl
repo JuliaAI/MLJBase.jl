@@ -387,6 +387,11 @@ exs = [f, m, t, h, k, u, p, :(name=true)]
 @test_throws(ArgumentError,
              MLJBase.pipeline_preprocess(TestPipelines, exs...))
 
+# existing name:
+exs = [f, m, t, h, k, u, :(name=Int)]
+@test_throws(ArgumentError,
+             MLJBase.pipeline_preprocess(TestPipelines, exs...))
+
 # bad prediction_type:
 exs = [f, m, t, h, k, u, :(prediction_type=:junk)]
 @test_throws(ArgumentError,
@@ -420,6 +425,11 @@ exs = [f, m, t, h, k, u, k]
 exs = [f, m, k, :(prediction_type=:probabilistic)]
 @test_throws(ArgumentError,
              MLJBase.pipeline_preprocess(TestPipelines, exs...))
+
+exs = [h, c, u]
+@test_logs((:info, r"Treating"),
+           (:warn, r"Pipeline is applying"), 
+           MLJBase.pipeline_preprocess(TestPipelines, exs...))
 
 
 ## SIMPLE SUPERVISED PIPELINE WITH TARGET TRANSFORM
