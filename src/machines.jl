@@ -120,6 +120,17 @@ function check(model::Unsupervised, args...; full=false)
     return nothing
 end
 
+
+"""
+    machine(model, args...)
+
+Construct a `Machine` object binding a `model`, storing
+hyper-parameters of some machine learning algorithm, to some data,
+`args`. See the MLJ documentation for details.
+
+"""
+function machine end
+
 machine(T::Type{<:Model}, args...) =
     throw(ArgumentError("Model *type* provided where "*
                         "model *instance* expected. "))

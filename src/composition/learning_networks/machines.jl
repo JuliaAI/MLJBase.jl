@@ -50,18 +50,15 @@ function model_supertype(signature)
 end
 
 """
-    machine(
-
-
     machine(Xs; oper1=node1, oper2=node2, ...)
     machine(Xs, ys; oper1=node1, oper2=node2, ...)
     machine(Xs, ys, ws; oper1=node1, oper2=node2, ...)
 
-Construct a learning network machine, i.e., a machine "wrapping" a
-learning network, usually in preparation to export the network as a
-stand-alone composite model type. The keyword arguments declare what
-nodes are called when operations, such as `predict` and `transform`,
-are called on the machine.
+Construct a special machine called a *learning network machine*, that
+"wraps" a learning network, usually in preparation to export the
+network as a stand-alone composite model type. The keyword arguments
+declare what nodes are called when operations, such as `predict` and
+`transform`, are called on the machine.
 
 In addition to the operations named in the constructor, the methods
 `fit!`, `report`, and `fitted_params` can be applied as usual to the

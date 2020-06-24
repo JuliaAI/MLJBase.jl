@@ -110,8 +110,8 @@ end
     # with static target transformation:
     models = [f, k]
     mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.StaticTransformer(log),
-        MLJBase.StaticTransformer(exp),
+        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
+        MLJBase.WrappedFunction(exp),
         true, predict, models...)
     tree= mach.fitresult.predict |> MLJBase.tree
     @test mach.model isa DeterministicSurrogate
@@ -131,8 +131,8 @@ end
     # with supervised model not at end and static target transformation:
     models = [f, c, broadcast_mode]
     mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.StaticTransformer(log),
-        MLJBase.StaticTransformer(exp),
+        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
+        MLJBase.WrappedFunction(exp),
         true, predict, models...)
     tree= mach.fitresult.predict |> MLJBase.tree
     @test mach.model isa DeterministicSurrogate
@@ -194,8 +194,8 @@ end
     # test of invert_last=false - static target transformation:
     models = [k, doubler]
     mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.StaticTransformer(log),
-        MLJBase.StaticTransformer(exp),
+        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
+        MLJBase.WrappedFunction(exp),
         false, predict, models...)
     tree = mach.fitresult.predict |> MLJBase.tree
     @test tree.operation == doubler
@@ -290,13 +290,13 @@ exs =  [f, m, t, h, k, e, l, p, v]
 out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
 @test out[2] == [:feature_selector, :one_hot_encoder, :knn_regressor,
                  :target, :inverse]
-@test eval.(out[3]) == [F, H, K, MLJBase.StaticTransformer(exp),
-                 MLJBase.StaticTransformer(log)]
+@test eval.(out[3]) == [F, H, K, MLJBase.WrappedFunction(exp),
+                 MLJBase.WrappedFunction(log)]
 @test eval.(out[4]) == [Unsupervised, Unsupervised,
                         Deterministic, Unsupervised, Unsupervised]
 @test eval.(out[5]) == [F, MLJBase.matrix, MLJBase.table, H, K]
-@test eval.(out[6]) == MLJBase.StaticTransformer(exp)
-@test eval.(out[7]) == MLJBase.StaticTransformer(log)
+@test eval.(out[6]) == MLJBase.WrappedFunction(exp)
+@test eval.(out[7]) == MLJBase.WrappedFunction(log)
 @test out[10] == Deterministic
 
 # invert_last = false:

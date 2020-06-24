@@ -258,7 +258,7 @@ function pipeline_preprocess(modl, exs...)
                             value_, value =
                                 eval_and_reassign(
                                     modl,
-                                    :(MLJBase.StaticTransformer($value)))
+                                    :(MLJBase.WrappedFunction($value)))
                         end
                         if value isa DataType
                             value <: Unsupervised ||
@@ -281,7 +281,7 @@ function pipeline_preprocess(modl, exs...)
                             value_, value =
                                 eval_and_reassign(
                                     modl,
-                                    :(MLJBase.StaticTransformer($value)))
+                                    :(MLJBase.WrappedFunction($value)))
                         else
                             pipe_alert("`inverse` must be a function. ")
                         end
@@ -405,7 +405,7 @@ function pipeline_preprocess(modl, exs...)
         super = is_static ? Static : Unsupervised
     end
 
-    target isa MLJBase.StaticTransformer && inverse == nothing &&
+    target isa MLJBase.WrappedFunction && inverse == nothing &&
         pipe_alert("It appears `target` is a function. "*
                    "You must therefore specify `inverse=...` .")
 

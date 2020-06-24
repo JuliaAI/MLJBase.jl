@@ -1,4 +1,4 @@
-module TestStaticTransformers
+module TestWrappedFunctions
 
 # using Revise
 using Test

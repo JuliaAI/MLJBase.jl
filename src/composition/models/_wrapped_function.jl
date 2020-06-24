@@ -17,14 +17,14 @@ $STATIC_TRANSFORMER_DESCR
 
 * `f=identity`: function or callable object to use for the data transformation.
 """
-mutable struct StaticTransformer <: MLJBase.Static
+mutable struct WrappedFunction <: MLJBase.Static
     f
 end
-StaticTransformer(;f=identity) = StaticTransformer(f)
+WrappedFunction(;f=identity) = WrappedFunction(f)
 
-fitted_params(::StaticTransformer) = NamedTuple()
-fit(::StaticTransformer, ::Integer, _) = nothing, nothing, NamedTuple()
-transform(model::StaticTransformer, fitresult, Xnew) = (model.f)(Xnew)
+fitted_params(::WrappedFunction) = NamedTuple()
+fit(::WrappedFunction, ::Integer, _) = nothing, nothing, NamedTuple()
+transform(model::WrappedFunction, fitresult, Xnew) = (model.f)(Xnew)
 
-MMI.is_wrapper(::Type{<:StaticTransformer}) = true
-MMI.is_pure_julia(::Type{<:StaticTransformer}) = true
+MMI.is_wrapper(::Type{<:WrappedFunction}) = true
+MMI.is_pure_julia(::Type{<:WrappedFunction}) = true

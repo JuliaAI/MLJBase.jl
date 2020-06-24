@@ -132,7 +132,7 @@ function pipeline_preprocess_deprecated(
                     if value isa Function
                         value_, value =
                             eval_and_reassign_deprecated(modl,
-                                              :(MLJBase.StaticTransformer($value)))
+                                              :(MLJBase.WrappedFunction($value)))
                     end
                     value isa Unsupervised ||
                         pipe_alert("Got $value where a function or "*
@@ -145,7 +145,7 @@ function pipeline_preprocess_deprecated(
                     if value isa Function
                         value_, value =
                             eval_and_reassign_deprecated(modl,
-                                              :(MLJBase.StaticTransformer($value)))
+                                              :(MLJBase.WrappedFunction($value)))
                     else
                         pipe_alert(10)
                     end
@@ -207,7 +207,7 @@ function pipeline_preprocess_deprecated(
                    "`is_probabilistic=true`) "*
                   "declaration is not allowed. ")
 
-    target isa MLJBase.StaticTransformer && inverse == nothing &&
+    target isa MLJBase.WrappedFunction && inverse == nothing &&
         pipe_alert("It appears `target` is a function. "*
                    "You must therefore specify `inverse=...` .")
 

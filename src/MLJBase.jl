@@ -284,7 +284,7 @@ include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/deprecated.jl")
-include("composition/models/pipeline_static.jl")
+include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
 include("resampling.jl")
