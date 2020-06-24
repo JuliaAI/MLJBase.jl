@@ -134,5 +134,3 @@ predict(::SupervisedComposite, fitresult::Node, Xnew)     = fitresult(Xnew)
 
 # legacy method (replacements defined in operations.jl):
 transform(::UnsupervisedComposite, fitresult::Node, Xnew) = fitresult(Xnew)
-
-

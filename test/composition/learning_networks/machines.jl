@@ -41,10 +41,6 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     yhat = predict(m, W)
     Wout = transform(m, W)
 
-    signature = (predict=yhat, transform=Wout)
-    @test MLJBase.args(signature) == (Xs, )
-    @test MLJBase.model_supertype(signature) == Unsupervised
-
     mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
@@ -58,14 +54,9 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     ys = source(y)
     mm = machine(ConstantClassifier(), W, ys)
     yhat = predict(mm, W)
-#    @test_throws Exception machine(predict=yhat)
-    ys.kind = :target
-    ys.kind = :input
-    Xs.kind = :target
+    @test_throws Exception machine(predict=yhat)
     mach = machine(Probabilistic(), Xs, ys; predict=yhat)
     @test mach.model isa Probabilistic
-    @test Xs.kind == :input
-    @test ys.kind == :target
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
 
 end
@@ -77,7 +68,7 @@ X = (x1=x1, x2=x2);
 y = x2.^2;
 
 Xs = source(X)
-ys = source(y, kind=:target)
+ys = source(y)
 z = log(ys)
 stand = UnivariateStandardizer()
 standM = machine(stand, z)
@@ -110,33 +101,31 @@ yhat = exp(zhat)
     # duplicate a learning network machine:
     mach  = machine(Deterministic(), Xs, ys; predict=yhat)
     mach2 = replace(mach, hot=>hot2, knn=>knn2,
-                    ys=>source(ys.data, kind=:target);
+                    ys=>source(ys.data);
                     empty_unspecified_sources=true)
-    ss = sources(glb(mach2.fitresult...), kind=:input)
+    ss = sources(glb(mach2.fitresult...))
     @test isempty(ss[1])
     mach2 = @test_logs((:warn, r"No replacement"),
                        replace(mach, hot=>hot2, knn=>knn2,
-                               ys=>source(ys.data, kind=:target)))
+                               ys=>source(ys.data)))
+    yhat2 = mach2.fitresult.predict
     fit!(mach, verbosity=0)
     fit!(mach2, verbosity=0)
     @test predict(mach, X) ≈ predict(mach2, X)
 
-    mach2 = @test_logs((:warn, r"No replacement"),
-                       replace(mach, hot=>hot2, knn=>knn2,
-                               ys=>source(ys.data, kind=:target)))
-    yhat2 = mach2.fitresult[1]
-    @test !isempty(sources(yhat2, kind=:input)[1])
+    @test mach2.args[1]() == Xs()
+    @test mach2.args[2]() == ys()
 
 
     ## EXTRA TESTS FOR TRAINING SEQUENCE
-    
+
     # pickout the newly created machines:
     standM2 = machines(yhat2, stand) |> first
     oakM2 = machines(yhat2, oak) |> first
     knnM2 = machines(yhat2, knn) |> first
     hotM2 = machines(yhat2, hot) |> first
 
-    @test_mach_sequence(fit!(yhat2),
+    @test_mach_sequence(fit!(yhat2, force=true),
                         [(:train, standM2), (:train, hotM2),
                          (:train, knnM2), (:train, oakM2)],
                         [(:train, hotM2), (:train, standM2),

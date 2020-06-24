@@ -23,7 +23,7 @@ selector_model = FeatureSelector()
 
 # supervised:
 Xs = source(nothing)
-ys = source(nothing, kind=:target)
+ys = source(nothing)
 z  = log(ys)
 stand = UnivariateStandardizer()
 standM = machine(stand, z)
@@ -189,7 +189,7 @@ y = rand(N)
 w = rand(N)
 
 # supervised with sample weights:
-ws = source(kind=:weights)
+ws = source()
 knnM = machine(knn, W, u, ws)
 uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
@@ -247,7 +247,7 @@ X = (x1=x1, x2=x2);
 y = x2.^2;
 
 Xs = source(X)
-ys = source(y, kind=:target)
+ys = source(y)
 z = log(ys)
 stand = UnivariateStandardizer()
 standM = machine(stand, z)
@@ -357,8 +357,8 @@ w = map(y) do η
     end
 end;
 Xs = source(X)
-ys = source(y, kind=:target)
-ws = source(w, kind=:weights)
+ys = source(y)
+ws = source(w)
 
 standM = machine(Standardizer(), Xs)
 W = transform(standM, Xs)

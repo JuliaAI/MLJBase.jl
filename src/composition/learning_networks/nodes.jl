@@ -47,8 +47,6 @@ struct Node{T<:Union{Machine, Nothing}} <: AbstractNode
     end
 end
 
-kind(::Node) = :node
-
 """
 
     nrows_at_source(N::node)

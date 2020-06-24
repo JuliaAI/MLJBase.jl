@@ -5,7 +5,7 @@ using Test
 
 X = 7
 
-@test_logs (:warn, r"Source ") source(X, kind=:banana)
+@test_deprecated source(X, kind=:source)
 
 Xs = source(X)
 @test Xs() == X

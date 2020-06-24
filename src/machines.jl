@@ -120,12 +120,6 @@ function check(model::Unsupervised, args...; full=false)
     return nothing
 end
 
-wrap(::Unsupervised, X) = (source(X, kind=:input),)
-wrap(::Supervised, X, y) = (source(X), source(y, kind=:target))
-wrap(::Supervised, X, y, w) = (source(X),
-                               source(y, kind=:target),
-                               source(w, kind=:weights))
-
 machine(T::Type{<:Model}, args...) =
     throw(ArgumentError("Model *type* provided where "*
                         "model *instance* expected. "))
@@ -154,7 +148,7 @@ machine(model::Model, arg1::AbstractNode, arg2, args...) =
           "is not allowed. ")
 
 function machine(model::Model, raw_arg1, raw_args...)
-    args = wrap(model, raw_arg1, raw_args...)
+    args = source.((raw_arg1, raw_args...))
     check(model, args...; full=true)
     return Machine(model, args...)
 end
@@ -218,26 +212,6 @@ function Base.show(io::IO, ::MIME"text/plain", mach::Machine)
         end
     end
 end
-
-# function Base.show(stream::IO, ::MIME"text/plain", machine::Machine)
-#     id = objectid(machine)
-# #    description = string(typeof(machine).name.name)
-# #    str = "$description @ $(handle(machine))"
-# #    printstyled(IOContext(stream, :color=>SHOW_COLOR), str, bold=SHOW_COLOR)
-#     print(stream, "machine($(machine.model)")
-#     isempty(machine.args) || print(stream, ", ")
-#     n_args = length(machine.args)
-#     counter = 1
-#     for arg in machine.args
-#         printstyled(IOContext(stream,
-#                               :color=>SHOW_COLOR),
-#                     handle(arg),
-#                     color=color(arg))
-#         counter >= n_args || print(stream, ", ")
-#         counter += 1
-#     end
-#     print(stream, ") ", handle(machine))
-# end
 
 
 ## FITTING

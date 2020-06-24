@@ -11,7 +11,7 @@ import Random.seed!
 seed!(1234)
 
 @testset "anonymize!" begin
-    ss  = [source(1, kind=:target), source(2), source(3)]
+    ss  = [source(1), source(2), source(3)]
     a = MLJBase.anonymize!(ss)
     @test all(s -> s.data === nothing, a.sources)
     @test a.data == (1, 2, 3)
@@ -79,7 +79,7 @@ selector_model = FeatureSelector()
     predict(composite, fitresult, MLJBase.selectrows(Xin, test));
 
     Xs = source(Xtrain)
-    ys = source(ytrain, kind=:target)
+    ys = source(ytrain)
 
     mach = machine(composite, Xs, ys)
     yhat = predict(mach, Xs)
@@ -100,7 +100,7 @@ end
 #@testset "second test of hand-exported network" begin
     function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
         Xs = source(X)
-        ys = source(y, kind=:target)
+        ys = source(y)
 
         stand = Standardizer()
         standM = machine(stand, Xs)

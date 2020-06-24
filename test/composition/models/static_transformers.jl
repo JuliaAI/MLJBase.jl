@@ -52,7 +52,7 @@ e2 =  evaluate(comp2, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 
 # 3. function in an exported learning network:
 Xs = source(X)
-ys = source(y, kind=:target)
+ys = source(y)
 f(X::AbstractNode) = node(f, X)
 # or, without arrow syntax:
 # W = Xs |> f |> Standardizer()

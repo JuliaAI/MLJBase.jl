@@ -29,7 +29,7 @@ seed!(1234)
     ytrain = y[train];
 
     Xs = source(Xtrain);
-    ys = source(ytrain, kind=:target);
+    ys = source(ytrain);
 
     knn1 = machine(knn_, Xs, ys)
     @test_mach_sequence fit_only!(knn1) [(:train, knn1),]
