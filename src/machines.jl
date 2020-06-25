@@ -423,30 +423,29 @@ Return the learned parameters for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `fitted_params_given_machine`, whose
-corresponding values are a vector of machines appearing in the
-underlying learning network, and a dictionary of reports keyed on
-those machines.
+If `mach` is a machine for a composite model, such as a model
+constructed using `@pipeline`, then the returned named tuple has the
+composite type's field names as keys. The corresponding value is the
+fitted parameters for the machine in the underlying learning network
+bound to that model. (If multiple machines share the same model, then the
+value is a vector.)
 
 ```julia
 using MLJ
+@load LogisticClassifier pkg=MLJLinearModels
 X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-fp = fitted_params(mach)
-machs = fp.machines
-2-element Array{Any,1}:
- Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
- Machine{Standardizer} @ 7…33
+pipe = @pipeline Standardizer LogisticClassifier
+mach = machine(pipe, X, y) |> fit!
 
-fp.fitted_params_given_machine[machs[1]]
-(coef = [121.05433477939319, 1.5863921128182814,
-         61.0770377473622, -233.42699281787324, 72.74253591435117],
- intercept = 10.384459260848505,)
+julia> fitted_params(mach).logistic_classifier
+(classes = CategoricalArrays.CategoricalValue{String,UInt32}["B", "O"],
+ coefs = Pair{Symbol,Float64}[:FL => 3.7095037897680405, :RW => 0.1135739140854546, :CL => -1.6036892745322038, :CW => -4.415667573486482, :BD => 3.238476051092471],
+ intercept = 0.0883301599726305,)
+
+Additional keys, `machines` and `fitted_params_given_machine`, give a
+list of all machines in the underlying network, and a dictionary of
+fitted parameters keyed on those machines.
+
 ```
 
 """

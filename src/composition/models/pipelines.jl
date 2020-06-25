@@ -479,8 +479,6 @@ function pipeline_(modl, exs...)
 
     no_fields = length(models_) == 0
 
-    @show mach_
-
     from_network_(modl,
                   mach_,
                   pipetype_,

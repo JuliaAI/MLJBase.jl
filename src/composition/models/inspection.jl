@@ -19,9 +19,9 @@ end
 # (use-cases are reports or fitted_params) return a named-tuple, keyed
 # on model names, whose values are corresponding items or vectors of
 # items, but restricted to the specified `models`.
-function tuple_keyed_on_model_names(item_given_machine, models, names)
+function tuple_keyed_on_model_names(item_given_machine, _models, names)
     machs = keys(item_given_machine) |> collect
-    named_tuple_values = map(models) do model
+    named_tuple_values = map(_models) do model
         sub_machs =
             filter(mach -> mach.old_model == model, machs)
         [item_given_machine[mach] for mach in sub_machs] |> try_scalarize
@@ -38,8 +38,9 @@ end
 
 function fitted_params(mach::Machine{<:Composite})
     fp = fitted_params(mach.model, mach.fitresult)
+    machines = fp.machines
     dict = fp.fitted_params_given_machine
     _models, names =  models_and_names(mach)
     return merge(tuple_keyed_on_model_names(dict, _models, names),
-                 (fitted_params_given_machine=dict,))
+                 (machines=machines, fitted_params_given_machine=dict,))
 end
