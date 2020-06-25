@@ -456,6 +456,7 @@ function pipeline_(modl, exs...)
     end
 
     mach_ = quote
+        $(isdefined(modl, :MLJ) ? :(import MLJ.MLJBase) : :(import MLJBase))
         MLJBase.linear_learning_network_machine($super_type,
                                                 source(nothing), $ys_, $ws_,
                                                 $target_, $inverse_,
@@ -464,17 +465,21 @@ function pipeline_(modl, exs...)
                                                 $(models_and_functions_...))
     end
 
+    mach_, mach = eval_and_reassign(modl, mach_)
+
     field_declarations =
         [:($(fieldnames_[j])::$(model_supertypes_[j])=$(models_[j]))
                                 for j in eachindex(models_)]
 
-    supertype_ = _exported_type(modl.eval(mach_).model)
+    supertype_ = _exported_type(mach.model)
 
     struct_ = :(mutable struct $pipetype_ <: $supertype_
                         $(field_declarations...)
                     end)
 
     no_fields = length(models_) == 0
+
+    @show mach_
 
     from_network_(modl,
                   mach_,
