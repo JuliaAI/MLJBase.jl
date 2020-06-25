@@ -30,10 +30,11 @@ function tuple_keyed_on_model_names(item_given_machine, _models, names)
 end
 
 function report(mach::Machine{<:Composite})
+    machines = mach.report.machines
     dict = mach.report.report_given_machine
     _models, names =  models_and_names(mach)
     return merge(tuple_keyed_on_model_names(dict, _models, names),
-                 (report_given_machine=dict,))
+                 (machines=machines, report_given_machine=dict,))
 end
 
 function fitted_params(mach::Machine{<:Composite})

@@ -443,7 +443,7 @@ julia> fitted_params(mach).logistic_classifier
  intercept = 0.0883301599726305,)
 
 Additional keys, `machines` and `fitted_params_given_machine`, give a
-list of all machines in the underlying network, and a dictionary of
+list of *all* machines in the underlying network, and a dictionary of
 fitted parameters keyed on those machines.
 
 ```
@@ -465,32 +465,30 @@ Return the report for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `report_given_machine`, whose corresponding
-values are a vector of machines appearing in the underlying learning
-network, and a dictionary of reports keyed on those machines.
+If `mach` is a machine for a composite model, such as a model
+constructed using `@pipeline`, then the returned named tuple has the
+composite type's field names as keys. The corresponding value is the
+report for the machine in the underlying learning network
+bound to that model. (If multiple machines share the same model, then the
+value is a vector.)
 
 ```julia
 using MLJ
+@load LinearBinaryClassifier pkg=GLM
 X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-r = report(mach)
-r.machines
-2-element Array{Any,1}:
- Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
- Machine{Standardizer} @ 7…33
+pipe = @pipeline Standardizer LinearBinaryClassifier
+mach = machine(pipe, X, y) |> fit!
 
-r.report_given_machine[machs[1]]
+julia> report(mach).linear_binary_classifier
 (deviance = 3.8893386087844543e-7,
  dof_residual = 195.0,
- stderror = [18954.83496713119, ..., 2111.1294584763386],
- vcov = [3.592857686311793e8 ... .442545425533723e6;
-         ...
-         5.38856837634321e6 ... 2.1799125705781363e7 4.456867590446599e6],)
+ stderror = [18954.83496713119, 6502.845740757159, 48484.240246060406, 34971.131004997274, 20654.82322484894, 2111.1294584763386],
+ vcov = [3.592857686311793e8 9.122732393971942e6 … -8.454645589364915e7 5.38856837634321e6; 9.122732393971942e6 4.228700272808351e7 … -4.978433790526467e7 -8.442545425533723e6; … ; -8.454645589364915e7 -4.978433790526467e7 … 4.2662172244975924e8 2.1799125705781363e7; 5.38856837634321e6 -8.442545425533723e6 … 2.1799125705781363e7 4.456867590446599e6],)
+
+Additional keys, `machines` and `report_given_machine`, give a
+list of *all* machines in the underlying network, and a dictionary of
+reports keyed on those machines.
+
 ```
 
 """
