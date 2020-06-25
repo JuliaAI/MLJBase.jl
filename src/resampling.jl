@@ -664,7 +664,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
                         end
       
     #One tmach for each task:
-    machines = [mach, [machine(mach.model, mach.args...) for _ in 2:length(partitions)]...]  
+    machines = [mach, [machine(deepcopy(mach.model), mach.args...) for _ in 2:length(partitions)]...]  
    @sync for (i, parts) in enumerate(partitions)    
      Threads.@spawn begin
        results[i] = mapreduce(vcat, parts) do k  
