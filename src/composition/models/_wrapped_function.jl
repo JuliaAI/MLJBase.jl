@@ -28,3 +28,5 @@ transform(model::WrappedFunction, fitresult, Xnew) = (model.f)(Xnew)
 
 MMI.is_wrapper(::Type{<:WrappedFunction}) = true
 MMI.is_pure_julia(::Type{<:WrappedFunction}) = true
+MMI.load_path(::Type{<:WrappedFunction}) = "MLJBase.WrappedFunction"
+MMI.package_name(::Type{<:WrappedFunction}) = "MLJBase"

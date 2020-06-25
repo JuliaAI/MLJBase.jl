@@ -33,17 +33,21 @@ const Surrogate = Union{DeterministicSurrogate,
 const Composite = Union{SupervisedComposite,UnsupervisedComposite,
                         StaticComposite}
 
-# to suppress inclusion of these types in models():
-MMI.is_wrapper(::Type{DeterministicComposite}) = true
-MMI.is_wrapper(::Type{ProbabilisticComposite}) = true
-MMI.is_wrapper(::Type{IntervalComposite}) = true
-MMI.is_wrapper(::Type{UnsupervisedComposite}) = true
-MMI.is_wrapper(::Type{StaticComposite}) = true
-MMI.is_wrapper(::Type{DeterministicSurrogate}) = true
-MMI.is_wrapper(::Type{ProbabilisticSurrogate}) = true
-MMI.is_wrapper(::Type{IntervalSurrogate}) = true
-MMI.is_wrapper(::Type{UnsupervisedSurrogate}) = true
-MMI.is_wrapper(::Type{StaticSurrogate}) = true
+for T in [:DeterministicComposite,
+          :ProbabilisticComposite,
+          :IntervalComposite,
+          :UnsupervisedComposite,
+          :StaticComposite,
+          :DeterministicSurrogate,
+          :ProbabilisticSurrogate,
+          :IntervalSurrogate,
+          :UnsupervisedSurrogate,
+          :StaticSurrogate]
+    eval(:(MMI.is_wrapper(::Type{$T}) = true))
+    eval(:(MMI.package_name(::Type{$T}) = "MLJBase"))
+    str = string(T)
+    eval(:(MMI.load_path(::Type{$T}) = "MLJBase."*$str))
+end
 
 # aliases for legacy code:
 const DeterministicNetwork = DeterministicComposite
