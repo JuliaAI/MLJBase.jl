@@ -189,12 +189,9 @@ Unlike regular cross-validation, the distribution of the levels of the
 target `y` corresponding to each `train` and `test` is constrained, as
 far as possible, to replicate that of `y[rows]` as a whole.
 
-Specifically, the data is split into a number of groups on which `y`
-is constant, and each individual group is resampled according to the
-ordinary cross-validation strategy `CV(nfolds=nfolds)`. To obtain the
-final `(train, test)` pairs of row indices, the per-group pairs are
-collated in such a way that each collated `train` and `test` respects
-the original order of `rows` (after shuffling, if `shuffle=true`).
+The stratified `train_test_pairs` algorithm is invariant to label renaming.
+For example, if you run `replace!(y, 'a' => 'b', 'b' => 'a')` and then re-run
+`train_test_pairs`, the returned `(train, test)` pairs will be the same.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
 is an integer, then the `StratifedCV` keyword constructor resets it to
@@ -220,62 +217,81 @@ end
 StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
        StratifiedCV(nfolds, shuffle_and_rng(shuffle, rng)...)
 
-function train_test_pairs(stratified_cv::StratifiedCV, rows, X, y)
+# Description of the stratified CV algorithm:
+#
+# There are algorithms that are conceptually somewhat simpler than this
+# algorithm, but this algorithm is O(n) and is invariant to relabelling
+# of the target vector.
+#
+# 1) Use countmap() to get the count for each level.
+#
+# 2) Use unique() to get the order in which the levels appear. (Steps 1
+# and 2 could be combined if countmap() used an OrderedDict.)
+#
+# 3) For y = ['b', 'c', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'a', 'a', 'a'],
+# the levels occur in the order ['b', 'c', 'a'], and each level has a count
+# of 4. So imagine a table like this:
+#
+# b b b b c c c c a a a a
+# 1 2 3 1 2 3 1 2 3 1 2 3
+#
+# This table ensures that the levels are smoothly spread across the test folds.
+# In other words, where one level leaves off, the next level picks up. So,
+# for example, as the 'c' levels are encountered, the corresponding row indices
+# are added to folds [2, 3, 1, 2], in that order. The table above is
+# partitioned by y-level and put into a dictionary `fold_lookup` that maps
+# levels to the corresponding array of fold indices.
+#
+# 4) Iterate i from 1 to length(rows). For each i, look up the corresponding
+# level, i.e. `level = y[rows[i]]`. Then use `popfirst!(fold_lookup[level])`
+# to find the test fold in which to put the i-th element of `rows`.
+#
+# 5) Concatenate the appropriate test folds together to get the train
+# indices for each `(train, test)` pair.
 
-    nfolds = stratified_cv.nfolds
-
-    if stratified_cv.shuffle
-        rows=shuffle!(stratified_cv.rng, collect(rows))
-    end
+function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
     st <: AbstractArray{<:Finite} ||
         error("Supplied target has scitpye $st but stratified "*
               "cross-validation applies only to classification problems. ")
 
-
-    freq_given_level = countmap(y[rows])
-    minimum(values(freq_given_level)) >= nfolds ||
-        error("The number of observations for which the target takes on a "*
-              "given class must, for each class, exceed `nfolds`. Try "*
-              "reducing `nfolds`. ")
-
-    levels_seen = keys(freq_given_level) |> collect
-
-    cv = CV(nfolds=nfolds)
-
-    # the target is constant on each stratum, a subset of `rows`:
-    class_rows = [rows[y[rows] .== c] for c in levels_seen]
-
-    # get the cv train/test pairs for each level:
-    train_test_pairs_per_level = (train_test_pairs(cv, class_rows[m])
-                              for m in eachindex(levels_seen))
-
-    # just the train rows in each level:
-    trains_per_level = map(x -> first.(x),
-                           train_test_pairs_per_level)
-
-    # just the test rows in each level:
-    tests_per_level  = map(x -> last.(x),
-                                train_test_pairs_per_level)
-
-    # for each fold, concatenate the train rows over levels:
-    trains_per_fold = map(x->vcat(x...), zip(trains_per_level...))
-
-    # for each fold, concatenate the test rows over levels:
-    tests_per_fold = map(x->vcat(x...), zip(tests_per_level...))
-
-    # restore ordering specified by rows:
-    trains_per_fold = map(trains_per_fold) do train
-        filter(in(train), rows)
-    end
-    tests_per_fold = map(tests_per_fold) do test
-        filter(in(test), rows)
+    if stratified_cv.shuffle
+        rows=shuffle!(stratified_cv.rng, collect(rows))
     end
 
-    # re-assemble:
-    return zip(trains_per_fold, tests_per_fold) |> collect
+    n_folds = stratified_cv.nfolds
+    n_obs = length(rows)
+    obs_per_fold = div(n_obs, n_folds)
 
+    y_included = y[rows]
+    level_count_dict = countmap(y_included)
+
+    # unique() preserves the order of appearance of the levels.
+    # We need this so that the results are invariant to renaming of the levels.
+    y_levels = unique(y_included)
+    level_count = [level_count_dict[level] for level in y_levels]
+
+    fold_cycle = collect(Iterators.take(Iterators.cycle(1:n_folds), n_obs))
+
+    lasts = cumsum(level_count)
+    firsts = [1; lasts[1:end-1] .+ 1]
+
+    level_fold_indices = (fold_cycle[f:l] for (f, l) in zip(firsts, lasts))
+    fold_lookup = Dict(y_levels .=> level_fold_indices)
+
+    folds = [Int[] for _ in 1:n_folds]
+    for fold in folds
+        sizehint!(fold, obs_per_fold)
+    end
+
+    for i in 1:n_obs
+        level = y_included[i]
+        fold_index = popfirst!(fold_lookup[level])
+        push!(folds[fold_index], rows[i])
+    end
+
+    [(complement(folds, i), folds[i]) for i in 1:n_folds]
 end
 
 # ================================================================
@@ -284,7 +300,9 @@ end
 const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
                                :per_fold, :per_observation)}
 # pretty printing:
-round3(x) = round(x, sigdigits=3)
+round3(x) = x
+round3(x::AbstractFloat) = round(x, sigdigits=3)
+
 _short(v) = v
 _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
@@ -378,7 +396,7 @@ function _process_weights_measures(weights, measures, mach,
         _measures = measures
     end
 
-    y = mach.args[2]
+    y = mach.args[2]()
 
     [ _check_measure(mach.model, m, y, operation, !check_measure)
      for m in _measures ]
@@ -393,7 +411,7 @@ function _process_weights_measures(weights, measures, mach,
     elseif  length(mach.args) == 3
         verbosity < 1 ||
             @info "Passing machine sample weights to any supported measures. "
-        _weights = mach.args[3]
+        _weights = mach.args[3]()
     else
         _weights = weights
     end
@@ -403,14 +421,14 @@ function _process_weights_measures(weights, measures, mach,
 end
 
 function _process_accel_settings(accel::CPUThreads)
-    if accel.settings === nothing 
+    if accel.settings === nothing
         nthreads = Threads.nthreads()
         _accel =  CPUThreads(nthreads)
     else
-      typeof(accel.settings) <: Signed || 
+      typeof(accel.settings) <: Signed ||
       throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
                         "be an instance of type `T<:Signed`"))
-      accel.settings > 0 || 
+      accel.settings > 0 ||
             throw(error("Can't create $(acceleration.settings) tasks)"))
       _accel = accel
     end
@@ -421,7 +439,7 @@ _process_accel_settings(accel::Union{CPU1,CPUProcesses}) = accel
 
 #fallback
 _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
-                            " acceleration parameter`acceleration = $accel` ")) 
+                            " acceleration parameter`acceleration = $accel` "))
 
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
@@ -507,10 +525,16 @@ See also [`evaluate`](@ref)
 """
 function evaluate!(mach::Machine{<:Supervised};
                    resampling=CV(),
-                   measures=nothing, measure=measures, weights=nothing,
-                   operation=predict, acceleration=default_resource(),
-                   rows=nothing, repeats=1, force=false,
-                   check_measure=true, verbosity=1)
+                   measures=nothing,
+                   measure=measures,
+                   weights=nothing,
+                   operation=predict,
+                   acceleration=default_resource(),
+                   rows=nothing,
+                   repeats=1,
+                   force=false,
+                   check_measure=true,
+                   verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights and measures, and dispatches a strategy-specific
@@ -545,9 +569,9 @@ function evaluate!(mach::Machine{<:Supervised};
             " measures, as unsupported: \n$unsupported_as_string "
         end
     end
-    
+
     _acceleration= _process_accel_settings(acceleration)
-    
+
     evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
                    _measures, operation, _acceleration, force)
 
@@ -576,7 +600,6 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-            
    p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
@@ -588,17 +611,16 @@ function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
             r = func(mach, k)
             verbosity < 1 || begin
                       p.counter += 1
-                      ProgressMeter.updateProgress!(p)  
-                    end 
+                      ProgressMeter.updateProgress!(p)
+                    end
             return r
         end
-     
+
     return ret
 end
 
+function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
-function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity) 
-    
     local ret
     @sync begin
       p = Progress(nfolds,
@@ -611,7 +633,7 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
         # printing the progress bar
         verbosity < 1 || @async begin
                          while take!(channel)
-                              p.counter +=1 
+                              p.counter +=1
                               ProgressMeter.updateProgress!(p)
                          end
                        end
@@ -623,21 +645,21 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
                                     put!(channel, true)
                                   end
                  r
-    	     end
+             end
 
       verbosity < 1 || put!(channel, false)
-        
+
     end
-    
+
     return ret
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
-  
+
     nthreads = Threads.nthreads()
-    
+
    if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
    end
@@ -652,31 +674,32 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
                 color = :yellow)
     ch = Channel{Bool}(min(1000, length(partitions)))
 
-   results = Vector(undef, length(partitions)) 
+   results = Vector(undef, length(partitions))
 
-   @sync begin 
+   @sync begin
     # printing the progress bar
      verbosity < 1 || @async begin
                               while take!(ch)
-                                p.counter +=1 
+                                p.counter +=1
                                 ProgressMeter.updateProgress!(p)
                               end
                         end
    clean!(mach.model)
    #One tmach for each task:
-   machines = [mach, [machine(mach.model, mach.args...) for _ in 2:length(partitions)]...]  
-   @sync for (i, parts) in enumerate(partitions)    
+       machines = [mach, [machine(mach.model, mach.args...) for
+                          _ in 2:length(partitions)]...]
+   @sync for (i, parts) in enumerate(partitions)
      Threads.@spawn begin
-       results[i] = mapreduce(vcat, parts) do k  
+       results[i] = mapreduce(vcat, parts) do k
             r = func(machines[i], k)
             verbosity < 1 || put!(ch, true)
-            r            
+            r
        end
-        
-      end  
+
+      end
     end
-     
-     verbosity < 1 || put!(ch, false)   
+
+     verbosity < 1 || put!(ch, false)
 
     end
     reduce(vcat, results)
@@ -702,16 +725,16 @@ function evaluate!(mach::Machine, resampling, weights,
               "`MLJ.ResamplingStrategy` or tuple of pairs "*
               "of the form `(train_rows, test_rows)`")
 
-    X = mach.args[1]
-    y = mach.args[2]
+    X = mach.args[1]()
+    y = mach.args[2]()
 
     nfolds = length(resampling)
 
     nmeasures = length(measures)
-   
+
     function get_measurements(mach, k)
         train, test = resampling[k]
-        fit!(mach; rows=train, verbosity=verbosity-1, force=force)
+        fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
         if weights == nothing
@@ -736,7 +759,7 @@ function evaluate!(mach::Machine, resampling, weights,
                       "using $(Threads.nthreads()) threads."
         end
     end
-   
+
     measurements_flat =
             _evaluate!(get_measurements,
                        mach,
@@ -779,7 +802,7 @@ function evaluate!(mach::Machine, resampling, weights,
            measurement=per_measure,
            per_fold=per_fold,
            per_observation=per_observation)
-    
+
     return ret
 
 end
@@ -791,16 +814,22 @@ end
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
                    weights, rows, verbosity, repeats, args...)
 
-    y = mach.args[2]
+    train_args = Tuple(a() for a in mach.args)
+    y = train_args[2]
+
     _rows = actual_rows(rows, length(y), verbosity)
 
     repeated_train_test_pairs =
-        vcat([train_test_pairs(resampling, _rows, mach.args...)
+        vcat([train_test_pairs(resampling, _rows, train_args...)
               for i in 1:repeats]...)
 
-    return evaluate!(mach::Machine,
+    return evaluate!(mach,
                      repeated_train_test_pairs,
-                     weights, nothing, verbosity, repeats, args...)
+                     weights,
+                     nothing,
+                     verbosity,
+                     repeats,
+                     args...)
 
 end
 
@@ -866,7 +895,7 @@ function MLJBase.clean!(resampler::Resampler)
             "Setting `measure=$measure`. "
         end
     end
-    
+
     return warning
 end
 
@@ -891,7 +920,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
         _process_weights_measures(resampler.weights, resampler.measure,
                                   mach, resampler.operation,
                                   verbosity, resampler.check_measure)
-    
+
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     fitresult = evaluate!(mach, resampler.resampling,
@@ -955,11 +984,10 @@ MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 
-function evaluate(machine::AbstractMachine{<:Resampler})
+function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)
         return evaluate(machine.model, machine.fitresult)
     else
         throw(error("$machine has not been trained."))
     end
 end
-

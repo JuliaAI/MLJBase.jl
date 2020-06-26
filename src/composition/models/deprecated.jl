@@ -1,12 +1,32 @@
 ## LINEAR LEARNING NETWORKS (FOR INTERNAL USE ONLY)
 
-# constructs and returns an unsupervised node, and its machine, for a
-# given model and input. the node is static if model is a function
-# instead of bona fide model. Example: `node_(pca, X)` (dynamic) or
-# `node_(MLJBase.matrix, X)` (static).
+# returns Model supertype - or `missing` if arguments are incompatible
+function kind_(is_supervised, is_probabilistic)
+    if is_supervised
+        if ismissing(is_probabilistic) || !is_probabilistic
+            return :DeterministicComposite
+        else
+            return :ProbabilisticComposite
+        end
+    else
+        if ismissing(is_probabilistic) || !is_probabilistic
+            return :UnsupervisedComposite
+        else
+            return missing
+        end
+    end
+end
+
+# Here `model` is a function or Unsupervised model (possibly
+# `Static`).  This function wraps `model` in an appropriate `Node`,
+# `node`, and returns `(node, mode.machine)`.
 function node_(model, X)
-    if model isa Model
-        mach = machine(model, X)
+    if model isa Unsupervised
+        if model isa Static
+            mach = machine(model)
+        else
+            mach = machine(model, X)
+        end
         return transform(mach, X), mach
     else
         n = node(model, X)
@@ -15,20 +35,25 @@ function node_(model, X)
 end
 
 # `models_and_functions` can include both functions (static
-# operatations) and bona fide models. If `ys == nothing` the learning
-# network is assumed to be unsupervised. Otherwise: If `target ===
-# nothing`, then no target transform is applied; if `target !==
-# nothing` and `inverse === nothing`, then corresponding `transform`
-# and `inverse_transform` are applied; if neither `target` nor
-# `inverse` are `nothing`, then both `target` and `inverse` are
-# assumed to be StaticTransformations, to be applied
-# respectively to `ys` and to the output of the `models_and_functions`
-# pipeline. Note that target inversion is applied to the output of the
-# *last* nodal machine in the pipeline, corresponding to the last
-# element of `models_and_functions`.
+# operatations) and bona fide models (including `Static`
+# transformers). If `ys == nothing` the learning network is assumed to
+# be unsupervised. Otherwise: If `target === nothing`, then no target
+# transform is applied; if `target !== nothing` and `inverse ===
+# nothing`, then corresponding `transform` and `inverse_transform` are
+# applied; if neither `target` nor `inverse` are `nothing`, then both
+# `target` and `inverse` are assumed to be StaticTransformations, to
+# be applied respectively to `ys` and to the output of the
+# `models_and_functions` pipeline. Note that target inversion is
+# applied to the output of the *last* nodal machine in the pipeline,
+# corresponding to the last element of `models_and_functions`.
 
 # No checks whatsoever are performed. Returns a learning network.
-function linear_learning_network(Xs, ys, ws, target, inverse, models_and_functions...)
+function linear_learning_network(Xs,
+                                 ys,
+                                 ws,
+                                 target,
+                                 inverse,
+                                 models_and_functions...)
 
     n = length(models_and_functions)
 
@@ -74,20 +99,17 @@ end
 
 ## PREPROCESSING
 
-function eval_and_reassign(modl, ex)
+function eval_and_reassign_deprecated(modl, ex)
     s = gensym()
     evaluated = modl.eval(ex)
     modl.eval(:($s = $evaluated))
     return s, evaluated
 end
 
-pipe_alert(message) = throw(ArgumentError("@pipeline error.\n"*
-                                     string(message)))
-pipe_alert(k::Int) = throw(ArgumentError("@pipeline error $k. "))
-
 # does expression processing, syntax and semantic
 # checks. is_probabilistic is `true`, `false` or `missing`.
-function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
+function pipeline_preprocess_deprecated(
+    modl, ex, is_probabilistic::Union{Missing,Bool})
 
     ex isa Expr || pipe_alert(2)
     length(ex.args) > 1 || pipe_alert(3)
@@ -105,12 +127,12 @@ function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
             if ex.head == :kw
                 variable_ = ex.args[1]
                 variable_ isa Symbol || pipe_alert(8)
-                value_, value = eval_and_reassign(modl, ex.args[2])
+                value_, value = eval_and_reassign_deprecated(modl, ex.args[2])
                 if variable_ == :target
                     if value isa Function
                         value_, value =
-                            eval_and_reassign(modl,
-                                              :(MLJBase.StaticTransformer($value)))
+                            eval_and_reassign_deprecated(modl,
+                                              :(MLJBase.WrappedFunction($value)))
                     end
                     value isa Unsupervised ||
                         pipe_alert("Got $value where a function or "*
@@ -122,8 +144,8 @@ function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
                 elseif variable_ == :inverse
                     if value isa Function
                         value_, value =
-                            eval_and_reassign(modl,
-                                              :(MLJBase.StaticTransformer($value)))
+                            eval_and_reassign_deprecated(modl,
+                                              :(MLJBase.WrappedFunction($value)))
                     else
                         pipe_alert(10)
                     end
@@ -176,16 +198,16 @@ function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
     is_supervised  =
         length(supervised_components) == 1
 
-    # `kind_` is defined in composites.jl:
+    # `kind_` is defined in /src/composition/models/from_network.jl
     kind = kind_(is_supervised, is_probabilistic)
 
     ismissing(kind) &&
-        pipe_alert("Network has no supervised components and so "*
+        pipe_alert("Composite has no supervised components and so "*
                   "`prediction_type=:probablistic` (or "*
                    "`is_probabilistic=true`) "*
                   "declaration is not allowed. ")
 
-    target isa MLJBase.StaticTransformer && inverse == nothing &&
+    target isa MLJBase.WrappedFunction && inverse == nothing &&
         pipe_alert("It appears `target` is a function. "*
                    "You must therefore specify `inverse=...` .")
 
@@ -199,7 +221,7 @@ function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
 
 end
 
-function pipeline_preprocess(modl, ex, kw_ex)
+function pipeline_preprocess_deprecated(modl, ex, kw_ex)
     kw_ex isa Expr || pipe_alert(10)
     kw_ex.head == :(=) || pipe_alert(11)
     if kw_ex.args[1] == :is_probabilistic
@@ -224,16 +246,21 @@ function pipeline_preprocess(modl, ex, kw_ex)
     else
         pipe_alert("Unrecognized keywork `$(kw_ex.args[1])`.")
     end
-    return pipeline_preprocess(modl, ex, value)
+    return pipeline_preprocess_deprecated(modl, ex, value)
 end
 
-function pipeline_(modl, ex, kw_ex)
+function pipeline_deprecated_(modl, ex, kw_ex)
+
+    Base.depwarn("Using deprecated @pipeline syntax. "*
+                 "New syntax:\n   @pipeline model1 model2 ... \n "*
+                 "Query the docstring or see manual for options and "*
+                 "further details. ", Symbol("@pipeline"))
 
     (pipetype_, fieldnames_, models_, models_and_functions_,
      target_, inverse_, kind, trait_value_given_name_) =
-         pipeline_preprocess(modl, ex, kw_ex)
+         pipeline_preprocess_deprecated(modl, ex, kw_ex)
 
-    if kind === :UnsupervisedNetwork
+    if kind === :UnsupervisedComposite
         ys_ = :nothing
     else
         ys_ = :(source(kind=:target))
@@ -246,90 +273,61 @@ function pipeline_(modl, ex, kw_ex)
         ws_ = nothing
     end
 
-    N_ex = quote
-
-        MLJBase.linear_learning_network(source(nothing), $ys_, $ws_,
-                                    $target_, $inverse_,
-                                    $(models_and_functions_...))
+    if kind == :DeterministicComposite
+        super_type = Deterministic
+    elseif kind == :ProbabilisticComposite
+        super_type = Probabilistic
+    else
+        super_type = Unsupervised
     end
 
-    from_network_(modl, pipetype_, fieldnames_, models_, N_ex,
-                  kind, trait_value_given_name_)
+    mach_ = quote
+        MLJBase.linear_learning_network_machine($super_type,
+                                                source(nothing), $ys_, $ws_,
+                                                $target_, $inverse_,
+                                                true,
+                                                predict,
+                                                $(models_and_functions_...))
+    end
+
+    field_declarations =
+        [:($(fieldnames_[j])=$(models_[j])) for j in eachindex(models_)]
+
+    supertype_ = _exported_type(modl.eval(mach_).model)
+
+    struct_ = :(mutable struct $pipetype_ <: $supertype_
+                        $(field_declarations...)
+                    end)
+
+    no_fields = length(models_) == 0
+
+    from_network_(modl,
+                  mach_,
+                  pipetype_,
+                  struct_,
+                  no_fields,
+                  trait_value_given_name_)
+
+    # N_ex = quote
+
+    #     MLJBase.linear_learning_network(source(nothing), $ys_, $ws_,
+    #                                 $target_, $inverse_,
+    #                                 $(models_and_functions_...))
+    # end
+
+    # from_network_(modl, pipetype_, fieldnames_, models_, N_ex,
+    #               kind, trait_value_given_name_)
 
     return pipetype_
 
 end
 
-pipeline_(modl, ex) = pipeline_(modl, ex, :(is_probabilistic=missing))
+pipeline_deprecated_(modl, ex) =
+    pipeline_deprecated_(modl, ex, :(is_probabilistic=missing))
 
-"""
-    @pipeline NewPipeType(fld1=model1, fld2=model2, ...)
-    @pipeline NewPipeType(fld1=model1, fld2=model2, ...) prediction_type=:probabilistic
+macro pipeline_deprecated(exs...)
 
-Create a new pipeline model type `NewPipeType` that composes the types of
-the specified models `model1`, `model2`, ... . The models are composed
-in the specified order, meaning the input(s) of the pipeline goes to
-`model1`, whose output is sent to `model2`, and so forth.
-
-At most one of the models may be a supervised model, in which case
-`NewPipeType` is supervised. Otherwise it is unsupervised.
-
-The new model type `NewPipeType` has hyperparameters (fields) named
-`:fld1`, `:fld2`, ..., whose default values for an automatically
-generated keyword constructor are deep copies of `model1`, `model2`,
-... .
-
-*Important.* If the overall pipeline is supervised and makes
-probabilistic predictions, then one must declare
-`prediction_type=:probabilistic`. In the deterministic case no
-declaration is necessary.
-
-Static (unlearned) transformations - that is, ordinary functions - may
-also be inserted in the pipeline as shown in the following example
-(the classifier is probabilistic but the pipeline itself is
-deterministic):
-
-    @pipeline MyPipe(X -> coerce(X, :age=>Continuous),
-                     hot=OneHotEncoder(),
-                     cnst=ConstantClassifier(),
-                     yhat -> mode.(yhat))
-
-### Return value
-
-An instance of the new type, with default
-hyperparameters (see above), is returned.
-
-### Target transformation and inverse transformation
-
-A learned target transformation (such as standardization) can also be
-specified, using the keyword `target`, provided the transformer
-provides an `inverse_transform` method:
-
-    @load KNNRegressor
-    @pipeline MyPipe(hot=OneHotEncoder(),
-                     knn=KNNRegressor(),
-                     target=UnivariateTransformer())
-
-A static transformation can be specified instead, but then
-an `inverse` must also be given:
-
-    @load KNNRegressor
-    @pipeline MyPipe(hot=OneHotEncoder(),
-                     knn=KNNRegressor(),
-                     target = v -> log.(v),
-                     inverse = v -> exp.(v))
-
-*Important.* While the supervised model in a pipeline providing a
- target transformation can appear anywhere in the pipeline (as in
- `ConstantClassifier` example above), the inverse operation is always
- performed on the output of the *final* model or static
- transformation in the pipeline.
-
-See also: [`@from_network`](@ref)
-
-"""
-macro pipeline(exs...)
-    pipetype_ = pipeline_(__module__, exs...)
+    pipetype_ = pipeline_deprecated_(__module__, exs...)
 
     esc(quote
         $pipetype_()

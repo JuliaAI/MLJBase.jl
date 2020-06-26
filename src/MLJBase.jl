@@ -8,6 +8,7 @@ import Base.+, Base.*
 
 # Scitype
 import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
+import ScientificTypes
 using MLJScientificTypes
 using MLJModelInterface
 
@@ -18,6 +19,9 @@ import MLJModelInterface: fit, update, update_data, transform,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
     params
+
+# Macros
+using Parameters
 
 # Containers & data manipulation
 using Tables
@@ -50,7 +54,7 @@ const Dist = Distributions
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # ===================================================================
-## METHOD EXPORTS
+## EXPORTS
 
 # -------------------------------------------------------------------
 # re-exports from MLJModelInterface, (MLJ)ScientificTypes
@@ -60,8 +64,14 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
-       Probabilistic, Deterministic, Interval, Static,
-       UnivariateFinite
+    Probabilistic, Deterministic, Interval, Static,
+    ProbabilisticComposite, DeterministicComposite,
+    IntervalComposite, UnsupervisedComposite, StaticComposite,
+    ProbabilisticSurrogate, DeterministicSurrogate,
+    IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
+    Surrogate, Composite
+
+export UnivariateFinite
 
 # MLJType equality
 export is_same_except
@@ -73,6 +83,9 @@ export @mlj_model, metadata_pkg, metadata_model
 export fit, update, update_data, transform, inverse_transform,
        fitted_params, predict, predict_mode, predict_mean, predict_median,
        evaluate, clean!
+
+# model/measure matching:
+export Checker, matching
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
@@ -95,9 +108,11 @@ export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
 
 # -------------------------------------------------------------------
-# exports from MLJBase
+# exports from this module, MLJBase
 
-export DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork, @load
+export DeterministicComposite,
+    ProbabilisticComposite,
+    UnsupervisedComposite, @load
 
 # computational_resources.jl:
 export default_resource
@@ -116,7 +131,7 @@ export @set_defaults, flat_values, recursive_setproperty!,
        recursive_getproperty, pretty, unwind
 
 # show.jl
-export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
+export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 
 # univariate_finite/
 export average, UnivariateFiniteArray, UnivariateFiniteVector
@@ -130,21 +145,26 @@ export load_boston, load_ames, load_iris,
        @load_boston, @load_ames, @load_iris,
        @load_reduced_ames, @load_crabs, @load_smarket
 
-# machines.jl:
-export machine, Machine, AbstractMachine, fit!, report
+# sources.jl:
+export source, Source, CallableReturning
 
-# networks.jl:
-export NodalMachine,  machines, source, node,sources, origins,
-    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode, Source
+# machines.jl:
+export machine, Machine, fit!, report, fit_only!
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
-# composites.jl:
-export machines, sources, anonymize!, @from_network, fitresults
+# composition:
+export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
+    glb, @tuple, node, @node, sources, origins,
+    nrows_at_source, machine,
+    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
+    DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
+    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
 
-# pipelines.jl:
-export @pipeline
+# aliases to the above,  kept for backwards compatibility:
+export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
+
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
@@ -244,7 +264,6 @@ include("init.jl")
 include("utilities.jl")
 include("show.jl")
 include("info_dict.jl")
-
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 
@@ -252,17 +271,25 @@ include("univariate_finite/types.jl")
 include("univariate_finite/methods.jl")
 include("univariate_finite/arrays.jl")
 
+include("sources.jl")
 include("machines.jl")
 
-include("composition/networks.jl")
-include("composition/composites.jl")
-include("composition/pipelines.jl")
-include("composition/pipeline_static.jl")
+include("composition/abstract_types.jl")
+include("composition/learning_networks/nodes.jl")
+include("composition/learning_networks/inspection.jl")
+include("composition/learning_networks/machines.jl")
 @static if VERSION ≥ v"1.3.0-"
-    include("composition/arrows.jl")
+    include("composition/learning_networks/arrows.jl")
 end
-include("operations.jl")
 
+include("composition/models/methods.jl")
+include("composition/models/from_network.jl")
+include("composition/models/inspection.jl")
+include("composition/models/pipelines.jl")
+include("composition/models/deprecated.jl")
+include("composition/models/_wrapped_function.jl")
+
+include("operations.jl")
 include("resampling.jl")
 
 include("hyperparam/one_dimensional_ranges.jl")
@@ -272,8 +299,9 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
+include("matching.jl")
 include("measures/measures.jl")
-include("measures/registry.jl")
+include("measures/measure_search.jl")
 
 include("openml.jl")
 
