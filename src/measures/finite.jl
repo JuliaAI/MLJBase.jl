@@ -415,7 +415,7 @@ struct AUC <: Measure end
 
 metadata_measure(AUC;
     name                     = "area_under_curve",
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :probabilistic,
     orientation              = :score,
     reports_each_observation = false,
@@ -502,7 +502,7 @@ struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
 FScore{β}(; rev=nothing) where β = FScore{β}(rev)
 
 metadata_measure(FScore;
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -530,7 +530,7 @@ for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
 end
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -539,7 +539,7 @@ metadata_measure.((FalsePositive, FalseNegative);
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -547,7 +547,7 @@ metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
     supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -556,7 +556,7 @@ metadata_measure.((TruePositive, TrueNegative);
     supports_weights         = false)
 
 metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, NPV);
-    target_scitype           = Vec{<:Finite},
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,

@@ -53,6 +53,7 @@ end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
+    @test include("measures/measure_search.jl")
 end
 
 @testset "resampling" begin
@@ -65,14 +66,27 @@ end
     @test include("data/datasets_synthetic.jl")
 end
 
-@testset "machines+composition" begin
-    @test include("machines.jl")
-    @test include("composition/composites.jl")
-    @test include("composition/pipelines.jl")
-    @test include("composition/pipeline_static.jl")
-    @test include("composition/networks.jl")
+@testset "sources" begin
+    @test include("sources.jl")
+end
 
-    VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
+@testset "machines" begin
+    @test include("machines.jl")
+end
+
+@testset "composition" begin
+    @test include("composition/learning_networks/nodes.jl")
+    @test include("composition/learning_networks/inspection.jl")
+    @test include("composition/learning_networks/machines.jl")
+    VERSION ≥ v"1.3.0-" &&
+        @test include("composition/learning_networks/arrows.jl")
+    @test include("composition/models/methods.jl")
+    @test include("composition/models/from_network.jl")
+    @test include("composition/models/inspection.jl")
+    @test include("composition/models/pipelines.jl")
+    @test include("composition/models/_wrapped_function.jl")
+    @test include("composition/models/static_transformers.jl")
+    @test include("composition/models/deprecated.jl")
 end
 
 @testset "operations.jl" begin

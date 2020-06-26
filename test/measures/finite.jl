@@ -183,7 +183,7 @@ end
         m isa Precision  && (@test e.name == "positive_predictive_value")
         m == f1score     && (@test e.name == "FScore{1}")
         m == specificity && (@test e.name == "true_negative_rate")
-        @test e.target_scitype == AbstractVector{<:Finite}
+        @test e.target_scitype <: AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
         @test e.reports_each_observation == false
@@ -196,7 +196,7 @@ end
     end
     e = info(auc)
     @test e.name == "area_under_curve"
-    @test e.target_scitype == AbstractVector{<:Finite}
+    @test e.target_scitype == AbstractVector{<:Finite{2}}
     @test e.prediction_type == :probabilistic
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false
