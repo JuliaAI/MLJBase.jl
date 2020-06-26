@@ -15,3 +15,5 @@ ms = map(measures(matching(rand(3)))) do m
 end
 @test !("cross_entropy" in ms)
 @test "rms"  in ms
+
+true
