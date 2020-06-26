@@ -124,7 +124,76 @@ end
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
-`args`. See the MLJ documentation for details.
+`args`. When building a learning network, `Node` objects can be
+substituted for concrete data.
+
+    machine(Xs; oper1=node1, oper2=node2, ...)
+    machine(Xs, ys; oper1=node1, oper2=node2, ...)
+    machine(Xs, ys, ws; oper1=node1, oper2=node2, ...)
+
+Construct a special machine called a *learning network machine*, that
+"wraps" a learning network, usually in preparation to export the
+network as a stand-alone composite model type. The keyword arguments
+declare what nodes are called when operations, such as `predict` and
+`transform`, are called on the machine.
+
+In addition to the operations named in the constructor, the methods
+`fit!`, `report`, and `fitted_params` can be applied as usual to the
+machine constructed.
+
+    machine(Probablistic(), args...; kwargs...)
+    machine(Deterministic(), args...; kwargs...)
+    machine(Unsupervised(), args...; kwargs...)
+    machine(Static(), args...; kwargs...)
+
+Same as above, but specifying explicitly the kind of model the
+learning network is to meant to represent.
+
+Learning network machines are not to be confused with an ordinary
+machine that happens to be bound to a stand-alone composite model
+(i.e., an *exported* learning network).
+
+
+### Examples
+
+Supposing a supervised learning network's final predictions are
+obtained by calling a node `yhat`, then the code
+
+```julia
+mach = machine(Deterministic(), Xs, ys; predict=yhat)
+fit!(mach; rows=train)
+predictions = predict(mach, Xnew) # `Xnew` concrete data
+```
+
+is  equivalent to
+
+```julia
+fit!(yhat, rows=train)
+predictions = yhat(Xnew)
+```
+
+Here `Xs` and `ys` are the source nodes receiving, respectively, the
+input and target data.
+
+In a unsupervised learning network for clustering, with single source
+node `Xs` for inputs, and in which the node `Xout` delivers the output
+of dimension reduction, and `yhat` the class labels, one can write
+
+```julia
+mach = machine(Unsupervised(), Xs; transform=Xout, predict=yhat)
+fit!(mach)
+transformed = transform(mach, Xnew) # `Xnew` concrete data
+predictions = predict(mach, Xnew)
+```
+
+which is equivalent to
+
+```julia
+fit!(Xout)
+fit!(yhat)
+transformed = Xout(Xnew)
+predictions = yhat(Xnew)
+```
 
 """
 function machine end
