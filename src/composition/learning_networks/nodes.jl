@@ -163,7 +163,9 @@ end
          acceleration=CPU1())
 
 Train all machines required to call the node `N`, in an appropriate
-order. These machines are those returned by `machines(N)`.
+order.  These machines are those returned by
+`machines(N)`.
+
 
 """
 fit!(y::Node; acceleration=CPU1(), kwargs...) =

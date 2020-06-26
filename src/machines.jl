@@ -1,8 +1,6 @@
 ## MACHINE TYPE
 
-abstract type AbstractMachine{M} <: MLJType end
-
-mutable struct Machine{M<:Model} <: AbstractMachine{M}
+mutable struct Machine{M<:Model} <: MLJType
 
     model::M
     old_model::M # for remembering the model used in last call to `fit!`
@@ -376,6 +374,18 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
     return mach
 end
 
+"""
+
+    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
+
+Fit the machine `mach`. In the case that `mach` has `Node` arguments,
+first train all other machines on which `mach` depends. 
+
+To attempt to fit a machine without touching any other machine, use
+`fit_only!`. For more on the internal logic of fitting see
+[`fit_only!`](@ref)
+
+"""
 function fit!(mach::Machine; kwargs...)
     glb_node = glb(mach.args...) # greatest lower bound node of arguments
     fit!(glb_node; kwargs...)
@@ -441,6 +451,7 @@ julia> fitted_params(mach).logistic_classifier
 (classes = CategoricalArrays.CategoricalValue{String,UInt32}["B", "O"],
  coefs = Pair{Symbol,Float64}[:FL => 3.7095037897680405, :RW => 0.1135739140854546, :CL => -1.6036892745322038, :CW => -4.415667573486482, :BD => 3.238476051092471],
  intercept = 0.0883301599726305,)
+```
 
 Additional keys, `machines` and `fitted_params_given_machine`, give a
 list of *all* machines in the underlying network, and a dictionary of
@@ -484,6 +495,8 @@ julia> report(mach).linear_binary_classifier
  dof_residual = 195.0,
  stderror = [18954.83496713119, 6502.845740757159, 48484.240246060406, 34971.131004997274, 20654.82322484894, 2111.1294584763386],
  vcov = [3.592857686311793e8 9.122732393971942e6 … -8.454645589364915e7 5.38856837634321e6; 9.122732393971942e6 4.228700272808351e7 … -4.978433790526467e7 -8.442545425533723e6; … ; -8.454645589364915e7 -4.978433790526467e7 … 4.2662172244975924e8 2.1799125705781363e7; 5.38856837634321e6 -8.442545425533723e6 … 2.1799125705781363e7 4.456867590446599e6],)
+
+```
 
 Additional keys, `machines` and `report_given_machine`, give a
 list of *all* machines in the underlying network, and a dictionary of

@@ -187,9 +187,11 @@ end
 
 """
 
-    @from_network mach mutable struct NewCompositeModel
+    @from_network mach [mutable] struct NewCompositeModel
            ...
     end
+
+or
 
     @from_network mach begin
         [mutable] struct NewCompositeModel
