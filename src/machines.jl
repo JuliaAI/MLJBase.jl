@@ -386,7 +386,7 @@ end
 # on the specified `machines` to fit:
 function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
 
-    wait_on_downstream || fit!_only(mach; kwargs...)
+    wait_on_downstream || fit_only!(mach; kwargs...)
 
     upstream_machines = machines(glb(mach.args...))
 
