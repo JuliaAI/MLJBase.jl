@@ -598,13 +598,12 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Here `func` is always going to be `get_measurements`; see later
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-
-   verbosity < 1 || (p = Progress(nfolds,
+   p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
                  barglyphs = BarGlyphs("[=> ]"),
                  barlen = 25,
-                 color = :yellow))
+                 color = :yellow)
 
    ret = mapreduce(vcat, 1:nfolds) do k
             r = func(mach, k)
@@ -622,15 +621,13 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
     local ret
     @sync begin
-        verbosity < 1 || begin
-                      p = Progress(nfolds,
-                     dt = 0,
-                     desc = "Evaluating over $nfolds folds: ",
-                     barglyphs = BarGlyphs("[=> ]"),
-                     barlen = 25,
-                     color = :yellow)
-                     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
-                     end
+      p = Progress(nfolds,
+         dt = 0,
+         desc = "Evaluating over $nfolds folds: ",
+         barglyphs = BarGlyphs("[=> ]"),
+         barlen = 25,
+         color = :yellow)
+     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
         # printing the progress bar
         verbosity < 1 || @async begin
                          while take!(channel)
@@ -644,7 +641,6 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
                  r = func(mach, k)
                  verbosity < 1 || begin
                                     put!(channel, true)
-                                   #yield()
                                   end
                  r
              end
@@ -667,16 +663,16 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
    end
    ntasks = accel.settings
    partitions = chunks(1:nfolds, ntasks)
-   verbosity < 1 || begin
-                    p = Progress(nfolds,
-                    dt = 0,
-                    desc = "Evaluating over $nfolds folds: ",
-                    barglyphs = BarGlyphs("[=> ]"),
-                    barlen = 25,
-                    color = :yellow)
-                    ch = Channel{Bool}(min(1000, length(partitions)))
-                 end
-   tasks = Vector{Task}(undef, length(partitions))
+
+   p = Progress(nfolds,
+                dt = 0,
+                desc = "Evaluating over $nfolds folds: ",
+                barglyphs = BarGlyphs("[=> ]"),
+                barlen = 25,
+                color = :yellow)
+    ch = Channel{Bool}(min(1000, length(partitions)))
+
+   results = Vector(undef, length(partitions))
 
    @sync begin
     # printing the progress bar
@@ -686,13 +682,13 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
                                 ProgressMeter.updateProgress!(p)
                               end
                         end
-
-    #One tmach for each task:
-       machines = [mach, [machine(mach.model, mach.args...)
-                          for _ in 2:length(partitions)]...]
+   clean!(mach.model)
+   #One tmach for each task:
+       machines = [mach, [machine(mach.model, mach.args...) for
+                          _ in 2:length(partitions)]...]
    @sync for (i, parts) in enumerate(partitions)
-     tasks[i] = Threads.@spawn begin
-       z = mapreduce(vcat, parts) do k
+     Threads.@spawn begin
+       results[i] = mapreduce(vcat, parts) do k
             r = func(machines[i], k)
             verbosity < 1 || put!(ch, true)
             r
@@ -704,7 +700,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
      verbosity < 1 || put!(ch, false)
 
     end
-    reduce(vcat, fetch.(tasks))
+    reduce(vcat, results)
 end
 
 end
@@ -778,7 +774,7 @@ function evaluate!(mach::Machine, resampling, weights,
     per_observation = map(1:nmeasures) do k
         m = measures[k]
         if reports_each_observation(m)
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         else
             missing
         end
@@ -790,7 +786,7 @@ function evaluate!(mach::Machine, resampling, weights,
         if reports_each_observation(m)
             broadcast(MLJBase.aggregate, per_observation[k], [m,])
         else
-            [measurements_matrix[:,k]...]
+            measurements_matrix[:,k]
         end
     end
 
