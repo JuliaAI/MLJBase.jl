@@ -29,7 +29,7 @@ seed!(1234)
     ytrain = y[train];
 
     Xs = source(Xtrain);
-    ys = source(ytrain, kind=:target);
+    ys = source(ytrain);
 
     knn1 = machine(knn_, Xs, ys)
     @test_mach_sequence fit_only!(knn1) [(:train, knn1),]
@@ -170,10 +170,13 @@ end
 
     # error handling:
     MLJBase.rebind!(X, "junk")
-    @test_throws Exception fit!(yhat)
+    @test_logs((:info, r"Not"),
+               (:info, r"Not"),
+               (:error, r"Problem"),
+               (:error, r"Problem"),
+               @test_throws Exception fit!(yhat))
 
 end
-
 
 @testset "network #3" begin
 
@@ -229,6 +232,48 @@ end
     @test_mach_sequence(fit!(yhat),
                    [(:skip, uscale), (:skip, scale), (:update, knn)],
                    [(:skip, scale), (:skip, uscale), (:update, knn)])
+end
+
+@testset "network with machines sharing one model" begin
+
+    N =100
+    X = (x1=rand(N), x2=rand(N), x3=rand(N))
+    y = 2X.x1  - X.x2 + 0.05*rand(N)
+
+    XX = source(X)
+    yy = source(y)
+
+    # construct a transformer to standardize the target:
+    uscale_ = UnivariateStandardizer()
+    uscale = machine(uscale_, yy)
+
+    # get the transformed inputs, as if `uscale` were already fit:
+    z = transform(uscale, yy)
+
+    # construct a transformer to standardize the inputs:
+    xscale_ = Standardizer()
+    xscale = machine(xscale_, XX) # no need to fit
+
+    # get the transformed inputs, as if `scale` were already fit:
+    Xt = transform(xscale, XX)
+
+    # choose a learner and make two machines from it:
+    knn_ = KNNRegressor(K=7) # just a container for hyperparameters
+    knn1 = machine(knn_, Xt, z) # no need to fit
+    knn2 = machine(knn_, Xt, z) # no need to fit
+
+    # get the predictions, as if `knn` already fit:
+    zhat1 = predict(knn1, Xt)
+    zhat2 = predict(knn2, Xt)
+    zhat = zhat1 + zhat2
+
+    # inverse transform the target:
+    yhat = inverse_transform(uscale, zhat)
+
+    fit!(yhat, verbosity=0)
+
+    θ = fitted_params(yhat)
+
 end
 
 @testset "overloading methods for AbstractNode" begin

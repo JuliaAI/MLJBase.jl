@@ -1,8 +1,6 @@
 ## MACHINE TYPE
 
-abstract type AbstractMachine{M} <: MLJType end
-
-mutable struct Machine{M<:Model} <: AbstractMachine{M}
+mutable struct Machine{M<:Model} <: MLJType
 
     model::M
     old_model::M # for remembering the model used in last call to `fit!`
@@ -54,7 +52,7 @@ function check(model::Supervised, args... ; full=false)
     nargs = length(args)
     if nargs == 2
         X, y = args
-    elseif nargs == 3
+    elseif nargs > 2
         supports_weights(model) ||
             @info("$(typeof(model)) does not support sample weights and " *
                   "the supplied weights will be ignored in training.\n" *
@@ -72,17 +70,17 @@ function check(model::Supervised, args... ; full=false)
         # checks on input type:
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, y)` or " *
-            "`machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(X) = $(scitype(X))\n" *
+            @warn "The scitype of `X`, in `machine(model, X, ...)` "
+            "is incompatible with " *
+            "`model`:\nscitype(X) = $(elscitype(X))\n" *
             "input_scitype(model) = $(input_scitype(model))."
 
         # checks on target type:
         target_scitype(model) <: Unknown ||
             elscitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y)` " *
-            "or `machine(model, X, y, w)` is incompatible with " *
-            "`model`:\nscitype(y) = $(scitype(y))\n" *
+            @warn "The scitype of `y`, in `machine(model, X, y, ...)` " *
+            "is incompatible with " *
+            "`model`:\nscitype(y) = $(elscitype(y))\n" *
             "target_scitype(model) = $(target_scitype(model))."
 
         # checks on dimension matching:
@@ -90,14 +88,14 @@ function check(model::Supervised, args... ; full=false)
             nrows(X()) == nrows(y()) ||
             throw(DimensionMismatch("Differing number of observations "*
                                     "in input and target. "))
-        if nargs == 3
-            w.data isa AbstractVector{<:Real} ||
+        if nargs > 2
+            w.data isa AbstractVector{<:Real} || w.data === nothing ||
                 throw(ArgumentError("Weights must be real."))
             nrows(w()) == nrows(y()) ||
                 throw(DimensionMismatch("Weights and target "*
                                         "differ in length."))
         end
-end
+    end
     return nothing
 end
 
@@ -107,24 +105,98 @@ function check(model::Unsupervised, args...; full=false)
         throw(ArgumentError("Wrong number of arguments. Use " *
                             "`machine(model, X)` for an unsupervised model, "*
                             "or `machine(model)` if there are no training "*
-                            "arguments (`Static` tranformers).) "))
+                            "arguments (`Static` transformers).) "))
     if full && nargs == 1
         X = args[1]
         # check input scitype
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
             @warn "The scitype of `X`, in `machine(model, X)` is "*
-        "incompatible with `model`:\nscitype(X) = $(scitype(X))\n" *
+        "incompatible with `model`:\nscitype(X) = $(elscitype(X))\n" *
             "input_scitype(model) = $(input_scitype(model))."
     end
     return nothing
 end
 
-wrap(::Unsupervised, X) = (source(X, kind=:input),)
-wrap(::Supervised, X, y) = (source(X), source(y, kind=:target))
-wrap(::Supervised, X, y, w) = (source(X),
-                               source(y, kind=:target),
-                               source(w, kind=:weights))
+
+"""
+    machine(model, args...)
+
+Construct a `Machine` object binding a `model`, storing
+hyper-parameters of some machine learning algorithm, to some data,
+`args`. When building a learning network, `Node` objects can be
+substituted for concrete data.
+
+    machine(Xs; oper1=node1, oper2=node2, ...)
+    machine(Xs, ys; oper1=node1, oper2=node2, ...)
+    machine(Xs, ys, ws; oper1=node1, oper2=node2, ...)
+
+Construct a special machine called a *learning network machine*, that
+"wraps" a learning network, usually in preparation to export the
+network as a stand-alone composite model type. The keyword arguments
+declare what nodes are called when operations, such as `predict` and
+`transform`, are called on the machine.
+
+In addition to the operations named in the constructor, the methods
+`fit!`, `report`, and `fitted_params` can be applied as usual to the
+machine constructed.
+
+    machine(Probablistic(), args...; kwargs...)
+    machine(Deterministic(), args...; kwargs...)
+    machine(Unsupervised(), args...; kwargs...)
+    machine(Static(), args...; kwargs...)
+
+Same as above, but specifying explicitly the kind of model the
+learning network is to meant to represent.
+
+Learning network machines are not to be confused with an ordinary
+machine that happens to be bound to a stand-alone composite model
+(i.e., an *exported* learning network).
+
+
+### Examples
+
+Supposing a supervised learning network's final predictions are
+obtained by calling a node `yhat`, then the code
+
+```julia
+mach = machine(Deterministic(), Xs, ys; predict=yhat)
+fit!(mach; rows=train)
+predictions = predict(mach, Xnew) # `Xnew` concrete data
+```
+
+is  equivalent to
+
+```julia
+fit!(yhat, rows=train)
+predictions = yhat(Xnew)
+```
+
+Here `Xs` and `ys` are the source nodes receiving, respectively, the
+input and target data.
+
+In a unsupervised learning network for clustering, with single source
+node `Xs` for inputs, and in which the node `Xout` delivers the output
+of dimension reduction, and `yhat` the class labels, one can write
+
+```julia
+mach = machine(Unsupervised(), Xs; transform=Xout, predict=yhat)
+fit!(mach)
+transformed = transform(mach, Xnew) # `Xnew` concrete data
+predictions = predict(mach, Xnew)
+```
+
+which is equivalent to
+
+```julia
+fit!(Xout)
+fit!(yhat)
+transformed = Xout(Xnew)
+predictions = yhat(Xnew)
+```
+
+"""
+function machine end
 
 machine(T::Type{<:Model}, args...) =
     throw(ArgumentError("Model *type* provided where "*
@@ -154,7 +226,7 @@ machine(model::Model, arg1::AbstractNode, arg2, args...) =
           "is not allowed. ")
 
 function machine(model::Model, raw_arg1, raw_args...)
-    args = wrap(model, raw_arg1, raw_args...)
+    args = source.((raw_arg1, raw_args...))
     check(model, args...; full=true)
     return Machine(model, args...)
 end
@@ -207,32 +279,17 @@ function Base.show(io::IO, ::MIME"text/plain", mach::Machine)
     else
         println(io, "s.")
     end
-    println("  args: ")
+    println(io, "  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
-        println(io, "    $i:\t$arg")
+        print(io, "    $i:\t$arg")
+        if arg isa Source
+            println(io, " \u23CE `$(elscitype(arg))`")
+        else
+            println(io)
+        end
     end
 end
-
-# function Base.show(stream::IO, ::MIME"text/plain", machine::Machine)
-#     id = objectid(machine)
-# #    description = string(typeof(machine).name.name)
-# #    str = "$description @ $(handle(machine))"
-# #    printstyled(IOContext(stream, :color=>SHOW_COLOR), str, bold=SHOW_COLOR)
-#     print(stream, "machine($(machine.model)")
-#     isempty(machine.args) || print(stream, ", ")
-#     n_args = length(machine.args)
-#     counter = 1
-#     for arg in machine.args
-#         printstyled(IOContext(stream,
-#                               :color=>SHOW_COLOR),
-#                     handle(arg),
-#                     color=color(arg))
-#         counter >= n_args || print(stream, ", ")
-#         counter += 1
-#     end
-#     print(stream, ") ", handle(machine))
-# end
 
 
 ## FITTING
@@ -386,6 +443,18 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
     return mach
 end
 
+"""
+
+    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
+
+Fit the machine `mach`. In the case that `mach` has `Node` arguments,
+first train all other machines on which `mach` depends. 
+
+To attempt to fit a machine without touching any other machine, use
+`fit_only!`. For more on the internal logic of fitting see
+[`fit_only!`](@ref)
+
+"""
 function fit!(mach::Machine; kwargs...)
     glb_node = glb(mach.args...) # greatest lower bound node of arguments
     fit!(glb_node; kwargs...)
@@ -396,7 +465,7 @@ end
 # on the specified `machines` to fit:
 function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
 
-    wait_on_downstream || fit!_only(mach; kwargs...)
+    wait_on_downstream || fit_only!(mach; kwargs...)
 
     upstream_machines = machines(glb(mach.args...))
 
@@ -414,6 +483,7 @@ function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
         fit_only!(mach; kwargs...)
     catch e
         put!(mach.fit_okay, false)
+        @error "Problem fitting $mach"
         throw(e)
     end
     put!(mach.fit_okay, true)
@@ -432,30 +502,30 @@ Return the learned parameters for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `fitted_params_given_machine`, whose
-corresponding values are a vector of machines appearing in the
-underlying learning network, and a dictionary of reports keyed on
-those machines.
+If `mach` is a machine for a composite model, such as a model
+constructed using `@pipeline`, then the returned named tuple has the
+composite type's field names as keys. The corresponding value is the
+fitted parameters for the machine in the underlying learning network
+bound to that model. (If multiple machines share the same model, then the
+value is a vector.)
 
 ```julia
 using MLJ
+@load LogisticClassifier pkg=MLJLinearModels
 X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-fp = fitted_params(mach)
-machs = fp.machines
-2-element Array{Any,1}:
- Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
- Machine{Standardizer} @ 7…33
+pipe = @pipeline Standardizer LogisticClassifier
+mach = machine(pipe, X, y) |> fit!
 
-fp.fitted_params_given_machine[machs[1]]
-(coef = [121.05433477939319, 1.5863921128182814,
-         61.0770377473622, -233.42699281787324, 72.74253591435117],
- intercept = 10.384459260848505,)
+julia> fitted_params(mach).logistic_classifier
+(classes = CategoricalArrays.CategoricalValue{String,UInt32}["B", "O"],
+ coefs = Pair{Symbol,Float64}[:FL => 3.7095037897680405, :RW => 0.1135739140854546, :CL => -1.6036892745322038, :CW => -4.415667573486482, :BD => 3.238476051092471],
+ intercept = 0.0883301599726305,)
+```
+
+Additional keys, `machines` and `fitted_params_given_machine`, give a
+list of *all* machines in the underlying network, and a dictionary of
+fitted parameters keyed on those machines.
+
 ```
 
 """
@@ -475,32 +545,32 @@ Return the report for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `report_given_machine`, whose corresponding
-values are a vector of machines appearing in the underlying learning
-network, and a dictionary of reports keyed on those machines.
+If `mach` is a machine for a composite model, such as a model
+constructed using `@pipeline`, then the returned named tuple has the
+composite type's field names as keys. The corresponding value is the
+report for the machine in the underlying learning network
+bound to that model. (If multiple machines share the same model, then the
+value is a vector.)
 
 ```julia
 using MLJ
+@load LinearBinaryClassifier pkg=GLM
 X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-r = report(mach)
-r.machines
-2-element Array{Any,1}:
- Machine{LinearBinaryClassifier{LogitLink}} @ 1…57
- Machine{Standardizer} @ 7…33
+pipe = @pipeline Standardizer LinearBinaryClassifier
+mach = machine(pipe, X, y) |> fit!
 
-r.report_given_machine[machs[1]]
+julia> report(mach).linear_binary_classifier
 (deviance = 3.8893386087844543e-7,
  dof_residual = 195.0,
- stderror = [18954.83496713119, ..., 2111.1294584763386],
- vcov = [3.592857686311793e8 ... .442545425533723e6;
-         ...
-         5.38856837634321e6 ... 2.1799125705781363e7 4.456867590446599e6],)
+ stderror = [18954.83496713119, 6502.845740757159, 48484.240246060406, 34971.131004997274, 20654.82322484894, 2111.1294584763386],
+ vcov = [3.592857686311793e8 9.122732393971942e6 … -8.454645589364915e7 5.38856837634321e6; 9.122732393971942e6 4.228700272808351e7 … -4.978433790526467e7 -8.442545425533723e6; … ; -8.454645589364915e7 -4.978433790526467e7 … 4.2662172244975924e8 2.1799125705781363e7; 5.38856837634321e6 -8.442545425533723e6 … 2.1799125705781363e7 4.456867590446599e6],)
+
+```
+
+Additional keys, `machines` and `report_given_machine`, give a
+list of *all* machines in the underlying network, and a dictionary of
+reports keyed on those machines.
+
 ```
 
 """

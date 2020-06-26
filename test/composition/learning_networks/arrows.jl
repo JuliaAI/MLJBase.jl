@@ -120,7 +120,7 @@ end
     knn = @load KNNRegressor
 
     XXs = source(XX)
-    yys = source(yy, kind=:target)
+    yys = source(yy)
 
     f(X::AbstractNode) = node(f, X)
     WW = XXs |> f |> Standardizer()

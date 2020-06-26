@@ -20,6 +20,9 @@ import MLJModelInterface: fit, update, update_data, transform,
     save, restore, is_same_except, istransparent,
     params
 
+# Macros
+using Parameters
+
 # Containers & data manipulation
 using Tables
 import PrettyTables
@@ -51,7 +54,7 @@ const Dist = Distributions
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # ===================================================================
-## METHOD EXPORTS
+## EXPORTS
 
 # -------------------------------------------------------------------
 # re-exports from MLJModelInterface, (MLJ)ScientificTypes
@@ -61,8 +64,14 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
-       Probabilistic, Deterministic, Interval, Static,
-    UnivariateFinite
+    Probabilistic, Deterministic, Interval, Static,
+    ProbabilisticComposite, DeterministicComposite,
+    IntervalComposite, UnsupervisedComposite, StaticComposite,
+    ProbabilisticSurrogate, DeterministicSurrogate,
+    IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
+    Surrogate, Composite
+
+export UnivariateFinite
 
 # MLJType equality
 export is_same_except
@@ -74,6 +83,9 @@ export @mlj_model, metadata_pkg, metadata_model
 export fit, update, update_data, transform, inverse_transform,
        fitted_params, predict, predict_mode, predict_mean, predict_median,
        evaluate, clean!
+
+# model/measure matching:
+export Checker, matching
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
@@ -145,7 +157,7 @@ export make_blobs, make_moons, make_circles, make_regression
 # composition:
 export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
     glb, @tuple, node, @node, sources, origins,
-    nrows_at_source, machine!,
+    nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
     DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
@@ -272,8 +284,10 @@ end
 
 include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
+include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
-include("composition/models/pipeline_static.jl")
+include("composition/models/deprecated.jl")
+include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
 include("resampling.jl")
@@ -285,8 +299,9 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
+include("matching.jl")
 include("measures/measures.jl")
-include("measures/registry.jl")
+include("measures/measure_search.jl")
 
 include("openml.jl")
 
