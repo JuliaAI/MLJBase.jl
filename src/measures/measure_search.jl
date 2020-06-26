@@ -33,15 +33,32 @@ end
 
 ## QUERYING MEASURES
 
+## For using `matching(y)` or `matching(X, y)` as a filter.
+
+(f::Checker{false,false,yS,missing})(m) where yS =
+    yS <: m.target_scitype
+
+(f::Checker{true,false,XS,yS})(m) where {XS,yS} =
+    yS <: m.target_scitype
+
+(f::Checker{true,true,XS,yS})(m) where {XS,yS} =
+    yS <: m.target_scitype &&
+    m.supports_weights
+
+
 """
     measures()
 
 List all measures as named-tuples keyed on measure traits.
 
-    measures(conditions...)
+    measures(filters...)
 
-List all measures satisifying the specified `conditions`. A *condition*
-is any `Bool`-valued function on the named-tuples.
+List all measures `m` for which `filter(m)` is true, for each `filter`
+in `filters`.
+
+    measures(matching(y))
+
+List all measures compatible with the target `y`.
 
 
 ### Example
@@ -50,6 +67,11 @@ Find all classification measures supporting sample weights:
 
     measures(m -> m.target_scitype <: AbstractVector{<:Finite} &&
                   m.supports_weights)
+
+Find all classification measures where the number of classes is three:
+
+    y  = categorical(1:3)
+    measures(matching(y))
 
 """
 function measures(conditions...)

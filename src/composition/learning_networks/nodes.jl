@@ -328,23 +328,23 @@ const node = Node
     @node f(...)
 
 Construct a new node that applies the function `f` to some combination
-of nodes, sources and other arguments.
+of nodes, sources and other arguments. Can only be called in places
+that have `AbstractNode` in global scope.
 
 ### Examples
 
+```
 X = source(π)
 W = @node sin(X)
-
 julia> W()
 0
 
 X = source(1:10)
 Y = @node selectrows(X, 3:4)
-
 julia> Y()
 3:4
 
-julia>Y([:one, :two, :three, :four])
+julia> Y([:one, :two, :three, :four])
 2-element Array{Symbol,1}:
  :three
  :four
@@ -353,9 +353,10 @@ X1 = source(4)
 X2 = source(5)
 add(a, b, c) = a + b + c
 N = @node add(X1, 1, X2)
-
 julia> N()
 10
+
+```
 
 See also [`node`](@ref)
 

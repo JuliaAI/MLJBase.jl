@@ -54,7 +54,7 @@ const Dist = Distributions
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # ===================================================================
-## METHOD EXPORTS
+## EXPORTS
 
 # -------------------------------------------------------------------
 # re-exports from MLJModelInterface, (MLJ)ScientificTypes
@@ -83,6 +83,9 @@ export @mlj_model, metadata_pkg, metadata_model
 export fit, update, update_data, transform, inverse_transform,
        fitted_params, predict, predict_mode, predict_mean, predict_median,
        evaluate, clean!
+
+# model/measure matching:
+export Checker, matching
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
@@ -296,8 +299,9 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
+include("matching.jl")
 include("measures/measures.jl")
-include("measures/registry.jl")
+include("measures/measure_search.jl")
 
 include("openml.jl")
 

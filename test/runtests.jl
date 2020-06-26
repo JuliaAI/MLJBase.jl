@@ -53,6 +53,7 @@ end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
+    @test include("measures/measure_search.jl")
 end
 
 @testset "resampling" begin
