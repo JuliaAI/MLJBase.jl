@@ -60,6 +60,10 @@ in `filters`.
 
 List all measures compatible with the target `y`.
 
+    measures(needle::Union{AbstractString,Regex}
+
+List all measures with `needle` in a measure's `name` or `docstring`.
+
 
 ### Example
 
@@ -73,6 +77,10 @@ Find all classification measures where the number of classes is three:
     y  = categorical(1:3)
     measures(matching(y))
 
+Find all measures in the `rms` family:
+
+    measures("rms")
+
 """
 function measures(conditions...)
     all_measures = map(info, MEASURE_TYPES)
@@ -80,5 +88,12 @@ function measures(conditions...)
         all(c(measure) for c in conditions)
     end
 end
+
+function measures(needle::Union{AbstractString,Regex})
+    f = m -> occursin(needle, m.name) ||
+        occursin(needle, m.docstring)
+    return MLJBase.measures(f)
+end
+
 
 measures() = measures(x->true)
