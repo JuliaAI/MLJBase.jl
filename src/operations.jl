@@ -22,26 +22,33 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform)
-    ex = quote
-        # 0. operations on machs, given empty data:
-        function $(operation)(mach::Machine; rows=:)
-            Base.depwarn("`$($operation)(mach)` and "*
-                         "`$($operation)(mach, rows=...)` are "*
-                         "deprecated. Data or nodes "*
-                         "must be explictly specified, "*
-                         "as in `$($operation)(mach, X)`. ",
-                         Base.Core.Typeof($operation).name.mt.name)
-            if isempty(mach.args) # deserialized machine with no data
-                throw(ArgumentError("Calling $($operation) on a "*
-                                    "deserialized machine with no data "*
-                                    "bound to it. "))
+const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
+                  :transform, :inverse_transform)
+
+for operation in OPERATIONS
+
+    if operation != :inverse_transform
+
+        ex = quote
+            # 0. operations on machs, given empty data:
+            function $(operation)(mach::Machine; rows=:)
+                Base.depwarn("`$($operation)(mach)` and "*
+                             "`$($operation)(mach, rows=...)` are "*
+                             "deprecated. Data or nodes "*
+                             "should be explictly specified, "*
+                             "as in `$($operation)(mach, X)`. ",
+                             Base.Core.Typeof($operation).name.mt.name)
+                if isempty(mach.args) # deserialized machine with no data
+                    throw(ArgumentError("Calling $($operation) on a "*
+                                        "deserialized machine with no data "*
+                                        "bound to it. "))
+                end
+                return ($operation)(mach, mach.args[1](rows=rows))
             end
-            return ($operation)(mach, mach.args[1]())
         end
+        eval(ex)
+
     end
-    eval(ex)
 end
 
 for operation in (:inverse_transform,)
@@ -57,13 +64,14 @@ for operation in (:inverse_transform,)
     eval(ex)
 end
 
-for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform, :inverse_transform)
+for operation in OPERATIONS
+
     ex = quote
         # 1. operations on machines, given *concrete* data:
-        function $(operation)(mach::Machine{M}, Xraw) where M
+        function $(operation)(mach::Machine{M}, Xraw, Xraw_more...) where M
             if mach.state > 0 || M <: Static
-                return $(operation)(mach.model, mach.fitresult, Xraw)
+                return $(operation)(mach.model, mach.fitresult,
+                                    Xraw, Xraw_more...)
             else
                 error("$mach has not been trained.")
             end
@@ -73,8 +81,8 @@ for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
         $(operation)(mach::Machine, X::AbstractNode) =
             node($(operation), mach, X)
 
-        # 3. operations on composite models:
-        $(operation)(model::Composite, fitresult, X) =
+        # 3. operations on composite and surrogate models:
+        $(operation)(model::Union{Composite,Surrogate}, fitresult, X) =
             fitresult.$operation(X)
     end
     eval(ex)

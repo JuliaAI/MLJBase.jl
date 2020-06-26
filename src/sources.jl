@@ -13,36 +13,31 @@
 
 ## SOURCE TYPE
 
-const SOURCE_KINDS= [:input, :output, :target, :weights, :unknown]
-
 abstract type AbstractNode <: MLJType end
 abstract type CallableReturning{K} end # scitype for sources and nodes
 
 mutable struct Source <: AbstractNode
     data     # training data
-    kind::Symbol
     scitype::DataType
+    kind::Symbol
 end
 
+source_depwarn(func) = Base.depwarn(
+    "Source nodes are losing their `kind` "*
+    "attribute, which is ingored by all methods "*
+    "apart from the deprecated `fitresults` method. "*
+    "Roles of source nodes are now inferred from "*
+    "the order specified in learning network machine "*
+    "constructors. ", Base.Core.Typeof(func).name.mt.name)
+
 """
-    Xs = source(X)
-    ys = source(y, kind=:target)
-    ws = source(w, kind=:weight)
+    Xs = source(X=nothing)
 
-Define, respectively, learning network `Source` objects for wrapping
-some input data `X` (`kind=:input`), some target data `y`, or some
-sample weights `w`.  The values of each variable `X, y, w` can be
-anything, even `nothing`, if the network is for exporting as a
-stand-alone model only. For training and testing the unexported network,
-appropriate vectors, tables, or other data containers are expected.
-
-    Xs = source()
-    ys = source(kind=:target)
-    ws = source(kind=:weight)
-
-Define source nodes wrapping `nothing` instead of concrete data. Such
-definitions suffice when used in learning networks to be exported
-without testing.
+Define, a learning network `Source` object, wrapping some input data
+`X`, which can be `nothing` for purposes of exporting the network as
+stand-alone model. For training and testing the unexported
+network, appropriate vectors, tables, or other data containers are
+expected.
 
 The calling behaviour of a `Source` object is this:
 
@@ -54,16 +49,18 @@ See also: [`@from_network`](@ref], [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).
 
 """
-function source(X; kind=:input)
-    kind in SOURCE_KINDS ||
-        @warn "Source `kind` is not one of $SOURCE_KINDS. "
-    return Source(X, kind, scitype(X))
+function source(X; kind=nothing)
+    if !(kind == nothing)
+        source_depwarn(source)
+    else
+        kind = :input
+    end
+    return Source(X, scitype(X), kind)
 end
 
 source(X::Source; args...) = X
 source(; args...) = source(nothing; args...)
 
-kind(S::Source) = S.kind
 MLJScientificTypes.scitype(X::Source) = CallableReturning{X.scitype}
 ScientificTypes.elscitype(X::Source) = X.scitype
 nodes(X::Source) = [X, ]
@@ -80,20 +77,15 @@ end
 (X::Source)(Xnew) = Xnew
 
 """
-    rebind!(s, X; kind=nothing)
+    rebind!(s, X)
 
-Attach new data `X` to an existing source node `s` and optionally
-change it's kind.
+Attach new data `X` to an existing source node `s`. Not a public
+method.
 
 """
-function rebind!(s::Source, X; kind=nothing)
+function rebind!(s::Source, X)
     s.data = X
     s.scitype = scitype(X)
-    if kind != nothing
-        kind in SOURCE_KINDS ||
-            @warn "Source `kind` is not one of $SOURCE_KINDS. "
-        s.kind = kind
-    end
     return s
 end
 
@@ -102,17 +94,19 @@ origins(s::Source) = [s,]
 
 ## DISPLAY FOR SOURCES AND OTHER ABSTRACT NODES
 
-_extra(::Any) = ""
-_extra(S::Source) = " of kind `:$(S.kind)`"
+# show within other objects:
 function Base.show(stream::IO, object::AbstractNode)
     repr = simple_repr(typeof(object))
     str = "$repr $(handle(object))"
-    if !isempty(fieldnames(typeof(object)))
-        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+    printstyled(IOContext(stream, :color=> SHOW_COLOR),
                     str, bold=false, color=:blue)
-    else
-        print(stream, str)
-    end
-    print(stream, _extra(object), " returning `$(elscitype(object))`")
     return nothing
 end
+
+# show when alone:
+function Base.show(stream::IO, ::MIME"text/plain", source::Source)
+    show(stream, source)
+    print(stream, " \u23CE `$(elscitype(source))`")
+    return nothing
+end
+

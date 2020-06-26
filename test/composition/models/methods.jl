@@ -6,11 +6,12 @@ using Tables
 import MLJBase
 using ..Models
 using CategoricalArrays
+using OrderedCollections
 import Random.seed!
 seed!(1234)
 
 @testset "anonymize!" begin
-    ss  = [source(1, kind=:target), source(2), source(3)]
+    ss  = [source(1), source(2), source(3)]
     a = MLJBase.anonymize!(ss)
     @test all(s -> s.data === nothing, a.sources)
     @test a.data == (1, 2, 3)
@@ -34,6 +35,9 @@ selector_model = FeatureSelector()
                                                   transformer=selector_model)
 
     fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
+
+    # test data anonymity:
+    @test isempty(sources(fitresult[1])[1])
 
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
@@ -75,7 +79,7 @@ selector_model = FeatureSelector()
     predict(composite, fitresult, MLJBase.selectrows(Xin, test));
 
     Xs = source(Xtrain)
-    ys = source(ytrain, kind=:target)
+    ys = source(ytrain)
 
     mach = machine(composite, Xs, ys)
     yhat = predict(mach, Xs)
@@ -96,6 +100,44 @@ end
 #@testset "second test of hand-exported network" begin
     function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
         Xs = source(X)
+        ys = source(y)
+
+        stand = Standardizer()
+        standM = machine(stand, Xs)
+        W = transform(standM, Xs)
+
+        boxcox = UnivariateBoxCoxTransformer()
+        boxcoxM = machine(boxcox, ys)
+        z = transform(boxcoxM, ys)
+
+        ridgeM = machine(model.ridge, W, z)
+        zhat = predict(ridgeM, W)
+        yhat = inverse_transform(boxcoxM, zhat)
+
+        mach = machine(Deterministic(), Xs, ys; predict=yhat)
+        fit!(mach, verbosity=verbosity)
+        return mach()
+    end
+
+    MLJBase.input_scitype(::Type{<:WrappedRidge}) =
+        Table(Continuous)
+    MLJBase.target_scitype(::Type{<:WrappedRidge}) =
+        AbstractVector{<:Continuous}
+
+    ridge = FooBarRegressor(lambda=0.1)
+    model_ = WrappedRidge(ridge)
+    mach = machine(model_, Xin, yin)
+    id = objectid(mach)
+    fit!(mach)
+    @test  objectid(mach) == id  # *********
+    yhat=predict(mach, Xin);
+    ridge.lambda = 1.0
+    fit!(mach)
+    @test predict(mach, Xin) != yhat
+
+    # test depreciated version:
+    function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
+        Xs = source(X)
         ys = source(y, kind=:target)
 
         stand = Standardizer()
@@ -110,26 +152,16 @@ end
         zhat = predict(ridgeM, W)
         yhat = inverse_transform(boxcoxM, zhat)
 
-        mach = machine!(predict=yhat)
-        fit!(mach, verbosity=verbosity)
-        return mach.fitresult, mach.cache, mach.report
+        fit!(yhat)
+
+        return fitresults(yhat)
     end
-
-    MLJBase.input_scitype(::Type{<:WrappedRidge}) =
-        Table(Continuous)
-    MLJBase.target_scitype(::Type{<:WrappedRidge}) =
-        AbstractVector{<:Continuous}
-
     ridge = FooBarRegressor(lambda=0.1)
     model_ = WrappedRidge(ridge)
     mach = machine(model_, Xin, yin)
-    id = objectid(mach)
-    fit!(mach)
-    @test  objectid(mach) == id  # *********
-    yhat=predict(mach, Xin)
-    ridge.lambda = 1.0
-    fit!(mach)
-    @test predict(mach, Xin) != yhat
+    @test_deprecated fit!(mach)
+    @test yhat ≈ predict(mach, Xin);
+
 #end
 
 # A dummy clustering model:
@@ -157,18 +189,18 @@ mutable struct WrappedDummyClusterer <: UnsupervisedComposite
 end
 WrappedDummyClusterer(; model=DummyClusterer()) =
     WrappedDummyClusterer(model)
-function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
-    Xs = source(X)
-    W = transform(machine(OneHotEncoder(), Xs), Xs)
-    m = machine(model.model, W)
-    yhat = predict(m, W)
-    Wout = transform(m, W)
-    mach = machine!(predict=yhat, transform=Wout)
-    fit!(mach)
-    return mach.fitresult, mach.cache, mach.report
-end
 
 @testset "third test of hand-exported network" begin
+    function MLJBase.fit(model::WrappedDummyClusterer, verbosity::Int, X)
+        Xs = source(X)
+        W = transform(machine(OneHotEncoder(), Xs), Xs)
+        m = machine(model.model, W)
+        yhat = predict(m, W)
+        Wout = transform(m, W)
+        mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+        fit!(mach)
+        return mach()
+    end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
     mach = machine(model, X) |> fit!
@@ -176,12 +208,13 @@ end
     fit!(mach)
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
-    m = r.machines[end]
-    @test r.report_given_machine[m].centres == MLJBase.matrix(X)[1:3,:]
+    @test r.model.centres == MLJBase.matrix(X)[1:3,:]
     fp = fitted_params(mach)
-    levs = fp.fitted_params_given_machine[m].fitresult
+    levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
+
+
 
 end
 true

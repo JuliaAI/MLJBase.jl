@@ -8,10 +8,10 @@
 
 # legacy method:
 function fitresults(yhat::AbstractNode)
-    # Base.depwarn("`fitresults(yhat::Node)` is deprecated. "*
-    #              "See \"Composing Models\" section of MLJ manual "*
-    #              "on preferred way to export learning networks "*
-    #              "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
+    Base.depwarn("`fitresults(::Node)` is deprecated. "*
+                 "See \"Composing Models\" section of MLJ manual "*
+                 "on preferred way to export learning networks "*
+                 "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
     inputs = sources(yhat, kind=:input)
     targets = sources(yhat, kind=:target)
     weights = sources(yhat, kind=:weights)
@@ -37,14 +37,17 @@ end
 # *Note.* Be sure to read Note 4 in src/operations.jl to see see how
 # fallbacks are provided for operations acting on Composite models.
 
-fitted_params(::Composite, fitresult::NamedTuple) =
-    fitted_params(glb(values(fitresult)...))
+fitted_params(::Union{Composite,Surrogate},
+              fitresult::NamedTuple) =
+                  fitted_params(glb(values(fitresult)...))
 
-# legacy code:
-fitted_params(::Composite, fitresult::Node) = fitted_params(fitresult)
+# legacy code (fitresult a Node):
+fitted_params(::Union{Composite,Surrogate},
+              fitresult::Node) =
+                  fitted_params(fitresult)
 
-function update(model::Composite,
-                verb::Integer,
+function update(model::Union{Composite,Surrogate},
+                verbosity::Integer,
                 fitresult::NamedTuple,
                 cache,
                 args...)
@@ -53,7 +56,8 @@ function update(model::Composite,
     # then we actually need to fit rather than update (which will
     # force build of a new learning network). If `model` has been
     # created using a learning network export macro, the test used
-    # below is perfect. In any other case it is at least conservative.
+    # below is perfect. In any other case it is at least conservative,
+    # ie it might force a cold restart when a warm restart suffices.
 
     # greatest lower bound of all nodes delivering predictions:
     glb_node = glb(values(fitresult)...)
@@ -64,7 +68,7 @@ function update(model::Composite,
     submodels    = filter(f->f isa Model, field_values)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
-        return fit(model, verb, args...)
+        return fit(model, verbosity, args...)
     end
 
     is_anonymized = cache isa NamedTuple{(:sources, :data)}
@@ -76,7 +80,7 @@ function update(model::Composite,
         end
     end
 
-    fit!(glb_node; verbosity=verb)
+    fit!(glb_node; verbosity=verbosity)
     if is_anonymized
         for s in sources
             rebind!(s, nothing)
@@ -86,9 +90,12 @@ function update(model::Composite,
     return fitresult, cache, report(glb_node)
 end
 
-# legacy version of above (private) method:
-function update(model::Composite, verb::Integer,
-                yhat::Node, cache, args...)
+# legacy version of above (fitresult a Node):
+function update(model::Union{Composite,Surrogate},
+                verbosity::Integer,
+                yhat::Node,
+                cache,
+                args...)
 
     # If any `model` field has been replaced (and not just mutated)
     # then we actually need to fit rather than update (which will
@@ -100,7 +107,7 @@ function update(model::Composite, verb::Integer,
     submodels    = filter(f->f isa Model, fields)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
-        return fit(model, verb, args...)
+        return fit(model, verbosity, args...)
     end
 
     is_anonymized = cache isa NamedTuple{(:sources, :data)}
@@ -112,7 +119,7 @@ function update(model::Composite, verb::Integer,
         end
     end
 
-    fit!(yhat; verbosity=verb)
+    fit!(yhat; verbosity=verbosity)
     if is_anonymized
         for s in sources
             rebind!(s, nothing)

@@ -56,12 +56,11 @@ function models(W::AbstractNode)
 end
 
 """
-    sources(N::AbstractNode; kind=:any)
+    sources(N::AbstractNode)
 
 A vector of all sources referenced by calls `N()` and `fit!(N)`. These
 are the sources of the ancestor graph of `N` when including training
-edges. The return value can be restricted further by specifying
-`kind=:input`, `kind=:target`, `kind=:weight`, etc.
+edges.
 
 Not to be confused with `origins(N)`, in which training edges are
 excluded.
@@ -80,7 +79,6 @@ function sources(W::AbstractNode; kind=:any)
     end
     return unique(sources_)
 end
-
 
 """
     machines(N::AbstractNode [, model::Model])
@@ -151,28 +149,6 @@ end
 MLJModelInterface.input_scitype(N::Node) = Unknown
 MLJModelInterface.input_scitype(N::Node{<:Machine}) =
     input_scitype(N.machine.model)
-
-# """
-#     input_scitype(S::Source, y::AbstractNode)
-
-# Assuming `S` is the unique origin of `y`, and given some data `D`,
-# return, if it is possible to deduce, the optimal bound `B` on the
-# scitype of `D` ensuring that the following are safe to execute, for
-# each node `N` in the the ancestor graph of `y` (training edges
-# included):
-
-# - `fit!(N)` if `S.data = D`
-# - `N(D)`
-
-# If a bound cannot be deduded, return `Unknown`.
-
-# """
-# function MLJModelInterface.input_scitype(S::Source, y::AbstractNode)
-#     origins(y) == [S, ] || error("Specified source is not the unique "*
-#                                  "origin of specified node. ")
-#     kids = children(S, y)
-#     B = input_scitype.(kids) |> _lower_bound
-# end
 
 
 ## MANIPULATING LEARNING NETWORKS

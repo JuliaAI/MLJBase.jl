@@ -156,7 +156,8 @@ function Base.show(stream::IO, ::MIME"text/plain", object, ::Val{false})
 end
 
 # fallback for MLJType:
-function Base.show(stream::IO, ::MIME"text/plain", object::MLJType, ::Val{false})
+function Base.show(stream::IO, ::MIME"text/plain",
+                   object::MLJType, ::Val{false})
     _recursive_show(stream, object, 1, DEFAULT_SHOW_DEPTH)
 end
 
@@ -173,16 +174,10 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
         prefix = MLJModelInterface.name(object)
         anti = max(length(prefix) - INDENT)
         print(stream, prefix, "(")
-        first_item = true
         names = fieldnames(M)
         n_names = length(names)
         for k in eachindex(names)
             value =  getproperty(object, names[k])
-            # if !first_item
-            #     print(stream, crind(n + length(prefix)))
-            # else
-            #     first_item = false
-            # end
             print(stream, crind(n + length(prefix) - anti))
             print(stream, "$(names[k]) = ")
             fancy(stream, value, current_depth + 1, depth, n + length(prefix)
@@ -192,7 +187,8 @@ function fancy(stream, object::M, current_depth, depth, n) where M<:MLJType
         print(stream, ")")
         if current_depth == 0
             description = " $(handle(object))"
-            printstyled(IOContext(stream, :color=> SHOW_COLOR), description, bold=false, color=:blue)
+            printstyled(IOContext(stream, :color=> SHOW_COLOR),
+                        description, bold=false, color=:blue)
         end
     end
     return nothing

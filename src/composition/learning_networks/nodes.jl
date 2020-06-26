@@ -47,8 +47,6 @@ struct Node{T<:Union{Machine, Nothing}} <: AbstractNode
     end
 end
 
-kind(::Node) = :node
-
 """
 
     nrows_at_source(N::node)
@@ -165,7 +163,9 @@ end
          acceleration=CPU1())
 
 Train all machines required to call the node `N`, in an appropriate
-order. These machines are those returned by `machines(N)`.
+order.  These machines are those returned by
+`machines(N)`.
+
 
 """
 fit!(y::Node; acceleration=CPU1(), kwargs...) =
@@ -202,57 +202,44 @@ istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 
 # overload show method
 
-function _recursive_show(stream::IO, X::AbstractNode)
-    if X isa Source
-        printstyled(IOContext(stream, :color=>SHOW_COLOR),
-                    handle(X),
-                    color=color(X))
-    else
-        operation_name = typeof(X.operation).name.mt.name
-        print(stream, operation_name, "(")
-        if X.machine !== nothing
-            printstyled(IOContext(stream, :color=>SHOW_COLOR),
-                        handle(X.machine),
-                        bold=SHOW_COLOR)
-            print(stream, ", ")
-        end
-        n_args = length(X.args)
-        counter = 1
-        for arg in X.args
-            _recursive_show(stream, arg)
-            counter >= n_args || print(stream, ", ")
-            counter += 1
-        end
-        print(stream, ")")
-    end
-end
 
-# function Base.show(stream::IO, object::Node)
-#     repr = simple_repr(typeof(object))
-#     str = "$repr $(handle(object))"
-#     if !isempty(fieldnames(typeof(object)))
-#         printstyled(IOContext(stream, :color=> SHOW_COLOR),
-#                     str, bold=false, color=:blue)
-#     else
-#         print(stream, str)
-#     end
-#     print(stream, ", returning $(elscitype(object))")
-#     return nothing
-# end
+_formula(stream::IO, X::AbstractNode, indent) =
+    (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
+_formula(stream::IO, X::Source, depth, indent) = show(stream, X)
+function _formula(stream, X::Node, depth, indent)
+    operation_name = string(typeof(X.operation).name.mt.name)
+    anti = max(length(operation_name) - INDENT)
+    print(stream, operation_name, "(")
+    n_args = length(X.args)
+    if X.machine !== nothing
+        print(stream, crind(indent + length(operation_name) - anti))
+        printstyled(IOContext(stream, :color=>SHOW_COLOR),
+#                        handle(X.machine),
+                        X.machine,
+                        bold=SHOW_COLOR)
+        n_args == 0 || print(stream, ", ")
+    end
+    for k in 1:n_args
+        print(stream, crind(indent + length(operation_name) - anti))
+        _formula(stream, X.args[k],
+                        depth + 1,
+                        indent + length(operation_name) - anti )
+        k == n_args || print(stream, ",")
+    end
+    print(stream, ")")
+end
 
 function Base.show(io::IO, ::MIME"text/plain", X::Node)
 #    description = string(typeof(X).name.name)
     #    str = "$description $(handle(X))"
     println(io, "$X")
-    print("  formula: ")
-    _recursive_show(io, X)
-
-    println(io)
     println(io, "  args:")
     for i in eachindex(X.args)
         arg = X.args[i]
         println(io, "    $i:\t$arg")
     end
+    print("  formula:\n")
+    _formula(io, X, 4)
     # print(io, " ")
     # printstyled(IOContext(io, :color=>SHOW_COLOR),
     #             handle(X),
@@ -264,43 +251,33 @@ end
 
 # Both of these exposed but not intended for public use
 
-function report(N::Node)
+# here `f` is `report` or `fitted_params`; returns a named tuple:
+function item_given_machine(f, N)
     machs = machines(N) |> reverse
-    reports = NamedTuple[]
-    try
-        reports = [report(m) for m in machs]
-    catch exception
-        if exception isa UndefRefError
-            error("UndefRefEror intercepted. Perhaps "*
-                  "you forgot to `fit!` a machine or node?")
-        else
-            throw(exception)
+    items = map(machs) do m
+        try
+            f(m)
+        catch exception
+            if exception isa UndefRefError
+                error("UndefRefError intercepted. Perhaps "*
+                      "you forgot to `fit!` a machine or node?")
+            else
+                throw(exception)
+            end
         end
     end
-    report_given_machine =
-        LittleDict(machs[j] => reports[j] for j in eachindex(machs))
-    return (machines=machs, report_given_machine=report_given_machine)
+    key = f isa typeof(report) ?
+        :report_given_machine :
+        :fitted_params_given_machine
+    dict = LittleDict(machs[j] => items[j] for j in eachindex(machs))
+    return NamedTuple{(:machines, key)}((machs, dict))
 end
+
+report(N::Node) = item_given_machine(report, N)
 report(::Source) = NamedTuple()
 
-function MLJModelInterface.fitted_params(N::Node)
-    machs = machines(N) |> reverse
-    _fitted_params = NamedTuple[]
-    try
-        _fitted_params = [fitted_params(m) for m in machs]
-    catch exception
-        if exception isa UndefRefError
-            error("UndefRefEror intercepted. Perhaps "*
-                  "you forgot to `fit!` a machine or node?")
-        else
-            throw(exception)
-        end
-    end
-    fitted_params_given_machine =
-        LittleDict(machs[j] => _fitted_params[j] for j in eachindex(machs))
-    return (machines=machs,
-            fitted_params_given_machine=fitted_params_given_machine)
-end
+MLJModelInterface.fitted_params(N::Node) =
+    item_given_machine(fitted_params, N)
 MLJModelInterface.fitted_params(S::Source) = NamedTuple()
 
 
@@ -353,23 +330,23 @@ const node = Node
     @node f(...)
 
 Construct a new node that applies the function `f` to some combination
-of nodes, sources and other arguments.
+of nodes, sources and other arguments. Can only be called in places
+that have `AbstractNode` in global scope.
 
 ### Examples
 
+```
 X = source(π)
 W = @node sin(X)
-
 julia> W()
 0
 
 X = source(1:10)
 Y = @node selectrows(X, 3:4)
-
 julia> Y()
 3:4
 
-julia>Y([:one, :two, :three, :four])
+julia> Y([:one, :two, :three, :four])
 2-element Array{Symbol,1}:
  :three
  :four
@@ -378,9 +355,10 @@ X1 = source(4)
 X2 = source(5)
 add(a, b, c) = a + b + c
 N = @node add(X1, 1, X2)
-
 julia> N()
 10
+
+```
 
 See also [`node`](@ref)
 

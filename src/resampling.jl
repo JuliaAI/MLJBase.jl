@@ -300,7 +300,9 @@ end
 const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
                                :per_fold, :per_observation)}
 # pretty printing:
-round3(x) = round(x, sigdigits=3)
+round3(x) = x
+round3(x::AbstractFloat) = round(x, sigdigits=3)
+
 _short(v) = v
 _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")

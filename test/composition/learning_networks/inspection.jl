@@ -7,7 +7,7 @@ using ..Models
 @load KNNRegressor
 
 @constant X = source()
-@constant y = source(kind=:target)
+@constant y = source()
 
 hot = OneHotEncoder()
 hotM = machine(hot, X)

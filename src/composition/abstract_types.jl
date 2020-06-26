@@ -1,69 +1,53 @@
 # true composite models:
 abstract type DeterministicComposite <: Deterministic end
 abstract type ProbabilisticComposite <: Probabilistic end
+abstract type IntervalComposite <: Interval end
 abstract type  UnsupervisedComposite <: Unsupervised end
+abstract type  StaticComposite <: Static end
 
 # surrogate composite models:
-struct DeterministicSurrogate <: Deterministic
-    input_scitype::DataType
-    target_scitype::DataType
-    output_scitype::DataType
-end
-struct ProbabilisticSurrogate <: Probabilistic 
-    input_scitype::DataType
-    target_scitype::DataType
-    output_scitype::DataType
-end
-struct UnsupervisedSurrogate <: Unsupervised
-    input_scitype::DataType
-    target_scitype::DataType
-    output_scitype::DataType
-end
+struct DeterministicSurrogate <: Deterministic end
+struct ProbabilisticSurrogate <: Probabilistic end
+struct IntervalSurrogate <: Interval end
+struct UnsupervisedSurrogate <: Unsupervised end
+struct StaticSurrogate <: Static end
 
-Deterministic(; input_scitype=Unknown
-              , target_scitype=Unknown
-              , output_scitype=Unknown) =
-                  DeterministicSurrogate(input_scitype,
-                                         target_scitype,
-                                         output_scitype)
-
-Probabilistic(; input_scitype=Unknown
-              , target_scitype=Unknown
-              , output_scitype=Unknown) =
-                  ProbabilisticSurrogate(input_scitype,
-                                         target_scitype,
-                                         output_scitype)
-
-Unsupervised(; input_scitype=Unknown
-              , target_scitype=Unknown
-              , output_scitype=Unknown) =
-                  UnsupervisedSurrogate(input_scitype,
-                                         target_scitype,
-                                         output_scitype)
+Deterministic() = DeterministicSurrogate()
+Probabilistic() = ProbabilisticSurrogate()
+Interval() = IntervalSurrogate()
+Unsupervised() = UnsupervisedSurrogate()
+Static() = StaticSurrogate()
 
 const SupervisedComposite =
-    Union{DeterministicComposite,ProbabilisticComposite}
+    Union{DeterministicComposite,ProbabilisticComposite,IntervalComposite}
 
 const SupervisedSurrogate =
-    Union{DeterministicSurrogate,ProbabilisticSurrogate}
+    Union{DeterministicSurrogate,ProbabilisticSurrogate,IntervalSurrogate}
 
 const Surrogate = Union{DeterministicSurrogate,
                         ProbabilisticSurrogate,
-                        UnsupervisedSurrogate}
+                        IntervalSurrogate,
+                        UnsupervisedSurrogate,
+                        StaticSurrogate}
 
-const Composite =
-    Union{SupervisedComposite,
-          UnsupervisedComposite,
-          SupervisedSurrogate,
-          UnsupervisedSurrogate}
+const Composite = Union{SupervisedComposite,UnsupervisedComposite,
+                        StaticComposite}
 
-# to suppress inclusion of these types in models():
-MMI.is_wrapper(::Type{DeterministicComposite}) = true
-MMI.is_wrapper(::Type{ProbabilisticComposite}) = true
-MMI.is_wrapper(::Type{UnsupervisedComposite}) = true
-MMI.is_wrapper(::Type{DeterministicSurrogate}) = true
-MMI.is_wrapper(::Type{ProbabilisticSurrogate}) = true
-MMI.is_wrapper(::Type{UnsupervisedSurrogate}) = true
+for T in [:DeterministicComposite,
+          :ProbabilisticComposite,
+          :IntervalComposite,
+          :UnsupervisedComposite,
+          :StaticComposite,
+          :DeterministicSurrogate,
+          :ProbabilisticSurrogate,
+          :IntervalSurrogate,
+          :UnsupervisedSurrogate,
+          :StaticSurrogate]
+    eval(:(MMI.is_wrapper(::Type{$T}) = true))
+    eval(:(MMI.package_name(::Type{$T}) = "MLJBase"))
+    str = string(T)
+    eval(:(MMI.load_path(::Type{$T}) = "MLJBase."*$str))
+end
 
 # aliases for legacy code:
 const DeterministicNetwork = DeterministicComposite
