@@ -212,7 +212,7 @@ function Base.show(io::IO, ::MIME"text/plain", mach::Machine)
     else
         println(io, "s.")
     end
-    println("  args: ")
+    println(io, "  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
         print(io, "    $i:\t$arg")

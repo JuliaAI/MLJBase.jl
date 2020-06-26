@@ -35,7 +35,7 @@ for operation in OPERATIONS
                 Base.depwarn("`$($operation)(mach)` and "*
                              "`$($operation)(mach, rows=...)` are "*
                              "deprecated. Data or nodes "*
-                             "must be explictly specified, "*
+                             "should be explictly specified, "*
                              "as in `$($operation)(mach, X)`. ",
                              Base.Core.Typeof($operation).name.mt.name)
                 if isempty(mach.args) # deserialized machine with no data
@@ -43,7 +43,7 @@ for operation in OPERATIONS
                                         "deserialized machine with no data "*
                                         "bound to it. "))
                 end
-                return ($operation)(mach, mach.args[1]())
+                return ($operation)(mach, mach.args[1](rows=rows))
             end
         end
         eval(ex)
