@@ -323,21 +323,23 @@ end
 
 end
 
-# cannot be in @testset block:
-X1 = source(4)
-X2 = source(5)
-X = source(1:10)
+@testset "@node" begin
+    X1 = source(4)
+    X2 = source(5)
+    X = source(1:10)
 
-add(a, b, c) = a + b + c
-N = @node add(X1, 1, X2)
-@test N() == 10
+    add(a, b, c) = a + b + c
+    N = @node add(X1, 1, X2)
+    @test N() == 10
 
-N = @node tuple(X1, 5, X1)
-@test N() == (4, 5, 4)
+    N = @node tuple(X1, 5, X1)
+    @test N() == (4, 5, 4)
 
-Y = @node selectrows(X, 3:4)
-@test Y() == 3:4
-@test Y([:one, :two, :three, :four]) == [:three, :four]
+    Y = @node selectrows(X, 3:4)
+    @test Y() == 3:4
+    @test Y([:one, :two, :three, :four]) == [:three, :four]
+
+end
 
 end
 

@@ -330,8 +330,10 @@ const node = Node
     @node f(...)
 
 Construct a new node that applies the function `f` to some combination
-of nodes, sources and other arguments. Can only be called in places
-that have `AbstractNode` in global scope.
+of nodes, sources and other arguments.
+
+*Important.* An argument not in global scope is assumed to be a node
+ or source.
 
 ### Examples
 
@@ -370,21 +372,24 @@ macro node(ex)
     arg_exs = exs[2:end]
 
     # build lambda expression lambda_left -> lambda_right
-    stuff = try
+    stuff =
         first.(map(arg_exs) do ex
-               __module__.eval(ex) isa AbstractNode &&
-               return gensym("node"), true
-               return ex, false
+                   pair = (:nothing, false)
+                   try
+                       evaluated = __module__.eval(ex)
+                       if evaluated isa AbstractNode
+                           pair =  gensym("node"), true
+                       else
+                           pair = ex, false
+                       end
+                   catch e
+                       if e isa UndefVarError
+                           pair = gensym("node"), true
+                       else
+                           error()
+                       end
+                   end
                end |> zip)
-    catch e
-        if e isa UndefVarError
-            @error "Looks like you're applying `@node` to expression not "*
-            "in top-level scope, which is unsupported. Maybe non-macro "*
-            "`node` instead. "
-        end
-        throw(e)
-    end
-
     right = first.(stuff)
     mask = last.(stuff)
     left = right[mask]
