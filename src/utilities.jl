@@ -340,10 +340,9 @@ end
 """
     available_name(modl::Module, name::Symbol)
 
-Function to replace, if necessary, a given `name` with a
-modified one that ensures it is not the name any existing object in
-the global scope of `modl`. Modifications are created with numerical
-suffixes.
+Function to replace, if necessary, a given `name` with a modified one
+that ensures it is not the name of any existing object in the global
+scope of `modl`. Modifications are created with numerical suffixes.
 
 """
 function available_name(modl, name)
