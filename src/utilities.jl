@@ -8,74 +8,75 @@ function finaltypes(T::Type)
 end
 
 
-# NOTE: deprecated, see @mlj_model
-"""
+# # NOTE: deprecated, see @mlj_model
+# """
 
-    @set_defaults ModelType(args...)
-    @set_defaults ModelType args
+#     @set_defaults ModelType(args...)
+#     @set_defaults ModelType args
 
-Create a keyword constructor for any type `ModelType<:MLJBase.Model`,
-using as default values those listed in `args`. These must include a
-value for every field, and in the order appearing in
-`fieldnames(ModelType)`.
+# Create a keyword constructor for any type `ModelType<:MLJBase.Model`,
+# using as default values those listed in `args`. These must include a
+# value for every field, and in the order appearing in
+# `fieldnames(ModelType)`.
 
-The constructor does not call `MLJBase.clean!(model)` on the
-instantiated object `model`. This method is for internal use only (by
-`@from_network macro`) as it is depreciated by `@mlj_model` macro. 
+# The constructor does not call `MLJBase.clean!(model)` on the
+# instantiated object `model`. This method is for internal use only (by
+# `@from_network macro`) as it is depreciated by `@mlj_model` macro.
 
-### Example
+# ### Example
 
-   mutable struct Foo
-      x::Int
-      y
-   end
+#    mutable struct Foo
+#       x::Int
+#       y
+#    end
 
-   @set_defaults Foo(1,2)
+#    @set_defaults Foo(1,2)
 
-   julia> Foo()
-   Foo(1, 2)
+#    julia> Foo()
+#    Foo(1, 2)
 
-   julia> Foo(x=1, y="house")
-   Foo(1, "house")
+#    julia> Foo(x=1, y="house")
+#    Foo(1, "house")
 
-   @set_defaults Foo [4, 5]
+#    @set_defaults Foo [4, 5]
 
-   julia> Foo()
-   Foo(4, 5)
+#    julia> Foo()
+#    Foo(4, 5)
 
-"""
-macro set_defaults(ex)
-    T_ex = ex.args[1]
-    value_exs = ex.args[2:end]
-    values = [__module__.eval(ex) for ex in value_exs]
-    set_defaults_(__module__, T_ex, values)
-    return nothing
-end
+# """
+# macro set_defaults(ex)
+#     T_ex = ex.args[1]
+#     value_exs = ex.args[2:end]
+#     values = [__module__.eval(ex) for ex in value_exs]
+#     set_defaults_(__module__, T_ex, values)
+#     return nothing
+# end
 
-macro set_defaults(T_ex, values_ex)
-    values =__module__.eval(values_ex)
-    set_defaults_(__module__, T_ex, values)
-    return nothing
-end
+# macro set_defaults(T_ex, values_ex)
+#     values =__module__.eval(values_ex)
+#     set_defaults_(__module__, T_ex, values)
+#     return nothing
+# end
 
-function set_defaults_(mod, T_ex, values)
-    T = mod.eval(T_ex)
-    fields = fieldnames(T)
-    isempty(fields) && return nothing
-    length(fields) == length(values) ||
-        error("Provide the same number of default values as fields. ")
+# function set_defaults_(mod, T_ex, values)
+#     T = mod.eval(T_ex)
+#     fields = fieldnames(T)
+#     isempty(fields) && return nothing
+#     length(fields) == length(values) ||
+#         error("Provide the same number of default values as fields. ")
 
-    equality_pair_exs = [Expr(:kw, fields[i], values[i]) for i in
-                         eachindex(values)]
+#     equality_pair_exs = [Expr(:kw, fields[i], values[i]) for i in
+#                          eachindex(values)]
 
-    program = quote
-        $T_ex(; $(equality_pair_exs...)) =
-            $T_ex($(fields...))
-    end
-    mod.eval(program)
+#     program = quote
+#         $T_ex(; $(equality_pair_exs...)) =
+#             $T_ex($(fields...))
+#     end
+#     mod.eval(program)
 
-    return nothing
-end
+#     return nothing
+# end
+
 
 """
     flat_values(t::NamedTuple)
@@ -336,3 +337,21 @@ function Base.iterate(itr::Chunks{<:AbstractRange}, state=(1,itr.rem))
 end
 
 
+"""
+    available_name(modl::Module, name::Symbol)
+
+Function to replace, if necessary, a given `name` with a
+modified one that ensures it is not the name any existing object in
+the global scope of `modl`. Modifications are created with numerical
+suffixes.
+
+"""
+function available_name(modl, name)
+    new_name = name
+    i = 1
+    while isdefined(modl, Symbol(new_name))
+        i += 1
+        new_name = string(name, i) |> Symbol
+    end
+    return new_name
+end

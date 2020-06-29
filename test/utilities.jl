@@ -112,5 +112,13 @@ end
     end
 end
 
+@testset "available_name" begin
+    @test MLJBase.available_name(Utilities, :pizza) == :pizza
+    Utilities.eval(:(orange = 5))
+    @test MLJBase.available_name(Utilities, :orange) == :orange2
+    Utilities.eval(:(orange2 = 6))
+    @test MLJBase.available_name(Utilities, :orange) == :orange3
+end
+
 end # module
 true
