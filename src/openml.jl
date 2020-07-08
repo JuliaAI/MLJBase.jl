@@ -61,7 +61,7 @@ function convert_ARFF_to_rowtable(response)
             if line[1:1] != "%"
                 d = []
                 if occursin("@attribute", lowercase(line))
-                    push!(featureNames, replace(split(line, " ")[2], "'" => ""))
+                    push!(featureNames, replace(replace(split(line, " ")[2], "'" => ""), "-" => "_"))
                     push!(dataTypes, split(line, " ")[3])
                 elseif occursin("@relation", lowercase(line))
                     nothing
