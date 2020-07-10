@@ -448,9 +448,10 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
     evaluate!(mach,
               resampling=CV(),
               measure=nothing,
+              rows=nothing,
               weights=nothing,
               operation=predict,
-              repeats = 1,
+              repeats=1,
               acceleration=default_resource(),
               force=false,
               verbosity=1,
@@ -500,6 +501,38 @@ accelerate/parallelize the resampling operation.
 
 Although evaluate! is mutating, `mach.model` and `mach.args` are
 untouched.
+
+### Summary of key-word arguments
+
+- `resampling` - resampling strategy (default is `CV(nfolds=6)`)
+
+- `measure`/`measures` - measure or vector of measures (losses, scores, etc)
+
+- `rows` - vector of observation indices from which both train and
+  test folds are constructed (default is all observations)
+
+- `weights` - per-sample weights for training and measures; see
+  important note above
+
+- `operation` - `predict`, `predict_mean`, `predict_mode` or
+  `predict_median`; `predict` is the default but cannot be used with a
+  deterministic measure if `model isa Probabilistic`
+
+- `repeats` - default is 1; set to a higher value for repeated
+  (Monte Carlo) resampling
+
+ - `acceleration` - parallelization option; currently supported
+   options are instances of `CPU1` (single-threaded computation)
+   `CPUThreads` (multi-threaded computation) and `CPUProcesses`
+   (multi-process computation); default is `default_resource()`.
+
+- `force` - default is `false`; set to `true` for force cold-restart
+  of each training event
+
+- `verbosity` level, an integer defaulting to 1.
+
+- `check_measure` - default is `true`
+
 
 ### Return value
 
