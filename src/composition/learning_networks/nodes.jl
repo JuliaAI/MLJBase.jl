@@ -238,7 +238,7 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
         arg = X.args[i]
         println(io, "    $i:\t$arg")
     end
-    print("  formula:\n")
+    print(io, "  formula:\n")
     _formula(io, X, 4)
     # print(io, " ")
     # printstyled(IOContext(io, :color=>SHOW_COLOR),

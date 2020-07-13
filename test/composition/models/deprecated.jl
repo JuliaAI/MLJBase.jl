@@ -1,4 +1,4 @@
-module TestPipelines
+module TestDeprecated
 
 using MLJBase
 using ..Models
@@ -46,8 +46,10 @@ hand_built = N();
 
 # test a simple pipeline prediction agrees with prediction of
 # hand-built learning network built earlier:
-p = @pipeline(Pipe(sel=FeatureSelector(), knn=KNNRegressor(),
+p = @pipeline(Pipe(sel=FeatureSelector(),
+                   knn=KNNRegressor(),
                    target=UnivariateStandardizer()))
+
 p.knn.K = 3; p.sel.features = [:x3,]
 mach = machine(p, X, y)
 fit!(mach)
@@ -150,4 +152,3 @@ mach  = machine(p99, X) |> fit!
 
 end
 true
-

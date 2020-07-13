@@ -32,12 +32,12 @@ for operation in OPERATIONS
         ex = quote
             # 0. operations on machs, given empty data:
             function $(operation)(mach::Machine; rows=:)
-                Base.depwarn("`$($operation)(mach)` and "*
-                             "`$($operation)(mach, rows=...)` are "*
-                             "deprecated. Data or nodes "*
-                             "should be explictly specified, "*
-                             "as in `$($operation)(mach, X)`. ",
-                             Base.Core.Typeof($operation).name.mt.name)
+                # Base.depwarn("`$($operation)(mach)` and "*
+                #              "`$($operation)(mach, rows=...)` are "*
+                #              "deprecated. Data or nodes "*
+                #              "should be explictly specified, "*
+                #              "as in `$($operation)(mach, X)`. ",
+                #              Base.Core.Typeof($operation).name.mt.name)
                 if isempty(mach.args) # deserialized machine with no data
                     throw(ArgumentError("Calling $($operation) on a "*
                                         "deserialized machine with no data "*
