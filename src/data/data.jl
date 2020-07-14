@@ -127,7 +127,11 @@ end
 
 """
 
-    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
+    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk;
+                               wrap_singles=false,
+                               shuffle=false,
+                               rng::Union{AbstractRNG,Int}=nothing)
+)
 
 
 Split any Tables.jl compatible `table` into smaller tables (or
@@ -143,6 +147,11 @@ Scientific type conversions can be optionally specified (note
 semicolon):
 
     unpack(table, t...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
+
+If `shuffle=true` then the rows of `table` are first shuffled, using
+the global RNG, unless `rng` is specified; if `rng` is an integer, it
+specifies the seed of an automatically generated Mersenne twister. If
+`rng` is specified then `shuffle=true` is implicit.
 
 ### Example
 
