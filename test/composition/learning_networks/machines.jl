@@ -59,6 +59,19 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     @test mach.model isa Probabilistic
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
 
+    # supervised - predict_mode
+    fit!(mach)
+    @test predict_mode(mach, X) == mode.(predict(mach, X))
+
+    # supervised - predict_median, predict_mean
+    X, y = make_regression(20)
+    Xs = source(X); ys = source(y)
+    mm = machine(ConstantRegressor(), Xs, ys)
+    yhat = predict(mm, Xs)
+    mach = machine(Probabilistic(), Xs, ys; predict=yhat) |> fit!
+    @test predict_mean(mach, X) ≈ mean.(predict(mach, X))
+    @test predict_median(mach, X) ≈ median.(predict(mach, X))
+
 end
 
 # build a learning network:
