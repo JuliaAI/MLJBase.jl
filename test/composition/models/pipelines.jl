@@ -340,6 +340,9 @@ end
 exs = [h, k, :(operation=transform)]
 @test_throws(ArgumentError,
              MLJBase.pipeline_preprocess(TestPipelines, exs...))
+exs = [h, k, :(operation=:predict)]
+@test_throws(ArgumentError,
+             MLJBase.pipeline_preprocess(TestPipelines, exs...))
 
 # pipe_line error 3:
 exs =  Symbol[]
@@ -574,4 +577,9 @@ mach = machine(p, X, y) |> fit!
 @test !(predict(mach, X) ≈ doubler(y))
 
 end
+
+
+## OPERATION KEYWORD
+
+
 true

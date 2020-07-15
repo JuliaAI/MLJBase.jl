@@ -23,7 +23,7 @@
 ## predict(::Machine, ) and transform(::Machine, )
 
 const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform, :inverse_transform)
+                    :transform, :inverse_transform)
 
 for operation in OPERATIONS
 
@@ -54,7 +54,7 @@ end
 for operation in (:inverse_transform,)
     ex = quote
         # 0. operations on machines, given empty data:
-        $(operation)(mach::Machine; rows=:) =
+        $operation(mach::Machine; rows=:) =
             throw(ArgumentError("`$($operation)(mach)` and "*
                                 "`$($operation)(mach, rows=...)` is "*
                                 "not supported. Data or nodes "*
@@ -64,11 +64,13 @@ for operation in (:inverse_transform,)
     eval(ex)
 end
 
+_symbol(f) = Base.Core.Typeof(f).name.mt.name
+
 for operation in OPERATIONS
 
     ex = quote
         # 1. operations on machines, given *concrete* data:
-        function $(operation)(mach::Machine{M}, Xraw, Xraw_more...) where M
+        function $operation(mach::Machine{M}, Xraw, Xraw_more...) where M
             if mach.state > 0 || M <: Static
                 return $(operation)(mach.model, mach.fitresult,
                                     Xraw, Xraw_more...)
@@ -78,12 +80,46 @@ for operation in OPERATIONS
         end
 
         # 2. operations on machines, given *dynamic* data (nodes):
-        $(operation)(mach::Machine, X::AbstractNode) =
+        $operation(mach::Machine, X::AbstractNode) =
             node($(operation), mach, X)
+    end
+    eval(ex)
+end
 
-        # 3. operations on composite and surrogate models:
-        $(operation)(model::Union{Composite,Surrogate}, fitresult, X) =
+
+## SURROGATE AND COMPOSITE MODELS
+
+for operation in [:predict, :transform, :inverse_transform]
+    ex = quote
+        $operation(model::Union{Composite,Surrogate}, fitresult,X) =
             fitresult.$operation(X)
     end
     eval(ex)
+end
+
+function predict_mode(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
+                      fitresult,
+                      Xnew)
+    if haskey(fitresult, :predict_mode)
+        return fitresult.predict_mode(X)
+    end
+    return mode.(predict(m, fitresult, Xnew))
+end
+
+function predict_mean(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
+                      fitresult,
+                      Xnew)
+    if haskey(fitresult, :predict_mean)
+        return fitresult.predict_mean(X)
+    end
+    return mean.(predict(m, fitresult, Xnew))
+end
+
+function predict_median(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
+                      fitresult,
+                      Xnew)
+    if haskey(fitresult, :predict_median)
+        return fitresult.predict_median(X)
+    end
+    return median.(predict(m, fitresult, Xnew))
 end

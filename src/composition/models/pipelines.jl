@@ -248,6 +248,9 @@ function pipeline_preprocess(modl, exs...)
                                        "`true` or `false`. ") # untested
                         invert_last = value
                     elseif variable_ == :operation
+                        value isa Function ||
+                            pipe_alert("`operation` needs to be a function "*
+                                       "but a  $(typeof(value)) encountered.")
                         value in eval.(OPERATIONS) &&
                             !(value in [transform, inverse_transform]) ||
                             pipe_alert("`operation=$value` is "*
