@@ -160,7 +160,12 @@ nominal_range(T, field, values) = throw(ArgumentError(
      * "as `$(T)()`" : "") ))
 
 nominal_range(T, field, ::Nothing) = throw(ArgumentError(
-    "You must specify values=... for a nominal parameter."  ))
+"The inferred hyper-parameter type is $T, which is nominal. "*
+"If this is true, you must specify values=... "*
+"If this is false, specify the correct type as "*
+"first argument of `range`, as in "*
+"the example, "*
+"`range(Int, :dummy, lower=1, upper=10)`. "  ))
 
 function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
     return NominalRange{T,length(values)}(field, Tuple(values))
