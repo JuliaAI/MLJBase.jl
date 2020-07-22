@@ -61,7 +61,7 @@ function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
     return broadcast(_cross_entropy, ŷ, y, c.eps)
 end
 # performant in case of UnivariateFiniteArray:
-function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}},
+function (c::CrossEntropy)(ŷ::UnivariateFiniteVector{S,V,R,P},
                            y::Vec) where {S,V,R,P}
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
@@ -166,7 +166,7 @@ function (::BrierScore{<:UnivariateFinite})(
 end
 # performant version in case of UnivariateFiniteArray:
 function (::BrierScore{<:UnivariateFinite})(
-    ŷ::Vec{UnivariateFinite{S,V,R,P}},
+    ŷ::UnivariateFiniteVector{S,V,R,P},
     y::Vec,
     w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
 
