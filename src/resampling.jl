@@ -900,7 +900,7 @@ measures that support weights for evaluation.
 in *training* the model) will also be used in evaluation.
 
 """
-mutable struct Resampler{S,M<:Supervised} <: Supervised
+mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     model::M
     resampling::S # resampling strategy
     measure
@@ -918,7 +918,7 @@ MLJBase.is_pure_julia(::Type{<:Resampler}) = true
 
 function MLJBase.clean!(resampler::Resampler)
     warning = ""
-    if resampler.measure === nothing
+    if resampler.measure === nothing && resampler.model !== nothing
         measure = default_measure(resampler.model)
         if measure === nothing
             error("No default measure known for $(resampler.model). "*
@@ -932,7 +932,7 @@ function MLJBase.clean!(resampler::Resampler)
     return warning
 end
 
-function Resampler(; model=ConstantRegressor(), resampling=CV(),
+function Resampler(; model=nothing, resampling=CV(),
             measure=nothing, weights=nothing, operation=predict,
             acceleration=default_resource(), check_measure=true, repeats=1)
 

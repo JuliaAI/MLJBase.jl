@@ -121,6 +121,18 @@ end
         [pdf(u[i], v[i]) for i in 1:length(u)]
 end
 
+@testset "broadcasting: check indexing in `getter((cv, i), dtype)` see PR#375" begin
+    c  = categorical([0,1,1])
+    d = UnivariateFinite(c[1:1], [1 1 1]')
+    v = categorical([0,1,1,1])
+    @test broadcast(pdf, d, v[2:end]) == [0,0,0]
+end
+
+@testset "_getindex" begin
+   @test MLJBase._getindex(collect(1:4), 2, Int64) == 2
+   @test MLJBase._getindex(nothing, 2, Int64) == zero(Int64)
+end
+
 @testset "broadcasting mode" begin
     # binary
     rng = StableRNG(668)
