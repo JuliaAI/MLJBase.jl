@@ -128,6 +128,11 @@ end
     @test broadcast(pdf, d, v[2:end]) == [0,0,0]
 end
 
+@testset "_getindex" begin
+   @test MLJBase._getindex(collect(1:4), 2, Int64) == 2
+   @test MLJBase._getindex(nothing, 2, Int64) == zero(Int64)
+end
+
 @testset "broadcasting mode" begin
     # binary
     rng = StableRNG(668)
