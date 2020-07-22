@@ -134,10 +134,17 @@ function Base.Broadcast.broadcasted(
 
     # will use linear indexing:
     v_flat = ((v[i], i) for i in 1:length(v))
-    getter((cv, i)) = get(u.prob_given_ref, int(cv), zero(P))[i]
+    
+    getter((cv, i)) = _getindex(get(u.prob_given_ref, int(cv), zero(P)), i)
     ret_flat = getter.(v_flat)
     return reshape(ret_flat, size(u))
 end
+#dummy function
+# returns `x[i]` for `Array` inputs `x` 
+# For non-Array inputs returns `x`
+#This avoids using an if statement 
+_getindex(x::Array,i)=x[i]
+_getindex(x, i) = x
 
 # pdf.(u, raw) where raw is scalar or vec
 function Base.Broadcast.broadcasted(
