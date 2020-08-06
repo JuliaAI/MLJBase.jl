@@ -10,8 +10,7 @@ const EXTRA_KW_MAKE = """
   or a matrix (false). """
 
 const EXTRA_CLASSIFICATION =
-    "If true, the target vector is a\ncategorical"*
-"vector (ie, its element scitype is `Multiclass`)."
+    "If `false` the target `y` has integer element type. "
 
 """
     finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf)
@@ -44,13 +43,18 @@ Internal function to generate `n` points in `[a, b]ᵖ` uniformly at random.
 runif_ab(rng, n, p, a, b) = (b - a) .* rand(rng, n, p) .+ a
 
 """
-    make_blobs(n=100, p=2; kwargs...)
+    X, y = make_blobs(n=100, p=2; kwargs...)
 
-Generate gaussian blobs with `n` examples of `p` features. The
-function returns a `n x p` matrix with the samples and a `n` integer
-vector indicating the membership of each point.
+Generate Gaussian blobs for clustering and classification
+problems.
 
-## Keyword arguments
+### Return value
+
+By default, a table `X` with `p` columns (features) and `n` rows
+(observations), together with a corresponding vector of `n`
+`Multiclass` target observations `y`, indicating blob membership.
+
+### Keyword arguments
 
 * `shuffle=true`: whether to shuffle the resulting points,
 
@@ -63,7 +67,7 @@ vector indicating the membership of each point.
   within which the cluster centers are drawn if they are not provided,
   $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
-## Example
+### Example
 
 ```
 X, y = make_blobs(100, 3; centers=2, cluster_std=[1.0, 3.0])
@@ -150,24 +154,29 @@ end
 
 
 """
-    make_circles(n=100; kwargs...)
+    X, y = make_circles(n=100; kwargs...)
 
-Generate `n` points along two circumscribed circles returning the `n x
-2` matrix of points and a vector of membership (0, 1) depending on
-whether the points are on the smaller circle (0) or the larger one
-(1).
+Generate `n` labeled points close to two concentric circles for
+classification and clustering models.
 
-## Keyword arguments
+### Return value
+
+By default, a table `X` with `2` columns and `n` rows (observations),
+together with a corresponding vector of `n` `Multiclass` target
+observations `y`. The target is either `0` or `1`, corresponding to
+membership to the smaller or larger circle, respectively.
+
+### Keyword arguments
 
 * `shuffle=true`: whether to shuffle the resulting points,
 
-* `noise=0`: standard deviation of the gaussian noise added to the data,
+* `noise=0`: standard deviation of the Gaussian noise added to the data,
 
 * `factor=0.8`: ratio of the smaller radius over the larger one,
 
 $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
-## Example
+### Example
 
 ```
 X, y = make_circles(100; noise=0.5, factor=0.3)
@@ -224,16 +233,23 @@ end
 """
         make_moons(n::Int=100; kwargs...)
 
-Generates `n` examples sampling from two interleaved half-circles
-returning the `n x 2` matrix of points and a vector of membership (0,
-1) depending on whether the points are on the half-circle on the left
-(0) or on the right (1).
+Generates labeled two-dimensional points lying close to two
+interleaved semi-circles, for use with classification and clustering
+models.
 
-## Keyword arguments
+### Return value
+
+By default, a table `X` with `2` columns and `n` rows (observations),
+together with a corresponding vector of `n` `Multiclass` target
+observations `y`. The target is either `0` or `1`, corresponding to
+membership to the left or right semi-circle.
+
+
+### Keyword arguments
 
 * `shuffle=true`: whether to shuffle the resulting points,
 
-* `noise=0.1`: standard deviation of the gaussian noise added to the data,
+* `noise=0.1`: standard deviation of the Gaussian noise added to the data,
 
 * `xshift=1.0`: horizontal translation of the second center with respect to
   the first one.
@@ -241,7 +257,7 @@ returning the `n x 2` matrix of points and a vector of membership (0,
 * `yshift=0.3`: vertical translation of the second center with respect
   to the first one.  $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
-## Example
+### Example
 
 ```
 X, y = make_moons(100; noise=0.5)
@@ -349,24 +365,33 @@ sigmoid(x) = sigmoid(float(x))
 """
     make_regression(n, p; kwargs...)
 
-## Keywords
+Generate Gaussian input features and a linear response with Gaussian
+noise, for use with regression models.
+
+### Return value
+
+By default, a table `X` with `p` columns and `n` rows (observations),
+together with a corresponding vector of `n` `Continuous` target
+observations `y`.
+
+### Keywords
 
 * `intercept=true: whether to generate data from a model with
   intercept,
 
 * `sparse=0`: portion of the generating weight vector that is sparse,
 
-* `noise=0.1`: standard deviation of the gaussian noise added to the
+* `noise=0.1`: standard deviation of the Gaussian noise added to the
   response,
 
 * `outliers=0`: portion of the response vector to make as outliers by
-  ading a random quantity with high variance. (Only applied if
+  adding a random quantity with high variance. (Only applied if
   `binary` is `false`)
 
 * `binary=false`: whether the target should be binarized (via a sigmoid).
 $EXTRA_KW_MAKE
 
-## Example
+### Example
 
 ```
 X, y = make_regression(100, 5; noise=0.5, sparse=0.2, outliers=0.1)
