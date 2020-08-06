@@ -181,7 +181,7 @@ function make_circles(n::Integer=100;
                       as_table::Bool=true,
                       eltype::Type{<:AbstractFloat}=Float64,
                       rng=nothing)
-    
+
     # check arguments make sense
     if n < 1
         throw(ArgumentError(
@@ -401,7 +401,7 @@ function make_regression(n::Int=100,
         throw(ArgumentError(
             "Outliers argument must be in [0, 1]."))
     end
-    
+
     if rng === nothing
         rng = Random.GLOBAL_RNG
     elseif rng isa Integer
@@ -412,11 +412,11 @@ function make_regression(n::Int=100,
     θ = randn(rng, p + Int(intercept))
     sparse > 0 && sparsify!(rng, θ, sparse)
     y = X * θ
-    
+
     if !iszero(noise)
         y .+= noise .* randn(rng, n)
     end
-    
+
     if binary
         y = rand(rng, n) .< sigmoid.(y)
     else
@@ -424,7 +424,7 @@ function make_regression(n::Int=100,
             outlify!(rng, y, outliers)
         end
     end
-    
+
     return finalize_Xy(X[:,1:end-Int(intercept)], y, false,
                        as_table, eltype, rng; clf=binary)
 end
