@@ -898,7 +898,7 @@ function _idx_unique_sorted(v::Vec{<:Real})
 end
 
 """
-    tprs, fprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
+    fprs, tprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
 
 Return the ROC curve for a two-class probabilistic prediction `ŷ` given the
 ground  truth `y`. The true positive rates, false positive rates over a range
