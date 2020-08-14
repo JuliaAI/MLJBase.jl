@@ -101,7 +101,7 @@ export matrix, int, classes, decoder, table,
        nrows, selectrows, selectcols, select
 
 # re-exports from (MLJ)ScientificTypes
-export Scientific, Found, Unknown, Known, Finite, Infinite,
+export Unknown, Known, Finite, Infinite,
        OrderedFactor, Multiclass, Count, Continuous, Textual,
        Binary, ColorImage, GrayImage, Image, Table
 export scitype, scitype_union, elscitype, nonmissing, trait
