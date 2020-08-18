@@ -195,8 +195,12 @@ end
 #legacy code:
 
 function (mach::Machine{<:Surrogate})()
-    Base.depwarn("Calling a learning network machine is deprecated. "*
-                 "In place of `return mach()` use `return!(mach, model)` "*
+    Base.depwarn("Calling a learning network machine is "*
+                 "deprecated and will "*
+                 "lead to unexpected behaviour for `Composite` models"*
+                 "with fields not associated with models in the "*
+                 "underlying learning network. "*
+                 "In place of `return mach()` use `return!(mach, model)`, "*
                  "where `model` is the `Model` instance appearing in your "*
                  "`fit` signature. Query `return!` doc-string for details. ",
                  nothing)

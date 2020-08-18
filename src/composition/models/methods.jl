@@ -9,7 +9,10 @@ end
 
 # legacy method:
 function fitresults(yhat::AbstractNode)
-    Base.depwarn("`fitresults(::Node)` is deprecated. "*
+    Base.depwarn("`fitresults(::Node)` is deprecated and will "*
+                 "lead to unexpected behaviour for `Composite` models"*
+                 "with fields not associated with models in the "*
+                 "underlying learning network. "*
                  "Query `return!` for "*
                  "preferred way to export learning networks "*
                  "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
