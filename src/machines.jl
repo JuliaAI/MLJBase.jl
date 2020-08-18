@@ -310,7 +310,7 @@ end
 
 function fitlog(mach, action::Symbol, verbosity)
     if verbosity < -1000
-            put!(MACHINE_CHANNEL, (action, mach))
+        put!(MACHINE_CHANNEL, (action, mach))
     elseif verbosity > -1 && action == :frozen
         @warn "$mach not trained as it is frozen."
     elseif verbosity > 0
@@ -448,7 +448,7 @@ end
     fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
 
 Fit the machine `mach`. In the case that `mach` has `Node` arguments,
-first train all other machines on which `mach` depends. 
+first train all other machines on which `mach` depends.
 
 To attempt to fit a machine without touching any other machine, use
 `fit_only!`. For more on the internal logic of fitting see
