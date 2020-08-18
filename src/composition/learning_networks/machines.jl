@@ -1,6 +1,5 @@
 ## LEARNING NETWORK MACHINES
 
-# ***
 surrogate(::Type{<:Deterministic})  = Deterministic()
 surrogate(::Type{<:Probabilistic})  = Probabilistic()
 surrogate(::Type{<:Unsupervised}) = Unsupervised()
@@ -24,6 +23,8 @@ If a supertype cannot be deduced, `nothing` is returned.
 
 If the network with given `signature` is not exportable, this method
 will not error but it will not a give meaningful return value either.
+
+**Private method.**
 
 """
 function model_supertype(signature)
@@ -113,18 +114,16 @@ function machine(sources::Source...; pair_itr...)
 end
 
 """
-    anonymize!(sources)
+    N = glb(mach::Machine{<:Surrogate})
 
-Returns a named tuple `(sources=..., data=....)` whose values are the
-provided source nodes and their contents respectively, and clears the
-contents of those source nodes.
+A greatest lower bound for the nodes appearing in the signature of
+`mach`.
+
+**Private method.**
 
 """
-function anonymize!(sources)
-    data = Tuple(s.data for s in sources)
-    [MLJBase.rebind!(s, nothing) for s in sources]
-    return (sources=sources, data=data)
-end
+glb(mach::Machine{<:Surrogate}) = glb(values(mach.fitresult)...)
+
 
 """
     fit!(mach::Machine{<:Surrogate};
@@ -147,27 +146,64 @@ See also [`machine`](@ref)
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
 
-    signature = mach.fitresult
-    glb_node = glb(values(signature)...) # greatest lower bound node
+    glb_node = glb(mach)
     fit!(glb_node; kwargs...)
 
-    # mach.cache = anonymize!(mach.args)
     mach.state += 1
     mach.report = report(glb_node)
     return mach
 
 end
 
-# make learning network machines callable for use in manual export of
-# learning networks:
-function (mach::Machine{<:Surrogate})()
-    # anonymize sources:
-    mach.cache = anonymize!(mach.args)
-    return mach.fitresult, mach.cache, mach.report
+MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
+    fitted_params(glb(mach))
+
+
+## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
+
+function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
+    signature = mach.fitresult
+    network_model_ids = objectid.(models(glb(mach)))
+
+    return filter(fieldnames(M)) do name
+        objectid(getproperty(model, name)) in network_model_ids
+    end
 end
 
-MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
-    fitted_params(glb(values(mach.fitresult)...))
+function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
+
+    network_fields = fields_in_network(model, mach)
+
+    # anonymize the data:
+    sources = mach.args
+    data = Tuple(s.data for s in sources)
+    [MLJBase.rebind!(s, nothing) for s in sources]
+
+    # record the field values
+    old_model = deepcopy(model)
+
+    mach.cache = (sources= sources,
+                  data=data,
+                  network_fields=network_fields,
+                  old_model=old_model)
+
+    return mach.fitresult, mach.cache, mach.report
+
+end
+
+#legacy code:
+
+function (mach::Machine{<:Surrogate})()
+    Base.depwarn("Calling a learning network machine is deprecated. "*
+                 "In place of `return mach()` use `return!(mach, model)` "*
+                 "where `model` is the `Model` instance appearing in your "*
+                 "`fit` signature. Query `return!` doc-string for details. ",
+                 nothing)
+
+    return!(mach, nothing)
+end
+fields_in_network(model::Nothing, mach::Machine{<:Surrogate}) =
+    nothing
 
 
 ## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE

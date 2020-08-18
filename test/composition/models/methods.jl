@@ -10,12 +10,12 @@ using OrderedCollections
 import Random.seed!
 seed!(1234)
 
-@testset "anonymize!" begin
-    ss  = [source(1), source(2), source(3)]
-    a = MLJBase.anonymize!(ss)
-    @test all(s -> s.data === nothing, a.sources)
-    @test a.data == (1, 2, 3)
-end
+# @testset "anonymize!" begin
+#     ss  = [source(1), source(2), source(3)]
+#     a = MLJBase.anonymize!(ss)
+#     @test all(s -> s.data === nothing, a.sources)
+#     @test a.data == (1, 2, 3)
+# end
 
 @load KNNRegressor
 
