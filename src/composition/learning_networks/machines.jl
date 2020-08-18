@@ -172,7 +172,7 @@ end
 
 function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
 
-    network_fields = fields_in_network(model, mach)
+    network_model_fields = fields_in_network(model, mach)
 
     # anonymize the data:
     sources = mach.args
@@ -182,9 +182,9 @@ function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
     # record the field values
     old_model = deepcopy(model)
 
-    mach.cache = (sources= sources,
+    mach.cache = (sources = sources,
                   data=data,
-                  network_fields=network_fields,
+                  network_model_fields=network_model_fields,
                   old_model=old_model)
 
     return mach.fitresult, mach.cache, mach.report

@@ -18,6 +18,7 @@ seed!(1234)
 # end
 
 @load KNNRegressor
+@load Standardizer
 
 N = 50
 Xin = (a=rand(N), b=rand(N), c=rand(N));
@@ -29,6 +30,52 @@ ytrain = yin[train];
 
 ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
+
+mutable struct Rubbish <: DeterministicComposite
+    model_in_network
+    model_not_in_network
+    some_other_variable
+end
+
+@testset "logic for composite model update" begin
+    knn = KNNRegressor()
+    model = Rubbish(knn, Standardizer(), 42)
+    X, y = make_regression(10, 2)
+    X = source(X)
+    y = source(y)
+    mach1 = machine(model.model_in_network, X, y)
+    yhat = predict(mach1, X)
+    mach = machine(Deterministic(), X, y; predict=yhat) |> fit!
+    return!(mach, model)
+    old_model = mach.cache.old_model
+    network_model_fields = mach.cache.network_model_fields
+    glb_node = MLJBase.glb(mach)
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # don't fallback if mutating field for a network model:
+    model.model_in_network.K = 24
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if replacing field for a network model:
+    model.model_in_network = KNNRegressor()
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # return to original state:
+    model.model_in_network = knn
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if a non-network field changes:
+    model.model_not_in_network.features = [:x1,]
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # return to original state:
+    model.model_not_in_network = Standardizer()
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if any non-model changes:
+    model.some_other_variable = 123412
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+end
 
 @testset "first test of hand-exported network" begin
     composite = SimpleDeterministicCompositeModel(model=ridge_model,
