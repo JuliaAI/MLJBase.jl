@@ -5,31 +5,14 @@ using MLJBase
 using Tables
 import MLJBase
 using ..Models
+using ..TestUtilities
 using CategoricalArrays
 using OrderedCollections
 import Random.seed!
 seed!(1234)
 
-# @testset "anonymize!" begin
-#     ss  = [source(1), source(2), source(3)]
-#     a = MLJBase.anonymize!(ss)
-#     @test all(s -> s.data === nothing, a.sources)
-#     @test a.data == (1, 2, 3)
-# end
-
 @load KNNRegressor
 @load Standardizer
-
-N = 50
-Xin = (a=rand(N), b=rand(N), c=rand(N));
-yin = rand(N);
-
-train, test = partition(eachindex(yin), 0.7);
-Xtrain = MLJBase.selectrows(Xin, train);
-ytrain = yin[train];
-
-ridge_model = FooBarRegressor(lambda=0.1)
-selector_model = FeatureSelector()
 
 mutable struct Rubbish <: DeterministicComposite
     model_in_network
@@ -37,15 +20,16 @@ mutable struct Rubbish <: DeterministicComposite
     some_other_variable
 end
 
-@testset "logic for composite model update" begin
-    knn = KNNRegressor()
-    model = Rubbish(knn, Standardizer(), 42)
-    X, y = make_regression(10, 2)
-    X = source(X)
-    y = source(y)
-    mach1 = machine(model.model_in_network, X, y)
-    yhat = predict(mach1, X)
-    mach = machine(Deterministic(), X, y; predict=yhat) |> fit!
+knn = KNNRegressor()
+model = Rubbish(knn, Standardizer(), 42)
+X, y = make_regression(10, 2)
+
+@testset "logic for composite model update - fallback()" begin
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat) |> fit!
     return!(mach, model)
     old_model = mach.cache.old_model
     network_model_fields = mach.cache.network_model_fields
@@ -75,7 +59,69 @@ end
     # do fallback if any non-model changes:
     model.some_other_variable = 123412
     @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
 end
+
+model = Rubbish(KNNRegressor(), Standardizer(), 42)
+
+
+function MLJBase.fit(model::Rubbish, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=verbosity)
+    return!(mach, model)
+end
+
+mach = machine(model, X, y) |> fit! # `model` is instance of `Rubbish`
+
+@testset "logic for composite model update - fit!" begin
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate a field for a network model:
+    model.model_in_network.K = 24
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:update, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # replace a field for a network model:
+    model.model_in_network = KNNRegressor()
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate a field for a model not in network:
+    model.model_not_in_network.features = [:x1,]
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate some field that is not a model:
+    model.some_other_variable = 123412
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+end
+
+N = 50
+Xin = (a=rand(N), b=rand(N), c=rand(N));
+yin = rand(N);
+
+train, test = partition(eachindex(yin), 0.7);
+Xtrain = MLJBase.selectrows(Xin, train);
+ytrain = yin[train];
+
+ridge_model = FooBarRegressor(lambda=0.1)
+selector_model = FeatureSelector()
 
 @testset "first test of hand-exported network" begin
     composite = SimpleDeterministicCompositeModel(model=ridge_model,
@@ -260,6 +306,8 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
+
+
 
 
 

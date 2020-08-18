@@ -122,7 +122,8 @@ A greatest lower bound for the nodes appearing in the signature of
 **Private method.**
 
 """
-glb(mach::Machine{<:Surrogate}) = glb(values(mach.fitresult)...)
+glb(mach::Machine{<:Union{Composite,Surrogate}}) =
+    glb(values(mach.fitresult)...)
 
 
 """
