@@ -106,29 +106,16 @@ for operation in [:predict, :transform, :inverse_transform]
     eval(ex)
 end
 
-function predict_mode(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
-                      fitresult,
-                      Xnew)
-    if haskey(fitresult, :predict_mode)
-        return fitresult.predict_mode(Xnew)
+for (operation, fallback) in [(:predict_mode, :mode), (:predict_mean, :mean), (:predict_median, :median)]
+    ex = quote
+        function $(operation)(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
+                                    fitresult,
+                                    Xnew)
+        if haskey(fitresult, $(QuoteNode(operation)))
+                return fitresult.$(operation)(Xnew)
+            end
+            return $(fallback).(predict(m, fitresult, Xnew))
+        end
     end
-    return mode.(predict(m, fitresult, Xnew))
-end
-
-function predict_mean(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
-                      fitresult,
-                      Xnew)
-    if haskey(fitresult, :predict_mean)
-        return fitresult.predict_mean(Xnew)
-    end
-    return mean.(predict(m, fitresult, Xnew))
-end
-
-function predict_median(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
-                      fitresult,
-                      Xnew)
-    if haskey(fitresult, :predict_median)
-        return fitresult.predict_median(Xnew)
-    end
-    return median.(predict(m, fitresult, Xnew))
+    eval(ex)
 end
