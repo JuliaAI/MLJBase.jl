@@ -22,7 +22,7 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
+const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median, :predict_joint,
                     :transform, :inverse_transform)
 
 for operation in OPERATIONS
@@ -70,19 +70,19 @@ for operation in OPERATIONS
 
     ex = quote
         # 1. operations on machines, given *concrete* data:
-        function $operation(mach::Machine, Xraw)
+        function $operation(mach::Machine, Xraw; kwargs...)
             if mach.state > 0
                 return $(operation)(mach.model, mach.fitresult,
-                                    Xraw)
+                                    Xraw; kwargs...)
             else
                 error("$mach has not been trained.")
             end
         end
         
-        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
+        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...; kwargs...)
             isdefined(mach, :fitresult) || (mach.fitresult = nothing)
             return $(operation)(mach.model, mach.fitresult,
-                                    Xraw, Xraw_more...)
+                                    Xraw, Xraw_more...; kwargs...)
         end
 
         # 2. operations on machines, given *dynamic* data (nodes):
@@ -98,7 +98,7 @@ end
 
 ## SURROGATE AND COMPOSITE MODELS
 
-for operation in [:predict, :transform, :inverse_transform]
+for operation in [:predict, :predict_joint, :transform, :inverse_transform]
     ex = quote
         $operation(model::Union{Composite,Surrogate}, fitresult,X) =
             fitresult.$operation(X)
