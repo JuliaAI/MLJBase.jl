@@ -1,16 +1,17 @@
 ## LEGACY METHODS FOR EXPORTING LEARNING NETWORKS BY HAND
 
-# needed?
-# function fitresults!(; kwargs...)
-#     mach =  machine(; kwargs...) |> fit!
-#     return mach.fitresult, mach.cache, mach.report
-# end
+# legacy method:
+function anonymize!(sources)
+    data = Tuple(s.data for s in sources)
+    [MLJBase.rebind!(s, nothing) for s in sources]
+    return (sources=sources, data=data)
+end
 
 # legacy method:
 function fitresults(yhat::AbstractNode)
     Base.depwarn("`fitresults(::Node)` is deprecated. "*
-                 "See \"Composing Models\" section of MLJ manual "*
-                 "on preferred way to export learning networks "*
+                 "Query `return!` for "*
+                 "preferred way to export learning networks "*
                  "by hand. ", Base.Core.Typeof(fitresults).name.mt.name)
     inputs = sources(yhat, kind=:input)
     targets = sources(yhat, kind=:target)
@@ -46,21 +47,30 @@ fitted_params(::Union{Composite,Surrogate},
               fitresult::Node) =
                   fitted_params(fitresult)
 
-function update(model::Union{Composite,Surrogate},
+function update(model::Composite,
                 verbosity::Integer,
                 fitresult::NamedTuple,
                 cache,
                 args...)
 
-    # If any `model` field has been replaced (and not just mutated)
-    # then we actually need to fit rather than update (which will
-    # force build of a new learning network). If `model` has been
-    # created using a learning network export macro, the test used
-    # below is perfect. In any other case it is at least conservative,
-    # ie it might force a cold restart when a warm restart suffices.
+    # We must rebuild the network before fitting it whenever a field
+    # `fld` of `model` becomes *active*, meaning not *passive*. By
+    # definition, `fld` is *passive* if:
+    #
+    # (1) It's `objectid` coincides with that of a model instance in
+    #     the learning network, OR
+    # (2) It's value is == to 
 
-    # greatest lower bound of all nodes delivering predictions:
-    glb_node = glb(values(fitresult)...)
+    # If any `model` field has been replaced (and not just mutated)
+    # then we actually need to fit rather than update to force
+    # building a *new* learning network (the existing learning network
+    # still points to the old models). Similarly, if there is a field
+    # that is *not* a model that changes then, we have no choice but
+    # to rebuild the network to ensure it is incorporated (the
+    # existing learning network cannot see the change). There
+    # is no way to retain "smart fitting" in these cases.
+
+    glb_node = glb(values(fitresult)...) # greatest lower bound in complete DAG
 
     network_model_ids = objectid.(models(glb_node))
     field_values =
@@ -71,27 +81,25 @@ function update(model::Union{Composite,Surrogate},
         return fit(model, verbosity, args...)
     end
 
-    is_anonymized = cache isa NamedTuple{(:sources, :data)}
-
-    if is_anonymized
-        sources, data = cache.sources, cache.data
-        for k in eachindex(sources)
-            rebind!(sources[k], data[k])
-        end
+    # return data to source nodes for fitting:
+    sources, data = cache.sources, cache.data
+    for k in eachindex(sources)
+        rebind!(sources[k], data[k])
     end
 
     fit!(glb_node; verbosity=verbosity)
-    if is_anonymized
-        for s in sources
-            rebind!(s, nothing)
-        end
+
+    # anonymize data again:
+    for s in sources
+        rebind!(s, nothing)
     end
+
 
     return fitresult, cache, report(glb_node)
 end
 
 # legacy version of above (fitresult a Node):
-function update(model::Union{Composite,Surrogate},
+function update(model::Composite,
                 verbosity::Integer,
                 yhat::Node,
                 cache,
