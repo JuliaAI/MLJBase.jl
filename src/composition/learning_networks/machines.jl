@@ -166,9 +166,16 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
     signature = mach.fitresult
     network_model_ids = objectid.(models(glb(mach)))
 
-    return filter(fieldnames(M)) do name
-        objectid(getproperty(model, name)) in network_model_ids
+    @static if VERSION ≥ v"1.4.2"
+        return filter(fieldnames(M)) do name
+            objectid(getproperty(model, name)) in network_model_ids
+        end
+    else
+        return filter(collect(fieldnames(M))) do name
+            objectid(getproperty(model, name)) in network_model_ids
+        end |> vec -> tuple(vec...)
     end
+
 end
 
 function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
