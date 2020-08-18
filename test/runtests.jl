@@ -66,20 +66,23 @@ print("\r                                           \r")
 #     @test include("data/datasets_synthetic.jl")
 # end
 
-@testset "sources" begin
-    @test include("sources.jl")
-end
+# @testset "sources" begin
+#     @test include("sources.jl")
+# end
 
-@testset "machines" begin
-    @test include("machines.jl")
-end
+# @testset "machines" begin
+#     @test include("machines.jl")
+# end
 
-@testset "composition" begin
+@testset "composition - learning_networks" begin
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/machines.jl")
     VERSION ≥ v"1.3.0-" &&
         @test include("composition/learning_networks/arrows.jl")
+end
+
+@testset "composition - models" begin
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")

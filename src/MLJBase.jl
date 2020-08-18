@@ -156,7 +156,7 @@ export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
 export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
-    glb, @tuple, node, @node, sources, origins,
+    glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,

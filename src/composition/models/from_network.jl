@@ -24,7 +24,7 @@ function fit_method(mach, models...)
 
         fit!(new_mach, verbosity=verb)
 
-        return new_mach()
+        return!(new_mach, model)
     end
 
     return _fit
