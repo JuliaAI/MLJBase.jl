@@ -116,7 +116,7 @@ end
 
         mach = machine(Deterministic(), Xs, ys; predict=yhat)
         fit!(mach, verbosity=verbosity)
-        return mach()
+        return!(mach, model)
     end
 
     MLJBase.input_scitype(::Type{<:WrappedRidge}) =
@@ -199,7 +199,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         Wout = transform(m, W)
         mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
         fit!(mach)
-        return mach()
+        return!(mach, model)
     end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
