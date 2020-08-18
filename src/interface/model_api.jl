@@ -33,7 +33,7 @@ predict_median(m, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
 
 # not in MLJModelInterface as methodswith requires InteractiveUtils
 MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
-    getfield.(methodswith(M), :name)
+    getfield.(methodswith(M), :name) |> unique
 
 # serialization fallbacks:
 # Here `file` can be `String` or `IO` (eg, `file=IOBuffer()`).
