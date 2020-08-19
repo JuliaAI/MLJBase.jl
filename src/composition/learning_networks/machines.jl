@@ -178,6 +178,45 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
 end
 
+
+"""
+
+    return!(mach::Machine{<:Surrogate}, model::Model)
+
+Equivalent to `mach(model)`, this call returns an object suitable for
+returning in user-defined `Composite` model `MLJBase.fit` methods. Not
+relevant when defining composite models using `@pipeline` or
+`@from_network`.
+
+### Example
+
+The following code defines, "by hand", a new model type `MyComposite`
+for composing standardization (whitening) with a deterministic
+regressor:
+
+```
+mutable struct MyComposite <: DeterministicComposite
+    regressor
+end
+
+function MLJBase.fit(model::MyComposite, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+
+    mach1 = machine(Standardizer(), Xs)
+    Xwhite = transform(mach1, Xs)
+
+    mach2 = machine(model.regressor, Xwhite, ys)
+    yhat = predict(mach2, Xwhite)
+
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=verbosity)
+
+    return mach(model)  # or `return!(mach, model)`
+end
+```
+
+"""
 function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
 
     network_model_fields = fields_in_network(model, mach)
@@ -199,17 +238,22 @@ function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
 
 end
 
+# alternative "calling" syntax:
+(mach::Machine{<:Surrogate})(model::Model) = return!(mach, model)
+
 #legacy code:
 
 function (mach::Machine{<:Surrogate})()
-    Base.depwarn("Calling a learning network machine is "*
-                 "deprecated and will "*
-                 "lead to unexpected behaviour for `Composite` models"*
-                 "with fields not associated with models in the "*
-                 "underlying learning network. "*
-                 "In place of `return mach()` use `return!(mach, model)`, "*
+    Base.depwarn("Calling a learning network machine `mach` "*
+                 "with no arguments, as in"*
+                 "`mach()`, is "*
+                 "deprecated and could lead "*
+                 "to unexpected behaviour for `Composite` models"*
+                 "with fields that are not models. "*
+                 "Instead of `return mach()` use `return mach(model)`, "*
                  "where `model` is the `Model` instance appearing in your "*
-                 "`fit` signature. Query `return!` doc-string for details. ",
+                 "`fit` signature. Query the `return!` doc-string "*
+                 "for details. ",
                  nothing)
 
     return!(mach, nothing)
