@@ -163,18 +163,53 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
 function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
+
     signature = mach.fitresult
     network_model_ids = objectid.(models(glb(mach)))
 
-    @static if VERSION ≥ v"1.4.2"
-        return filter(fieldnames(M)) do name
-            objectid(getproperty(model, name)) in network_model_ids
+    names = fieldnames(M)
+
+    # intialize dict to detect duplicity a la #377:
+    name_given_id = Dict{UInt64,Vector{Symbol}}()
+
+    # identify location of fields whose values are models in the
+    # learning network, and build name_given_id:
+    mask = map(names) do name
+        id = objectid(getproperty(model, name))
+        is_network_model_field = id in network_model_ids
+        if is_network_model_field
+            if haskey(name_given_id, id)
+                push!(name_given_id[id], name)
+            else
+                name_given_id[id] = [name,]
+            end
         end
-    else
-        return filter(collect(fieldnames(M))) do name
-            objectid(getproperty(model, name)) in network_model_ids
-        end |> vec -> tuple(vec...)
+        return is_network_model_field
+    end  |> collect
+
+    # perform #377 check:
+    no_duplicates = all(values(name_given_id)) do name
+        length(name) == 1
     end
+    if !no_duplicates
+        for (id, name) in name_given_id
+            if length(name) > 1
+                @error "The fields $name of $model have identical model "*
+                "instances as values. "
+            end
+        end
+        throw(ArgumentError(
+            "Two distinct fields of a composite model that are both "*
+            "associated with models in the underlying learning "*
+            "network cannot "*
+            "have identical values, although they can be `==` "*
+            "(corresponding nested fields are `==`). In particular, "*
+            "two model instances in a `@pipeline` call cannot be "*
+            "identical, only `==`. Consider constructing instances "*
+            "separately or use `deepcopy`. "))
+    end
+
+    return names[mask]
 
 end
 
