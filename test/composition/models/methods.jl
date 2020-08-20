@@ -250,33 +250,6 @@ end
     fit!(mach)
     @test predict(mach, Xin) != yhat
 
-    # test depreciated version:
-    function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
-        Xs = source(X)
-        ys = source(y, kind=:target)
-
-        stand = Standardizer()
-        standM = machine(stand, Xs)
-        W = transform(standM, Xs)
-
-        boxcox = UnivariateBoxCoxTransformer()
-        boxcoxM = machine(boxcox, ys)
-        z = transform(boxcoxM, ys)
-
-        ridgeM = machine(model.ridge, W, z)
-        zhat = predict(ridgeM, W)
-        yhat = inverse_transform(boxcoxM, zhat)
-
-        fit!(yhat)
-
-        return fitresults(yhat)
-    end
-    ridge = FooBarRegressor(lambda=0.1)
-    model_ = WrappedRidge(ridge)
-    mach = machine(model_, Xin, yin)
-    @test_deprecated fit!(mach)
-    @test yhat ≈ predict(mach, Xin);
-
 #end
 
 # A dummy clustering model:

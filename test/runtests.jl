@@ -89,7 +89,6 @@ end
     @test include("composition/models/pipelines.jl")
     @test include("composition/models/_wrapped_function.jl")
     @test include("composition/models/static_transformers.jl")
-    @test include("composition/models/deprecated.jl")
 end
 
 @testset "operations.jl" begin
