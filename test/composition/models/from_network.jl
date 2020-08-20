@@ -454,8 +454,6 @@ mach = fit!(machine(model, X))
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
 
-end
-
 
 ## EXPORTING A STATIC LEARNING NETWORK (NO TRAINING ARGUMENTS)
 
@@ -481,5 +479,43 @@ end
 
 mach = machine(NoTraining()) |> fit!
 @test transform(mach, X) == 2*X.age
+
+
+## ISSUE #377
+
+target_stand = Standardizer()
+stand = Standardizer()
+rgs = KNNRegressor()
+
+X = source()
+y = source()
+
+mach1 = machine(target_stand, y)
+z = transform(mach1, y)
+mach2 = machine(stand, X)
+W = transform(mach2, X)
+mach3 = machine(rgs, W, z)
+zhat = predict(mach3, W)
+yhat = inverse_transform(mach1, zhat)
+
+@from_network machine(Deterministic(), X, y; predict=yhat) begin
+    mutable struct CompositeA
+        rgs=rgs
+        stand=stand
+        target=target_stand
+    end
+end
+
+X, y = make_regression(20, 2);
+model = CompositeA(stand=stand, target=stand)
+mach = machine(model, X, y)
+@test_logs((:error, r"The fields"),
+           @test_throws(ArgumentError,
+                        fit!(mach, verbosity=-1)))
+
+
+
+end
+
 
 true
