@@ -201,11 +201,10 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
         throw(ArgumentError(
             "Two distinct fields of a composite model that are both "*
             "associated with models in the underlying learning "*
-            "network cannot "*
-            "have identical values, although they can be `==` "*
-            "(corresponding nested fields are `==`). In particular, "*
-            "two model instances in a `@pipeline` call cannot be "*
-            "identical, only `==`. Consider constructing instances "*
+            "network (eg, any two fields of a `@pipeline` model)"*
+            "cannot have identical values, although they can be `==` "*
+            "(corresponding nested fields are `==`)."*
+            "Consider constructing instances "*
             "separately or use `deepcopy`. "))
     end
 
@@ -219,9 +218,10 @@ end
     return!(mach::Machine{<:Surrogate}, model::Model)
 
 Equivalent to `mach(model)`, this call returns an object suitable for
-returning in user-defined `Composite` model `MLJBase.fit` methods. Not
-relevant when defining composite models using `@pipeline` or
-`@from_network`.
+returning in user-defined `Composite` model `MLJBase.fit` methods,
+once a learning network machine `mach` has been constructed, and given
+the composite model instance `model` used to do so. Not relevant when
+defining composite models using `@pipeline` or `@from_network`.
 
 ### Example
 
