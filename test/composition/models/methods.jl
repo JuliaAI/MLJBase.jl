@@ -29,10 +29,10 @@ X, y = make_regression(10, 2)
     ys = source(y)
     mach1 = machine(model.model_in_network, Xs, ys)
     yhat = predict(mach1, Xs)
-    mach = machine(Deterministic(), Xs, ys; predict=yhat) |> fit!
-    return!(mach, model)
-    old_model = mach.cache.old_model
-    network_model_fields = mach.cache.network_model_fields
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    _, cache, _ = return!(mach, model, 1)
+    old_model = cache.old_model
+    network_model_fields = cache.network_model_fields
     glb_node = MLJBase.glb(mach)
     @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
 
@@ -71,8 +71,7 @@ function MLJBase.fit(model::Rubbish, verbosity, X, y)
     mach1 = machine(model.model_in_network, Xs, ys)
     yhat = predict(mach1, Xs)
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    fit!(mach, verbosity=verbosity)
-    return!(mach, model)
+    return!(mach, model, verbosity)
 end
 
 mach = machine(model, X, y) |> fit! # `model` is instance of `Rubbish`
@@ -208,8 +207,7 @@ end
         yhat = inverse_transform(boxcoxM, zhat)
 
         mach = machine(Deterministic(), Xs, ys; predict=yhat)
-        fit!(mach, verbosity=verbosity)
-        return!(mach, model)
+        return!(mach, model, verbosity)
     end
 
     MLJBase.input_scitype(::Type{<:WrappedRidge}) =
@@ -291,8 +289,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         yhat = predict(m, W)
         Wout = transform(m, W)
         mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
-        fit!(mach)
-        return!(mach, model)
+        return!(mach, model, verbosity)
     end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))

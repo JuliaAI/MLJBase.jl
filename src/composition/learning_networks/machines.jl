@@ -162,6 +162,9 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
+# identify which fields of `model` have, as values, a model in the
+# learning network wrapped by `mach`, and check that no two such
+# fields have have identical values (#377):
 function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
     signature = mach.fitresult
@@ -215,13 +218,36 @@ end
 
 """
 
-    return!(mach::Machine{<:Surrogate}, model::Model)
+    return!(mach::Machine{<:Surrogate}, model, verbosity)
 
-Equivalent to `mach(model)`, this call returns an object suitable for
-returning in user-defined `Composite` model `MLJBase.fit` methods,
-once a learning network machine `mach` has been constructed, and given
-the composite model instance `model` used to do so. Not relevant when
-defining composite models using `@pipeline` or `@from_network`.
+The last call in custom code defining the `MLJBase.fit` method for a
+new composite model type. Here `model` is the instance of the new type
+appearing in the `MLJBase.fit` signature, while `mach` is a learning
+network machine constructed using `model`. Not relevant when defining
+composite models using `@pipeline` or `@from_network`.
+
+For usage, see the example given below. Specificlly, the call does the
+following:
+
+- Determines which fields of `model` point to model instances in the
+  learning network wrapped by `mach`, for recording in an object
+  called `cache`, for passing onto the MLJ logic that handles smart
+  updating (namely, an `MLJBase.update` fallback for composite models).
+
+
+- Calls `fit!(mach, verbosity=verbosity)`.
+
+- Moves any data in sources nodes of the learning network into `cache`
+  (for data-anonymization purposes).
+
+- Records a copy of `model` in `cache`.
+
+- Returns `cache` and outcomes of training in an appropriate form
+  (specifically, `(mach.fitresult, cache, mach.report)`; see [Adding
+  Models for General
+  Use](https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/)
+  for technical details.)
+
 
 ### Example
 
@@ -245,16 +271,18 @@ function MLJBase.fit(model::MyComposite, verbosity, X, y)
     yhat = predict(mach2, Xwhite)
 
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    fit!(mach, verbosity=verbosity)
-
-    return mach(model)  # or `return!(mach, model)`
+    return!(mach, model, verbosity)
 end
 ```
 
 """
-function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
+function return!(mach::Machine{<:Surrogate},
+                 model::Union{Model,Nothing},
+                 verbosity)
 
     network_model_fields = fields_in_network(model, mach)
+
+    verbosity isa Nothing || fit!(mach, verbosity=verbosity)
 
     # anonymize the data:
     sources = mach.args
@@ -264,20 +292,17 @@ function return!(mach::Machine{<:Surrogate}, model::Union{Model,Nothing})
     # record the field values
     old_model = deepcopy(model)
 
-    mach.cache = (sources = sources,
-                  data=data,
-                  network_model_fields=network_model_fields,
-                  old_model=old_model)
+    cache = (sources = sources,
+             data=data,
+             network_model_fields=network_model_fields,
+             old_model=old_model)
 
-    return mach.fitresult, mach.cache, mach.report
+    return mach.fitresult, cache, mach.report
 
 end
 
-# alternative "calling" syntax:
-(mach::Machine{<:Surrogate})(model::Model) = return!(mach, model)
 
 #legacy code:
-
 function (mach::Machine{<:Surrogate})()
     Base.depwarn("Calling a learning network machine `mach` "*
                  "with no arguments, as in"*
@@ -285,13 +310,14 @@ function (mach::Machine{<:Surrogate})()
                  "deprecated and could lead "*
                  "to unexpected behaviour for `Composite` models"*
                  "with fields that are not models. "*
-                 "Instead of `return mach()` use `return mach(model)`, "*
+                 "Instead of `fit!(mach, verbosity=verbosity); return mach()` "*
+                 "use `return!(mach, model, verbosity)`, "*
                  "where `model` is the `Model` instance appearing in your "*
-                 "`fit` signature. Query the `return!` doc-string "*
+                 "`MLJBase.fit` signature. Query the `return!` doc-string "*
                  "for details. ",
                  nothing)
 
-    return!(mach, nothing)
+    return!(mach, nothing, nothing)
 end
 fields_in_network(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
