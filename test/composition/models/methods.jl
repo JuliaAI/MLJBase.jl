@@ -62,6 +62,30 @@ X, y = make_regression(10, 2)
 
 end
 
+# deprecated version:
+function MLJBase.fit(model::Rubbish, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=verbosity)
+    return mach()
+end
+
+@testset "deprecation warning" begin
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=-1)
+    @test_deprecated mach();
+
+    mach = machine(model, X, y)
+    @test_deprecated fit!(mach, verbosity=-1)
+end
+
 model = Rubbish(KNNRegressor(), Standardizer(), 42)
 
 

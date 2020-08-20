@@ -308,7 +308,7 @@ function (mach::Machine{<:Surrogate})()
                  "with no arguments, as in"*
                  "`mach()`, is "*
                  "deprecated and could lead "*
-                 "to unexpected behaviour for `Composite` models"*
+                 "to unexpected behaviour for `Composite` models "*
                  "with fields that are not models. "*
                  "Instead of `fit!(mach, verbosity=verbosity); return mach()` "*
                  "use `return!(mach, model, verbosity)`, "*
