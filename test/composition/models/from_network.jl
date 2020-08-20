@@ -461,15 +461,15 @@ age = [23, 45, 34, 25, 67]
 X = (age = age,
      gender = categorical(['m', 'm', 'f', 'm', 'f']))
 
-struct MyTransformer <: Static
+struct MyStaticTransformer <: Static
     ftr::Symbol
 end
 
-MLJBase.transform(transf::MyTransformer, verbosity, X) =
+MLJBase.transform(transf::MyStaticTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
 Xs = source()
-W = transform(machine(MyTransformer(:age)), Xs)
+W = transform(machine(MyStaticTransformer(:age)), Xs)
 Z = 2*W
 
 @from_network machine(Static(), Xs; transform=Z) begin
