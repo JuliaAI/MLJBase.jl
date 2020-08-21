@@ -103,24 +103,34 @@ color(N::Node) = (N.machine.frozen ? :red : :green)
 # constructor for static operations:
 Node(operation, args::AbstractNode...) = Node(operation, nothing, args...)
 
-# make nodes callable:
-(y::Node)(; rows=:) =
-    (y.operation)(y.machine, [arg(rows=rows) for arg in y.args]...)
-function (y::Node)(Xnew)
-    length(y.origins) == 1 ||
-        error("Node $y has multiple origins and cannot be called "*
+_check(y::Node) = nothing
+_check(y::Node{Nothing}) = length(y.origins) == 1 ? nothing :
+    error("Node $y has multiple origins and cannot be called "*
               "on new data. ")
-    return (y.operation)(y.machine, [arg(Xnew) for arg in y.args]...)
-end
 
-# and for the special case of static operations:
-(y::Node{Nothing})(; rows=:) =
-    (y.operation)([arg(rows=rows) for arg in y.args]...)
-function (y::Node{Nothing})(Xnew)
-    length(y.origins) == 1 ||
-        error("Node $y has multiple origins and cannot be called "*
-              "on new data. ")
-    return (y.operation)([arg(Xnew) for arg in y.args]...)
+# make nodes callable:
+(y::Node)(; rows=:) = _apply((y, y.machine); rows=rows)
+(y::Node)(Xnew) = (_check(y); _apply((y, y.machine), Xnew))
+(y::Node{Nothing})(; rows=:) = _apply((y, ); rows=rows)
+(y::Node{Nothing})(Xnew)= (_check(y); _apply((y, ), Xnew))
+
+function _apply(y_plus, input...; kwargs...)
+    y = y_plus[1]
+    mach = y_plus[2:end] # in static case this is ()
+    raw_args = map(y.args) do arg
+        arg(input...; kwargs...)
+    end
+    try
+        (y.operation)(mach..., raw_args...)
+    catch exception
+        @error "Failed "*
+        "to apply the operation `$(y.operation)` to the machine "*
+        "$(y.machine), which receives it's data arguments from one or more "*
+        "nodes in a learning network. Possibly, one of these nodes "*
+        "is delivering data that is incompatible with the machine's model.\n"*
+        diagnostics(y, input...; kwargs...)
+        throw(exception)
+    end
 end
 
 ScientificTypes.elscitype(N::Node) = Unknown

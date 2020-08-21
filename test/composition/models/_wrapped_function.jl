@@ -1,3 +1,4 @@
+
 module TestPipelineStatic
 
 using Test
