@@ -70,19 +70,19 @@ for operation in OPERATIONS
 
     ex = quote
         # 1. operations on machines, given *concrete* data:
-        function $operation(mach::Machine, Xraw; kwargs...)
+        function $operation(mach::Machine, Xraw)
             if mach.state > 0
                 return $(operation)(mach.model, mach.fitresult,
-                                    Xraw; kwargs...)
+                                    Xraw)
             else
                 error("$mach has not been trained.")
             end
         end
         
-        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...; kwargs...)
+        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
             isdefined(mach, :fitresult) || (mach.fitresult = nothing)
             return $(operation)(mach.model, mach.fitresult,
-                                    Xraw, Xraw_more...; kwargs...)
+                                    Xraw, Xraw_more...)
         end
 
         # 2. operations on machines, given *dynamic* data (nodes):
