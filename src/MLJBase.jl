@@ -15,7 +15,7 @@ using MLJModelInterface
 # Interface
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict,
-    predict_mode, predict_mean, predict_median,
+    predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
     params
@@ -64,10 +64,10 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
-    Probabilistic, Deterministic, Interval, Static,
-    ProbabilisticComposite, DeterministicComposite,
+    Probabilistic, JointProbabilistic, Deterministic, Interval, Static,
+    ProbabilisticComposite, JointProbabilisticComposite, DeterministicComposite,
     IntervalComposite, UnsupervisedComposite, StaticComposite,
-    ProbabilisticSurrogate, DeterministicSurrogate,
+    ProbabilisticSurrogate, JointProbabilisticSurrogate, DeterministicSurrogate,
     IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
     Surrogate, Composite
 
@@ -81,7 +81,7 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-       fitted_params, predict, predict_mode, predict_mean, predict_median,
+       fitted_params, predict, predict_mode, predict_mean, predict_median, predict_joint,
        evaluate, clean!
 
 # model/measure matching:
