@@ -460,6 +460,15 @@ fit!(mach)
 @test p isa ProbabilisticComposite
 pdf(predict(mach, X)[1], 'f') ≈ 4/7
 
+# test invalid replacement of classifier with regressor throws
+# informative error message:
+p.constant_classifier = ConstantRegressor()
+@test_logs((:error, r"^Problem"),
+           (:info, r"^Running type"),
+           (:warn, r"The scitype of"),
+           (:error, r"Problem"),
+           @test_throws Exception fit!(mach, verbosity=-1))
+
 # test a simple deterministic classifier pipeline:
 X = MLJBase.table(rand(rng,7,3))
 y = categorical(collect("ffmmfmf"))

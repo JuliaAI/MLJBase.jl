@@ -49,20 +49,23 @@ end
 # makes sense if they are actually source nodes.
 
 function check(model::Supervised, args... ; full=false)
+
+    nowarns = true
+
     nargs = length(args)
     if nargs == 2
         X, y = args
     elseif nargs > 2
-        supports_weights(model) ||
-            @info("$(typeof(model)) does not support sample weights and " *
-                  "the supplied weights will be ignored in training.\n" *
-                  "However, supplied weights will be passed to " *
-                  "weight-supporting measures on calls to `evaluate!` " *
+        supports_weights(model) || elscitype(args[3]) <: Unknown ||
+            @info("$(typeof(model)) does not support sample weights and "*
+                  "the supplied weights will be ignored in training.\n"*
+                  "However, supplied weights will be passed to "*
+                  "weight-supporting measures on calls to `evaluate!` "*
                   "and in tuning. ")
         X, y, w = args
     else
-        throw(ArgumentError("Use `machine(model, X, y)` or " *
-                            "`machine(model, X, y, w)` for a supervised " *
+        throw(ArgumentError("Use `machine(model, X, y)` or "*
+                            "`machine(model, X, y, w)` for a supervised "*
                             "model."))
     end
 
@@ -70,39 +73,41 @@ function check(model::Supervised, args... ; full=false)
         # checks on input type:
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X, ...)` "
-            "is incompatible with " *
-            "`model`:\nscitype(X) = $(elscitype(X))\n" *
-            "input_scitype(model) = $(input_scitype(model))."
+            (@warn("The scitype of `X`, in `machine(model, X, ...)` "*
+             "is incompatible with "*
+             "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+             "input_scitype(model) = $(input_scitype(model))."); nowarns=false)
 
         # checks on target type:
         target_scitype(model) <: Unknown ||
             elscitype(y) <: target_scitype(model) ||
-            @warn "The scitype of `y`, in `machine(model, X, y, ...)` " *
-            "is incompatible with " *
-            "`model`:\nscitype(y) = $(elscitype(y))\n" *
-            "target_scitype(model) = $(target_scitype(model))."
+            (@warn("The scitype of `y`, in `machine(model, X, y, ...)` "*
+            "is incompatible with "*
+             "`model=$model`:\nscitype(y) = $(elscitype(y))\ntarget_scitype(model) "*
+             "= $(target_scitype(model))."); nowarns=false)
 
         # checks on dimension matching:
         X() === nothing || # model fits a distribution to y
             nrows(X()) == nrows(y()) ||
             throw(DimensionMismatch("Differing number of observations "*
                                     "in input and target. "))
-        if nargs > 2
-            w.data isa AbstractVector{<:Real} || w.data === nothing ||
+        if nargs > 2 && !(w.data isa Nothing)
+            w.data isa AbstractVector{<:Real} ||
                 throw(ArgumentError("Weights must be real."))
             nrows(w()) == nrows(y()) ||
                 throw(DimensionMismatch("Weights and target "*
                                         "differ in length."))
         end
     end
-    return nothing
+    return nowarns
 end
 
 function check(model::Unsupervised, args...; full=false)
+    nowarns = true
+
     nargs = length(args)
     nargs <= 1 ||
-        throw(ArgumentError("Wrong number of arguments. Use " *
+        throw(ArgumentError("Wrong number of arguments. Use "*
                             "`machine(model, X)` for an unsupervised model, "*
                             "or `machine(model)` if there are no training "*
                             "arguments (`Static` transformers).) "))
@@ -111,11 +116,11 @@ function check(model::Unsupervised, args...; full=false)
         # check input scitype
         input_scitype(model) <: Unknown ||
             elscitype(X) <: input_scitype(model) ||
-            @warn "The scitype of `X`, in `machine(model, X)` is "*
-        "incompatible with `model`:\nscitype(X) = $(elscitype(X))\n" *
-            "input_scitype(model) = $(input_scitype(model))."
+            (@warn("The scitype of `X`, in `machine(model, X)` is "*
+        "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+             "input_scitype(model) = $(input_scitype(model))."); nowarns=false)
     end
-    return nothing
+    return nowarns
 end
 
 
@@ -414,7 +419,22 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
         # fit the model:
         fitlog(mach, :train, verbosity)
         mach.fitresult, mach.cache, mach.report =
-            fit(mach.model, verbosity, raw_args...)
+            try
+                fit(mach.model, verbosity, raw_args...)
+            catch exception
+                @error "Problem fitting the machine $mach, "*
+                "possibly because an upstream node in a learning "*
+                "network is providing data of incompatible scitype. "
+                _sources = sources(glb(mach.args...))
+                length(_sources) > 2 ||
+                    mach.model isa Composite ||
+                    all((!isempty).(_sources)) ||
+                    @warn "Some learning network source nodes are empty. "
+                @info "Running type checks... "
+                check(mach.model, source.(raw_args)... ; full=true) &&
+                    @info "Type checks okay. "
+                throw(exception)
+            end
     elseif mach.model != mach.old_model
         # update the model:
         fitlog(mach, :update, verbosity)
@@ -448,7 +468,7 @@ end
     fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
 
 Fit the machine `mach`. In the case that `mach` has `Node` arguments,
-first train all other machines on which `mach` depends. 
+first train all other machines on which `mach` depends.
 
 To attempt to fit a machine without touching any other machine, use
 `fit_only!`. For more on the internal logic of fitting see
