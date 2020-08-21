@@ -22,7 +22,7 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
+const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median, :predict_joint,
                     :transform, :inverse_transform)
 
 for operation in OPERATIONS
@@ -98,7 +98,7 @@ end
 
 ## SURROGATE AND COMPOSITE MODELS
 
-for operation in [:predict, :transform, :inverse_transform]
+for operation in [:predict, :predict_joint, :transform, :inverse_transform]
     ex = quote
         $operation(model::Union{Composite,Surrogate}, fitresult,X) =
             fitresult.$operation(X)
