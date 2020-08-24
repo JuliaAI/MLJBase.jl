@@ -28,18 +28,25 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = (sleep(0.01*rand(rng)); fill(1:k, nmeasures))
+        func(mach, k) = ((sleep(0.01*rand(rng)); fill(1:k, nmeasures)),
+                         :fitted_params,
+                         :report,)
     end
     mach = machine(ConstantRegressor(), X, y)
     p = Progress(nfolds, dt=0)
     if accel isa CPUThreads
-    result = MLJBase._evaluate!(func, mach, CPUThreads(Threads.nthreads()), nfolds, 1)
+        result = MLJBase._evaluate!(func,
+                                    mach,
+                                    CPUThreads(Threads.nthreads()),
+                                    nfolds,
+                                    1)
     else
-       result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
+        result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
     end
-    @test result ==
+    measurements = vcat(result[1]...)
+    @test measurements ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
-
+    @test collect(result[2]) == fill(:fitted_params, nfolds)
 end
 
 
@@ -143,8 +150,6 @@ end
     @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
 
     cv = CV(nfolds=3, rng=rng)
-    model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
@@ -187,12 +192,11 @@ end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
- X, y = @load_iris
-model = ConstantClassifier()
+    X, y = @load_iris
+    model = ConstantClassifier()
 
-bad_loss(yhat, y) = throw(Exception())
-@test_throws Exception evaluate(model, X, y, measure=bad_loss)
-
+    bad_loss(yhat, y) = throw(Exception())
+    @test_throws Exception evaluate(model, X, y, measure=bad_loss)
 end
 
 @testset_accelerated "cv" accel begin

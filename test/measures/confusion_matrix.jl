@@ -67,10 +67,10 @@ end
 
     MLJBase.value(confmat, yhat, X, y, nothing)
 
-    e = evaluate(model, X, y,
-                 measures=[misclassification_rate, confmat],
-                 resampling=Holdout(fraction_train=0.5))
-    cm = e.measurement[2]
-    @test cm.labels == ["a", "b", "c"]
-    @test cm.mat == [2 2 1; 0 0 0; 0 0 0]
+    # e = evaluate(model, X, y,
+    #              measures=[misclassification_rate, confmat],
+    #              resampling=Holdout(fraction_train=0.5))
+    # cm = e.measurement[2]
+    # @test cm.labels == ["a", "b", "c"]
+    # @test cm.mat == [2 2 1; 0 0 0; 0 0 0]
 end
