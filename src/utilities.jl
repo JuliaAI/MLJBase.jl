@@ -299,7 +299,8 @@ end
 
 """
     chunks(range, n)
-split a given range into `n` subranges of approximately equal length.
+
+Split an `AbstractRange`  into `n` subranges of approximately equal length.
 
 ### Example
 ```julia
@@ -307,6 +308,8 @@ julia> collect(chunks(1:5, 2))
 2-element Array{UnitRange{Int64},1}:
  1:3
  4:5
+
+**Private method**
 
 ```
 """
