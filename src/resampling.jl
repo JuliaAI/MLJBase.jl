@@ -297,8 +297,13 @@ end
 # ================================================================
 ## EVALUATION RESULT TYPE
 
-const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
-                               :per_fold, :per_observation)}
+const PerformanceEvaluation = NamedTuple{(:measure,
+                                          :measurement,
+                                          :per_fold,
+                                          :per_observation,
+                                          :fitted_params_per_fold,
+                                          :report_per_fold)}
+
 # pretty printing:
 round3(x) = x
 round3(x::AbstractFloat) = round(x, sigdigits=3)
@@ -316,6 +321,8 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
     println(io, "_.per_observation = $(_short(e.per_observation))")
+    println(io, "_.fitted_params_per_fold = [ … ]")
+    println(io, "_.report_per_fold = [ … ]")
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)
@@ -630,61 +637,63 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Resource-specific methods to distribute a function parameterized by
 # fold number `k` over processes/threads.
 
-# Here `func` is always going to be `get_measurements`; see later
+
+
+# Here `func` is always going to be `fit_and_extract_on_fold`; see later
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-   p = Progress(nfolds,
+    p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
                  barglyphs = BarGlyphs("[=> ]"),
                  barlen = 25,
                  color = :yellow)
 
-   ret = mapreduce(vcat, 1:nfolds) do k
-            r = func(mach, k)
-            verbosity < 1 || begin
-                      p.counter += 1
-                      ProgressMeter.updateProgress!(p)
-                    end
-            return r
+    ret = mapreduce(vcat, 1:nfolds) do k
+        r = func(mach, k)
+        verbosity < 1 || begin
+            p.counter += 1
+            ProgressMeter.updateProgress!(p)
         end
+        return [r, ]
+    end
 
-    return ret
+    return zip(ret...) |> collect
 end
 
 function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
     local ret
     @sync begin
-      p = Progress(nfolds,
-         dt = 0,
-         desc = "Evaluating over $nfolds folds: ",
-         barglyphs = BarGlyphs("[=> ]"),
-         barlen = 25,
-         color = :yellow)
-     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
+        p = Progress(nfolds,
+                     dt = 0,
+                     desc = "Evaluating over $nfolds folds: ",
+                     barglyphs = BarGlyphs("[=> ]"),
+                     barlen = 25,
+                     color = :yellow)
+        channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
         # printing the progress bar
         verbosity < 1 || @async begin
-                         while take!(channel)
-                              p.counter +=1
-                              ProgressMeter.updateProgress!(p)
-                         end
-                       end
+            while take!(channel)
+                p.counter +=1
+                ProgressMeter.updateProgress!(p)
+            end
+        end
 
 
-       ret = @distributed vcat for k in 1:nfolds
-                 r = func(mach, k)
-                 verbosity < 1 || begin
-                                    put!(channel, true)
-                                  end
-                 r
-             end
+        ret = @distributed vcat for k in 1:nfolds
+            r = func(mach, k)
+            verbosity < 1 || begin
+                put!(channel, true)
+            end
+            [r, ]
+        end
 
-      verbosity < 1 || put!(channel, false)
+        verbosity < 1 || put!(channel, false)
 
     end
 
-    return ret
+    return zip(ret...) |> collect
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
@@ -693,49 +702,53 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
 
-   if nthreads == 1
+    if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
-   end
-   ntasks = accel.settings
-   partitions = chunks(1:nfolds, ntasks)
+    end
+    ntasks = accel.settings
+    partitions = chunks(1:nfolds, ntasks)
 
-   p = Progress(nfolds,
-                dt = 0,
-                desc = "Evaluating over $nfolds folds: ",
-                barglyphs = BarGlyphs("[=> ]"),
-                barlen = 25,
-                color = :yellow)
+    p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow)
     ch = Channel{Bool}(min(1000, length(partitions)))
 
-   results = Vector(undef, length(partitions))
+    results = Vector(undef, length(partitions))
 
-   @sync begin
-    # printing the progress bar
-     verbosity < 1 || @async begin
-                              while take!(ch)
-                                p.counter +=1
-                                ProgressMeter.updateProgress!(p)
-                              end
-                        end
-   clean!(mach.model)
-   #One tmach for each task:
-       machines = [mach, [machine(mach.model, mach.args...) for
-                          _ in 2:length(partitions)]...]
-   @sync for (i, parts) in enumerate(partitions)
-     Threads.@spawn begin
-       results[i] = mapreduce(vcat, parts) do k
-            r = func(machines[i], k)
-            verbosity < 1 || put!(ch, true)
-            r
-       end
+    @sync begin
+        # printing the progress bar
+        verbosity < 1 || @async begin
+            while take!(ch)
+                p.counter +=1
+                ProgressMeter.updateProgress!(p)
+            end
+        end
+        clean!(mach.model)
+        #One tmach for each task:
+        machines = [mach, [machine(mach.model, mach.args...) for
+                           _ in 2:length(partitions)]...]
+        @sync for (i, parts) in enumerate(partitions)
+            Threads.@spawn begin
+                results[i] = mapreduce(vcat, parts) do k
+                    r = func(machines[i], k)
+                    verbosity < 1 || put!(ch, true)
+                    [r, ]
+                end
 
-      end
+            end
+        end
+
+        verbosity < 1 || put!(ch, false)
+
     end
 
-     verbosity < 1 || put!(ch, false)
+    ret = reduce(vcat, results)
 
-    end
-    reduce(vcat, results)
+    return zip(ret...) |> collect
+
 end
 
 end
@@ -765,7 +778,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
-    function get_measurements(mach, k)
+    function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         Xtest = selectrows(X, test)
@@ -776,8 +789,12 @@ function evaluate!(mach::Machine, resampling, weights,
             wtest = weights[test]
         end
         yhat = operation(mach, Xtest)
-        return [value(m, yhat, Xtest, ytest, wtest)
-                for m in measures]
+
+        measurements =  [value(m, yhat, Xtest, ytest, wtest)
+                         for m in measures]
+        fp = fitted_params(mach)
+        r = report(mach)
+        return (measurements, fp, r)
     end
 
     if acceleration isa CPUProcesses
@@ -793,17 +810,18 @@ function evaluate!(mach::Machine, resampling, weights,
         end
     end
 
-    measurements_flat =
-            _evaluate!(get_measurements,
-                       mach,
-                       acceleration,
-                       nfolds,
-                      verbosity)
+    measurements_vector_of_vectors, fitted_params_per_fold, report_per_fold  =
+        _evaluate!(fit_and_extract_on_fold,
+                   mach,
+                   acceleration,
+                   nfolds,
+                   verbosity)
 
+    measurements_flat = vcat(measurements_vector_of_vectors...)
 
     # in the following rows=folds, columns=measures:
     measurements_matrix = permutedims(
-        reshape(measurements_flat, (nmeasures, nfolds)))
+        reshape(collect(measurements_flat), (nmeasures, nfolds)))
 
     # measurements for each observation:
     per_observation = map(1:nmeasures) do k
@@ -831,15 +849,16 @@ function evaluate!(mach::Machine, resampling, weights,
         MLJBase.aggregate(per_fold[k], m)
     end
 
-    ret = (measure=measures,
-           measurement=per_measure,
-           per_fold=per_fold,
-           per_observation=per_observation)
+    ret = (measure                = measures,
+           measurement            = per_measure,
+           per_fold               = per_fold,
+           per_observation        = per_observation,
+           fitted_params_per_fold = fitted_params_per_fold |> collect,
+           report_per_fold        = report_per_fold |> collect)
 
     return ret
 
 end
-
 
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
