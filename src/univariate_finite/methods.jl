@@ -14,7 +14,7 @@ construct `d`.
 
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
-    classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "
+    classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "yes"]
 """
 MMI.classes(d::UnivariateFiniteUnion) = d.decoder.classes
 
