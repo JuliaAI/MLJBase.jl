@@ -132,6 +132,11 @@ end
     @test result.per_observation[2][2] ≈ [3/4, 3/4]
     @test result.measurement[1] ≈ mean(v)
     @test result.measurement[2] ≈ mean(v)
+
+    # fitted_params and report per fold:
+    @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
+        [1.5, 1.25, 1.5, 1.25, 1.5]
+    @test all(==(NamedTuple()), result.report_per_fold)
 end
 
 @testset "repeated resampling" begin
