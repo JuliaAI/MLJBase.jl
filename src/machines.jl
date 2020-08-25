@@ -56,7 +56,7 @@ function check(model::Supervised, args... ; full=false)
     if nargs == 2
         X, y = args
     elseif nargs > 2
-        supports_weights(model) || elscitype(args[3]) <: Unknown ||
+        supports_weights(model) || elscitype(args[3]) <: Nothing ||
             @info("$(typeof(model)) does not support sample weights and "*
                   "the supplied weights will be ignored in training.\n"*
                   "However, supplied weights will be passed to "*
@@ -91,7 +91,7 @@ function check(model::Supervised, args... ; full=false)
             nrows(X()) == nrows(y()) ||
             throw(DimensionMismatch("Differing number of observations "*
                                     "in input and target. "))
-        if nargs > 2 && !(w.data isa Nothing)
+        if nargs > 2 && !(elscitype(w) <: Nothing)
             w.data isa AbstractVector{<:Real} ||
                 throw(ArgumentError("Weights must be real."))
             nrows(w()) == nrows(y()) ||

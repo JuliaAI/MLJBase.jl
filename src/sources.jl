@@ -62,7 +62,7 @@ source(X::Source; args...) = X
 source(; args...) = source(nothing; args...)
 
 MLJScientificTypes.scitype(X::Source) = CallableReturning{X.scitype}
-ScientificTypes.elscitype(X::Source) = X.scitype
+MLJScientificTypes.elscitype(X::Source) = X.scitype
 nodes(X::Source) = [X, ]
 Base.isempty(X::Source) = X.data === nothing
 nrows_at_source(X::Source) = nrows(X.data)
