@@ -46,7 +46,7 @@ source() = source(nothing)
 source(Xs::Source; args...) = Xs
 
 MLJScientificTypes.scitype(X::Source) = CallableReturning{X.scitype}
-ScientificTypes.elscitype(X::Source) = X.scitype
+MLJScientificTypes.elscitype(X::Source) = X.scitype
 nodes(X::Source) = [X, ]
 Base.isempty(X::Source) = X.data === nothing
 nrows_at_source(X::Source) = nrows(X.data)
@@ -59,6 +59,41 @@ function (X::Source)(; rows=:)
     return selectrows(X.data, rows)
 end
 (X::Source)(Xnew) = Xnew
+
+# return a string of diagnostics for the call `X(input...; kwargs...)`
+diagnostic_table_sources(X::AbstractNode) =
+    "Learning network sources:\n"*
+    "source\tscitype\n"*
+    "-------------------------------------------\n"*
+    reduce(*, ("$s\t$(scitype(s()))\n" for s in sources(X)))
+
+function diagnostics(X::AbstractNode, input...; kwargs...)
+    raw_args = map(X.args) do arg
+        arg(input...; kwargs...)
+    end
+    _sources = sources(X)
+    scitypes = scitype.(raw_args)
+    mach = X.machine
+    model = mach.model
+    _input = input_scitype(model)
+    _target = target_scitype(model)
+    _output = output_scitype(model)
+
+    table1 = "Incoming data:\n"*
+    "arg of $(X.operation)\tscitype\n"*
+    "-------------------------------------------\n"*
+    reduce(*, ("$(X.args[j])\t$(scitypes[j])\n" for j in eachindex(X.args)))
+
+    table2 =  diagnostic_table_sources(X)
+    return """
+    Model ($model):
+    input_scitype = $_input
+    target_scitype =$_target
+    output_scitype =$_output
+
+    $table1
+    $table2"""
+end
 
 """
     rebind!(s, X)

@@ -12,7 +12,7 @@ Xs = source(X)
 @test scitype(Xs) == MLJBase.CallableReturning{Count}
 rebind!(Xs, nothing)
 @test isempty(Xs)
-@test Xs.scitype == Unknown
+@test Xs.scitype == Nothing
 
 end
 true

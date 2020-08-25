@@ -12,12 +12,41 @@ seed!(1234)
 
 
 @load KNNRegressor
+@load DecisionTreeClassifier
+
+N =100
+X = (x1=rand(N), x2=rand(N), x3=rand(N));
+y = 2X.x1  - X.x2 + 0.05*rand(N);
+
+@testset "error messages for invalid learning networks" begin
+
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(Standardizer(), Xs)
+    W = transform(mach1, Xs)
+    fit!(W)
+    @test_logs((:error, r"Failed"), @test_throws Exception W(34))
+
+    mach2 = machine(DecisionTreeClassifier(), W, ys)
+    yhat = predict(mach2, W)
+    @test_logs((:error, r"because an upstream"),
+               (:info, r"Running type checks"),
+               (:warn, r"^The scitype of"),
+               (:error, r"^Problem fitting"),
+               @test_throws Exception fit!(yhat, verbosity=-1))
+
+    Xs = source()
+    mach1 = machine(Standardizer(), Xs)
+    W = transform(mach1, Xs)
+    @test_logs((:error, r"^Problem"),
+               (:warn, r"are empty"),
+               (:info, r"Running"),
+               (:warn, r"^The scitype of "),
+               (:error, r"^Problem"),
+               @test_throws Exception fit!(W, verbosity=-1))
+end
 
 @testset "network #1" begin
-
-    N =100
-    X = (x1=rand(N), x2=rand(N), x3=rand(N));
-    y = 2X.x1  - X.x2 + 0.05*rand(N);
 
     knn_ = KNNRegressor(K=7)
 
@@ -170,11 +199,11 @@ end
 
     # error handling:
     MLJBase.rebind!(X, "junk")
-    @test_logs((:info, r"Not"),
-               (:info, r"Not"),
-               (:error, r"Problem"),
-               (:error, r"Problem"),
-               @test_throws Exception fit!(yhat))
+    @test_logs((:error, r""),
+               (:error, r""),
+               (:error, r""),
+               (:error, r""),
+               @test_throws Exception fit!(yhat, verbosity=-1))
 
 end
 
@@ -326,7 +355,7 @@ end
 @testset "@node" begin
     X1 = source(4)
     X2 = source(5)
-    X = source(1:10)
+    Xp = source(1:10)
 
     add(a, b, c) = a + b + c
     N = @node add(X1, 1, X2)
@@ -335,7 +364,7 @@ end
     N = @node tuple(X1, 5, X1)
     @test N() == (4, 5, 4)
 
-    Y = @node selectrows(X, 3:4)
+    Y = @node selectrows(Xp, 3:4)
     @test Y() == 3:4
     @test Y([:one, :two, :three, :four]) == [:three, :four]
 

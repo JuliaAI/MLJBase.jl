@@ -7,15 +7,14 @@ import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*
 
 # Scitype
-import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
-import ScientificTypes
+import MLJScientificTypes.ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
 using MLJModelInterface
 
 # Interface
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict,
-    predict_mode, predict_mean, predict_median,
+    predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
     params
@@ -57,17 +56,17 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 ## EXPORTS
 
 # -------------------------------------------------------------------
-# re-exports from MLJModelInterface, (MLJ)ScientificTypes
+# re-exports from MLJModelInterface, MLJScientificTypes
 # NOTE: MLJBase does **not** re-export UnivariateFinite to avoid
 # ambiguities between the raw constructor (MLJBase.UnivariateFinite)
 # and the general method (MLJModelInterface.UnivariateFinite)
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
-    Probabilistic, Deterministic, Interval, Static,
-    ProbabilisticComposite, DeterministicComposite,
+    Probabilistic, JointProbabilistic, Deterministic, Interval, Static,
+    ProbabilisticComposite, JointProbabilisticComposite, DeterministicComposite,
     IntervalComposite, UnsupervisedComposite, StaticComposite,
-    ProbabilisticSurrogate, DeterministicSurrogate,
+    ProbabilisticSurrogate, JointProbabilisticSurrogate, DeterministicSurrogate,
     IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
     Surrogate, Composite
 
@@ -81,7 +80,7 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-       fitted_params, predict, predict_mode, predict_mean, predict_median,
+       fitted_params, predict, predict_mode, predict_mean, predict_median, predict_joint,
        evaluate, clean!
 
 # model/measure matching:
@@ -100,7 +99,7 @@ export input_scitype, output_scitype, target_scitype,
 export matrix, int, classes, decoder, table,
        nrows, selectrows, selectcols, select
 
-# re-exports from (MLJ)ScientificTypes
+# re-exports from MLJScientificTypes
 export Unknown, Known, Finite, Infinite,
        OrderedFactor, Multiclass, Count, Continuous, Textual,
        Binary, ColorImage, GrayImage, Image, Table

@@ -1,5 +1,5 @@
 # ==================================================================
-## RESAMPLING STRATEGIES
+## RESAMPLING STRATEGIES 
 
 abstract type ResamplingStrategy <: MLJType end
 show_as_constructed(::Type{<:ResamplingStrategy}) = true
