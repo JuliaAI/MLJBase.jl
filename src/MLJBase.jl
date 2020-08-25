@@ -7,8 +7,7 @@ import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*
 
 # Scitype
-import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
-import ScientificTypes
+import MLJScientificTypes.ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
 using MLJModelInterface
 
@@ -57,7 +56,7 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 ## EXPORTS
 
 # -------------------------------------------------------------------
-# re-exports from MLJModelInterface, (MLJ)ScientificTypes
+# re-exports from MLJModelInterface, MLJScientificTypes
 # NOTE: MLJBase does **not** re-export UnivariateFinite to avoid
 # ambiguities between the raw constructor (MLJBase.UnivariateFinite)
 # and the general method (MLJModelInterface.UnivariateFinite)
@@ -100,7 +99,7 @@ export input_scitype, output_scitype, target_scitype,
 export matrix, int, classes, decoder, table,
        nrows, selectrows, selectcols, select
 
-# re-exports from (MLJ)ScientificTypes
+# re-exports from MLJScientificTypes
 export Unknown, Known, Finite, Infinite,
        OrderedFactor, Multiclass, Count, Continuous, Textual,
        Binary, ColorImage, GrayImage, Image, Table
