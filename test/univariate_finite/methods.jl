@@ -35,6 +35,13 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     @test pdf(d, f) ≈ 0.7
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, a) ≈ 0.0
+    @test logpdf(d, s) ≈ log(0.1)
+    @test logpdf(d, 's') ≈ log(0.1)
+    @test logpdf(d, q) ≈ log(0.2)
+    @test logpdf(d, 'q') ≈ log(0.2)
+    @test logpdf(d, f) ≈ log(0.7)
+    @test logpdf(d, 'f') ≈ log(0.7)
+    @test isinf(logpdf(d, a))
     @test mode(d) == f
 
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
@@ -73,6 +80,13 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     @test pdf(d, F) ≈ 0.7
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, A) ≈ 0.0
+    @test logpdf(d, S) ≈ log(0.1)
+    @test logpdf(d, 's') ≈ log(0.1)
+    @test logpdf(d, Q) ≈ log(0.2)
+    @test logpdf(d, 'q') ≈ log(0.2)
+    @test logpdf(d, F) ≈ log(0.7)
+    @test logpdf(d, 'f') ≈ log(0.7)
+    @test isinf(logpdf(d, A))
     @test mode(d) == F
 
     @test UnivariateFinite(support(d), [0.7, 0.2, 0.1]) ≈ d
