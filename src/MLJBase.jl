@@ -46,7 +46,7 @@ import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
-import Distributions: pdf, sampler
+import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
 # from Standard Library:

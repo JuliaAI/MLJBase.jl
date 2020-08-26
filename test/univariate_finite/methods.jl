@@ -3,7 +3,7 @@ module TestUnivariateFiniteMethods
 using Test
 using MLJBase
 using CategoricalArrays
-import Distributions:pdf, support
+import Distributions:pdf, logpdf, support
 import Distributions
 using StableRNGs
 import Random
