@@ -204,9 +204,9 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
         throw(ArgumentError(
             "Two distinct fields of a composite model that are both "*
             "associated with models in the underlying learning "*
-            "network (eg, any two fields of a `@pipeline` model)"*
+            "network (eg, any two fields of a `@pipeline` model) "*
             "cannot have identical values, although they can be `==` "*
-            "(corresponding nested fields are `==`)."*
+            "(corresponding nested fields are `==`). "*
             "Consider constructing instances "*
             "separately or use `deepcopy`. "))
     end
