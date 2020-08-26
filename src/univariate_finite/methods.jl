@@ -234,6 +234,11 @@ function Distributions.pdf(
     return pdf(d, class)
 end
 
+Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
+
+Distributions.logpdf(d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P} = log(pdf(d,c))
+
+
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
     p = values(dic)
