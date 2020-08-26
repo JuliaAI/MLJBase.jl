@@ -485,6 +485,7 @@ mach = machine(NoTraining()) |> fit!
 
 target_stand = Standardizer()
 stand = Standardizer()
+@load KNNRegressor
 rgs = KNNRegressor()
 
 X = source()
@@ -510,10 +511,11 @@ X, y = make_regression(20, 2);
 model = CompositeA(stand=stand, target=stand)
 mach = machine(model, X, y)
 @test_logs((:error, r"The fields"),
+           (:error, r"Problem"),
+           (:info, r"Running"),
+           (:info, r"Type checks okay"),
            @test_throws(ArgumentError,
                         fit!(mach, verbosity=-1)))
-
-
 
 end
 
