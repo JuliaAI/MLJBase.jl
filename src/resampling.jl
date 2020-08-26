@@ -564,9 +564,13 @@ these properties:
 - `per_observation`: a vector of vectors of individual observation
   evaluations of those measures for which
   `reports_each_observation(measure)` is true, which is otherwise
-  reported `missing`.
+  reported `missing`
 
-See also [`evaluate`](@ref)
+-`fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
+  machine `mach` trained during resampling.
+
+- `report_per_fold`: a vector containing `report(mach)` for each
+   machine `mach` training in resampling
 
 """
 function evaluate!(mach::Machine{<:Supervised};
