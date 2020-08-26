@@ -63,38 +63,5 @@ end
 
 end
 
-mutable struct DistributionFitter{D<:Distributions.Distribution} <: Supervised
-    distribution::D
-end
-DistributionFitter(; distribution=Distributions.Normal()) =
-    DistributionFitter(distribution)
-
-@testset "supervised models with X = nothing" begin
-    function MLJModelInterface.fit(model::DistributionFitter{D},
-                                   verbosity::Int,
-                                   ::Nothing,
-                                   y) where D
-
-        fitresult = Distributions.fit(D, y)
-        report = (params=Distributions.params(fitresult),)
-        cache = nothing
-
-        verbosity > 0 && @info "Fitted a $fitresult"
-
-    return fitresult, cache, report
-    end
-
-    MLJModelInterface.predict(model::DistributionFitter,
-                              fitresult,
-                              ::Nothing) =
-                                  fitresult
-
-    y = randn(rng,10);
-    mach = MLJBase.machine(DistributionFitter(), nothing, y) |> fit!
-    yhat = predict(mach, nothing)
-    @test Distributions.params(yhat) == report(mach).params
-    @test yhat isa Distributions.Normal
-end
-
 end
 true

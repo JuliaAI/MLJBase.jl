@@ -8,9 +8,9 @@ function fit_method(mach, models...)
     mach_args = mach.args
 
     function _fit(model::M, verbosity::Integer, args...) where M
-#        length(args) > length(mach_args) &&
-#            throw(ArgumentError("$M does not support more than "*
-#                                "$(length(mach_args)) training arguments"))
+        length(args) > length(mach_args) &&
+            throw(ArgumentError("$M does not support more than "*
+                                "$(length(mach_args)) training arguments"))
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]

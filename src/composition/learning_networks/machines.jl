@@ -68,16 +68,9 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
     end
 
     if model isa Supervised
-        length(_sources) in [2, 3] ||
-            error("Incorrect number of source nodes specified.\n"*
-                  "Use  `machine(model, X, y; ...)` or "*
-                  "`machine(model, X, y, w; ...)` when "*
-                  "`model isa Supervised`. ")
+        length(_sources) > 1 || _throw_supervised_arg_error()
     elseif model isa Unsupervised
-        length(_sources) == 1 ||
-            error("Incorrect number of source nodes specified.\n"*
-                  "Use `machine(model, X; ...)` when "*
-                  "`model isa Unsupervised. ` (even if `Static`). ")
+        length(_sources) < 2 || _throw_unsupervised_arg_error()
     else
         throw(DomainError)
     end

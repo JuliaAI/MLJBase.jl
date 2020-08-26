@@ -48,58 +48,55 @@ end
 # In these checks the args are abstract nodes but `full=true` only
 # makes sense if they are actually source nodes.
 
+_throw_supervised_arg_error() = throw(ArgumentError(
+    "`Supervised` models should have at least two "*
+    "training arguments. "*
+    "Use  `machine(model, X, y; ...)` or "*
+    "`machine(model, X, y, extras...; ...)`. "))
+
+_throw_unsupervised_arg_error() = throw(ArgumentError(
+    "`Unsupervised` models should have one "*
+    "training argument, except `Static` models, which have none. "*
+    "Use  `machine(model, X; ...)` (usual case) or "*
+    "`machine(model; ...)` (static case). "))
+
 function check(model::Supervised, args... ; full=false)
 
     nowarns = true
 
     nargs = length(args)
-    if nargs == 2
-        X, y = args
-    elseif nargs > 2
-        supports_weights(model) || elscitype(args[3]) <: Nothing ||
-            @info("$(typeof(model)) does not support sample weights and "*
-                  "the supplied weights will be ignored in training.\n"*
-                  "However, supplied weights will be passed to "*
-                  "weight-supporting measures on calls to `evaluate!` "*
-                  "and in tuning. ")
-        X, y, w = args
-    else
-        throw(ArgumentError("Use `machine(model, X, y)` or "*
-                            "`machine(model, X, y, w)` for a supervised "*
-                            "model."))
-    end
+    nargs > 1 || _throw_supervised_arg_error()
 
-    if full
-        # checks on input type:
-        input_scitype(model) <: Unknown ||
-            elscitype(X) <: input_scitype(model) ||
-            (@warn("The scitype of `X`, in `machine(model, X, ...)` "*
-             "is incompatible with "*
-             "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-             "input_scitype(model) = $(input_scitype(model))."); nowarns=false)
+    full || return nowarns
 
-        # checks on target type:
-        target_scitype(model) <: Unknown ||
-            elscitype(y) <: target_scitype(model) ||
-            (@warn("The scitype of `y`, in `machine(model, X, y, ...)` "*
-            "is incompatible with "*
-             "`model=$model`:\nscitype(y) = $(elscitype(y))\ntarget_scitype(model) "*
-             "= $(target_scitype(model))."); nowarns=false)
+    X, y = args[1:2]
 
-        # checks on dimension matching:
-        X() === nothing || # model fits a distribution to y
-            nrows(X()) == nrows(y()) ||
-            throw(DimensionMismatch("Differing number of observations "*
-                                    "in input and target. "))
-        if nargs > 2 && !(elscitype(w) <: Nothing)
-            w.data isa AbstractVector{<:Real} ||
-                throw(ArgumentError("Weights must be real."))
-            nrows(w()) == nrows(y()) ||
-                throw(DimensionMismatch("Weights and target "*
-                                        "differ in length."))
-        end
-    end
+    # checks on input type:
+    input_scitype(model) <: Unknown ||
+        elscitype(X) <: input_scitype(model) ||
+        (@warn("The scitype of `X`, in `machine(model, X, ...)` "*
+               "is incompatible with "*
+               "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+               "input_scitype(model) = $(input_scitype(model)).");
+         nowarns=false)
+
+    # checks on target type:
+    target_scitype(model) <: Unknown ||
+        elscitype(y) <: target_scitype(model) ||
+        (@warn("The scitype of `y`, in `machine(model, X, y, ...)` "*
+               "is incompatible with "*
+               "`model=$model`:\nscitype(y) = "*
+               "$(elscitype(y))\ntarget_scitype(model) "*
+               "= $(target_scitype(model)).");
+         nowarns=false)
+
+    # checks on dimension matching:
+    nrows(X()) == nrows(y()) ||
+        throw(DimensionMismatch("Differing number of observations "*
+                                "in input and target. "))
+
     return nowarns
+
 end
 
 function check(model::Unsupervised, args...; full=false)
@@ -132,9 +129,9 @@ hyper-parameters of some machine learning algorithm, to some data,
 `args`. When building a learning network, `Node` objects can be
 substituted for concrete data.
 
-    machine(Xs; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys, ws; oper1=node1, oper2=node2, ...)
+    machine(Xs; oper1=node1, oper2=node2)
+    machine(Xs, ys; oper1=node1, oper2=node2)
+    machine(Xs, ys, extras...; oper1=node1, oper2=node2, ...)
 
 Construct a special machine called a *learning network machine*, that
 "wraps" a learning network, usually in preparation to export the
