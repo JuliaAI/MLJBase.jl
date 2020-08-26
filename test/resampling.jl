@@ -369,14 +369,14 @@ end
                   acceleration=accel, verbosity=verb)
     @test e.measurement[1] ≈ 1.0
 
-    # with weights in training and evaluation:
+    # with weights in training but not used in evaluation:
     mach = machine(ConstantClassifier(), X, y, w)
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ mean([10*0, 5*1])
+    @test e.measurement[1] ≈ mean([0, 1]) #instead of mean([10*0, 5*1])
 
-    # with weights in training but overriden in evaluation:
+    # weights in training but overriden in evaluation:
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   weights = fill(1, 5), acceleration=accel, verbosity=verb)

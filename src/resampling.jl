@@ -415,10 +415,6 @@ function _process_weights_measures(weights, measures, mach,
             throw(DimensionMismatch("`weights` and target "*
                                     "have different lengths. "))
         _weights = weights
-    elseif  length(mach.args) == 3
-        verbosity < 1 ||
-            @info "Passing machine sample weights to any supported measures. "
-        _weights = mach.args[3]()
     else
         _weights = weights
     end
@@ -491,12 +487,6 @@ An optional `weights` vector may be passed for measures that support
 sample weights (`MLJ.supports_weights(measure) == true`), which is
 ignored by those that don't.
 
-*Important:* If `mach` already wraps sample weights `w` (as in `mach =
-machine(model, X, y, w)`) then these weights, which are used for
-*training*, are automatically passed to the measures for
-evaluation. However, for evaluation purposes, any `weights` specified
-as a keyword argument will take precedence over `w`.
-
 User-defined measures are supported; see the manual for details.
 
 If no measure is specified, then `default_measure(mach.model)` is
@@ -518,8 +508,8 @@ untouched.
 - `rows` - vector of observation indices from which both train and
   test folds are constructed (default is all observations)
 
-- `weights` - per-sample weights for training and measures; see
-  important note above
+- `weights` - per-sample weights used in evaluation of specified 
+   `measure`/`measures` where supported.
 
 - `operation` - `predict`, `predict_mean`, `predict_mode` or
   `predict_median`; `predict` is the default but cannot be used with a
@@ -559,6 +549,12 @@ these properties:
   evaluations of those measures for which
   `reports_each_observation(measure)` is true, which is otherwise
   reported `missing`.
+  
+- `fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each    
+   individual train fold fit of `mach`. 
+
+- `report_per_fold`: a vector containing `report(mach)` for each 
+   individual train fold fit of `mach`.
 
 See also [`evaluate`](@ref)
 
@@ -597,7 +593,7 @@ function evaluate!(mach::Machine{<:Supervised};
         _process_weights_measures(weights, measure, mach,
                                   operation, verbosity, check_measure)
 
-    if verbosity >= 0 && weights !== nothing
+    if verbosity > 0 && weights !== nothing
         unsupported = filter(_measures) do m
             !supports_weights(m)
         end
@@ -623,9 +619,7 @@ end
 
 Evaluate the performance of a supervised model `model` on input data
 `X` and target `y`, optionally specifying sample weights `w` for
-training, where supported. The same weights are passed to measures
-that support sample weights, unless this behaviour is overridden by
-explicitly specifying the option `weights=...`.
+training , where supported. 
 
 See the machine version `evaluate!` for the complete list of options.
 
@@ -912,11 +906,6 @@ that the latter call always calls `fit` on the `model` but
 
 The sample `weights` are passed to the specified performance
 measures that support weights for evaluation.
-
-*Important:* If `weights` are left unspecified, then any weight vector
-`w` used in constructing the resampler machine, as in
-`resampler_machine = machine(resampler, X, y, w)` (which is then used
-in *training* the model) will also be used in evaluation.
 
 """
 mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
