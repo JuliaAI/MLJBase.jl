@@ -1,6 +1,5 @@
 ## LEARNING NETWORK MACHINES
 
-# ***
 surrogate(::Type{<:Deterministic})  = Deterministic()
 surrogate(::Type{<:Probabilistic})  = Probabilistic()
 surrogate(::Type{<:Unsupervised}) = Unsupervised()
@@ -24,6 +23,8 @@ If a supertype cannot be deduced, `nothing` is returned.
 
 If the network with given `signature` is not exportable, this method
 will not error but it will not a give meaningful return value either.
+
+**Private method.**
 
 """
 function model_supertype(signature)
@@ -113,18 +114,17 @@ function machine(sources::Source...; pair_itr...)
 end
 
 """
-    anonymize!(sources)
+    N = glb(mach::Machine{<:Surrogate})
 
-Returns a named tuple `(sources=..., data=....)` whose values are the
-provided source nodes and their contents respectively, and clears the
-contents of those source nodes.
+A greatest lower bound for the nodes appearing in the signature of
+`mach`.
+
+**Private method.**
 
 """
-function anonymize!(sources)
-    data = Tuple(s.data for s in sources)
-    [MLJBase.rebind!(s, nothing) for s in sources]
-    return (sources=sources, data=data)
-end
+glb(mach::Machine{<:Union{Composite,Surrogate}}) =
+    glb(values(mach.fitresult)...)
+
 
 """
     fit!(mach::Machine{<:Surrogate};
@@ -147,27 +147,180 @@ See also [`machine`](@ref)
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
 
-    signature = mach.fitresult
-    glb_node = glb(values(signature)...) # greatest lower bound node
+    glb_node = glb(mach)
     fit!(glb_node; kwargs...)
 
-    # mach.cache = anonymize!(mach.args)
     mach.state += 1
     mach.report = report(glb_node)
     return mach
 
 end
 
-# make learning network machines callable for use in manual export of
-# learning networks:
-function (mach::Machine{<:Surrogate})()
-    # anonymize sources:
-    mach.cache = anonymize!(mach.args)
-    return mach.fitresult, mach.cache, mach.report
+MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
+    fitted_params(glb(mach))
+
+
+## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
+
+# identify which fields of `model` have, as values, a model in the
+# learning network wrapped by `mach`, and check that no two such
+# fields have have identical values (#377):
+function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
+
+    signature = mach.fitresult
+    network_model_ids = objectid.(models(glb(mach)))
+
+    names = fieldnames(M)
+
+    # intialize dict to detect duplicity a la #377:
+    name_given_id = Dict{UInt64,Vector{Symbol}}()
+
+    # identify location of fields whose values are models in the
+    # learning network, and build name_given_id:
+    mask = map(names) do name
+        id = objectid(getproperty(model, name))
+        is_network_model_field = id in network_model_ids
+        if is_network_model_field
+            if haskey(name_given_id, id)
+                push!(name_given_id[id], name)
+            else
+                name_given_id[id] = [name,]
+            end
+        end
+        return is_network_model_field
+    end  |> collect
+
+    # perform #377 check:
+    no_duplicates = all(values(name_given_id)) do name
+        length(name) == 1
+    end
+    if !no_duplicates
+        for (id, name) in name_given_id
+            if length(name) > 1
+                @error "The fields $name of $model have identical model "*
+                "instances as values. "
+            end
+        end
+        throw(ArgumentError(
+            "Two distinct fields of a composite model that are both "*
+            "associated with models in the underlying learning "*
+            "network (eg, any two fields of a `@pipeline` model) "*
+            "cannot have identical values, although they can be `==` "*
+            "(corresponding nested fields are `==`). "*
+            "Consider constructing instances "*
+            "separately or use `deepcopy`. "))
+    end
+
+    return names[mask]
+
 end
 
-MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
-    fitted_params(glb(values(mach.fitresult)...))
+
+"""
+
+    return!(mach::Machine{<:Surrogate}, model, verbosity)
+
+The last call in custom code defining the `MLJBase.fit` method for a
+new composite model type. Here `model` is the instance of the new type
+appearing in the `MLJBase.fit` signature, while `mach` is a learning
+network machine constructed using `model`. Not relevant when defining
+composite models using `@pipeline` or `@from_network`.
+
+For usage, see the example given below. Specificlly, the call does the
+following:
+
+- Determines which fields of `model` point to model instances in the
+  learning network wrapped by `mach`, for recording in an object
+  called `cache`, for passing onto the MLJ logic that handles smart
+  updating (namely, an `MLJBase.update` fallback for composite models).
+
+
+- Calls `fit!(mach, verbosity=verbosity)`.
+
+- Moves any data in sources nodes of the learning network into `cache`
+  (for data-anonymization purposes).
+
+- Records a copy of `model` in `cache`.
+
+- Returns `cache` and outcomes of training in an appropriate form
+  (specifically, `(mach.fitresult, cache, mach.report)`; see [Adding
+  Models for General
+  Use](https://alan-turing-institute.github.io/MLJ.jl/dev/adding_models_for_general_use/)
+  for technical details.)
+
+
+### Example
+
+The following code defines, "by hand", a new model type `MyComposite`
+for composing standardization (whitening) with a deterministic
+regressor:
+
+```
+mutable struct MyComposite <: DeterministicComposite
+    regressor
+end
+
+function MLJBase.fit(model::MyComposite, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+
+    mach1 = machine(Standardizer(), Xs)
+    Xwhite = transform(mach1, Xs)
+
+    mach2 = machine(model.regressor, Xwhite, ys)
+    yhat = predict(mach2, Xwhite)
+
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    return!(mach, model, verbosity)
+end
+```
+
+"""
+function return!(mach::Machine{<:Surrogate},
+                 model::Union{Model,Nothing},
+                 verbosity)
+
+    network_model_fields = fields_in_network(model, mach)
+
+    verbosity isa Nothing || fit!(mach, verbosity=verbosity)
+
+    # anonymize the data:
+    sources = mach.args
+    data = Tuple(s.data for s in sources)
+    [MLJBase.rebind!(s, nothing) for s in sources]
+
+    # record the field values
+    old_model = deepcopy(model)
+
+    cache = (sources = sources,
+             data=data,
+             network_model_fields=network_model_fields,
+             old_model=old_model)
+
+    return mach.fitresult, cache, mach.report
+
+end
+
+
+#legacy code:
+function (mach::Machine{<:Surrogate})()
+    Base.depwarn("Calling a learning network machine `mach` "*
+                 "with no arguments, as in"*
+                 "`mach()`, is "*
+                 "deprecated and could lead "*
+                 "to unexpected behaviour for `Composite` models "*
+                 "with fields that are not models. "*
+                 "Instead of `fit!(mach, verbosity=verbosity); return mach()` "*
+                 "use `return!(mach, model, verbosity)`, "*
+                 "where `model` is the `Model` instance appearing in your "*
+                 "`MLJBase.fit` signature. Query the `return!` doc-string "*
+                 "for details. ",
+                 nothing)
+
+    return!(mach, nothing, nothing)
+end
+fields_in_network(model::Nothing, mach::Machine{<:Surrogate}) =
+    nothing
 
 
 ## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE

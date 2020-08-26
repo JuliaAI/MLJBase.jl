@@ -154,8 +154,8 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
-    glb, @tuple, node, @node, sources, origins,
+export machines, sources, anonymize!, @from_network, @pipeline,
+    glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
@@ -285,7 +285,6 @@ include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
-include("composition/models/deprecated.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")

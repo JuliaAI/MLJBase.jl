@@ -5,19 +5,135 @@ using MLJBase
 using Tables
 import MLJBase
 using ..Models
+using ..TestUtilities
 using CategoricalArrays
 using OrderedCollections
 import Random.seed!
 seed!(1234)
 
-@testset "anonymize!" begin
-    ss  = [source(1), source(2), source(3)]
-    a = MLJBase.anonymize!(ss)
-    @test all(s -> s.data === nothing, a.sources)
-    @test a.data == (1, 2, 3)
+@load KNNRegressor
+@load Standardizer
+
+mutable struct Rubbish <: DeterministicComposite
+    model_in_network
+    model_not_in_network
+    some_other_variable
 end
 
-@load KNNRegressor
+knn = KNNRegressor()
+model = Rubbish(knn, Standardizer(), 42)
+X, y = make_regression(10, 2)
+
+@testset "logic for composite model update - fallback()" begin
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    _, cache, _ = return!(mach, model, 1)
+    old_model = cache.old_model
+    network_model_fields = cache.network_model_fields
+    glb_node = MLJBase.glb(mach)
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # don't fallback if mutating field for a network model:
+    model.model_in_network.K = 24
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if replacing field for a network model:
+    model.model_in_network = KNNRegressor()
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # return to original state:
+    model.model_in_network = knn
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if a non-network field changes:
+    model.model_not_in_network.features = [:x1,]
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # return to original state:
+    model.model_not_in_network = Standardizer()
+    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+    # do fallback if any non-model changes:
+    model.some_other_variable = 123412
+    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+
+end
+
+# deprecated version:
+function MLJBase.fit(model::Rubbish, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=verbosity)
+    return mach()
+end
+
+@testset "deprecation warning" begin
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    fit!(mach, verbosity=-1)
+    @test_deprecated mach();
+
+    mach = machine(model, X, y)
+    @test_deprecated fit!(mach, verbosity=-1)
+end
+
+model = Rubbish(KNNRegressor(), Standardizer(), 42)
+
+
+function MLJBase.fit(model::Rubbish, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(model.model_in_network, Xs, ys)
+    yhat = predict(mach1, Xs)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    return!(mach, model, verbosity)
+end
+
+mach = machine(model, X, y) |> fit! # `model` is instance of `Rubbish`
+
+@testset "logic for composite model update - fit!" begin
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate a field for a network model:
+    model.model_in_network.K = 24
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:update, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # replace a field for a network model:
+    model.model_in_network = KNNRegressor()
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate a field for a model not in network:
+    model.model_not_in_network.features = [:x1,]
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+
+    # immediately refit:
+    @test_model_sequence(fit!(mach), [(:skip, model), ])
+
+    # mutate some field that is not a model:
+    model.some_other_variable = 123412
+    @test_model_sequence(fit!(mach),
+                         [(:update, model), (:train, model.model_in_network)])
+end
 
 N = 50
 Xin = (a=rand(N), b=rand(N), c=rand(N));
@@ -115,8 +231,7 @@ end
         yhat = inverse_transform(boxcoxM, zhat)
 
         mach = machine(Deterministic(), Xs, ys; predict=yhat)
-        fit!(mach, verbosity=verbosity)
-        return mach()
+        return!(mach, model, verbosity)
     end
 
     MLJBase.input_scitype(::Type{<:WrappedRidge}) =
@@ -134,33 +249,6 @@ end
     ridge.lambda = 1.0
     fit!(mach)
     @test predict(mach, Xin) != yhat
-
-    # test depreciated version:
-    function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
-        Xs = source(X)
-        ys = source(y, kind=:target)
-
-        stand = Standardizer()
-        standM = machine(stand, Xs)
-        W = transform(standM, Xs)
-
-        boxcox = UnivariateBoxCoxTransformer()
-        boxcoxM = machine(boxcox, ys)
-        z = transform(boxcoxM, ys)
-
-        ridgeM = machine(model.ridge, W, z)
-        zhat = predict(ridgeM, W)
-        yhat = inverse_transform(boxcoxM, zhat)
-
-        fit!(yhat)
-
-        return fitresults(yhat)
-    end
-    ridge = FooBarRegressor(lambda=0.1)
-    model_ = WrappedRidge(ridge)
-    mach = machine(model_, Xin, yin)
-    @test_deprecated fit!(mach)
-    @test yhat ≈ predict(mach, Xin);
 
 #end
 
@@ -198,8 +286,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         yhat = predict(m, W)
         Wout = transform(m, W)
         mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
-        fit!(mach)
-        return mach()
+        return!(mach, model, verbosity)
     end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
@@ -213,6 +300,8 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
+
+
 
 
 

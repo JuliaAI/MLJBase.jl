@@ -5,8 +5,6 @@ using Test
 
 X = 7
 
-@test_deprecated source(X, kind=:source)
-
 Xs = source(X)
 @test Xs() == X
 @test Xs(8) == 8

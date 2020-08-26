@@ -315,7 +315,7 @@ end
 
 function fitlog(mach, action::Symbol, verbosity)
     if verbosity < -1000
-            put!(MACHINE_CHANNEL, (action, mach))
+        put!(MACHINE_CHANNEL, (action, mach))
     elseif verbosity > -1 && action == :frozen
         @warn "$mach not trained as it is frozen."
     elseif verbosity > 0

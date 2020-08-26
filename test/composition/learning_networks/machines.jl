@@ -168,6 +168,27 @@ yhat = exp(zhat)
                          (:train, oakM2), (:train, knnM2)])
 end
 
+mutable struct DummyComposite <: DeterministicComposite
+    stand1
+    stand2
+end
+
+@testset "issue 377" begin
+    stand = Standardizer()
+    model = DummyComposite(stand, stand)
+
+    Xs = source()
+    mach1 = machine(model.stand1, Xs)
+    X1 = transform(mach1, Xs)
+    mach2 = machine(model.stand2, X1)
+    X2 = transform(mach2, X1)
+
+    mach = machine(Unsupervised(), Xs; transform=X2)
+    @test_logs((:error, r"The fields"),
+               @test_throws(ArgumentError,
+                            MLJBase.fields_in_network(model, mach)))
+end
+
 end
 
 true
