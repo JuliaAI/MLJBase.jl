@@ -213,6 +213,7 @@ Other similar methods are available too:
     rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
     d = fit(UnivariateFinite, v)
     pdf(d, "maybe") # 0.25
+    logpdf(d, "maybe") # log(0.25)
 
 One can also do weighted fits:
 
