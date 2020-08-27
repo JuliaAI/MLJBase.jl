@@ -102,7 +102,7 @@ function Distributions.pdf(
 end
 
 
-## PERFORMANT BROADCASTING OF pdf
+## PERFORMANT BROADCASTING OF pdf and logpdf
 
 # u - a UnivariateFiniteArray
 # cv - a CategoricalValue
@@ -117,6 +117,23 @@ function Base.Broadcast.broadcasted(
     cv in classes(u) || _err_missing_class(cv)
 
     return get(u.prob_given_ref, int(cv), zeros(P, size(u)))
+end
+
+# logpdf.(u, cv)
+function Base.Broadcast.broadcasted(
+    ::typeof(logpdf),
+    u::UniFinArr{S,V,R,P,N},
+    cv::CategoricalValue) where {S,V,R,P,N}
+
+    # Start with the pdf
+    result = pdf.(u,cv)
+
+    # Take the long of each entry in-place
+    @simd for j in eachindex(result)
+        @inbounds result[j] = log(result[j])
+    end
+
+    return result
 end
 
 # pdf.(u, v)
