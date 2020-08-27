@@ -104,6 +104,7 @@ for func in [:pdf, :logpdf]
             return ret
         end
     end)
+end
 
 
 
