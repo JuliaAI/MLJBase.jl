@@ -80,7 +80,8 @@ Base.vcat(us::UnivariateFiniteArray...) = cat(us..., dims=1)
 Base.hcat(us::UnivariateFiniteArray...) = cat(us..., dims=2)
 
 
-## CONVENIENCE METHOD pdf(array_of_univariate_finite, labels)
+## CONVENIENCE METHODS pdf(array_of_univariate_finite, labels)
+## AND logpdf(array_of_univariate_finite, labels)
 
 # next bit is not specific to `UnivariateFiniteArray` but is for any
 # abstract array with eltype `UnivariateFinite`.
@@ -90,16 +91,20 @@ Base.hcat(us::UnivariateFiniteArray...) = cat(us..., dims=2)
 # necessarily have a different meaning (and only makes sense if u and
 # labels have the same length or labels is a scalar)
 
-function Distributions.pdf(
-    u::AbstractArray{UnivariateFinite{S,V,R,P},N},
-    C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
+for func in [:pdf, :logpdf]
+    eval(quote
+        function Distributions.$func(
+            u::AbstractArray{UnivariateFinite{S,V,R,P},N},
+            C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
+        
+            ret = Array{P,N+1}(undef, size(u)..., length(C))
+            for i in eachindex(C)
+                ret[fill(:,N)...,i] = broadcast($func, u, C[i])
+            end
+            return ret
+        end
+    end)
 
-    ret = Array{P,N+1}(undef, size(u)..., length(C))
-    for i in eachindex(C)
-        ret[fill(:,N)...,i] = broadcast(pdf, u, C[i])
-    end
-    return ret
-end
 
 
 ## PERFORMANT BROADCASTING OF pdf and logpdf
