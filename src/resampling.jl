@@ -917,13 +917,10 @@ data `args...`, by calling `fit!(mach)` followed by
 that the latter call always calls `fit` on the `model` but
 `fit!(mach)` only calls `update` after the first call.
 
-The sample `weights` are passed to the specified performance
-measures that support weights for evaluation.
-
-*Important:* If `weights` are left unspecified, then any weight vector
-`w` used in constructing the resampler machine, as in
-`resampler_machine = machine(resampler, X, y, w)` (which is then used
-in *training* the model) will also be used in evaluation.
+The sample `weights` are passed to the specified performance measures
+that support weights for evaluation. These weights are not to be
+confused with any weights bound to a `Resampler` instance in a
+machine, used for training the wrapped `model` when supported.
 
 """
 mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
