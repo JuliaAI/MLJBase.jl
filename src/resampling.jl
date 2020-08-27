@@ -1,5 +1,5 @@
 # ==================================================================
-## RESAMPLING STRATEGIES 
+## RESAMPLING STRATEGIES
 
 abstract type ResamplingStrategy <: MLJType end
 show_as_constructed(::Type{<:ResamplingStrategy}) = true
@@ -344,15 +344,13 @@ function actual_rows(rows, N, verbosity)
     return _rows
 end
 
-function _check_measure(model, measure, y, operation, override)
-
-    override && (return nothing)
+function _check_measure(measure, model, y, operation)
 
     T = scitype(y)
 
     T == Unknown && (return nothing)
-    target_scitype(measure) == Unknown && (return nothing)
-    prediction_type(measure) == :unknown && (return nothing)
+    target_scitype(measure) == Unknown && (return true)
+    prediction_type(measure) == :unknown && (return true)
 
     avoid = "\nTo override measure checks, set check_measure=false. "
 
@@ -386,12 +384,14 @@ function _check_measure(model, measure, y, operation, override)
                             "prediction_type($measure) ="*
               ":$(prediction_type(measure))."*avoid))
 
-    return nothing
+    return true
 
 end
 
-function _process_weights_measures(weights, measures, mach,
-                                   operation, verbosity, check_measure)
+_check_measures(measures, model, y, operation) =
+    all(m->_check_measure(m, model, y, operation), measures)
+
+function _actual_measures(measures, mach)
 
     if measures === nothing
         candidate = default_measure(mach.model)
@@ -403,27 +403,36 @@ function _process_weights_measures(weights, measures, mach,
         _measures = measures
     end
 
-    y = mach.args[2]()
+    return _measures
 
-    [ _check_measure(mach.model, m, y, operation, !check_measure)
-     for m in _measures ]
+end
 
-    if weights != nothing
-        weights isa AbstractVector{<:Real} ||
-            throw(ArgumentError("`weights` must be a `Real` vector."))
-        length(weights) == nrows(y) ||
-            throw(DimensionMismatch("`weights` and target "*
-                                    "have different lengths. "))
-        _weights = weights
-    elseif  length(mach.args) == 3
-        verbosity < 1 ||
-            @info "Passing machine sample weights to any supported measures. "
-        _weights = mach.args[3]()
-    else
-        _weights = weights
+function _check_weights(weights, nrows)
+    weights isa AbstractVector{<:Real} ||
+        throw(ArgumentError("`weights` must be a `Real` vector."))
+    length(weights) == nrows ||
+        throw(DimensionMismatch("`weights` and target "*
+                                "have different lengths. "))
+    return true
+end
+
+function _process_weights_measures(weights,
+                                   measures,
+                                   mach,
+                                   operation,
+                                   verbosity,
+                                   check_measure)
+
+     _measures = _actual_measures(measures, mach)
+
+    if check_measure || !(weights isa Nothing)
+        y = mach.args[2]()
     end
 
-    return _weights, _measures
+    check_measure && _check_measures(_measures, mach.model, y, operation)
+    weights isa Nothing || _check_weights(weights, nrows(y))
+
+    return _measures
 
 end
 
@@ -489,13 +498,10 @@ restrict the data used in evaluation by specifying `rows`.
 
 An optional `weights` vector may be passed for measures that support
 sample weights (`MLJ.supports_weights(measure) == true`), which is
-ignored by those that don't.
-
-*Important:* If `mach` already wraps sample weights `w` (as in `mach =
-machine(model, X, y, w)`) then these weights, which are used for
-*training*, are automatically passed to the measures for
-evaluation. However, for evaluation purposes, any `weights` specified
-as a keyword argument will take precedence over `w`.
+ignored by those that don't. These weights are not to be confused with
+any any weights `w` bound to `mach` (as in `mach = machine(model, X,
+y, w)`). To pass these to the performance evaluation measures you must
+explictly specify `weights=w` in the `evaluate!` call.
 
 User-defined measures are supported; see the manual for details.
 
@@ -518,8 +524,8 @@ untouched.
 - `rows` - vector of observation indices from which both train and
   test folds are constructed (default is all observations)
 
-- `weights` - per-sample weights for training and measures; see
-  important note above
+- `weights` - per-sample weights for measures (not to be confused with
+  weights used in training)
 
 - `operation` - `predict`, `predict_mean`, `predict_mode` or
   `predict_median`; `predict` is the default but cannot be used with a
@@ -558,9 +564,13 @@ these properties:
 - `per_observation`: a vector of vectors of individual observation
   evaluations of those measures for which
   `reports_each_observation(measure)` is true, which is otherwise
-  reported `missing`.
+  reported `missing`
 
-See also [`evaluate`](@ref)
+-`fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
+  machine `mach` trained during resampling.
+
+- `report_per_fold`: a vector containing `report(mach)` for each
+   machine `mach` training in resampling
 
 """
 function evaluate!(mach::Machine{<:Supervised};
@@ -593,9 +603,12 @@ function evaluate!(mach::Machine{<:Supervised};
         end
     end
 
-    _weights, _measures =
-        _process_weights_measures(weights, measure, mach,
-                                  operation, verbosity, check_measure)
+    _measures = _process_weights_measures(weights,
+                                          measure,
+                                          mach,
+                                          operation,
+                                          verbosity,
+                                          check_measure)
 
     if verbosity >= 0 && weights !== nothing
         unsupported = filter(_measures) do m
@@ -612,21 +625,15 @@ function evaluate!(mach::Machine{<:Supervised};
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
+    evaluate!(mach, resampling, weights, rows, verbosity, repeats,
                    _measures, operation, _acceleration, force)
 
 end
 
 """
-    evaluate(model, X, y; measure=nothing, options...)
-    evaluate(model, X, y, w; measure=nothing, options...)
+    evaluate(model, data...; kw_options...)
 
-Evaluate the performance of a supervised model `model` on input data
-`X` and target `y`, optionally specifying sample weights `w` for
-training, where supported. The same weights are passed to measures
-that support sample weights, unless this behaviour is overridden by
-explicitly specifying the option `weights=...`.
-
+Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
 See the machine version `evaluate!` for the complete list of options.
 
 """
@@ -910,13 +917,10 @@ data `args...`, by calling `fit!(mach)` followed by
 that the latter call always calls `fit` on the `model` but
 `fit!(mach)` only calls `update` after the first call.
 
-The sample `weights` are passed to the specified performance
-measures that support weights for evaluation.
-
-*Important:* If `weights` are left unspecified, then any weight vector
-`w` used in constructing the resampler machine, as in
-`resampler_machine = machine(resampler, X, y, w)` (which is then used
-in *training* the model) will also be used in evaluation.
+The sample `weights` are passed to the specified performance measures
+that support weights for evaluation. These weights are not to be
+confused with any weights bound to a `Resampler` instance in a
+machine, used for training the wrapped `model` when supported.
 
 """
 mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
@@ -968,17 +972,27 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...)
 
-    weights, measures =
-        _process_weights_measures(resampler.weights, resampler.measure,
-                                  mach, resampler.operation,
-                                  verbosity, resampler.check_measure)
+    measures =
+        _process_weights_measures(resampler.weights,
+                                  resampler.measure,
+                                  mach,
+                                  resampler.operation,
+                                  verbosity,
+                                  resampler.check_measure)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
-    fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.repeats,
-                          measures, resampler.operation,
-                          _acceleration, false)
+    fitresult = evaluate!(mach,
+                          resampler.resampling,
+                          resampler.weights,
+                          nothing,
+                          verbosity - 1,
+                          resampler.repeats,
+                          measures,
+                          resampler.operation,
+                          _acceleration,
+                          false)
+
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 
@@ -1006,19 +1020,27 @@ function MLJBase.update(resampler::Resampler{Holdout},
         cache = (mach, deepcopy(resampler.resampling))
     end
 
-    weights, measures =
-        _process_weights_measures(resampler.weights, resampler.measure,
-                                  mach, resampler.operation,
-                                  verbosity, resampler.check_measure)
+    measures =
+        _process_weights_measures(resampler.weights,
+                                  resampler.measure,
+                                  mach,
+                                  resampler.operation,
+                                  verbosity,
+                                  resampler.check_measure)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     mach.model = resampler.model
-    fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.repeats,
-                          measures, resampler.operation,
-                          _acceleration, false)
-
+    fitresult = evaluate!(mach,
+                          resampler.resampling,
+                          resampler.weights,
+                          nothing,
+                          verbosity - 1,
+                          resampler.repeats,
+                          measures,
+                          resampler.operation,
+                          _acceleration,
+                          false)
 
     report = NamedTuple
 
