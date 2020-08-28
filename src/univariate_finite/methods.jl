@@ -216,6 +216,7 @@ Other similar methods are available too:
     rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
     d = fit(UnivariateFinite, v)
     pdf(d, "maybe") # 0.25
+    logpdf(d, "maybe") # log(0.25)
 
 One can also do weighted fits:
 
@@ -236,6 +237,10 @@ function Distributions.pdf(
     class = pool[get(pool, c)]
     return pdf(d, class)
 end
+
+Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
+
+Distributions.logpdf(d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P} = log(pdf(d,c))
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
