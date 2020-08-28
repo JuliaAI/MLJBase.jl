@@ -167,7 +167,7 @@ end
 # logpdf.(u, cv)
 # logpdf.(u, v)
 # logpdf.(u, raw)
-for typ in [:CategoricalValue, :AbstractArray{<:CategoricalValue{V,R},N}, :Union{V,AbstractArray{V,N}}]
+for typ in [:CategoricalValue, :(AbstractArray{<:CategoricalValue{V,R},N}), :(Union{V,AbstractArray{V,N}})]
  eval(quote function Base.Broadcast.broadcasted(
          ::typeof(logpdf),
          u::UniFinArr{S,V,R,P,N},
