@@ -176,7 +176,7 @@ for typ in [:CategoricalValue, :(AbstractArray{<:CategoricalValue{V,R},N}), :(Un
         # Start with the pdf
         result = pdf.(u,cv)
 
-        # Take the long of each entry in-place
+        # Take the log of each entry in-place
         @simd for j in eachindex(result)
             @inbounds result[j] = log(result[j])
         end
