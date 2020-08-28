@@ -173,12 +173,15 @@ for typ in [:CategoricalValue, :(AbstractArray{<:CategoricalValue{V,R},N}), :(Un
          u::UniFinArr{S,V,R,P,N},
          cv::$typ) where {S,V,R,P,N}
 
-        # Start with the pdf
-        result = pdf.(u,cv)
-
+        # Start with the pdf array
+        pdf_arr = pdf.(u,cv)
+        
+        # Create an uninitialized array similar to pdf_arr
+        # this avoids mutating the initial pdf_arr 
+	result = similar(pdf_arr)
         # Take the log of each entry in-place
         @simd for j in eachindex(result)
-            @inbounds result[j] = log(result[j])
+            @inbounds result[j] = log(pdf_arr[j])
         end
 
         return result
