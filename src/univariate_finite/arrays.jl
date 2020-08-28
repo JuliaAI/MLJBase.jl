@@ -114,6 +114,13 @@ end
 # cv - a CategoricalValue
 # v - a vector of CategoricalArrays
 
+# dummy function
+# returns `x[i]` for `Array` inputs `x` 
+# For non-Array inputs returns `zero(dtype)`
+#This avoids using an if statement 
+_getindex(x::Array,i, dtype)=x[i]
+_getindex(::Nothing, i, dtype) = zero(dtype)
+
 # pdf.(u, cv)
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
@@ -124,24 +131,7 @@ function Base.Broadcast.broadcasted(
 
     return get(u.prob_given_ref, int(cv), zeros(P, size(u)))
 end
-
-# logpdf.(u, cv)
-function Base.Broadcast.broadcasted(
-    ::typeof(logpdf),
-    u::UniFinArr{S,V,R,P,N},
-    cv::CategoricalValue) where {S,V,R,P,N}
-
-    # Start with the pdf
-    result = pdf.(u,cv)
-
-    # Take the long of each entry in-place
-    @simd for j in eachindex(result)
-        @inbounds result[j] = log(result[j])
-    end
-
-    return result
-end
-
+        
 # pdf.(u, v)
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
@@ -163,13 +153,6 @@ function Base.Broadcast.broadcasted(
     ret_flat = getter.(v_flat, P)
     return reshape(ret_flat, size(u))
 end
-        
-#dummy function
-# returns `x[i]` for `Array` inputs `x` 
-# For non-Array inputs returns `zero(dtype)`
-#This avoids using an if statement 
-_getindex(x::Array,i, dtype)=x[i]
-_getindex(::Nothing, i, dtype) = zero(dtype)
 
 # pdf.(u, raw) where raw is scalar or vec
 function Base.Broadcast.broadcasted(
@@ -181,6 +164,27 @@ function Base.Broadcast.broadcasted(
     return broadcast(pdf, u, cat)
 end
 
+# logpdf.(u, cv)
+# logpdf.(u, v)
+# logpdf.(u, raw)
+for typ in [:CategoricalValue, :AbstractArray{<:CategoricalValue{V,R},N}, :Union{V,AbstractArray{V,N}}]
+ eval(quote function Base.Broadcast.broadcasted(
+         ::typeof(logpdf),
+         u::UniFinArr{S,V,R,P,N},
+         cv::$typ) where {S,V,R,P,N}
+
+        # Start with the pdf
+        result = pdf.(u,cv)
+
+        # Take the long of each entry in-place
+        @simd for j in eachindex(result)
+            @inbounds result[j] = log(result[j])
+        end
+
+        return result
+    end
+    end)
+end
 
 ## PERFORMANT BROADCASTING OF mode:
 
