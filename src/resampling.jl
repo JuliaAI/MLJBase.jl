@@ -297,8 +297,13 @@ end
 # ================================================================
 ## EVALUATION RESULT TYPE
 
-const PerformanceEvaluation = NamedTuple{(:measure, :measurement,
-                               :per_fold, :per_observation)}
+const PerformanceEvaluation = NamedTuple{(:measure,
+                                          :measurement,
+                                          :per_fold,
+                                          :per_observation,
+                                          :fitted_params_per_fold,
+                                          :report_per_fold)}
+
 # pretty printing:
 round3(x) = x
 round3(x::AbstractFloat) = round(x, sigdigits=3)
@@ -316,6 +321,8 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
     println(io, "_.per_observation = $(_short(e.per_observation))")
+    println(io, "_.fitted_params_per_fold = [ … ]")
+    println(io, "_.report_per_fold = [ … ]")
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)
@@ -337,15 +344,13 @@ function actual_rows(rows, N, verbosity)
     return _rows
 end
 
-function _check_measure(model, measure, y, operation, override)
-
-    override && (return nothing)
+function _check_measure(measure, model, y, operation)
 
     T = scitype(y)
 
     T == Unknown && (return nothing)
-    target_scitype(measure) == Unknown && (return nothing)
-    prediction_type(measure) == :unknown && (return nothing)
+    target_scitype(measure) == Unknown && (return true)
+    prediction_type(measure) == :unknown && (return true)
 
     avoid = "\nTo override measure checks, set check_measure=false. "
 
@@ -379,12 +384,14 @@ function _check_measure(model, measure, y, operation, override)
                             "prediction_type($measure) ="*
               ":$(prediction_type(measure))."*avoid))
 
-    return nothing
+    return true
 
 end
 
-function _process_weights_measures(weights, measures, mach,
-                                   operation, verbosity, check_measure)
+_check_measures(measures, model, y, operation) =
+    all(m->_check_measure(m, model, y, operation), measures)
+
+function _actual_measures(measures, mach)
 
     if measures === nothing
         candidate = default_measure(mach.model)
@@ -396,27 +403,36 @@ function _process_weights_measures(weights, measures, mach,
         _measures = measures
     end
 
-    y = mach.args[2]()
+    return _measures
 
-    [ _check_measure(mach.model, m, y, operation, !check_measure)
-     for m in _measures ]
+end
 
-    if weights != nothing
-        weights isa AbstractVector{<:Real} ||
-            throw(ArgumentError("`weights` must be a `Real` vector."))
-        length(weights) == nrows(y) ||
-            throw(DimensionMismatch("`weights` and target "*
-                                    "have different lengths. "))
-        _weights = weights
-    elseif  length(mach.args) == 3
-        verbosity < 1 ||
-            @info "Passing machine sample weights to any supported measures. "
-        _weights = mach.args[3]()
-    else
-        _weights = weights
+function _check_weights(weights, nrows)
+    weights isa AbstractVector{<:Real} ||
+        throw(ArgumentError("`weights` must be a `Real` vector."))
+    length(weights) == nrows ||
+        throw(DimensionMismatch("`weights` and target "*
+                                "have different lengths. "))
+    return true
+end
+
+function _process_weights_measures(weights,
+                                   measures,
+                                   mach,
+                                   operation,
+                                   verbosity,
+                                   check_measure)
+
+     _measures = _actual_measures(measures, mach)
+
+    if check_measure || !(weights isa Nothing)
+        y = mach.args[2]()
     end
 
-    return _weights, _measures
+    check_measure && _check_measures(_measures, mach.model, y, operation)
+    weights isa Nothing || _check_weights(weights, nrows(y))
+
+    return _measures
 
 end
 
@@ -482,13 +498,10 @@ restrict the data used in evaluation by specifying `rows`.
 
 An optional `weights` vector may be passed for measures that support
 sample weights (`MLJ.supports_weights(measure) == true`), which is
-ignored by those that don't.
-
-*Important:* If `mach` already wraps sample weights `w` (as in `mach =
-machine(model, X, y, w)`) then these weights, which are used for
-*training*, are automatically passed to the measures for
-evaluation. However, for evaluation purposes, any `weights` specified
-as a keyword argument will take precedence over `w`.
+ignored by those that don't. These weights are not to be confused with
+any any weights `w` bound to `mach` (as in `mach = machine(model, X,
+y, w)`). To pass these to the performance evaluation measures you must
+explictly specify `weights=w` in the `evaluate!` call.
 
 User-defined measures are supported; see the manual for details.
 
@@ -511,8 +524,8 @@ untouched.
 - `rows` - vector of observation indices from which both train and
   test folds are constructed (default is all observations)
 
-- `weights` - per-sample weights for training and measures; see
-  important note above
+- `weights` - per-sample weights for measures (not to be confused with
+  weights used in training)
 
 - `operation` - `predict`, `predict_mean`, `predict_mode` or
   `predict_median`; `predict` is the default but cannot be used with a
@@ -551,9 +564,13 @@ these properties:
 - `per_observation`: a vector of vectors of individual observation
   evaluations of those measures for which
   `reports_each_observation(measure)` is true, which is otherwise
-  reported `missing`.
+  reported `missing`
 
-See also [`evaluate`](@ref)
+-`fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
+  machine `mach` trained during resampling.
+
+- `report_per_fold`: a vector containing `report(mach)` for each
+   machine `mach` training in resampling
 
 """
 function evaluate!(mach::Machine{<:Supervised};
@@ -586,9 +603,12 @@ function evaluate!(mach::Machine{<:Supervised};
         end
     end
 
-    _weights, _measures =
-        _process_weights_measures(weights, measure, mach,
-                                  operation, verbosity, check_measure)
+    _measures = _process_weights_measures(weights,
+                                          measure,
+                                          mach,
+                                          operation,
+                                          verbosity,
+                                          check_measure)
 
     if verbosity >= 0 && weights !== nothing
         unsupported = filter(_measures) do m
@@ -605,21 +625,15 @@ function evaluate!(mach::Machine{<:Supervised};
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluate!(mach, resampling, _weights, rows, verbosity, repeats,
+    evaluate!(mach, resampling, weights, rows, verbosity, repeats,
                    _measures, operation, _acceleration, force)
 
 end
 
 """
-    evaluate(model, X, y; measure=nothing, options...)
-    evaluate(model, X, y, w; measure=nothing, options...)
+    evaluate(model, data...; kw_options...)
 
-Evaluate the performance of a supervised model `model` on input data
-`X` and target `y`, optionally specifying sample weights `w` for
-training, where supported. The same weights are passed to measures
-that support sample weights, unless this behaviour is overridden by
-explicitly specifying the option `weights=...`.
-
+Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
 See the machine version `evaluate!` for the complete list of options.
 
 """
@@ -630,61 +644,63 @@ evaluate(model::Supervised, args...; kwargs...) =
 # Resource-specific methods to distribute a function parameterized by
 # fold number `k` over processes/threads.
 
-# Here `func` is always going to be `get_measurements`; see later
+
+
+# Here `func` is always going to be `fit_and_extract_on_fold`; see later
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-   p = Progress(nfolds,
+    p = Progress(nfolds,
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
                  barglyphs = BarGlyphs("[=> ]"),
                  barlen = 25,
                  color = :yellow)
 
-   ret = mapreduce(vcat, 1:nfolds) do k
-            r = func(mach, k)
-            verbosity < 1 || begin
-                      p.counter += 1
-                      ProgressMeter.updateProgress!(p)
-                    end
-            return r
+    ret = mapreduce(vcat, 1:nfolds) do k
+        r = func(mach, k)
+        verbosity < 1 || begin
+            p.counter += 1
+            ProgressMeter.updateProgress!(p)
         end
+        return [r, ]
+    end
 
-    return ret
+    return zip(ret...) |> collect
 end
 
 function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
     local ret
     @sync begin
-      p = Progress(nfolds,
-         dt = 0,
-         desc = "Evaluating over $nfolds folds: ",
-         barglyphs = BarGlyphs("[=> ]"),
-         barlen = 25,
-         color = :yellow)
-     channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
+        p = Progress(nfolds,
+                     dt = 0,
+                     desc = "Evaluating over $nfolds folds: ",
+                     barglyphs = BarGlyphs("[=> ]"),
+                     barlen = 25,
+                     color = :yellow)
+        channel = RemoteChannel(()->Channel{Bool}(min(1000, nfolds)), 1)
         # printing the progress bar
         verbosity < 1 || @async begin
-                         while take!(channel)
-                              p.counter +=1
-                              ProgressMeter.updateProgress!(p)
-                         end
-                       end
+            while take!(channel)
+                p.counter +=1
+                ProgressMeter.updateProgress!(p)
+            end
+        end
 
 
-       ret = @distributed vcat for k in 1:nfolds
-                 r = func(mach, k)
-                 verbosity < 1 || begin
-                                    put!(channel, true)
-                                  end
-                 r
-             end
+        ret = @distributed vcat for k in 1:nfolds
+            r = func(mach, k)
+            verbosity < 1 || begin
+                put!(channel, true)
+            end
+            [r, ]
+        end
 
-      verbosity < 1 || put!(channel, false)
+        verbosity < 1 || put!(channel, false)
 
     end
 
-    return ret
+    return zip(ret...) |> collect
 end
 
 @static if VERSION >= v"1.3.0-DEV.573"
@@ -693,49 +709,53 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
 
-   if nthreads == 1
+    if nthreads == 1
         return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
-   end
-   ntasks = accel.settings
-   partitions = chunks(1:nfolds, ntasks)
+    end
+    ntasks = accel.settings
+    partitions = chunks(1:nfolds, ntasks)
 
-   p = Progress(nfolds,
-                dt = 0,
-                desc = "Evaluating over $nfolds folds: ",
-                barglyphs = BarGlyphs("[=> ]"),
-                barlen = 25,
-                color = :yellow)
+    p = Progress(nfolds,
+                 dt = 0,
+                 desc = "Evaluating over $nfolds folds: ",
+                 barglyphs = BarGlyphs("[=> ]"),
+                 barlen = 25,
+                 color = :yellow)
     ch = Channel{Bool}(min(1000, length(partitions)))
 
-   results = Vector(undef, length(partitions))
+    results = Vector(undef, length(partitions))
 
-   @sync begin
-    # printing the progress bar
-     verbosity < 1 || @async begin
-                              while take!(ch)
-                                p.counter +=1
-                                ProgressMeter.updateProgress!(p)
-                              end
-                        end
-   clean!(mach.model)
-   #One tmach for each task:
-       machines = [mach, [machine(mach.model, mach.args...) for
-                          _ in 2:length(partitions)]...]
-   @sync for (i, parts) in enumerate(partitions)
-     Threads.@spawn begin
-       results[i] = mapreduce(vcat, parts) do k
-            r = func(machines[i], k)
-            verbosity < 1 || put!(ch, true)
-            r
-       end
+    @sync begin
+        # printing the progress bar
+        verbosity < 1 || @async begin
+            while take!(ch)
+                p.counter +=1
+                ProgressMeter.updateProgress!(p)
+            end
+        end
+        clean!(mach.model)
+        #One tmach for each task:
+        machines = [mach, [machine(mach.model, mach.args...) for
+                           _ in 2:length(partitions)]...]
+        @sync for (i, parts) in enumerate(partitions)
+            Threads.@spawn begin
+                results[i] = mapreduce(vcat, parts) do k
+                    r = func(machines[i], k)
+                    verbosity < 1 || put!(ch, true)
+                    [r, ]
+                end
 
-      end
+            end
+        end
+
+        verbosity < 1 || put!(ch, false)
+
     end
 
-     verbosity < 1 || put!(ch, false)
+    ret = reduce(vcat, results)
 
-    end
-    reduce(vcat, results)
+    return zip(ret...) |> collect
+
 end
 
 end
@@ -765,7 +785,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
-    function get_measurements(mach, k)
+    function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         Xtest = selectrows(X, test)
@@ -776,8 +796,12 @@ function evaluate!(mach::Machine, resampling, weights,
             wtest = weights[test]
         end
         yhat = operation(mach, Xtest)
-        return [value(m, yhat, Xtest, ytest, wtest)
-                for m in measures]
+
+        measurements =  [value(m, yhat, Xtest, ytest, wtest)
+                         for m in measures]
+        fp = fitted_params(mach)
+        r = report(mach)
+        return (measurements, fp, r)
     end
 
     if acceleration isa CPUProcesses
@@ -793,17 +817,18 @@ function evaluate!(mach::Machine, resampling, weights,
         end
     end
 
-    measurements_flat =
-            _evaluate!(get_measurements,
-                       mach,
-                       acceleration,
-                       nfolds,
-                      verbosity)
+    measurements_vector_of_vectors, fitted_params_per_fold, report_per_fold  =
+        _evaluate!(fit_and_extract_on_fold,
+                   mach,
+                   acceleration,
+                   nfolds,
+                   verbosity)
 
+    measurements_flat = vcat(measurements_vector_of_vectors...)
 
     # in the following rows=folds, columns=measures:
     measurements_matrix = permutedims(
-        reshape(measurements_flat, (nmeasures, nfolds)))
+        reshape(collect(measurements_flat), (nmeasures, nfolds)))
 
     # measurements for each observation:
     per_observation = map(1:nmeasures) do k
@@ -831,15 +856,16 @@ function evaluate!(mach::Machine, resampling, weights,
         MLJBase.aggregate(per_fold[k], m)
     end
 
-    ret = (measure=measures,
-           measurement=per_measure,
-           per_fold=per_fold,
-           per_observation=per_observation)
+    ret = (measure                = measures,
+           measurement            = per_measure,
+           per_fold               = per_fold,
+           per_observation        = per_observation,
+           fitted_params_per_fold = fitted_params_per_fold |> collect,
+           report_per_fold        = report_per_fold |> collect)
 
     return ret
 
 end
-
 
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
@@ -891,13 +917,10 @@ data `args...`, by calling `fit!(mach)` followed by
 that the latter call always calls `fit` on the `model` but
 `fit!(mach)` only calls `update` after the first call.
 
-The sample `weights` are passed to the specified performance
-measures that support weights for evaluation.
-
-*Important:* If `weights` are left unspecified, then any weight vector
-`w` used in constructing the resampler machine, as in
-`resampler_machine = machine(resampler, X, y, w)` (which is then used
-in *training* the model) will also be used in evaluation.
+The sample `weights` are passed to the specified performance measures
+that support weights for evaluation. These weights are not to be
+confused with any weights bound to a `Resampler` instance in a
+machine, used for training the wrapped `model` when supported.
 
 """
 mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
@@ -949,17 +972,27 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...)
 
-    weights, measures =
-        _process_weights_measures(resampler.weights, resampler.measure,
-                                  mach, resampler.operation,
-                                  verbosity, resampler.check_measure)
+    measures =
+        _process_weights_measures(resampler.weights,
+                                  resampler.measure,
+                                  mach,
+                                  resampler.operation,
+                                  verbosity,
+                                  resampler.check_measure)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
-    fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.repeats,
-                          measures, resampler.operation,
-                          _acceleration, false)
+    fitresult = evaluate!(mach,
+                          resampler.resampling,
+                          resampler.weights,
+                          nothing,
+                          verbosity - 1,
+                          resampler.repeats,
+                          measures,
+                          resampler.operation,
+                          _acceleration,
+                          false)
+
     cache = (mach, deepcopy(resampler.resampling))
     report = NamedTuple()
 
@@ -987,19 +1020,27 @@ function MLJBase.update(resampler::Resampler{Holdout},
         cache = (mach, deepcopy(resampler.resampling))
     end
 
-    weights, measures =
-        _process_weights_measures(resampler.weights, resampler.measure,
-                                  mach, resampler.operation,
-                                  verbosity, resampler.check_measure)
+    measures =
+        _process_weights_measures(resampler.weights,
+                                  resampler.measure,
+                                  mach,
+                                  resampler.operation,
+                                  verbosity,
+                                  resampler.check_measure)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     mach.model = resampler.model
-    fitresult = evaluate!(mach, resampler.resampling,
-                          weights, nothing, verbosity - 1, resampler.repeats,
-                          measures, resampler.operation,
-                          _acceleration, false)
-
+    fitresult = evaluate!(mach,
+                          resampler.resampling,
+                          resampler.weights,
+                          nothing,
+                          verbosity - 1,
+                          resampler.repeats,
+                          measures,
+                          resampler.operation,
+                          _acceleration,
+                          false)
 
     report = NamedTuple
 

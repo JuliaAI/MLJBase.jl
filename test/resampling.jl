@@ -28,18 +28,25 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = (sleep(0.01*rand(rng)); fill(1:k, nmeasures))
+        func(mach, k) = ((sleep(0.01*rand(rng)); fill(1:k, nmeasures)),
+                         :fitted_params,
+                         :report,)
     end
     mach = machine(ConstantRegressor(), X, y)
     p = Progress(nfolds, dt=0)
     if accel isa CPUThreads
-    result = MLJBase._evaluate!(func, mach, CPUThreads(Threads.nthreads()), nfolds, 1)
+        result = MLJBase._evaluate!(func,
+                                    mach,
+                                    CPUThreads(Threads.nthreads()),
+                                    nfolds,
+                                    1)
     else
-       result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
+        result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
     end
-    @test result ==
+    measurements = vcat(result[1]...)
+    @test measurements ==
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
-
+    @test collect(result[2]) == fill(:fitted_params, nfolds)
 end
 
 
@@ -65,27 +72,42 @@ end
 @testset "checking measure/model compatibility" begin
     model = ConstantRegressor()
     y = rand(rng,4)
-    override=false
-    @test MLJBase._check_measure(:junk, :junk, :junk, :junk, true) == nothing
+
+    # model prediction type is Probablistic but measure is Deterministic:
     @test_throws(ArgumentError,
-                  MLJBase._check_measure(model, rms, y, predict, override))
-    @test MLJBase._check_measure(model, rms, y, predict_mean, override) ==
-        nothing
-    @test MLJBase._check_measure(model, rms, y, predict_median, override) ==
-        nothing
+                  MLJBase._check_measure(rms, model, y, predict))
+
+    @test MLJBase._check_measure(rms, model, y, predict_mean)
+
+    @test MLJBase._check_measure(rms, model, y, predict_median)
+
+    # has `y`  `Finite` elscityp but measure `rms` is for `Continuous`:
     y=categorical(collect("abc"))
     @test_throws(ArgumentError,
-                 MLJBase._check_measure(model, rms, y,
-                                        predict_median, override))
+                 MLJBase._check_measure(rms, model, y, predict_median))
     model = ConstantClassifier()
+    # model prediction type is Probablistic but measure is Deterministic:
     @test_throws(ArgumentError,
-                 MLJBase._check_measure(model, misclassification_rate, y,
-                                        predict, override))
-    @test MLJBase._check_measure(model, misclassification_rate, y,
-                            predict_mode, override) == nothing
+                 MLJBase._check_measure(mcr, model, y,predict))
+
+    @test MLJBase._check_measure(mcr, model, y, predict_mode)
+
+    # `Determistic` model but `Probablistic` measure:
     model = Models.DeterministicConstantClassifier()
-    @test_throws ArgumentError MLJBase._check_measure(model, cross_entropy, y,
-                            predict, override)
+    @test_throws(ArgumentError,
+                 MLJBase._check_measure(cross_entropy, model, y, predict))
+
+    model = ConstantClassifier()
+    @test MLJBase._check_measures([brier_score, cross_entropy],
+                                  model, y, predict)
+    @test_throws(ArgumentError,
+                 MLJBase._check_measures([brier_score, rms], model, y, predict))
+end
+
+@testset "check weights" begin
+    @test_throws ArgumentError MLJBase._check_weights([:junk, :junk], 2)
+    @test_throws DimensionMismatch MLJBase._check_weights([0.5, 0.5], 3)
+    @test MLJBase._check_weights([0.5, 0.5], 2)
 end
 
 @testset_accelerated "folds specified" accel begin
@@ -125,6 +147,11 @@ end
     @test result.per_observation[2][2] ≈ [3/4, 3/4]
     @test result.measurement[1] ≈ mean(v)
     @test result.measurement[2] ≈ mean(v)
+
+    # fitted_params and report per fold:
+    @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
+        [1.5, 1.25, 1.5, 1.25, 1.5]
+    @test all(==(NamedTuple()), result.report_per_fold)
 end
 
 @testset "repeated resampling" begin
@@ -143,8 +170,6 @@ end
     @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
 
     cv = CV(nfolds=3, rng=rng)
-    model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
     result = evaluate!(mach, resampling=cv, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
     per_fold = result.per_fold[1]
@@ -187,12 +212,11 @@ end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
- X, y = @load_iris
-model = ConstantClassifier()
+    X, y = @load_iris
+    model = ConstantClassifier()
 
-bad_loss(yhat, y) = throw(Exception())
-@test_throws Exception evaluate(model, X, y, measure=bad_loss)
-
+    bad_loss(yhat, y) = throw(Exception())
+    @test_throws Exception evaluate(model, X, y, measure=bad_loss)
 end
 
 @testset_accelerated "cv" accel begin
@@ -286,9 +310,16 @@ end
     mach = machine(model, X, y)
     e = evaluate!(mach, resampling=cv, measure=l1,
                   weights=w, verbosity=verb, acceleration=accel).measurement[1]
-
     efold1 = mean([1*1, 1*0])
     efold2 = mean([3*3/2, 4*1/2])
+    @test e ≈ mean([efold1, efold2])
+
+    # if I don't specify weights in `evaluate!`, then uniform should
+    # be used:
+    e = evaluate!(mach, resampling=cv, measure=l1,
+                  verbosity=verb, acceleration=accel).measurement[1]
+    efold1 = mean([1*1, 1*0])
+    efold2 = mean([1*3/2, 1*1/2])
     @test e ≈ mean([efold1, efold2])
 end
 
@@ -364,10 +395,10 @@ end
     mach = machine(ConstantClassifier(), X, y, w)
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel, verbosity=verb)
+                  acceleration=accel, verbosity=verb, weights=w)
     @test e.measurement[1] ≈ mean([10*0, 5*1])
 
-    # with weights in training but overriden in evaluation:
+    # with different weights in training and evaluation:
     e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
                   operation=predict_mode, measure=misclassification_rate,
                   weights = fill(1, 5), acceleration=accel, verbosity=verb)
@@ -401,12 +432,12 @@ end
 
     mach1 = machine(model, Xsmall, ysmall, wsmall)
     e1 = evaluate!(mach1, resampling=CV(),
-                   measure=misclassification_rate,
+                   measure=misclassification_rate, weights=wsmall,
                    operation=predict_mode, acceleration=accel, verbosity=verb)
 
     mach2 = machine(model, X, y, w)
     e2 = evaluate!(mach2, resampling=CV(),
-                   measure=misclassification_rate,
+                   measure=misclassification_rate, weights=w,
                    operation=predict_mode,
                    rows=rows, acceleration=accel, verbosity=verb)
 
@@ -417,7 +448,7 @@ end
                           measure=misclassification_rate,
                           operation=predict_mode)
     resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine)
+    fit!(resampling_machine, verbosity=verb)
     e1 = evaluate(resampling_machine).measurement[1]
     mach = machine(model, X, y, w)
     e2 = evaluate!(mach, resampling=CV();
@@ -434,7 +465,7 @@ end
                           operation=predict_mode,
                           weights=weval, acceleration=accel)
     resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine)
+    fit!(resampling_machine, verbosity=verb)
     e1   = evaluate(resampling_machine).measurement[1]
     mach = machine(model, X, y, w)
     e2   = evaluate!(mach, resampling=CV();

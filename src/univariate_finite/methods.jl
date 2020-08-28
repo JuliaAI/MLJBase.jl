@@ -15,7 +15,6 @@ construct `d`.
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
     classes(d) # CategoricalArray{String,1,UInt32}["maybe", "no", "yes"]
-
 """
 MMI.classes(d::UnivariateFiniteUnion) = d.decoder.classes
 
@@ -31,6 +30,13 @@ construct `d`, equal to `get.(classes(d))`.
 
 """
 levels(d::UnivariateFinite)  = get.(classes(d))
+
+function Distributions.params(d::UnivariateFinite)
+    raw = raw_support(d) # reflects order of pool at instantiation of d
+    pairs = tuple([get(d.decoder(r))=>d.prob_given_ref[r] for r in raw]...)
+    levs = get.(classes(d))
+    return (levels=levs, probs=pairs)
+end
 
 # get the internal integer representations of the support
 raw_support(d::UnivariateFiniteUnion) = collect(keys(d.prob_given_ref))
@@ -58,13 +64,10 @@ CategoricalArrays.isordered(u::UnivariateFiniteArray) = isordered(classes(u))
 ## DISPLAY
 
 function Base.show(stream::IO, d::UnivariateFinite)
-    raw = raw_support(d) # reflects order of pool at
-                         # instantiation of d
-    x1 = d.decoder(first(raw))
-    p1 = d.prob_given_ref[first(raw)]
+    pairs = Distributions.params(d).probs
+    x1, p1 = pairs[1]
     str = "UnivariateFinite{$(d.scitype)}($x1=>$(round(p1, sigdigits=3))"
-    pairs = (d.decoder(r)=>d.prob_given_ref[r] for r in raw[2:end])
-    for pair in pairs
+    for pair in pairs[2:end]
         str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
     end
     str *= ")"
@@ -213,6 +216,7 @@ Other similar methods are available too:
     rand(d, 5) # CategoricalArray{String,1,UInt32}["maybe", "no", "maybe", "maybe", "no"] or similar
     d = fit(UnivariateFinite, v)
     pdf(d, "maybe") # 0.25
+    logpdf(d, "maybe") # log(0.25)
 
 One can also do weighted fits:
 
@@ -233,6 +237,10 @@ function Distributions.pdf(
     class = pool[get(pool, c)]
     return pdf(d, class)
 end
+
+Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
+
+Distributions.logpdf(d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P} = log(pdf(d,c))
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref

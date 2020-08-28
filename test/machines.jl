@@ -45,13 +45,7 @@ freeze!(stand)
 @test_logs (:warn, r"not trained as it is frozen\.$") fit!(stand)
 
 @testset "warnings" begin
-    @test_logs((:info, r"does not support"),
-               machine(tree, X, y, rand(N)))
     @test_throws DimensionMismatch machine(tree, X, y[1:end-1])
-    @test_logs((:info, r"does not support"),
-               @test_throws DimensionMismatch machine(tree, X, y, rand(N-1)))
-    @test_logs((:info, r"does not support"),
-               @test_throws ArgumentError machine(tree, X, y, fill('a', N)))
     @test_logs((:warn, r"The scitype of `y`"),
                machine(tree, X, categorical(1:N)))
     @test_logs((:warn, r"The scitype of `X`"),

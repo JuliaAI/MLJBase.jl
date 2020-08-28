@@ -7,10 +7,10 @@ function fit_method(mach, models...)
     signature = mach.fitresult
     mach_args = mach.args
 
-    function _fit(model::M, verb::Integer, args...) where M
-#        length(args) > length(mach_args) &&
-#            throw(ArgumentError("$M does not support more than "*
-#                                "$(length(mach_args)) training arguments"))
+    function _fit(model::M, verbosity::Integer, args...) where M
+        length(args) > length(mach_args) &&
+            throw(ArgumentError("$M does not support more than "*
+                                "$(length(mach_args)) training arguments"))
         replacement_models = [getproperty(model, fld)
                               for fld in fieldnames(M)]
         model_replacements = [models[j] => replacement_models[j]
@@ -22,9 +22,7 @@ function fit_method(mach, models...)
         new_mach =
             replace(mach, replacements...; empty_unspecified_sources=true)
 
-        fit!(new_mach, verbosity=verb)
-
-        return new_mach()
+        return!(new_mach, model, verbosity)
     end
 
     return _fit

@@ -19,16 +19,7 @@ abstract type CallableReturning{K} end # scitype for sources and nodes
 mutable struct Source <: AbstractNode
     data     # training data
     scitype::DataType
-    kind::Symbol
 end
-
-source_depwarn(func) = Base.depwarn(
-    "Source nodes are losing their `kind` "*
-    "attribute, which is ingored by all methods "*
-    "apart from the deprecated `fitresults` method. "*
-    "Roles of source nodes are now inferred from "*
-    "the order specified in learning network machine "*
-    "constructors. ", Base.Core.Typeof(func).name.mt.name)
 
 """
     Xs = source(X=nothing)
@@ -49,20 +40,13 @@ See also: [`@from_network`](@ref], [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).
 
 """
-function source(X; kind=nothing)
-    if !(kind == nothing)
-        source_depwarn(source)
-    else
-        kind = :input
-    end
-    return Source(X, scitype(X), kind)
-end
+source(X) = Source(X, scitype(X))
+source() = source(nothing)
 
-source(X::Source; args...) = X
-source(; args...) = source(nothing; args...)
+source(Xs::Source; args...) = Xs
 
 MLJScientificTypes.scitype(X::Source) = CallableReturning{X.scitype}
-ScientificTypes.elscitype(X::Source) = X.scitype
+MLJScientificTypes.elscitype(X::Source) = X.scitype
 nodes(X::Source) = [X, ]
 Base.isempty(X::Source) = X.data === nothing
 nrows_at_source(X::Source) = nrows(X.data)

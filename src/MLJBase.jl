@@ -7,8 +7,7 @@ import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*
 
 # Scitype
-import ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
-import ScientificTypes
+import MLJScientificTypes.ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
 using MLJModelInterface
 
@@ -47,7 +46,7 @@ import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
 import Distributions
-import Distributions: pdf, sampler
+import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
 # from Standard Library:
@@ -57,7 +56,7 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 ## EXPORTS
 
 # -------------------------------------------------------------------
-# re-exports from MLJModelInterface, (MLJ)ScientificTypes
+# re-exports from MLJModelInterface, MLJScientificTypes
 # NOTE: MLJBase does **not** re-export UnivariateFinite to avoid
 # ambiguities between the raw constructor (MLJBase.UnivariateFinite)
 # and the general method (MLJModelInterface.UnivariateFinite)
@@ -100,7 +99,7 @@ export input_scitype, output_scitype, target_scitype,
 export matrix, int, classes, decoder, table,
        nrows, selectrows, selectcols, select
 
-# re-exports from (MLJ)ScientificTypes
+# re-exports from MLJScientificTypes
 export Unknown, Known, Finite, Infinite,
        OrderedFactor, Multiclass, Count, Continuous, Textual,
        Binary, ColorImage, GrayImage, Image, Table
@@ -155,8 +154,8 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, anonymize!, @from_network, fitresults, @pipeline,
-    glb, @tuple, node, @node, sources, origins,
+export machines, sources, anonymize!, @from_network, @pipeline,
+    glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
@@ -226,7 +225,7 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not, support
+       levels, levels!, std, Not, support, logpdf
 
 
 # ===================================================================
@@ -286,7 +285,6 @@ include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
-include("composition/models/deprecated.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")

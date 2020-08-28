@@ -133,8 +133,8 @@ function _apply(y_plus, input...; kwargs...)
     end
 end
 
-ScientificTypes.elscitype(N::Node) = Unknown
-function ScientificTypes.elscitype(
+MLJScientificTypes.elscitype(N::Node) = Unknown
+function MLJScientificTypes.elscitype(
     N::Node{<:Machine{<:Union{Deterministic,Unsupervised}}})
     if N.operation == MLJBase.predict
         return target_scitype(N.machine.model)
@@ -150,7 +150,7 @@ end
 # https://github.com/alan-turing-institute/ScientificTypes.jl/issues/102 :
 # Add Probabilistic case to above
 
-ScientificTypes.scitype(N::Node) = CallableReturning{elscitype(N)}
+MLJScientificTypes.scitype(N::Node) = CallableReturning{elscitype(N)}
 
 
 ## FITTING A NODE

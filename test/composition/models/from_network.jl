@@ -454,8 +454,6 @@ mach = fit!(machine(model, X))
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
 
-end
-
 
 ## EXPORTING A STATIC LEARNING NETWORK (NO TRAINING ARGUMENTS)
 
@@ -463,15 +461,15 @@ age = [23, 45, 34, 25, 67]
 X = (age = age,
      gender = categorical(['m', 'm', 'f', 'm', 'f']))
 
-struct MyTransformer <: Static
+struct MyStaticTransformer <: Static
     ftr::Symbol
 end
 
-MLJBase.transform(transf::MyTransformer, verbosity, X) =
+MLJBase.transform(transf::MyStaticTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
 Xs = source()
-W = transform(machine(MyTransformer(:age)), Xs)
+W = transform(machine(MyStaticTransformer(:age)), Xs)
 Z = 2*W
 
 @from_network machine(Static(), Xs; transform=Z) begin
@@ -481,5 +479,45 @@ end
 
 mach = machine(NoTraining()) |> fit!
 @test transform(mach, X) == 2*X.age
+
+
+## ISSUE #377
+
+target_stand = Standardizer()
+stand = Standardizer()
+@load KNNRegressor
+rgs = KNNRegressor()
+
+X = source()
+y = source()
+
+mach1 = machine(target_stand, y)
+z = transform(mach1, y)
+mach2 = machine(stand, X)
+W = transform(mach2, X)
+mach3 = machine(rgs, W, z)
+zhat = predict(mach3, W)
+yhat = inverse_transform(mach1, zhat)
+
+@from_network machine(Deterministic(), X, y; predict=yhat) begin
+    mutable struct CompositeA
+        rgs=rgs
+        stand=stand
+        target=target_stand
+    end
+end
+
+X, y = make_regression(20, 2);
+model = CompositeA(stand=stand, target=stand)
+mach = machine(model, X, y)
+@test_logs((:error, r"The fields"),
+           (:error, r"Problem"),
+           (:info, r"Running"),
+           (:info, r"Type checks okay"),
+           @test_throws(ArgumentError,
+                        fit!(mach, verbosity=-1)))
+
+end
+
 
 true

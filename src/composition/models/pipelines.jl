@@ -31,8 +31,6 @@ end
 # corresponding to the last element of `models_and_functions`.
 
 # returns a learning network machine
-
-# No checks whatsoever are performed. Returns a learning network.
 function linear_learning_network_machine(super_type,
                                          Xs,
                                          ys,
@@ -558,12 +556,7 @@ See also: [`@from_network`](@ref)
 """
 macro pipeline(exs...)
 
-    if !isempty(exs) &&
-        exs[1] isa Expr && exs[1].head == :call && length(exs[1].args) > 2
-        pipetype_ = pipeline_deprecated_(__module__, exs...)
-    else
-        pipetype_ = pipeline_(__module__, exs...)
-    end
+    pipetype_ = pipeline_(__module__, exs...)
 
     esc(quote
         $pipetype_()

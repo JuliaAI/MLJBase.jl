@@ -50,7 +50,8 @@ function sedate!(fit_ex)
         arg.args[1]
     end
     :verbosity in keys &&
-        error("You cannot specify `verbosity` in @test_mach_sequence. ")
+        error("You cannot specify `verbosity` in @test_mach_sequence "*
+              "or @test_model_sequence. ")
     push!(fit_ex.args, Expr(:kw, :verbosity, -5000))
     return fit_ex
 end
@@ -72,8 +73,6 @@ end
 # function weakly_in(object:Tuple{Symbol,Model}, itr)
 #     for tup in itr
 #         tup[1] === object[1] && tup[2] == tup
-
-
 
 macro test_model_sequence(fit_ex, sequence_exs...)
     sedate!(fit_ex)
