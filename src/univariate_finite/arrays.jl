@@ -107,8 +107,9 @@ for func in [:pdf, :logpdf]
 end
 
 
-
+##
 ## PERFORMANT BROADCASTING OF pdf and logpdf
+##
 
 # u - a UnivariateFiniteArray
 # cv - a CategoricalValue
@@ -164,29 +165,55 @@ function Base.Broadcast.broadcasted(
     return broadcast(pdf, u, cat)
 end
 
-# logpdf.(u, cv)
-# logpdf.(u, v)
-# logpdf.(u, raw)
-for typ in [:CategoricalValue, :(AbstractArray{<:CategoricalValue{V,R},N}), :(Union{V,AbstractArray{V,N}})]
- eval(quote function Base.Broadcast.broadcasted(
-         ::typeof(logpdf),
-         u::UniFinArr{S,V,R,P,N},
-         cv::$typ) where {S,V,R,P,N}
+# logpdf.(u::UniFinArr{S,V,R,P,N}, cv::CategoricalValue)
+# logpdf.(u::UniFinArr{S,V,R,P,N}, v::AbstractArray{<:CategoricalValue{V,R},N})
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V)  
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N})  
+for typ in (:CategoricalValue, 
+	    :(AbstractArray{<:CategoricalValue{V,R},N}), 
+	    :V,
+	    :(AbstractArray{V,N}))
+    if typ == :CategoricalValue || typ == :V
+    eval(quote 
+       function Base.Broadcast.broadcasted(
+    		        ::typeof(logpdf),
+    	     	        u::UniFinArr{S,V,R,P,N},
+    	     		c::$typ) where {S,V,R,P,N}
 
-        # Start with the pdf array
-        pdf_arr = pdf.(u,cv)
-        
-        # Create an uninitialized array similar to pdf_arr
-        # this avoids mutating the initial pdf_arr 
-	result = similar(pdf_arr)
-        # Take the log of each entry in-place
-        @simd for j in eachindex(result)
-            @inbounds result[j] = log(pdf_arr[j])
+    	   # Start with the pdf array
+    	   pdf_arr = pdf.(u, c)
+    	   
+    	   # Create an uninitialized array similar to pdf_arr
+	   # this avoids mutating the initial pdf_arr  
+	   result = similar(pdf_arr)
+	   
+    	   # Take the log of each entry in-place
+    	   @simd for j in eachindex(result)
+    	       @inbounds result[j] = log(pdf_arr[j])
+    	   end
+	
+    	   return result
         end
-
-        return result
-    end
     end)
+    else
+    	eval(quote
+    	function Base.Broadcast.broadcasted(
+	    		        ::typeof(logpdf),
+ 	    	     	        u::UniFinArr{S,V,R,P,N},
+	    	     		c::$typ) where {S,V,R,P,N}
+
+    	    # Start with the pdf array
+    	    result = pdf.(u, c) 
+	    	    
+	    # Take the log of each entry in-place
+  	    @simd for j in eachindex(result)
+  	    	@inbounds result[j] = log(result[j])
+	    end
+		
+ 	    return result
+    	end
+    	end)
+    end
 end
 
 ## PERFORMANT BROADCASTING OF mode:
