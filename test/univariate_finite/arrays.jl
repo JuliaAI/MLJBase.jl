@@ -92,33 +92,49 @@ end
 n = 10
 P = rand(n);
 all_classes = categorical([:no, :yes], ordered=true)
-u = UnivariateFinite(all_classes, P, augment=true)
+u = UnivariateFinite(all_classes, P, augment=true) #uni_fin_arr
 
 # next is not specific to `UnivariateFiniteArray` but is for any
 # abstract array with eltype `UnivariateFinite`:
-@testset "piratical pdf" begin
+@testset "piratical pdf and logpdf" begin
+    # test pdf(uni_fin_arr, labels) and
+    # logpdf(uni_fin_arr, labels)
     @test pdf(u, [:yes, :no]) == hcat(P, 1 .- P)
+    @test isequal(logpdf(u, [:yes, :no]), log.(hcat(P, 1 .- P)))
     @test pdf(u, reverse(all_classes)) == hcat(P, 1 .- P)
+    @test isequal(logpdf(u, reverse(all_classes)), log.(hcat(P, 1 .- P)))
+    
+    # test pdf(::Array{UnivariateFinite, 1}, labels) and
+    # logpdf(::Array{UnivariateFinite, labels)
     @test pdf([u...], [:yes, :no]) == hcat(P, 1 .- P)
+    @test isequal(logpdf([u...], [:yes, :no]), log.(hcat(P, 1 .- P)))
     @test pdf([u...], all_classes) == hcat(1 .- P, P)
+    @test isequal(logpdf([u...], all_classes), log.(hcat(1 .- P, P)))
 end
 
-@testset "broadcasting: pdf.(uni_fin_arr, scalar) " begin
+@testset "broadcasting: pdf.(uni_fin_arr, scalar) and logpdf.(uni_fin_arr, scalar) " begin
     @test pdf.(u,:yes) == P
+    @test isequal(logpdf.(u,:yes), log.(P))
     @test pdf.(u,all_classes[2]) == P
+    @test isequal(logpdf.(u,all_classes[2]), log.(P))
 
     # check unseen probablities are a zero *array*:
     v = categorical(1:4)
     probs = rand(3)
     u2 = UnivariateFinite(v[1:2], probs, augment=true)
     @test pdf.(u2, v[3]) == zeros(3)
+    @test isequal(logpdf.(u2, v[3]), log.(zeros(3)))
 end
 
-@testset "broadcasting: pdf.(uni_fin_arr, array_same_shape)" begin
+@testset "broadcasting: pdf.(uni_fin_arr, array_same_shape) and logpdf.(uni_fin_arr, array_same_shape)" begin
     v = rand(classes(u), n)
     @test broadcast(pdf, u, v) == [pdf(u[i], v[i]) for i in 1:length(u)]
+    @test isequal(broadcast(logpdf, u, v), 
+        [logpdf(u[i], v[i]) for i in 1:length(u)])
     @test broadcast(pdf, u, get.(v)) ==
         [pdf(u[i], v[i]) for i in 1:length(u)]
+    @test isequal(broadcast(logpdf, u, get.(v)), 
+        [logpdf(u[i], v[i]) for i in 1:length(u)])
 end
 
 @testset "broadcasting: check indexing in `getter((cv, i), dtype)` see PR#375" begin
