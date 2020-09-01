@@ -97,9 +97,10 @@ for func in [:pdf, :logpdf]
             u::AbstractArray{UnivariateFinite{S,V,R,P},N},
             C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
         
-            ret = Array{P,N+1}(undef, size(u)..., length(C))
+            #ret = Array{P,N+1}(undef, size(u)..., length(C))
+            ret = zeros(P, size(u)..., length(C))
             for i in eachindex(C)
-                ret[fill(:,N)...,i] = broadcast($func, u, C[i])
+                ret[fill(:,N)...,i] .= broadcast($func, u, C[i])
             end
             return ret
         end
@@ -129,8 +130,13 @@ function Base.Broadcast.broadcasted(
     cv::CategoricalValue) where {S,V,R,P,N}
 
     cv in classes(u) || _err_missing_class(cv)
-
-    return get(u.prob_given_ref, int(cv), zeros(P, size(u)))
+    
+    f() = zeros(P, size(u)) #default caller function 
+    
+    return Base.Broadcast.Broadcasted(
+    	identity,
+    	(get(f, u.prob_given_ref, int(cv)),)
+    	)
 end
         
 # pdf.(u, v)
@@ -162,41 +168,33 @@ function Base.Broadcast.broadcasted(
     raw::Union{V,AbstractArray{V,N}}) where {S,V,R,P,N}
 
     cat = transform(classes(u), raw)
-    return broadcast(pdf, u, cat)
+    return Base.Broadcast.broadcasted(pdf, u, cat)
 end
 
 # logpdf.(u::UniFinArr{S,V,R,P,N}, cv::CategoricalValue)
 # logpdf.(u::UniFinArr{S,V,R,P,N}, v::AbstractArray{<:CategoricalValue{V,R},N})
-# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V)  
-# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N})  
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N}) 
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V) 
 for typ in (:CategoricalValue, 
-	    :(AbstractArray{<:CategoricalValue{V,R},N}), 
+	    :(AbstractArray{<:CategoricalValue{V,R},N}),
 	    :V,
 	    :(AbstractArray{V,N}))
-    if typ == :CategoricalValue || typ == :V
-    eval(quote 
-       function Base.Broadcast.broadcasted(
-    		        ::typeof(logpdf),
-    	     	        u::UniFinArr{S,V,R,P,N},
-    	     		c::$typ) where {S,V,R,P,N}
-
-    	   # Start with the pdf array
-    	   pdf_arr = pdf.(u, c)
-    	   
-    	   # Create an uninitialized array similar to pdf_arr
-	   # this avoids mutating the initial pdf_arr  
-	   result = similar(pdf_arr)
-	   
-    	   # Take the log of each entry in-place
-    	   @simd for j in eachindex(result)
-    	       @inbounds result[j] = log(pdf_arr[j])
-    	   end
-	
-    	   return result
-        end
-    end)
-    else
+   if typ == :CategoricalValue || typ == :V
     	eval(quote
+    	function Base.Broadcast.broadcasted(
+	    		        ::typeof(logpdf),
+ 	    	     	        u::UniFinArr{S,V,R,P,N},
+	    	     		c::$typ) where {S,V,R,P,N}
+
+    	    # Start with the pdf array
+    	    # take advantage of loop fusion
+    	    result = log.(pdf.(u, c)) 
+ 	    return result
+    	end
+    	end)
+    	
+  else
+  	eval(quote
     	function Base.Broadcast.broadcasted(
 	    		        ::typeof(logpdf),
  	    	     	        u::UniFinArr{S,V,R,P,N},
@@ -213,7 +211,8 @@ for typ in (:CategoricalValue,
  	    return result
     	end
     	end)
-    end
+  end
+    
 end
 
 ## PERFORMANT BROADCASTING OF mode:
