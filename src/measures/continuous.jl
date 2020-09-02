@@ -320,33 +320,3 @@ function (m::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     end
     return ret / count
 end
-
-struct LogCosh <: Measure end
-
-"""
-    LogCosh(ŷ, y)
-
-Log-Cosh loss:
-
-``\\text{Log-Cosh} = m^{-1}∑ᵢ log(cosh(ŷᵢ-yᵢ))``
-
-where `yᵢ` is the target and `ŷᵢ` is the output, `m` is the number of indices.
-
-For more information, run `info(log_cosh)`.
-"""
-const log_cosh = LogCosh()
-
-metadata_measure(LogCosh;
-    name                     = "log_cosh",
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
-    prediction_type          = :deterministic,
-    orientation              = :loss,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "LogCosh; aliases: `log_cosh`.")
-
-function (log_cosh::LogCosh)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    return sum(log.(cosh.(ŷ-y))) / length(y)
-end

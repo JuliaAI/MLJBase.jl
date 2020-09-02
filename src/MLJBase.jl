@@ -186,7 +186,7 @@ export orientation, reports_each_observation,
     spports_weights, prediction_type
 
 # measures/continuous.jl:
-export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat
