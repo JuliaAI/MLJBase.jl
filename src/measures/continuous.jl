@@ -341,12 +341,12 @@ metadata_measure(LogCosh;
     target_scitype           = Union{Vec{Continuous},Vec{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
+    reports_each_observation = true,
     is_feature_dependent     = false,
     supports_weights         = false,
-    docstring                = "LogCosh; aliases: `log_cosh`.")
+    docstring                = "log cosh loss; aliases: `log_cosh`.")
 
 function (log_cosh::LogCosh)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
-    return sum(log.(cosh.(ŷ-y))) / length(y)
+    return log.(cosh.(ŷ-y))
 end
