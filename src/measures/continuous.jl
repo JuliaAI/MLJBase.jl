@@ -324,13 +324,13 @@ end
 struct LogCosh <: Measure end
 
 """
-    LogCosh(ŷ, y)
+    log_cosh(ŷ, y)
 
-Log-Cosh loss:
+Log-Cosh per-observation loss:
 
-``\\text{Log-Cosh} = m^{-1}∑ᵢ log(cosh(ŷᵢ-yᵢ))``
+``\\text{Log-Cosh Loss} = log(cosh(ŷᵢ-yᵢ))``
 
-where `yᵢ` is the target and `ŷᵢ` is the output, `m` is the number of indices.
+where `yᵢ` is the target and `ŷᵢ` is the output.
 
 For more information, run `info(log_cosh)`.
 """
