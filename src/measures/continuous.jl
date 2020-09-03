@@ -320,3 +320,33 @@ function (m::MAPE)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     end
     return ret / count
 end
+
+struct LogCosh <: Measure end
+
+"""
+    log_cosh(ŷ, y)
+
+Log-Cosh per-observation loss:
+
+``\\text{Log-Cosh Loss} = log(cosh(ŷᵢ-yᵢ))``
+
+where `yᵢ` is the target and `ŷᵢ` is the output.
+
+For more information, run `info(log_cosh)`.
+"""
+const log_cosh = LogCosh()
+
+metadata_measure(LogCosh;
+    name                     = "log_cosh",
+    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = true,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    docstring                = "log cosh loss; aliases: `log_cosh`.")
+
+function (log_cosh::LogCosh)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+    check_dimensions(ŷ, y)
+    return log.(cosh.(ŷ-y))
+end
