@@ -12,6 +12,7 @@ rng = StableRNG(666899)
     @test isapprox(mean(l1(yhat, y, w)), mae(yhat, y, w))
     @test isapprox(mean(l2(yhat, y)), 5)
     @test isapprox(mean(l2(yhat, y, w)), rms(yhat, y, w)^2)
+    @test isapprox(mean(log_cosh(yhat, y)), 1.3715546675)
 
     yhat = y .+ 1
     @test isapprox(rmsl(yhat, y),
