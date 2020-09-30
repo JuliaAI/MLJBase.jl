@@ -598,7 +598,14 @@ report(mach::Machine) = mach.report
 
 # helper:
 _filename(file::IO) = string(rand(UInt))
-_filename(file::String)  = file
+function _filename(file::String) # truncates ".jlso" if present
+    m = match(r"(.*)\.jlso", file)
+    if m isa Nothing
+        return file
+    end
+    return first(m.captures)
+end
+
 
 # saving:
 """
@@ -615,7 +622,7 @@ supported).
 The format is JLSO (a wrapper for julia native or BSON serialization).
 For some model types, a custom serialization will be additionally performed.
 
-### Keyword arguments 
+### Keyword arguments
 
 These keyword arguments are passed to the JLSO serializer:
 
