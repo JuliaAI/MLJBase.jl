@@ -121,7 +121,7 @@ end
     pred = predict(mach, Xnew)
     MLJBase.save(io, mach; compression=:none)
     # commented out for travis testing:
-    # MLJBase.save(filename, mach)
+    #MLJBase.save(filename, mach)
 
     # test restoring data from filename:
     m = machine(filename)

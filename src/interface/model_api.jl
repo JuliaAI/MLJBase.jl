@@ -36,16 +36,9 @@ MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
     getfield.(methodswith(M), :name) |> unique
 
 # serialization fallbacks:
-# Here `file` can be `String` or `IO` (eg, `file=IOBuffer()`).
-MLJModelInterface.save(file, model, fitresult, report; kwargs...) =
-    JLSO.save(file,
-              :model => model,
-              :fitresult => fitresult,
-              :report => report; kwargs...)
-function MLJModelInterface.restore(file; kwargs...)
-    dict = JLSO.load(file)
-    return dict[:model], dict[:fitresult], dict[:report]
-end
+MLJModelInterface.save(filename, model, fitresult; kwargs...) = fitresult
+MLJModelInterface.restore(filename, model, serializable_fitresult) =
+                          serializable_fitresult
 
 # to suppress inclusion of abstract types in the model registry.
 for T in (:Supervised, :Unsupervised,

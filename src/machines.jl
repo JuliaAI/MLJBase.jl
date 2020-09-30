@@ -596,6 +596,10 @@ report(mach::Machine) = mach.report
 
 ## SERIALIZATION
 
+# helper:
+_filename(file::IO) = string(rand(UInt))
+_filename(file::String)  = file
+
 # saving:
 """
     MLJ.save(filename, mach::Machine; kwargs...)
@@ -608,10 +612,12 @@ Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
 supported).
 
-The format is JLSO (a wrapper for julia native or BSON serialization)
-unless a custom format has been implemented for the model type of
-`mach.model`. The keyword arguments `kwargs` are passed to
-the format-specific serializer, which in the JSLO case include these:
+The format is JLSO (a wrapper for julia native or BSON serialization).
+For some model types, a custom serialization will be additionally performed.
+
+### Keyword arguments 
+
+These keyword arguments are passed to the JLSO serializer:
 
 keyword        | values                        | default
 ---------------|-------------------------------|-------------------------
@@ -621,6 +627,9 @@ keyword        | values                        | default
 See (see
 [https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
 for details.
+
+Any additional keyword arguments are passed to model-specific
+serializers.
 
 Machines are de-serialized using the `machine` constructor as shown in
 the example below. Data (or nodes) may be optionally passed to the
@@ -660,15 +669,34 @@ constructor for retraining on new data using the saved model.
     horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 
 """
-function MMI.save(file, mach::Machine; verbosity=1, kwargs...)
+function MMI.save(file::Union{String,IO},
+                  mach::Machine;
+                  verbosity=1,
+                  format=:julia_serialize,
+                  compression=:none,
+                  kwargs...)
     isdefined(mach, :fitresult)  ||
         error("Cannot save an untrained machine. ")
-    MMI.save(file, mach.model, mach.fitresult, mach.report; kwargs...)
+
+    # fallback `save` method returns `mach.fitresult` and saves nothing:
+    serializable_fitresult =
+        save(_filename(file), mach.model, mach.fitresult; kwargs...)
+
+    JLSO.save(file,
+              :model => mach.model,
+              :fitresult => serializable_fitresult,
+              :report => mach.report;
+              format=format,
+              compression=compression)
 end
 
-# restoring:
+# deserializing:
 function machine(file::Union{String,IO}, args...; kwargs...)
-    model, fitresult, report = MMI.restore(file; kwargs...)
+    dict = JLSO.load(file)
+    model = dict[:model]
+    serializable_fitresult = dict[:fitresult]
+    report = dict[:report]
+    fitresult = restore(_filename(file), model, serializable_fitresult)
     if isempty(args)
         mach = Machine(model)
     else
