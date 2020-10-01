@@ -103,6 +103,11 @@ end
 end
 
 @testset "serialization" begin
+
+    @test MLJBase._filename("mymodel.jlso") == "mymodel"
+    @test MLJBase._filename("mymodel.gz") == "mymodel"
+    @test MLJBase._filename("mymodel") == "mymodel"
+
     model = @load DecisionTreeRegressor
 
     X = (a = Float64[98, 53, 93, 67, 90, 68],

@@ -598,8 +598,8 @@ report(mach::Machine) = mach.report
 
 # helper:
 _filename(file::IO) = string(rand(UInt))
-function _filename(file::String) # truncates ".jlso" if present
-    m = match(r"(.*)\.jlso", file)
+function _filename(file::String) # truncates extension if present
+    m = match(r"(.*)\..*", file)
     if m isa Nothing
         return file
     end
