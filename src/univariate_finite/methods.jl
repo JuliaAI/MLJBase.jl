@@ -198,6 +198,14 @@ function _pdf(d::UnivariateFinite{S,V,R,P}, ref) where {S,V,R,P}
     return get(d.prob_given_ref, ref, zero(P))
 end
 
+function _pdf(d::UnivariateFinite{S,V}, c::V) where {S,V}
+    _classes = classes(d)
+    c in _classes || throw(DomainError("Value $c not in pool. "))
+    pool = CategoricalArrays.pool(_classes)
+    class = pool[get(pool, c)]
+    return pdf(d, class)
+end
+
 """
     Distributions.pdf(d::UnivariateFinite, x)
 
@@ -227,20 +235,12 @@ One can also do weighted fits:
 See also `classes`, `support`.
 """
 Distributions.pdf(d::UnivariateFinite, cv::CategoricalValue) = _pdf(d, int(cv))
-
-function Distributions.pdf(
-    d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P}
-
-    _classes = classes(d)
-    c in _classes || throw(DomainError("Value $c not in pool. "))
-    pool = CategoricalArrays.pool(_classes)
-    class = pool[get(pool, c)]
-    return pdf(d, class)
-end
+Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = _pdf(d, c)
+Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = _pdf(d, c)
 
 Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
-
-Distributions.logpdf(d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P} = log(pdf(d,c))
+Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = log(pdf(d, c))
+Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = log(pdf(d, c))
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
