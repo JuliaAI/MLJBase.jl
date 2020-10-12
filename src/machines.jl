@@ -598,14 +598,7 @@ report(mach::Machine) = mach.report
 
 # helper:
 _filename(file::IO) = string(rand(UInt))
-function _filename(file::String) # truncates extension if present
-    m = match(r"(.*)\..*", file)
-    if m isa Nothing
-        return file
-    end
-    return first(m.captures)
-end
-
+_filename(file::String) = splitext(file)[1]
 
 # saving:
 """
