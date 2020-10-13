@@ -46,7 +46,6 @@ super_model = SuperModel(0.5, dummy1, dummy2)
 
     @test_throws DomainError range(dummy_model, :K, origin=2)
     @test_throws DomainError range(dummy_model, :K, unit=1)
-    @test_throws DomainError range(dummy_model, :K)
 
     @test_throws ArgumentError range(dummy_model, :kernel)
 
