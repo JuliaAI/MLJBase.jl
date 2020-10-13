@@ -499,6 +499,11 @@ in which the specified models are composed in order. This means
 `model1` receives inputs, whose output is passed to `model2`, and so
 forth. Model types or instances may be specified.
 
+**Important.** By default a new model *type* name is automatically
+generated. To specify a different name add a keyword argument such as
+`name=MyPipeType`. This is necessary if serializing the pipeline; see
+[`MLJ.save`](@ref).
+
 At most one of the models may be a supervised model, but this model
 can appear in any position.
 
