@@ -618,8 +618,7 @@ keyword        | values                        | default
 `format`       | `:julia_serialize`, `:BSON`   | `:julia_serialize`
 `compression`  | `:gzip`, `:none`              | `:none`
 
-See (see
-[https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
+See [https://github.com/invenia/JLSO.jl](https://github.com/invenia/JLSO.jl)
 for details.
 
 Machines are de-serialized using the `machine` constructor as shown in
