@@ -222,6 +222,11 @@ end
     @test pdf(d, 'f') == 0
     @test pdf(d, f) == 0
     @test_throws DomainError pdf(d, 'j')
+
+    # regression test
+    # https://github.com/alan-turing-institute/MLJBase.jl/pull/432/files#r502299301
+    d = UnivariateFinite(classes(categorical(UInt32[0, 1])), [0.4, 0.6])
+    @test pdf(d, UInt32(1)) == 0.6
 end
 
 @testset "approx for UnivariateFinite" begin

@@ -193,11 +193,6 @@ function average(dvec::AbstractVector{UnivariateFinite{S,V,R,P}};
     return UnivariateFinite(sample_scitype(d1), d1.decoder, prob_given_ref)
 end
 
-
-function _pdf(d::UnivariateFinite{S,V,R,P}, ref) where {S,V,R,P}
-    return get(d.prob_given_ref, ref, zero(P))
-end
-
 """
     Distributions.pdf(d::UnivariateFinite, x)
 
@@ -226,11 +221,18 @@ One can also do weighted fits:
 
 See also `classes`, `support`.
 """
-Distributions.pdf(d::UnivariateFinite, cv::CategoricalValue) = _pdf(d, int(cv))
-
 function Distributions.pdf(
-    d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P}
+    d::UnivariateFinite{S,V,R,P},
+    cv::CategoricalValue,
+) where {S,V,R,P}
+    return get(d.prob_given_ref, int(cv), zero(P))
+end
+Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = _pdf(d, c)
 
+# Avoid method ambiguity errors with Distributions >= 0.24
+Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = _pdf(d, c)
+
+function _pdf(d::UnivariateFinite, c)
     _classes = classes(d)
     c in _classes || throw(DomainError("Value $c not in pool. "))
     pool = CategoricalArrays.pool(_classes)
@@ -239,8 +241,10 @@ function Distributions.pdf(
 end
 
 Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
+Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = log(pdf(d, c))
 
-Distributions.logpdf(d::UnivariateFinite{S,V,R,P}, c::V) where {S,V,R,P} = log(pdf(d,c))
+# Avoid method ambiguity errors with Distributions >= 0.24
+Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = log(pdf(d, c))
 
 function Distributions.mode(d::UnivariateFinite)
     dic = d.prob_given_ref
