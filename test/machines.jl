@@ -103,6 +103,11 @@ end
 end
 
 @testset "serialization" begin
+
+    @test MLJBase._filename("mymodel.jlso") == "mymodel"
+    @test MLJBase._filename("mymodel.gz") == "mymodel"
+    @test MLJBase._filename("mymodel") == "mymodel"
+
     model = @load DecisionTreeRegressor
 
     X = (a = Float64[98, 53, 93, 67, 90, 68],
@@ -121,7 +126,7 @@ end
     pred = predict(mach, Xnew)
     MLJBase.save(io, mach; compression=:none)
     # commented out for travis testing:
-    # MLJBase.save(filename, mach)
+    #MLJBase.save(filename, mach)
 
     # test restoring data from filename:
     m = machine(filename)
