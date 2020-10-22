@@ -474,7 +474,8 @@ end
 # ==========================================================================
 ## BINARY AND ORDER DEPENDENT
 
-const CM = ConfusionMatrix{N} where N
+const CM2 = ConfusionMatrix{2}
+
 # --------------------------------------------------------------------------
 # F_β-Score
 
@@ -498,17 +499,15 @@ For more information, run `info(FScore)`.
 """
 struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
 
-FScore{β}(;rev=nothing) where β = FScore{β}(rev)
-
+FScore{β}(; rev=nothing) where β = FScore{β}(rev)
 
 metadata_measure(FScore;
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
-    aggregation              = Mean(),
     is_feature_dependent     = false,
-    supports_weights         = true)
+    supports_weights         = false)
 
 MLJModelInterface.name(::Type{<:FScore{β}}) where β = "FScore{$β}"
 MLJModelInterface.name(::Type{FScore})            = "FScore" # for registry
@@ -525,13 +524,13 @@ for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
           :FalseNegativeRate, :FalseDiscoveryRate, :Precision, :NPV)
     ex = quote
         struct $M <: Measure rev::Union{Nothing,Bool} end
-        $M(;rev=nothing) = $M(rev)
+        $M(; rev=nothing) = $M(rev)
     end
     eval(ex)
 end
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -540,15 +539,15 @@ metadata_measure.((FalsePositive, FalseNegative);
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
     is_feature_dependent     = false,
-    supports_weights         = true)
+    supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -556,22 +555,13 @@ metadata_measure.((TruePositive, TrueNegative);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-metadata_measure.(( TrueNegativeRate, NPV);
-    target_scitype           = Vec{<:Finite{N}} where N,
+metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, NPV);
+    target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
     is_feature_dependent     = false,
-    supports_weights         = true)
-
-metadata_measure.((TruePositiveRate,Precision);
-    target_scitype           = Vec{<:Finite{N}} where N,
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    aggregation              = Mean(),
-    is_feature_dependent     = false,
-    supports_weights         = true)
+    supports_weights         = false)
 
 # adjustments
 MMI.name(::Type{<:TruePositive})       = "true_positive"
@@ -617,12 +607,11 @@ MMI.docstring(::Type{<:Precision})    = "positive predictive value "*
 
 $(docstring(TruePositive()))
 
-    true_positive(ŷ, y; average="micro")
+    true_positive(ŷ, y)
 
 Number of true positives for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To
-reverse roles, use `TruePositive(rev=true)` instead of `true_positive`.
-`average` takes `micro` and `macro` as arguements.
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `TruePositive(rev=true)` instead of `true_positive`.
 
 For more information, run `info(true_positive)`.
 
@@ -636,12 +625,11 @@ const truepositive  = TruePositive()
 
 $(docstring(TrueNegative()))
 
-    true_negative(ŷ, y; average="micro")
+    true_negative(ŷ, y)
 
 Number of true negatives for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To
-reverse roles, use `TrueNegative(rev=true)` instead of `true_negative`.
-`average` takes `micro` and `macro` as arguements.
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `TrueNegative(rev=true)` instead of `true_negative`.
 
 
 For more information, run `info(true_negative)`.
@@ -656,12 +644,11 @@ const truenegative  = TrueNegative()
 
 $(docstring(FalsePositive()))
 
-    false_positive(ŷ, y; average="micro")
+    false_positive(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalsePositive(rev=true)` instead of `false_positive`.`average` takes
-`micro` and `macro` as arguements.
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `FalsePositive(rev=true)` instead of `false_positive`.
 
 
 For more information, run `info(false_positive)`.
@@ -676,12 +663,11 @@ const falsepositive = FalsePositive()
 
 $(docstring(FalseNegative()))
 
-    false_negative(ŷ, y; average="micro")
+    false_negative(ŷ, y)
 
 Number of false positives for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalseNegative(rev=true)` instead of `false_negative`. `average` takes
-`micro` and `macro` as arguements.
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `FalseNegative(rev=true)` instead of `false_negative`.
 
 For more information, run `info(false_negative)`.
 
@@ -695,12 +681,11 @@ const falsenegative = FalseNegative()
 
 $(docstring(TruePositiveRate()))
 
-    true_positive_rate(ŷ, y; average="micro")
+    true_positive_rate(ŷ, y)
 
-True positive rate for observations `ŷ` and ground truth `y`. In `binary` cases,
-assigns `false` to first element of `levels(y)`. To reverse roles, use
-`TruePositiveRate(rev=true)` instead of `true_positive_rate`.`average` takes
-`micro` and `macro` as arguements
+True positive rate for observations `ŷ` and ground truth `y`. Assigns
+`false` to first element of `levels(y)`. To reverse roles, use
+`TruePositiveRate(rev=true)` instead of `true_positive_rate`.
 
 For more information, run `info(true_positive_rate)`.
 
@@ -719,12 +704,11 @@ const hit_rate     = recall
 
 $(docstring(TrueNegativeRate()))
 
-    true_negative_rate(ŷ, y; average="micro")
+    true_negative_rate(ŷ, y)
 
-True negative rate for observations `ŷ` and ground truth `y`. In `binary` cases,
-assigns `false` to first element of `levels(y)`. To reverse roles, use
+True negative rate for observations `ŷ` and ground truth `y`. Assigns
+`false` to first element of `levels(y)`. To reverse roles, use
 `TrueNegativeRate(rev=true)` instead of `true_negative_rate`.
-`average` takes `micro` and `macro` as arguements
 
 For more information, run `info(true_negative_rate)`.
 
@@ -742,12 +726,11 @@ const selectivity  = specificity
 
 $(docstring(FalsePositiveRate()))
 
-    false_positive_rate(ŷ, y; average="micro")
+    false_positive_rate(ŷ, y)
 
-False positive rate for observations `ŷ` and ground truth `y`. In `binary` cases,
-assigns `false` to first element of `levels(y)`. To reverse roles, use
-`FalsePositiveRate(rev=true)` instead of `false_positive_rate`. `average`
-takes `micro` and `macro` as arguements
+False positive rate for observations `ŷ` and ground truth `y`. Assigns
+`false` to first element of `levels(y)`. To reverse roles, use
+`FalsePositiveRate(rev=true)` instead of `false_positive_rate`.
 
 For more information, run `info(false_positive_rate)`.
 
@@ -763,12 +746,11 @@ const fallout      = falsepositive_rate
 
 $(docstring(FalseNegativeRate()))
 
-    false_negative_rate(ŷ, y; average="micro")
+    false_negative_rate(ŷ, y)
 
-False negative rate for observations `ŷ` and ground truth `y`. In `binary` cases,
-assigns `false` to first element of `levels(y)`. To reverse roles, use
-`FalseNegativeRate(rev=true)` instead of `false_negative_rate`. `average` takes
-`micro` and `macro` as arguements
+False negative rate for observations `ŷ` and ground truth `y`. Assigns
+`false` to first element of `levels(y)`. To reverse roles, use
+`FalseNegativeRate(rev=true)` instead of `false_negative_rate`.
 
 For more information, run `info(false_negative_rate)`.
 
@@ -777,18 +759,18 @@ const false_negative_rate = FalseNegativeRate()
 const fnr = FalseNegativeRate()
 const FNR = FalseNegativeRate
 const falsenegative_rate = FNR()
+const miss_rate    = falsenegative_rate
 
 """
     false_discovery_rate
 
 $(docstring(FalseDiscoveryRate()))
 
-    false_discovery_rate(ŷ, y; average="micro")
+    false_discovery_rate(ŷ, y)
 
-False discovery rate for observations `ŷ` and ground truth `y`. In `binary` cases,
-assigns `false` to first element of `levels(y)`. To reverse roles, use
-`FalseDiscoveryRate(rev=true)` instead of `false_discovery_rate`. `average`
-takes `micro` and `macro` as arguements
+False discovery rate for observations `ŷ` and ground truth `y`. Assigns
+`false` to first element of `levels(y)`. To reverse roles, use
+`FalseDiscoveryRate(rev=true)` instead of `false_discovery_rate`.
 
 For more information, run `info(false_discovery_rate)`.
 
@@ -797,19 +779,17 @@ const false_discovery_rate = FalseDiscoveryRate()
 const fdr = FalseDiscoveryRate()
 const FDR = FalseDiscoveryRate
 const falsediscovery_rate = FDR()
-const miss_rate    = falsenegative_rate
 
 """
     negative_predictive_value
 
 $(docstring(NPV()))
 
-    negative_predictive_value(ŷ, y; average="micro")
+    negative_predictive_value(ŷ, y)
 
 Negative predictive value for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To
-reverse roles, use `NPV(rev=true)` instead of `negative_predictive_value`.
-`average` takes `micro` and `macro` as arguements
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `NPV(rev=true)` instead of `negative_predictive_value`.
 
 For more information, run `info(negative_predictive_value)`.
 
@@ -823,12 +803,11 @@ const negativepredictive_value = NPV()
 
 $(docstring(Precision()))
 
-    positive_predictive_value(ŷ, y; average="micro")
+    positive_predictive_value(ŷ, y)
 
 Positive predictive value for observations `ŷ` and ground truth
-`y`. In `binary` cases, assigns `false` to first element of `levels(y)`. To
-reverse roles, use `Precision(rev=true)` instead of `positive_predictive_value`.
-`average` takes `micro` and `macro` as arguements
+`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
+use `Precision(rev=true)` instead of `positive_predictive_value`.
 
 For more information, run `info(positive_predictive_value)`.
 
@@ -841,155 +820,536 @@ const PPV = Precision
 
 ## INTERNAL FUNCTIONS ON CONFUSION MATRIX
 
-_tp(m::CM) = diag(m.mat)
-_fp(m::CM) = sum(m.mat, dims=2).-diag(m.mat)
-_fn(m::CM) = sum(m.mat, dims=1)' .- diag(m.mat)
-_tn(m::CM) = sum(m.mat) .- (_tp(m).+_fp(m).+_fn(m))
+_tp(m::CM2) = m[2,2]
+_tn(m::CM2) = m[1,1]
+_fp(m::CM2) = m[2,1]
+_fn(m::CM2) = m[1,2]
 
-function _tpr(m::CM; average = "micro")
-    s = size(m.mat)[1]
-    s>2 && average == "macro" || return sum(tp(m)) / (sum(tp(m))+sum(fn(m)))
-    tpr = zeros(Float64, s)
-    tp_val, fn_val = tp(m), fn(m)
-    for i in range(1, length=s)
-        tpr[i] = tp_val[i] / (tp_val[i]+fn_val[i])
-    end
-    return tpr
-end
+_tpr(m::CM2) = tp(m) / (tp(m) + fn(m))
+_tnr(m::CM2) = tn(m) / (tn(m) + fp(m))
+_fpr(m::CM2) = 1 - _tnr(m)
+_fnr(m::CM2) = 1 - _tpr(m)
 
-function _tpr(m::CM, w::Vec{<:Real}; average = "macro")
-    if average == "micro" throw("The mode has to be `macro`") end
-    _tpr(m, average = average) .* w
-end
+_fdr(m::CM2) = fp(m) / (tp(m) + fp(m))
+_npv(m::CM2) = tn(m) / (tn(m) + fn(m))
 
-function _tnr(m::CM; average = "micro")
-    s = size(m.mat)[1]
-    s>2 && average == "macro" || return sum(tn(m)) / (sum(tn(m))+sum(fp(m)))
-    tnr = zeros(Float64, s)
-    tn_val, fp_val = tn(m), fp(m)
-    for i in range(1, length=s)
-        tnr[i] = tn_val[i] / (tn_val[i]+fp_val[i])
-    end
-    return tnr
-end
-
-function _tnr(m::CM, w::Vec{<:Real}; average = "macro")
-    if average == "micro" throw("The mode has to be `macro`") end
-    _tnr(m, average = average) .* w
-end
-
-_fpr(m::CM; average = "micro") = 1 .- _tnr(m, average = average)
-_fpr(m::CM, w::Vec{<:Real}; average = "macro") = (1 .- _tnr(m, average = average)) .* w
-
-_fnr(m::CM; average = "micro") = 1 .- _tpr(m, average = average)
-_fnr(m::CM, w::Vec{<:Real}; average = "macro") = (1 .- _tpr(m, average = average)) .* w
-
-function _fdr(m::CM; average = "micro")
-    s = size(m.mat)[1]
-    s>2 && average == "macro" || return sum(fp(m)) / (sum(tp(m))+sum(fp(m)))
-    fdr = zeros(Float64, s)
-    tp_val, fp_val = tp(m), fp(m)
-    for i in range(1, length=s)
-        fdr[i] = fp_val[i] / (tp_val[i]+fp_val[i])
-    end
-    return fdr
-end
-
-function _fdr(m::CM, w::Vec{<:Real}; average = "macro")
-    if average == "micro" throw("The mode has to be `macro`") end
-    _fdr(m, average = average) .* w
-end
-
-function _npv(m::CM; average = "micro")
-    s = size(m.mat)[1]
-    s>2 && average == "macro" || return sum(fp(m)) / (sum(tp(m))+sum(fp(m)))
-    npv = zeros(Float64, s)
-    tn_val, fn_val = tn(m), fn(m)
-    for i in range(1, length=s)
-        npv[i] = tn_val[i] / (tn_val[i]+fn_val[i])
-    end
-    return npv
-end
-
-function _npv(m::CM, w::Vec{<:Real}; average = "macro")
-    if average == "micro" throw("The mode has to be `macro`") end
-    _npv(m, average = average) .* w
-end
-
-## Callables on CM
+## Callables on CM2
 # NOTE: here we assume the CM was constructed a priori with the
 # proper ordering so the field `rev` in the measure is ignored
 
-(::TruePositive)(m::CM)  = _tp(m)
-(::TrueNegative)(m::CM)  = _tn(m)
-(::FalsePositive)(m::CM) = _fp(m)
-(::FalseNegative)(m::CM) = _fn(m)
+(::TruePositive)(m::CM2)  = _tp(m)
+(::TrueNegative)(m::CM2)  = _tn(m)
+(::FalsePositive)(m::CM2) = _fp(m)
+(::FalseNegative)(m::CM2) = _fn(m)
 
-(::TPR)(m::CM; average = "micro") = _tpr(m, average = average)
-(::TPR)(m::CM, w::Vec{<:Real}; average = "macro") = _tpr(m, w, average = average)
+(::TPR)(m::CM2) = _tpr(m)
+(::TNR)(m::CM2) = _tnr(m)
+(::FPR)(m::CM2) = _fpr(m)
+(::FNR)(m::CM2) = _fnr(m)
 
-(::TNR)(m::CM; average = "micro") = _tnr(m, average = average)
-(::TNR)(m::CM, w::Vec{<:Real}; average = "macro") = _tnr(m, w, average = average)
+(::FDR)(m::CM2) = _fdr(m)
+(::NPV)(m::CM2) = _npv(m)
 
-(::FPR)(m::CM; average = "micro") = _fpr(m, average = average)
-(::FPR)(m::CM, w::Vec{<:Real}; average = "macro") = _fpr(m, w, average = average)
+(::Precision)(m::CM2) = 1.0 - _fdr(m)
 
-(::FNR)(m::CM; average = "micro") = _fnr(m, average = average)
-(::FNR)(m::CM, w::Vec{<:Real}; average = "macro") = _fnr(m, w, average = average)
-
-(::FDR)(m::CM; average = "micro") = _fdr(m, average = average)
-(::FDR)(m::CM, w::Vec{<:Real}; average = "macro") = _fdr(m, w, average = average)
-
-(::NPV)(m::CM; average = "micro") = _npv(m, average = average)
-(::NPV)(m::CM, w::Vec{<:Real}; average = "macro") = _npv(m, w, average = average)
-
-(::Precision)(m::CM; average = "micro") = 1.0 .- _fdr(m, average = average)
-function (::Precision)(m::CM, w::Vec{<:Real}; average = "macro")
-    if average == "micro" throw("The mode has to be `macro`") end
-    (1.0 .- _fdr(m, average = average)) .* w
-end
-
-function (::FScore{β})(m::CM; average = "micro") where β
+function (::FScore{β})(m::CM2) where β
     β2   = β^2
-    prec = precision(m, average = average)
-    rec  = recall(m, average = average)
-    average == "macro" || return (1 + β2) * (prec * rec) / (β2 * prec + rec)
-    fscore = zeros(Float64, size(m))
-    for i in range(1, length=size(m))
-        fscore[i] = (1 + β2) * (prec[i] * rec[i]) / (β2 * prec[i] + rec[i])
-    end
-    return fscore
-end
-
-function (::FScore{β})(m::CM, w::Vec{<:Real}; average = "macro") where β
-    if average == "micro" throw("The mode has to be `macro`") end
-    (FScore{β})(m, average = average) .* w
+    prec = precision(m)
+    rec  = recall(m)
+    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
 end
 
 ## Callables on vectors
 
-for M in (TruePositive, TrueNegative, FalsePositive, FalseNegative)
+for M in (TruePositive, TrueNegative, FalsePositive, FalseNegative,
+          TPR, TNR, FPR, FNR,
+          FDR, Precision, NPV, FScore)
     (m::M)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
 end
 
-for M in (TPR, TNR, FPR, FNR, FDR, Precision, NPV, FScore)
-          (m::M)(ŷ, y, average = "micro") = m(confmat(ŷ, y; rev=m.rev); average = average)
-          (m::M)(ŷ, y, w::Vec{<:Real}, average = "macro") = m(confmat(ŷ, y; rev=m.rev), w; average = average)
-end
-
-#= for M in (TPR, TNR, FPR, FNR, FDR, Precision, NPV, FScore)
-          (m::M)(ŷ, y; average = "micro") = m(confmat(ŷ, y; rev=m.rev); average = average)
-          (m::M)(ŷ, y; w::Vec{<:Real}, average = "macro") = m(confmat(ŷ, y; rev=m.rev), w; average = average)
-end
-throws UndefVarError while, when individually written works just fine. For example:
-(m::TPR)(ŷ, y; average = "micro") = m(confmat(ŷ, y; rev=m.rev); average = average)=#
-
 # specify this as `precision` is in Base and so is ambiguous
-Base.precision(m::CM; average = "micro") = Precision()(m, average = average)
-Base.precision(m::CM, w::Vec{<:Real}; average = "macro") = Precision()(m, w, average = average)
+Base.precision(m::CM2) = m |> Precision()
+Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
 
-Base.precision(ŷ, y; average = "micro")   = Precision()(confmat(ŷ, y), average = average)
-Base.precision(ŷ, y, w::Vec{<:Real}; average = "macro")   = Precision()(confmat(ŷ, y), w, average = average)
+## MULTICLASS AND ORDER INDEPENDENT
+
+const CM = ConfusionMatrix{N} where N
+
+struct MulticlassFScore{β} <:Measure average::Symbol end
+
+MulticlassFScore{β}(; average=:macro) where β = MulticlassFScore{β}(average)
+
+metadata_measure(MulticlassFScore;
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = true)
+
+MLJModelInterface.name(::Type{<:MulticlassFScore{β}}) where β = "MulticlassFScore{$β}"
+MLJModelInterface.name(::Type{MulticlassFScore})        = "MulticlassFScore" # for registry
+MLJModelInterface.docstring(::Type{<:MulticlassFScore}) = "Multiclass F_β score; aliases: " *
+            "`macro_f1score=MulticlassFScore{1}`, `multiclass_f1score=MulticlassFScore{1}`" *
+            "`MulticlassFScore{β}`, `micro_f1score=MulticlassFScore{1}(; average=:micro)`."
+
+const micro_f1score      = MulticlassFScore{1}(average=:micro)
+const macro_f1score      = MulticlassFScore{1}()
+const multiclass_f1score = macro_f1score
+
+for M in (:MulticlassTruePositive, :MulticlassTrueNegative,
+          :MulticlassFalsePositive, :MulticlassFalseNegative,
+          :MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
+          :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
+          :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNPV)
+    ex = quote
+        struct $M <: Measure average::Symbol end
+        $M(; average=:macro) = $M(average)
+    end
+    eval(ex)
+end
+
+metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    aggregation               = Sum(),
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = false)
+
+metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
+                   MulticlassFalseDiscoveryRate);
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :loss,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = true)
+
+
+metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    aggregation              = Sum(),
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = false)
+
+metadata_measure.((MulticlassTrueNegativeRate, MulticlassNPV);
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = true)
+
+metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
+    target_scitype           = Vec{<:Finite{N}} where N,
+    prediction_type          = :deterministic,
+    orientation              = :score,
+    reports_each_observation = false,
+    is_feature_dependent     = false,
+    supports_weights         = false,
+    supports_class_weights   = true)
+
+MMI.name(::Type{<:MulticlassTruePositive})       = "multiclass_true_positive"
+MMI.docstring(::Type{<:MulticlassTruePositive})  = "Number of true positives; " *
+                "aliases: `multiclass_true_positive`, `multiclass_truepositive`."
+MMI.name(::Type{<:MulticlassTrueNegative})       = "multiclass_true_negative"
+MMI.docstring(::Type{<:MulticlassTrueNegative})  = "Number of true negatives; " *
+                "aliases: `multiclass_true_negative`, `multiclass_truenegative`."
+MMI.name(::Type{<:MulticlassFalsePositive})      = "multiclass_false_positive"
+MMI.docstring(::Type{<:MulticlassFalsePositive}) = "Number of false positives; " *
+                "aliases: `multiclass_false_positive`, `multiclass_falsepositive`."
+MMI.name(::Type{<:MulticlassFalseNegative})      = "multiclass_false_negative"
+MMI.docstring(::Type{<:MulticlassFalseNegative}) = "Number of false negatives; " *
+                "aliases: `multiclass_false_negative`, `multiclass_falsenegative`."
+
+MMI.name(::Type{<:MulticlassTruePositiveRate})      = "multiclass_true_positive_rate"
+MMI.docstring(::Type{<:MulticlassTruePositiveRate}) = "True positive rate; aliases: " *
+                       "`multiclass_true_positive_rate`, `multiclass_tpr`, " *
+                       "`multiclass_sensitivity`, `multiclass_recall`, " *
+                       "`multiclass_hit_rate`, `multiclass_truepositive_rate`."
+MMI.name(::Type{<:MulticlassTrueNegativeRate})      = "multiclass_true_negative_rate"
+MMI.docstring(::Type{<:MulticlassTrueNegativeRate}) = "true negative rate; aliases: " *
+                       "`multiclass_true_negative_rate`, `multiclass_tnr` " *
+                       " `multiclass_specificity`, `multiclass_selectivity`, " *
+                       "`multiclass_truenegative_rate`."
+MMI.name(::Type{<:MulticlassFalsePositiveRate})      = "multiclass_false_positive_rate"
+MMI.docstring(::Type{<:MulticlassFalsePositiveRate}) = "false positive rate; aliases: " *
+                       "`multiclass_false_positive_rate`, `multiclass_fpr` " *
+                       "`multiclass_fallout`, `multiclass_falsepositive_rate`."
+MMI.name(::Type{<:MulticlassFalseNegativeRate})      = "multiclass_false_negative_rate"
+MMI.docstring(::Type{<:MulticlassFalseNegativeRate}) = "false negative rate; aliases: " *
+                       "`multiclass_false_negative_rate`, `multiclass_fnr`, " *
+                       "`multiclass_miss_rate`, `multiclass_falsenegative_rate`."
+MMI.name(::Type{<:MulticlassFalseDiscoveryRate})      = "multiclass_false_discovery_rate"
+MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) = "false discovery rate; "*
+                       "aliases: `multiclass_false_discovery_rate`, " *
+                       "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
+MMI.name(::Type{<:MulticlassNPV})      = "multiclass_negative_predictive_value"
+MMI.docstring(::Type{<:MulticlassNPV}) = "negative predictive value; aliases: " *
+                       "`multiclass_negative_predictive_value`, " *
+                       "`multiclass_negativepredictive_value`, `multiclass_npv`."
+MMI.name(::Type{<:MulticlassPrecision})      = "multiclass_positive_predictive_value"
+MMI.docstring(::Type{<:MulticlassPrecision}) = "positive predictive value "*
+  "(aka precision); aliases: `multiclass_positive_predictive_value`, `multiclass_ppv`, " *
+  "`MulticlassPrecision()`, `multiclass_positivepredictive_value`. "
+
+const DS_MICRO_MACRO     = "The `average` can be specified as `:micro` or
+                            `:macro`.`:macro` is taken as default mode, and it
+                            returns a value for each class. For `:micro`, pass "
+const WEIGHT_PROMTE_WARN = "As `class_w` specifies the weights for each class,
+                            promoting average to `:macro`."
+
+"""
+  multiclass_true_positive
+
+$(docstring(MulticlassTruePositive()))
+
+  multiclass_true_positive(ŷ, y)
+
+Number of true positives for multiclass observations `ŷ` and ground truth
+`y`.$DS_MICRO_MACRO `MulticlassTruePositive(; average=:micro)`.
+
+For more information, run `info(multiclass_true_positive)`.
+
+"""
+const multiclass_true_positive  = MulticlassTruePositive()
+const multiclass_truepositive   = MulticlassTruePositive()
+const mtp = MulticlassTruePositive()
+
+"""
+  multiclass_true_negative
+
+$(docstring(MulticlassTrueNegative()))
+
+  multiclass_true_negative(ŷ, y)
+
+Number of true negatives for multiclass observations `ŷ` and ground truth
+`y`.$DS_MICRO_MACRO `MulticlassTrueNegative(; average=:micro)`.
+
+For more information, run `info(multiclass_true_negative)`.
+
+"""
+const multiclass_true_negative  = MulticlassTrueNegative()
+const multiclass_truenegative   = MulticlassTrueNegative()
+const mtn = MulticlassTrueNegative()
+
+"""
+  multiclass_false_positive
+
+$(docstring(MulticlassFalsePositive()))
+
+  multiclass_false_positive(ŷ, y)
+
+Number of false positives for multiclass observations `ŷ` and ground truth
+`y`.$DS_MICRO_MACRO `MulticlassFalsePositive(; average=:micro)`.
+
+For more information, run `info(multiclass_false_positive)`.
+
+"""
+const multiclass_false_positive = MulticlassFalsePositive()
+const multiclass_falsepositive  = MulticlassFalsePositive()
+const mfp = MulticlassFalsePositive()
+
+"""
+  multiclass_false_negative
+
+$(docstring(MulticlassFalseNegative()))
+
+  multiclass_false_negative(ŷ, y)
+
+Number of false positives for multiclass observations `ŷ` and ground truth
+`y`.$DS_MICRO_MACRO `MulticlassFalseNegative(; average=:micro)`.
+
+For more information, run `info(multiclass_false_negative)`.
+
+"""
+const multiclass_false_negative = MulticlassFalseNegative()
+const multiclass_falsenegative  = MulticlassFalseNegative()
+const mfn = MulticlassFalseNegative()
+
+"""
+    multiclass_true_positive_rate
+
+$(docstring(MulticlassTruePositiveRate()))
+
+    multiclass_true_positive_rate(ŷ, y)
+    multiclass_true_positive_rate(ŷ, y, class_w)
+
+True positive rate for multiclass observations `ŷ` and ground truth `y`.
+$DS_MICRO_MACRO `MulticlassTruePositiveRate(; average=:micro)`.
+
+For more information, run `info(multiclass_true_positive_rate)`.
+
+"""
+const multiclass_true_positive_rate = MulticlassTruePositiveRate()
+const multiclass_truepositive_rate  = MulticlassTruePositiveRate()
+const multiclass_tpr                = MulticlassTruePositiveRate()
+const multiclass_recall             = MulticlassTruePositiveRate()
+const multiclass_sensitivity        = MulticlassTruePositiveRate()
+const multiclass_hit_rate           = MulticlassTruePositiveRate()
+const MTPR                          = MulticlassTruePositiveRate
+const MulticlassRecall              = MulticlassTruePositiveRate
+
+"""
+    multiclass_true_negative_rate
+
+$(docstring(MulticlassTrueNegativeRate()))
+
+    multiclass_true_negative_rate(ŷ, y)
+    multiclass_true_negative_rate(ŷ, y, class_w)
+
+True negative rate for multiclass observations `ŷ` and ground truth `y`.
+$DS_MICRO_MACRO `MulticlassTrueNegativeRate(; average=:micro)`.
+
+For more information, run `info(multiclass_true_negative_rate)`.
+
+"""
+const multiclass_true_negative_rate = MulticlassTrueNegativeRate()
+const multiclass_truenegative_rate  = MulticlassTrueNegativeRate()
+const multiclass_tnr                = MulticlassTrueNegativeRate()
+const multiclass_specificity        = MulticlassTrueNegativeRate()
+const multiclass_selectivity        = MulticlassTrueNegativeRate()
+const MulticlassSpecificity         = MulticlassTrueNegativeRate
+const MTNR                          = MulticlassTrueNegativeRate
+
+## define all consts #####
+
+"""
+    multiclass_false_positive_rate
+
+$(docstring(MulticlassFalsePositiveRate()))
+
+    multiclass_false_positive_rate(ŷ, y)
+    multiclass_false_positive_rate(ŷ, y, class_w)
+
+False positive rate for multiclass observations `ŷ` and ground truth `y`.
+$DS_MICRO_MACRO `MulticlassFalsePositiveRate(; average=:micro)`.
+
+For more information, run `info(multiclass_false_positive_rate)`.
+
+"""
+const multiclass_false_positive_rate = MulticlassFalsePositiveRate()
+const multiclass_falsepositive_rate  = MulticlassFalsePositiveRate()
+const multiclass_fpr                 = MulticlassFalsePositiveRate()
+const MFPR                           = MulticlassFalsePositiveRate
+const multiclass_fallout             = MFPR()
+
+"""
+    multiclass_false_negative_rate
+
+$(docstring(MulticlassFalseNegativeRate()))
+
+    multiclass_false_negative_rate(ŷ, y)
+    multiclass_false_negative_rate(ŷ, y, w)
+
+False negative rate for multiclass observations `ŷ` and ground truth `y`.
+$DS_MICRO_MACRO `MulticlassFalseNegativeRate(; average=:micro)`.
+
+For more information, run `info(multiclass_false_negative_rate)`.
+
+"""
+const multiclass_false_negative_rate = MulticlassFalseNegativeRate()
+const multiclass_falsenegative_rate  = MulticlassFalseNegativeRate()
+const multiclass_fnr                 = MulticlassFalseNegativeRate()
+const MFNR                           = MulticlassFalseNegativeRate
+const multiclass_miss_rate           = MFNR()
+
+"""
+    multiclass_false_discovery_rate
+
+$(docstring(MulticlassTruePositiveRate()))
+
+    multiclass_false_discovery_rate(ŷ, y)
+    multiclass_false_discovery_rate(ŷ, y, w)
+
+False discovery rate for multiclass observations `ŷ` and ground truth `y`.
+$DS_MICRO_MACRO `MulticlassFalseDiscoveryRate(; average=:micro)`.
+
+For more information, run `info(multiclass_false_discovery_rate)`.
+
+"""
+const multiclass_false_discovery_rate = MulticlassFalseDiscoveryRate()
+const multiclass_falsediscovery_rate  = MulticlassFalseDiscoveryRate()
+const multiclass_fdr                  = MulticlassFalseDiscoveryRate()
+const MFDR                            = MulticlassFalseDiscoveryRate
+
+"""
+    multiclass_positive_predictive_value
+
+$(docstring(MulticlassPrecision()))
+
+    multiclass_positive_predictive_value(ŷ, y)
+    multiclass_positive_predictive_value(ŷ, y, class_w)
+
+Positive predictive value for multiclass observations `ŷ` and ground truth
+`y`. $DS_MICRO_MACRO `MulticlassPrecision(; average=:micro)`.
+
+For more information, run `info(multiclass_positive_predictive_value)`.
+
+"""
+const multiclass_precision                 = MulticlassPrecision()
+const multiclass_ppv                       = MulticlassPrecision()
+const multiclass_positive_predictive_value = MulticlassPrecision()
+const multiclass_positivepredictive_value  = MulticlassPrecision()
+const MPPV                                 = MulticlassPrecision
+
+"""
+    multiclass_negative_predictive_value
+
+$(docstring(MulticlassNPV()))
+
+    multiclass_negative_predictive_value(ŷ, y)
+    multiclass_negative_predictive_value(ŷ, y, class_w)
+
+Negative predictive value for multiclass observations `ŷ` and ground truth
+`y`.$DS_MICRO_MACRO `MulticlassNPV(; average=:micro)`.
+
+For more information, run `info(multiclass_negative_predictive_value)`.
+
+"""
+const multiclass_npv                       = MulticlassNPV()
+const multiclass_negative_predictive_value = MulticlassNPV()
+const multiclass_negativepredictive_value  = MulticlassNPV()
+const MNPV                                 = MulticlassNPV
+
+## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
+
+_mtp(m::CM{N}) where N = diag(m.mat)
+_mfp(m::CM{N}) where N = sum(m.mat, dims=2) .- diag(m.mat)
+_mfn(m::CM{N}) where N = sum(m.mat, dims=1)' .- diag(m.mat)
+_mtn(m::CM{N}) where N = sum(m.mat) .- (_mtp(m) .+ _mfp(m) .+ _mfn(m))
+
+function _mtpr(m::CM{N}; average=:macro) where N
+    n_classes = N
+    tp_val, fn_val = mtp(m), mfn(m)
+    average == :micro && return sum(tp_val) / (sum(tp_val) + sum(fn_val))
+    tpr = tp_val ./ (tp_val + fn_val)
+    return tpr
+end
+
+function _mtpr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+    average == :micro && @warn WEIGHT_PROMTE_WARN
+    _mtpr(m, average=:macro) .* class_w
+end
+
+function _mtnr(m::CM{N}; average=:macro) where N
+    n_classes = N
+    tn_val, fp_val = mtn(m), mfp(m)
+    average == :micro && return sum(tn_val) / (sum(tn_val) + sum(fp_val))
+    tnr = tn_val ./ (tn_val + fp_val)
+    return tnr
+end
+
+function _mtnr(m::CM, class_w::Vec{<:Real}; average=:macro) where N
+    average == :micro && @warn WEIGHT_PROMTE_WARN
+    _mtnr(m, average=average) .* class_w
+end
+
+_mfpr(m::CM{N}; average=:macro) where N = 1 .- _mtnr(m, average=average)
+_mfpr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N =
+                                (1 .- _mtnr(m, average=average)) .* class_w
+
+_mfnr(m::CM{N}; average=:macro) where N = 1 .- _mtpr(m, average=average)
+_mfnr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N =
+                                (1 .- _mtpr(m, average=average)) .* class_w
+
+function _mfdr(m::CM{N}; average=:macro) where N
+    n_classes = N
+    tp_val, fp_val = mtp(m), mfp(m)
+    average == :micro && return sum(fp_val) / (sum(tp_val) + sum(fp_val))
+    fdr = fp_val ./ (tp_val + fp_val)
+    return fdr
+end
+
+function _mfdr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+    average == :micro && @warn WEIGHT_PROMTE_WARN
+    _fdr(m, average=average) .* class_w
+end
+
+function _mnpv(m::CM{N}; average=:micro) where N
+    n_classes = N
+    tn_val, fn_val = mtn(m), mfn(m)
+    average == :micro && return sum(tn_val) / (sum(tn_val) + sum(fn_val))
+    npv = tn_val ./ (tn_val + fn_val)
+    return npv
+end
+
+
+function _mnpv(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+    average == :micro && @warn WEIGHT_PROMTE_WARN
+    _npv(m, average=average) .* class_w
+end
+
+## CALLABLES ON MULTICLASS CONFUSION MATRIX
+
+(::MulticlassTruePositive)(m::CM{N}) where N  = _mtp(m)
+(::MulticlassTrueNegative)(m::CM{N}) where N  = _mtn(m)
+(::MulticlassFalsePositive)(m::CM{N}) where N = _mfp(m)
+(::MulticlassFalseNegative)(m::CM{N}) where N = _mfn(m)
+
+(r::MTPR)(m::CM{N}) where N = _mtpr(m, average=r.average)
+(r::MTPR)(m::CM{N}, w::Vec{<:Real}) where N = _mtpr(m, w, average=r.average)
+
+(r::MTNR)(m::CM{N}) where N = _mtnr(m, average=r.average)
+(r::MTNR)(m::CM{N}, w::Vec{<:Real}) where N = _mtnr(m, w, average=r.average)
+
+(r::MFPR)(m::CM{N}) where N = _mfpr(m, average=r.average)
+(r::MFPR)(m::CM{N}, w::Vec{<:Real}) where N = _mfpr(m, w, average=r.average)
+
+(r::MFNR)(m::CM{N}) where N = _mfnr(m, average=r.average)
+(r::MFNR)(m::CM{N}, w::Vec{<:Real}) where N = _mfnr(m, w, average=r.average)
+
+(r::MFDR)(m::CM{N}) where N = _mfdr(m, average=r.average)
+(r::MFDR)(m::CM{N}, w::Vec{<:Real}) where N = _mfdr(m, w, average=r.average)
+
+(v::MNPV)(m::CM{N}) where N = _mnpv(m, average=v.average)
+(v::MNPV)(m::CM{N}, w::Vec{<:Real}) where N = _mnpv(m, w, average=v.average)
+
+(p::MulticlassPrecision)(m::CM{N}) where N  = 1.0 .- _mfdr(m, average=p.average)
+function (p::MulticlassPrecision)(m::CM{N}, class_w::Vec{<:Real}) where N
+    average == :micro && @warn WEIGHT_PROMTE_WARN
+    (1.0 .- _mfdr(m, average=p.average)) .* class_w
+end
+
+function (f::MulticlassFScore{β})(m::CM{N}) where β where N
+    β2   = β^2
+    rec  = MulticlassRecall(; average=f.average)(m)
+    prec = MulticlassPrecision(; average=f.average)(m)
+    f.average == :micro && return (1 + β2) * (prec * rec) / (β* prec + rec)
+    return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
+end
+
+function (f::MulticlassFScore{β})(m::CM{N}, class_w::Vec{<:Real}) where β where N
+    f.average == :micro && @warn WEIGHT_PROMTE_WARN
+    MulticlassFScore{β}()(m) .* class_w
+end
+
+## Callables on vectors
+
+for M in (MulticlassTruePositive, MulticlassTrueNegative,
+          MulticlassFalsePositive, MulticlassFalseNegative)
+    (m::M)(ŷ, y) = confmat(ŷ, y) |> m
+end
+
+for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV)
+    @eval (m::$M)(ŷ, y) = m(confmat(ŷ, y))
+    @eval (m::$M)(ŷ, y, class_w::Vec{<:Real}) = m(confmat(ŷ, y), class_w)
+end
+
+(m::MulticlassFScore{β})(ŷ, y) where β =
+                MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y))
+(m::MulticlassFScore{β})(ŷ, y, class_w::Vec{<:Real}) where β =
+                MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y), class_w)
 
 ## ROC COMPUTATION
 

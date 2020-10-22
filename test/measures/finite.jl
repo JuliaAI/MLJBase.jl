@@ -175,6 +175,31 @@ end
     @test f1score_rev(ŷ, y) == 2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
 end
 
+@testset "confusion matrix {n}" begin
+    y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], OrderedFactor)
+    ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], OrderedFactor)
+    class_w = [0,1,2]
+    cm = confmat(ŷ, y)
+
+    @test multiclass_precision(cm) ≈ multiclass_precision(ŷ, y) ≈ [0.4; 0.5; 0.666666667]
+    @test multiclass_recall(cm) ≈ multiclass_recall(ŷ, y) ≈ [0.5; 0.5; 0.5]
+    @test macro_f1score(cm) ≈ macro_f1score(ŷ, y) ≈ [0.444444444445; 0.5; 0.5714285714]
+
+    @test multiclass_precision(cm, class_w) ≈ multiclass_precision(ŷ, y, class_w) ≈
+                                                    [0.0; 0.5; 1.333333334]
+    @test multiclass_recall(cm, class_w) ≈ multiclass_recall(ŷ, y, class_w) ≈
+                                                    [0.0; 0.5; 1.0]
+    @test macro_f1score(cm, class_w) ≈ multiclass_f1score(ŷ, y, class_w) ≈
+                                                    [0.0; 0.5; 1.1428571428]
+
+    micro_prec = MulticlassPrecision(average=:micro)
+    micro_rec  = MulticlassRecall(average=:micro)
+    micro_f1score = MulticlassFScore{1}(average=:micro)
+    @test micro_prec(cm) == micro_prec(ŷ, y) == 0.5
+    @test micro_rec(cm) == micro_rec(ŷ, y) == 0.5
+    @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
+end
+
 @testset "Metadata binary" begin
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
@@ -201,6 +226,24 @@ end
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false
     @test e.supports_weights == false
+end
+
+@testset "Metadata multiclass" begin
+    for m in (MulticlassRecall(), MulticlassPrecision(),
+              multiclass_f1score, multiclass_specificity)
+        e = info(m)
+        m isa MulticlassRecall      && (@test e.name == "multiclass_true_positive_rate")
+        m isa MulticlassPrecision   && (@test e.name == "multiclass_positive_predictive_value")
+        m == multiclass_f1score     && (@test e.name == "MulticlassFScore{1}")
+        m == multiclass_specificity && (@test e.name == "multiclass_true_negative_rate")
+        @test e.target_scitype <: AbstractVector{<:Finite}
+        @test e.prediction_type == :deterministic
+        @test e.orientation == :score
+        @test e.reports_each_observation == false
+        @test e.is_feature_dependent == false
+        @test e.supports_weights == false
+        @test e.supports_class_weights == true
+    end
 end
 
 @testset "More binary metrics" begin
@@ -274,6 +317,59 @@ end
     sk_rec_rev = 0.46153846153846156
     rec_rev = Recall(rev=true)
     @test rec_rev(ŷ, y) ≈ sk_rec_rev
+end
+
+@testset "More binary metrics" begin
+    y = coerce(categorical([1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
+                            2, 1, 0, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
+                            2, 2, 2]), OrderedFactor)
+    ŷ = coerce(categorical([2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
+                            1, 1, 1, 2, 0, 1, 2, 1, 2, 2, 2, 1, 2,
+                            1, 2, 2]), OrderedFactor)
+    # check all constructors
+    m = MulticlassTruePositive()
+    @test m(ŷ, y) == multiclass_truepositive(ŷ, y)
+    m = MulticlassTrueNegative()
+    @test m(ŷ, y) == multiclass_truenegative(ŷ, y)
+    m = MulticlassFalsePositive()
+    @test m(ŷ, y) == multiclass_falsepositive(ŷ, y)
+    m = MulticlassFalseNegative()
+    @test m(ŷ, y) == multiclass_falsenegative(ŷ, y)
+    m = MulticlassTruePositiveRate()
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y) == multiclass_truepositive_rate(ŷ, y)
+    m = MulticlassTrueNegativeRate()
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y) == multiclass_truenegative_rate(ŷ, y)
+    m = MulticlassFalsePositiveRate()
+    @test m(ŷ, y) == multiclass_fpr(ŷ, y) == multiclass_falsepositive_rate(ŷ, y)
+    m = MulticlassFalseNegativeRate()
+    @test m(ŷ, y) == multiclass_fnr(ŷ, y) == multiclass_falsenegative_rate(ŷ, y)
+    m = MulticlassFalseDiscoveryRate()
+    @test m(ŷ, y) == multiclass_fdr(ŷ, y) == multiclass_falsediscovery_rate(ŷ, y)
+    m = MulticlassPrecision()
+    @test m(ŷ, y) == multiclass_precision(ŷ, y)
+    m = MulticlassNPV()
+    @test m(ŷ, y) == multiclass_npv(ŷ, y)
+    m = MulticlassFScore{1}()
+    @test m(ŷ, y) == multiclass_f1score(ŷ, y)
+    # check synonyms
+    m = MTPR()
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y)
+    m = MTNR()
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y)
+    m = MFPR()
+    @test m(ŷ, y) == multiclass_fpr(ŷ, y) == multiclass_fallout(ŷ, y)
+    m = MFNR()
+    @test m(ŷ, y) == multiclass_fnr(ŷ, y) == multiclass_miss_rate(ŷ, y)
+    m = MFDR()
+    @test m(ŷ, y) == multiclass_fdr(ŷ, y)
+    m = MPPV()
+    @test m(ŷ, y) == multiclass_precision(ŷ, y) == multiclass_ppv(ŷ, y)
+    m = MulticlassRecall()
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y) == multiclass_recall(ŷ, y)
+    @test m(ŷ, y) == multiclass_sensitivity(ŷ, y) == multiclass_hit_rate(ŷ, y)
+    m = MulticlassSpecificity()
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y) == multiclass_specificity(ŷ, y) ==
+                                             multiclass_selectivity(ŷ, y)
 end
 
 @testset "ROC" begin

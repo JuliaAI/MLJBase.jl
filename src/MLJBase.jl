@@ -220,6 +220,32 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        recall, sensitivity, hit_rate, miss_rate,
        specificity, selectivity, f1score, fallout
 
+#measures/finite.jl -- multiclass order independent:
+export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
+       MulticlassFalseNegative, MulticlassTruePositiveRate,
+       MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
+       MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
+       MulticlassPrecision, MulticlassNPV, MulticlassFScore,
+       # standard synonyms
+       MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
+       MulticlassRecall, MulticlassSpecificity,
+       # instances and their synonyms
+       multiclass_truepositive, multiclass_truenegative, multiclass_falsepositive,
+       multiclass_falsenegative, multiclass_true_positive,
+       multiclass_true_negative, multiclass_false_positive,
+       multiclass_false_negative, multiclass_truepositive_rate,
+       multiclass_truenegative_rate, multiclass_falsepositive_rate,
+       multiclass_true_positive_rate, multiclass_true_negative_rate,
+       multiclass_false_positive_rate, multiclass_falsenegative_rate,
+       multiclass_negativepredictive_value, multiclass_false_negative_rate,
+       multiclass_negative_predictive_value, multiclass_positivepredictive_value,
+       multiclass_positive_predictive_value, multiclass_tpr, multiclass_tnr,
+       multiclass_fpr, multiclass_fnr, multiclass_falsediscovery_rate,
+       multiclass_false_discovery_rate, multiclass_fdr, multiclass_npv,
+       multiclass_ppv, multiclass_recall, multiclass_sensitivity,
+       multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
+       multiclass_selectivity, macro_f1score, micro_f1score,
+       multiclass_f1score, multiclass_fallout, multiclass_precision
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
