@@ -178,7 +178,7 @@ end
 @testset "confusion matrix {n}" begin
     y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], OrderedFactor)
     ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], OrderedFactor)
-    class_w = [0,1,2]
+    class_w = Dict(0=>0,2=>2,1=>1)
     cm = confmat(ŷ, y)
 
     @test multiclass_precision(cm) ≈ multiclass_precision(ŷ, y) ≈ [0.4; 0.5; 0.666666667]

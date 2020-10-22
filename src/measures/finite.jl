@@ -1237,9 +1237,10 @@ function _mtpr(m::CM{N}; average=:macro) where N
     return tpr
 end
 
-function _mtpr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+function _mtpr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    _mtpr(m, average=:macro) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    _mtpr(m, average=:macro) .* level_w
 end
 
 function _mtnr(m::CM{N}; average=:macro) where N
@@ -1250,18 +1251,23 @@ function _mtnr(m::CM{N}; average=:macro) where N
     return tnr
 end
 
-function _mtnr(m::CM, class_w::Vec{<:Real}; average=:macro) where N
+function _mtnr(m::CM, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    _mtnr(m, average=average) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    _mtnr(m, average=average) .* level_w
 end
 
 _mfpr(m::CM{N}; average=:macro) where N = 1 .- _mtnr(m, average=average)
-_mfpr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N =
-                                (1 .- _mtnr(m, average=average)) .* class_w
+function _mfpr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    (1 .- _mtnr(m, average=average)) .* level_w
+end
 
 _mfnr(m::CM{N}; average=:macro) where N = 1 .- _mtpr(m, average=average)
-_mfnr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N =
-                                (1 .- _mtpr(m, average=average)) .* class_w
+function _mfnr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    (1 .- _mtpr(m, average=average)) .* level_w
+end
 
 function _mfdr(m::CM{N}; average=:macro) where N
     n_classes = N
@@ -1271,9 +1277,10 @@ function _mfdr(m::CM{N}; average=:macro) where N
     return fdr
 end
 
-function _mfdr(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+function _mfdr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    _fdr(m, average=average) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    _fdr(m, average=average) .* level_w
 end
 
 function _mnpv(m::CM{N}; average=:micro) where N
@@ -1285,9 +1292,10 @@ function _mnpv(m::CM{N}; average=:micro) where N
 end
 
 
-function _mnpv(m::CM{N}, class_w::Vec{<:Real}; average=:macro) where N
+function _mnpv(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    _npv(m, average=average) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    _npv(m, average=average) .* level_w
 end
 
 ## CALLABLES ON MULTICLASS CONFUSION MATRIX
@@ -1298,27 +1306,28 @@ end
 (::MulticlassFalseNegative)(m::CM{N}) where N = _mfn(m)
 
 (r::MTPR)(m::CM{N}) where N = _mtpr(m, average=r.average)
-(r::MTPR)(m::CM{N}, w::Vec{<:Real}) where N = _mtpr(m, w, average=r.average)
+(r::MTPR)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mtpr(m, w, average=r.average)
 
 (r::MTNR)(m::CM{N}) where N = _mtnr(m, average=r.average)
-(r::MTNR)(m::CM{N}, w::Vec{<:Real}) where N = _mtnr(m, w, average=r.average)
+(r::MTNR)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mtnr(m, w, average=r.average)
 
 (r::MFPR)(m::CM{N}) where N = _mfpr(m, average=r.average)
-(r::MFPR)(m::CM{N}, w::Vec{<:Real}) where N = _mfpr(m, w, average=r.average)
+(r::MFPR)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mfpr(m, w, average=r.average)
 
 (r::MFNR)(m::CM{N}) where N = _mfnr(m, average=r.average)
-(r::MFNR)(m::CM{N}, w::Vec{<:Real}) where N = _mfnr(m, w, average=r.average)
+(r::MFNR)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mfnr(m, w, average=r.average)
 
 (r::MFDR)(m::CM{N}) where N = _mfdr(m, average=r.average)
-(r::MFDR)(m::CM{N}, w::Vec{<:Real}) where N = _mfdr(m, w, average=r.average)
+(r::MFDR)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mfdr(m, w, average=r.average)
 
 (v::MNPV)(m::CM{N}) where N = _mnpv(m, average=v.average)
-(v::MNPV)(m::CM{N}, w::Vec{<:Real}) where N = _mnpv(m, w, average=v.average)
+(v::MNPV)(m::CM{N}, w::AbstractDict{<:Real, <:Real}) where N = _mnpv(m, w, average=v.average)
 
 (p::MulticlassPrecision)(m::CM{N}) where N  = 1.0 .- _mfdr(m, average=p.average)
-function (p::MulticlassPrecision)(m::CM{N}, class_w::Vec{<:Real}) where N
+function (p::MulticlassPrecision)(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    (1.0 .- _mfdr(m, average=p.average)) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    (1.0 .- _mfdr(m, average=p.average)) .* level_w
 end
 
 function (f::MulticlassFScore{β})(m::CM{N}) where β where N
@@ -1329,9 +1338,10 @@ function (f::MulticlassFScore{β})(m::CM{N}) where β where N
     return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
 end
 
-function (f::MulticlassFScore{β})(m::CM{N}, class_w::Vec{<:Real}) where β where N
+function (f::MulticlassFScore{β})(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}) where β where N
     f.average == :micro && @warn WEIGHT_PROMTE_WARN
-    MulticlassFScore{β}()(m) .* class_w
+    level_w = [class_w[v] for v in levels(keys(class_w))]
+    MulticlassFScore{β}()(m) .* level_w
 end
 
 ## Callables on vectors
@@ -1343,12 +1353,12 @@ end
 
 for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV)
     @eval (m::$M)(ŷ, y) = m(confmat(ŷ, y))
-    @eval (m::$M)(ŷ, y, class_w::Vec{<:Real}) = m(confmat(ŷ, y), class_w)
+    @eval (m::$M)(ŷ, y, class_w::AbstractDict{<:Real, <:Real}) = m(confmat(ŷ, y), class_w)
 end
 
 (m::MulticlassFScore{β})(ŷ, y) where β =
                 MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y))
-(m::MulticlassFScore{β})(ŷ, y, class_w::Vec{<:Real}) where β =
+(m::MulticlassFScore{β})(ŷ, y, class_w::AbstractDict{<:Real, <:Real}) where β =
                 MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y), class_w)
 
 ## ROC COMPUTATION
