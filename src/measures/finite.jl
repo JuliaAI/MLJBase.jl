@@ -894,7 +894,7 @@ MLJModelInterface.docstring(::Type{<:MulticlassFScore}) = "Multiclass F_β score
             "`macro_f1score=MulticlassFScore{1}`, `multiclass_f1score=MulticlassFScore{1}`" *
             "`MulticlassFScore{β}`, `micro_f1score=MulticlassFScore{1}(; average=:micro)`."
 
-const micro_f1score      = MulticlassFScore{1}(average=:micro)
+const micro_f1score      = MulticlassFScore{1}(; average=:micro)
 const macro_f1score      = MulticlassFScore{1}()
 const multiclass_f1score = macro_f1score
 
@@ -904,7 +904,7 @@ for M in (:MulticlassTruePositive, :MulticlassTrueNegative,
           :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
           :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNPV)
     ex = quote
-        struct $M <: Measure average::Symbol end
+        struct $M{T<:Symbol} <: Measure average::T end
         $M(; average=:macro) = $M(average)
     end
     eval(ex)
@@ -1008,6 +1008,8 @@ const DS_MICRO_MACRO     = "The `average` can be specified as `:micro` or
                             returns a value for each class. For `:micro`, pass "
 const WEIGHT_PROMTE_WARN = "As `class_w` specifies the weights for each class,
                             promoting average to `:macro`."
+const CLASS_W            = "`AbstractDict` of weights for each class can be
+                            specified using `class_w`."
 
 """
   multiclass_true_positive
@@ -1086,7 +1088,7 @@ $(docstring(MulticlassTruePositiveRate()))
     multiclass_true_positive_rate(ŷ, y, class_w)
 
 True positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassTruePositiveRate(; average=:micro)`.
+$DS_MICRO_MACRO `MulticlassTruePositiveRate(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_true_positive_rate)`.
 
@@ -1109,7 +1111,7 @@ $(docstring(MulticlassTrueNegativeRate()))
     multiclass_true_negative_rate(ŷ, y, class_w)
 
 True negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassTrueNegativeRate(; average=:micro)`.
+$DS_MICRO_MACRO `MulticlassTrueNegativeRate(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_true_negative_rate)`.
 
@@ -1133,7 +1135,7 @@ $(docstring(MulticlassFalsePositiveRate()))
     multiclass_false_positive_rate(ŷ, y, class_w)
 
 False positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalsePositiveRate(; average=:micro)`.
+$DS_MICRO_MACRO `MulticlassFalsePositiveRate(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_false_positive_rate)`.
 
@@ -1150,10 +1152,10 @@ const multiclass_fallout             = MFPR()
 $(docstring(MulticlassFalseNegativeRate()))
 
     multiclass_false_negative_rate(ŷ, y)
-    multiclass_false_negative_rate(ŷ, y, w)
+    multiclass_false_negative_rate(ŷ, y, class_w)
 
 False negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalseNegativeRate(; average=:micro)`.
+$DS_MICRO_MACRO `MulticlassFalseNegativeRate(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_false_negative_rate)`.
 
@@ -1170,10 +1172,10 @@ const multiclass_miss_rate           = MFNR()
 $(docstring(MulticlassTruePositiveRate()))
 
     multiclass_false_discovery_rate(ŷ, y)
-    multiclass_false_discovery_rate(ŷ, y, w)
+    multiclass_false_discovery_rate(ŷ, y, class_w)
 
 False discovery rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalseDiscoveryRate(; average=:micro)`.
+$DS_MICRO_MACRO `MulticlassFalseDiscoveryRate(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_false_discovery_rate)`.
 
@@ -1192,7 +1194,7 @@ $(docstring(MulticlassPrecision()))
     multiclass_positive_predictive_value(ŷ, y, class_w)
 
 Positive predictive value for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassPrecision(; average=:micro)`.
+`y`. $DS_MICRO_MACRO `MulticlassPrecision(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_positive_predictive_value)`.
 
@@ -1212,7 +1214,7 @@ $(docstring(MulticlassNPV()))
     multiclass_negative_predictive_value(ŷ, y, class_w)
 
 Negative predictive value for multiclass observations `ŷ` and ground truth
-`y`.$DS_MICRO_MACRO `MulticlassNPV(; average=:micro)`.
+`y`.$DS_MICRO_MACRO `MulticlassNPV(; average=:micro)`.$CLASS_W
 
 For more information, run `info(multiclass_negative_predictive_value)`.
 
@@ -1229,73 +1231,74 @@ _mfp(m::CM{N}) where N = sum(m.mat, dims=2) .- diag(m.mat)
 _mfn(m::CM{N}) where N = sum(m.mat, dims=1)' .- diag(m.mat)
 _mtn(m::CM{N}) where N = sum(m.mat) .- (_mtp(m) .+ _mfp(m) .+ _mfn(m))
 
+@inline function _class_w(level_m::Vec{<:Real}, class_w::AbstractDict{<:Real, <:Real})
+    @assert levels(keys(class_w)) == level_m "Labels of `y` and `class_w` must match."
+    return [class_w[v] for v in levels(keys(class_w))]
+end
+
 function _mtpr(m::CM{N}; average=:macro) where N
     n_classes = N
-    tp_val, fn_val = mtp(m), mfn(m)
-    average == :micro && return sum(tp_val) / (sum(tp_val) + sum(fn_val))
-    tpr = tp_val ./ (tp_val + fn_val)
-    return tpr
+    mtp_val, mfn_val = mtp(m), mfn(m)
+    average == :micro && return sum(mtp_val) / (sum(mtp_val) + sum(mfn_val))
+    return mtp_val ./ (mtp_val + mfn_val)
 end
 
 function _mtpr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    _mtpr(m, average=:macro) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return _mtpr(m, average=:macro) .* level_w
 end
 
 function _mtnr(m::CM{N}; average=:macro) where N
     n_classes = N
-    tn_val, fp_val = mtn(m), mfp(m)
-    average == :micro && return sum(tn_val) / (sum(tn_val) + sum(fp_val))
-    tnr = tn_val ./ (tn_val + fp_val)
-    return tnr
+    mtn_val, mfp_val = mtn(m), mfp(m)
+    average == :micro && return sum(mtn_val) / (sum(mtn_val) + sum(mfp_val))
+    return mtn_val ./ (mtn_val + mfp_val)
 end
 
 function _mtnr(m::CM, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    _mtnr(m, average=average) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return _mtnr(m, average=average) .* level_w
 end
 
 _mfpr(m::CM{N}; average=:macro) where N = 1 .- _mtnr(m, average=average)
 function _mfpr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    (1 .- _mtnr(m, average=average)) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return (1 .- _mtnr(m, average=average)) .* level_w
 end
 
 _mfnr(m::CM{N}; average=:macro) where N = 1 .- _mtpr(m, average=average)
 function _mfnr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    (1 .- _mtpr(m, average=average)) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return (1 .- _mtpr(m, average=average)) .* level_w
 end
 
 function _mfdr(m::CM{N}; average=:macro) where N
     n_classes = N
-    tp_val, fp_val = mtp(m), mfp(m)
-    average == :micro && return sum(fp_val) / (sum(tp_val) + sum(fp_val))
-    fdr = fp_val ./ (tp_val + fp_val)
-    return fdr
+    mtp_val, mfp_val = mtp(m), mfp(m)
+    average == :micro && return sum(mfp_val) / (sum(mtp_val) + sum(mfp_val))
+    return mfp_val ./ (mtp_val + mfp_val)
 end
 
 function _mfdr(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    _fdr(m, average=average) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return _mfdr(m, average=average) .* level_w
 end
 
 function _mnpv(m::CM{N}; average=:micro) where N
     n_classes = N
-    tn_val, fn_val = mtn(m), mfn(m)
-    average == :micro && return sum(tn_val) / (sum(tn_val) + sum(fn_val))
-    npv = tn_val ./ (tn_val + fn_val)
-    return npv
+    mtn_val, mfn_val = mtn(m), mfn(m)
+    average == :micro && return sum(mtn_val) / (sum(mtn_val) + sum(mfn_val))
+    return mtn_val ./ (mtn_val + mfn_val)
 end
 
 
 function _mnpv(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}; average=:macro) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    _npv(m, average=average) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return _mnpv(m, average=average) .* level_w
 end
 
 ## CALLABLES ON MULTICLASS CONFUSION MATRIX
@@ -1326,8 +1329,8 @@ end
 (p::MulticlassPrecision)(m::CM{N}) where N  = 1.0 .- _mfdr(m, average=p.average)
 function (p::MulticlassPrecision)(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}) where N
     average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    (1.0 .- _mfdr(m, average=p.average)) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return (1.0 .- _mfdr(m, average=p.average)) .* level_w
 end
 
 function (f::MulticlassFScore{β})(m::CM{N}) where β where N
@@ -1340,8 +1343,8 @@ end
 
 function (f::MulticlassFScore{β})(m::CM{N}, class_w::AbstractDict{<:Real, <:Real}) where β where N
     f.average == :micro && @warn WEIGHT_PROMTE_WARN
-    level_w = [class_w[v] for v in levels(keys(class_w))]
-    MulticlassFScore{β}()(m) .* level_w
+    level_w = _class_w(parse.(eltype(keys(class_w)), m.labels), class_w)
+    return MulticlassFScore{β}()(m) .* level_w
 end
 
 ## Callables on vectors
