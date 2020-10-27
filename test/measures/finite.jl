@@ -176,10 +176,10 @@ end
 end
 
 @testset "confusion matrix {n}" begin
-    y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], OrderedFactor)
-    ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], OrderedFactor)
+    y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], Multiclass)
+    ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], Multiclass)
     class_w = Dict(0=>0,2=>2,1=>1)
-    cm = confmat(ŷ, y)
+    cm = confmat(ŷ, y, warn=false)
 
     @test multiclass_precision(cm) ≈ multiclass_precision(ŷ, y) ≈ [0.4; 0.5; 0.666666667]
     @test multiclass_recall(cm) ≈ multiclass_recall(ŷ, y) ≈ [0.5; 0.5; 0.5]
@@ -319,13 +319,13 @@ end
     @test rec_rev(ŷ, y) ≈ sk_rec_rev
 end
 
-@testset "More binary metrics" begin
+@testset "More multiclass metrics" begin
     y = coerce(categorical([1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
                             2, 1, 0, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
-                            2, 2, 2]), OrderedFactor)
+                            2, 2, 2]), Multiclass)
     ŷ = coerce(categorical([2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
                             1, 1, 1, 2, 0, 1, 2, 1, 2, 2, 2, 1, 2,
-                            1, 2, 2]), OrderedFactor)
+                            1, 2, 2]), Multiclass)
     w = Dict(0=>1, 1=>2, 2=>3) #class_w
     # check all constructors
     m = MulticlassTruePositive()
