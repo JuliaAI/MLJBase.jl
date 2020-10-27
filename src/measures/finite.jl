@@ -1235,8 +1235,9 @@ _mfn(m::CM{N}) where N = sum(m.mat, dims=1)' .- diag(m.mat)
 _mtn(m::CM{N}) where N = sum(m.mat) .- (_mtp(m) .+ _mfp(m) .+ _mfn(m))
 
 @inline function _class_w(level_m::Vec{<:String}, class_w::AbstractDict{<:Any, <:Real})
-    string.(levels(keys(class_w))) == level_m || throw(ArgumentError(W_KEY_MISMATCH))
-    return [class_w[v] for v in levels(keys(class_w))]
+    class_w_labels = levels(keys(class_w))
+    string.(class_w_labels) == level_m || throw(ArgumentError(W_KEY_MISMATCH))
+    return [class_w[l] for l in class_w_labels]
 end
 
 function _mtpr(m::CM{N}; average=:macro) where N
