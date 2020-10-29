@@ -1230,11 +1230,17 @@ const MNPV                                 = MulticlassNPV
 ## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
 
 _mtp(m::CM) = diag(m.mat)
-_mtn(m::CM)= sum(m.mat) .- (sum(m.mat, dims=2) .+ sum(m.mat, dims=1)' .+ diag(m.mat))
-_mfp(m::CM{N}) where N = N < 31 ? sum(m.mat, dims=2) .-= diag(m.mat) :
-                                  sum(m.mat, dims=2) .- diag(m.mat)
-_mfn(m::CM{N}) where N = N < 31 ? sum(m.mat, dims=1)' .-= diag(m.mat) :
-                                  sum(m.mat, dims=1)' .- diag(m.mat)
+_mtn(m::CM) = sum(m.mat) .- (sum(m.mat, dims=2) .+ sum(m.mat, dims=1)' .+ diag(m.mat))
+
+function _mfp(m::CM{N}) where N
+    col_sum, diag_val = sum(m.mat, dims=2), diag(m.mat)
+    return N < 31 ? col_sum .-= diag_val : col_sum .- diag_val
+end
+
+function _mfn(m::CM{N}) where N
+    row_sum_t, diag_val = sum(m.mat, dims=1)', diag(m.mat)
+    return N < 31 ? row_sum_t .-= diag_val : row_sum_t .- diag_val
+end
 
 @inline function _class_w(level_m::Vec{<:String}, class_w::AbstractDict{<:Any, <:Real})
     class_w_labels = levels(keys(class_w))
