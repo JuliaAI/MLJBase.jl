@@ -1229,10 +1229,12 @@ const MNPV                                 = MulticlassNPV
 
 ## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
 
-_mtp(m::CM{N}) where N = diag(m.mat)
-_mfp(m::CM{N}) where N = sum(m.mat, dims=2) .- diag(m.mat)
-_mfn(m::CM{N}) where N = sum(m.mat, dims=1)' .- diag(m.mat)
-_mtn(m::CM{N}) where N = sum(m.mat) .- (_mtp(m) .+ _mfp(m) .+ _mfn(m))
+_mtp(m::CM) = diag(m.mat)
+_mtn(m::CM)= sum(m.mat) .- (sum(m.mat, dims=2) .+ sum(m.mat, dims=1)' .+ diag(m.mat))
+_mfp(m::CM{N}) where N = N < 31 ? sum(m.mat, dims=2) .-= diag(m.mat) :
+                                  sum(m.mat, dims=2) .- diag(m.mat)
+_mfn(m::CM{N}) where N = N < 31 ? sum(m.mat, dims=1)' .-= diag(m.mat) :
+                                  sum(m.mat, dims=1)' .- diag(m.mat)
 
 @inline function _class_w(level_m::Vec{<:String}, class_w::AbstractDict{<:Any, <:Real})
     class_w_labels = levels(keys(class_w))
@@ -1247,7 +1249,7 @@ function _mtpr(m::CM{N}; average=:macro) where N
     return mtp_val ./ (mtp_val + mfn_val)
 end
 
-function _mtpr(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mtpr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return _mtpr(m, average=:macro) .* level_w
@@ -1260,20 +1262,20 @@ function _mtnr(m::CM{N}; average=:macro) where N
     return mtn_val ./ (mtn_val + mfp_val)
 end
 
-function _mtnr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mtnr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return _mtnr(m, average=average) .* level_w
 end
 
 _mfpr(m::CM{N}; average=:macro) where N = 1 .- _mtnr(m, average=average)
-function _mfpr(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mfpr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     level_w = _class_w(m.labels, class_w)
     return (1 .- _mtnr(m, average=average)) .* level_w
 end
 
 _mfnr(m::CM{N}; average=:macro) where N = 1 .- _mtpr(m, average=average)
-function _mfnr(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mfnr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     level_w = _class_w(m.labels, class_w)
     return (1 .- _mtpr(m, average=average)) .* level_w
 end
@@ -1285,7 +1287,7 @@ function _mfdr(m::CM{N}; average=:macro) where N
     return mfp_val ./ (mtp_val + mfp_val)
 end
 
-function _mfdr(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mfdr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return _mfdr(m, average=average) .* level_w
@@ -1299,7 +1301,7 @@ function _mnpv(m::CM{N}; average=:micro) where N
 end
 
 
-function _mnpv(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}; average=:macro) where N
+function _mnpv(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
     average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return _mnpv(m, average=average) .* level_w
@@ -1312,32 +1314,32 @@ end
 (::MulticlassFalsePositive)(m::CM{N}) where N = _mfp(m)
 (::MulticlassFalseNegative)(m::CM{N}) where N = _mfn(m)
 
-(r::MTPR)(m::CM{N}) where N = _mtpr(m, average=r.average)
-(r::MTPR)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mtpr(m, w, average=r.average)
+(r::MTPR)(m::CM) = _mtpr(m, average=r.average)
+(r::MTPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtpr(m, w, average=r.average)
 
-(r::MTNR)(m::CM{N}) where N = _mtnr(m, average=r.average)
-(r::MTNR)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mtnr(m, w, average=r.average)
+(r::MTNR)(m::CM) = _mtnr(m, average=r.average)
+(r::MTNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtnr(m, w, average=r.average)
 
-(r::MFPR)(m::CM{N}) where N = _mfpr(m, average=r.average)
-(r::MFPR)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mfpr(m, w, average=r.average)
+(r::MFPR)(m::CM) = _mfpr(m, average=r.average)
+(r::MFPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfpr(m, w, average=r.average)
 
-(r::MFNR)(m::CM{N}) where N = _mfnr(m, average=r.average)
-(r::MFNR)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mfnr(m, w, average=r.average)
+(r::MFNR)(m::CM) = _mfnr(m, average=r.average)
+(r::MFNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfnr(m, w, average=r.average)
 
-(r::MFDR)(m::CM{N}) where N = _mfdr(m, average=r.average)
-(r::MFDR)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mfdr(m, w, average=r.average)
+(r::MFDR)(m::CM) = _mfdr(m, average=r.average)
+(r::MFDR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfdr(m, w, average=r.average)
 
-(v::MNPV)(m::CM{N}) where N = _mnpv(m, average=v.average)
-(v::MNPV)(m::CM{N}, w::AbstractDict{<:Any, <:Real}) where N = _mnpv(m, w, average=v.average)
+(v::MNPV)(m::CM) = _mnpv(m, average=v.average)
+(v::MNPV)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mnpv(m, w, average=v.average)
 
-(p::MulticlassPrecision)(m::CM{N}) where N  = 1.0 .- _mfdr(m, average=p.average)
-function (p::MulticlassPrecision)(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}) where N
+(p::MulticlassPrecision)(m::CM) = 1.0 .- _mfdr(m, average=p.average)
+function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
     average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return (1.0 .- _mfdr(m, average=p.average)) .* level_w
 end
 
-function (f::MulticlassFScore{β})(m::CM{N}) where β where N
+function (f::MulticlassFScore{β})(m::CM) where β
     β2   = β^2
     rec  = MulticlassRecall(; average=f.average)(m)
     prec = MulticlassPrecision(; average=f.average)(m)
@@ -1345,7 +1347,7 @@ function (f::MulticlassFScore{β})(m::CM{N}) where β where N
     return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
 end
 
-function (f::MulticlassFScore{β})(m::CM{N}, class_w::AbstractDict{<:Any, <:Real}) where β where N
+function (f::MulticlassFScore{β})(m::CM, class_w::AbstractDict{<:Any, <:Real}) where β
     f.average == :micro && @warn W_PROMOTE_WARN
     level_w = _class_w(m.labels, class_w)
     return MulticlassFScore{β}()(m) .* level_w
