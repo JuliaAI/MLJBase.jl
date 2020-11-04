@@ -430,7 +430,7 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
                 @info "Running type checks... "
                 check(mach.model, source.(raw_args)... ; full=true) &&
                     @info "Type checks okay. "
-                throw(exception)
+                rethrow(exception)
             end
     elseif mach.model != mach.old_model
         # update the model:
