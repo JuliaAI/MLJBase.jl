@@ -346,7 +346,10 @@ metadata_measure(LogCosh;
     supports_weights         = false,
     docstring                = "log cosh loss; aliases: `log_cosh`.")
 
-function (log_cosh::LogCosh)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+_softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
+_log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))
+
+function (log_cosh::LogCosh)(ŷ::Vec{<:T}, y::Vec{<:T}) where T <:Real
     check_dimensions(ŷ, y)
-    return log.(cosh.(ŷ-y))
+    return _log_cosh.(ŷ - y)
 end

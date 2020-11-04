@@ -1042,7 +1042,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
                           _acceleration,
                           false)
 
-    report = NamedTuple
+    report = NamedTuple()
 
     return fitresult, cache, report
 
