@@ -174,7 +174,7 @@ nominal_range(T, field, ::Nothing) = throw(ArgumentError(
 "the example, "*
 "`range(Int, :dummy, lower=1, upper=10)`. "  ))
 
-function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
+function nominal_range(::Type{T}, field, values::AbstractVector{<:T}) where T
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
 
