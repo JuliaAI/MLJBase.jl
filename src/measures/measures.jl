@@ -39,9 +39,11 @@ abstract type AggregationMode end
 
 struct Sum <: AggregationMode end
 (::Sum)(v) = sum(v)
+(::Sum)(v::LittleDict) = sum(values(v))
 
 struct Mean <: AggregationMode end
 (::Mean)(v) = mean(v)
+(::Mean)(v::LittleDict) = mean(values(v))
 
 # for rms and it's cousins:
 struct RootMeanSquare <: AggregationMode end

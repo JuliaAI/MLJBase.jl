@@ -181,20 +181,23 @@ end
     class_w = Dict(0=>0,2=>2,1=>1)
     cm = confmat(ŷ, y, warn=false)
 
-    @test multiclass_precision(cm) ≈ multiclass_precision(ŷ, y) ≈ [0.4; 0.5; 0.666666667]
-    @test multiclass_recall(cm) ≈ multiclass_recall(ŷ, y) ≈ [0.5; 0.5; 0.5]
-    @test macro_f1score(cm) ≈ macro_f1score(ŷ, y) ≈ [0.444444444445; 0.5; 0.5714285714]
+    @test multiclass_precision(cm) == multiclass_precision(ŷ, y) ==
+            LittleDict("0"=>0.4, "1"=>0.5, "2"=>0.6666666666666667)
+    @test multiclass_recall(cm) == multiclass_recall(ŷ, y) ==
+            LittleDict("0"=>0.5, "1"=>0.5, "2"=>0.5)
+    @test macro_f1score(cm) == macro_f1score(ŷ, y) ==
+            LittleDict("0"=>0.4444444444444445, "1"=>0.5, "2"=>0.5714285714285715)
 
-    @test multiclass_precision(cm, class_w) ≈ multiclass_precision(ŷ, y, class_w) ≈
-                                                    [0.0; 0.5; 1.333333334]
-    @test multiclass_recall(cm, class_w) ≈ multiclass_recall(ŷ, y, class_w) ≈
-                                                    [0.0; 0.5; 1.0]
-    @test macro_f1score(cm, class_w) ≈ multiclass_f1score(ŷ, y, class_w) ≈
-                                                    [0.0; 0.5; 1.1428571428]
+    @test multiclass_precision(cm, class_w) == multiclass_precision(ŷ, y, class_w) ==
+                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.3333333333333335])
+    @test multiclass_recall(cm, class_w) == multiclass_recall(ŷ, y, class_w) ==
+                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.0])
+    @test macro_f1score(cm, class_w) == multiclass_f1score(ŷ, y, class_w) ==
+                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.142857142857143])
 
-    micro_prec = MulticlassPrecision(average=:micro)
-    micro_rec  = MulticlassRecall(average=:micro)
-    micro_f1score = MulticlassFScore{1}(average=:micro)
+    micro_prec = MulticlassPrecision(average=micro_avg)
+    micro_rec  = MulticlassRecall(average=micro_avg)
+    micro_f1score = MulticlassFScore{1}(average=micro_avg)
     @test micro_prec(cm) == micro_prec(ŷ, y) == 0.5
     @test micro_rec(cm) == micro_rec(ŷ, y) == 0.5
     @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5

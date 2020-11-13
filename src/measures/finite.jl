@@ -875,9 +875,19 @@ Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
 
 const CM = ConfusionMatrix{N} where N
 
-struct MulticlassFScore{β} <:Measure average::Symbol end
+abstract type MulticlassAvg end
+struct MacroAvg <: MulticlassAvg end
+struct MicroAvg <: MulticlassAvg end
 
-MulticlassFScore{β}(; average=:macro) where β = MulticlassFScore{β}(average)
+const macro_avg = MacroAvg()
+const micro_avg = MicroAvg()
+
+struct MulticlassFScore{β, M<:MulticlassAvg} <:Measure
+    average::M
+    return_type::Union{Type{Vec}, Type{LittleDict}}
+end
+
+MulticlassFScore{β}(; average=macro_avg, return_type=LittleDict) where β = MulticlassFScore{β, typeof(average)}(average, return_type)
 
 metadata_measure(MulticlassFScore;
     target_scitype           = Vec{<:Finite{N}} where N,
@@ -894,7 +904,7 @@ MLJModelInterface.docstring(::Type{<:MulticlassFScore}) = "Multiclass F_β score
             "`macro_f1score=MulticlassFScore{1}`, `multiclass_f1score=MulticlassFScore{1}`" *
             "`MulticlassFScore{β}`, `micro_f1score=MulticlassFScore{1}(; average=:micro)`."
 
-const micro_f1score      = MulticlassFScore{1}(; average=:micro)
+const micro_f1score      = MulticlassFScore{1}(average=micro_avg, return_type=LittleDict)
 const macro_f1score      = MulticlassFScore{1}()
 const multiclass_f1score = macro_f1score
 
@@ -904,8 +914,11 @@ for M in (:MulticlassTruePositive, :MulticlassTrueNegative,
           :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
           :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNPV)
     ex = quote
-        struct $M{T<:Symbol} <: Measure average::T end
-        $M(; average=:macro) = $M(average)
+        struct $M{T<:MulticlassAvg} <: Measure
+            average::T
+            return_type::Union{Type{Vec}, Type{LittleDict}}
+        end
+        $M(; average=macro_avg, return_type=LittleDict) = $M(average, return_type)
     end
     eval(ex)
 end
@@ -1003,15 +1016,17 @@ MMI.docstring(::Type{<:MulticlassPrecision}) = "positive predictive value "*
   "(aka precision); aliases: `multiclass_positive_predictive_value`, `multiclass_ppv`, " *
   "`MulticlassPrecision()`, `multiclass_positivepredictive_value`. "
 
-const DS_MICRO_MACRO = "The `average` can be specified as `:micro` or " *
-                       "`:macro`.`:macro` is taken as default mode, and it " *
-                       "returns a value for each class. For `:micro`, pass "
+const DS_AVG_RET     = "The `average` can be specified as `micro_avg` or " *
+                       "`macro_avg`.`macro_avg` is taken as default mode, and it " *
+                       "returns a value for each class. The `return_type` can be" *
+                       "`LittleDict`(default type) and `AbstractVector`. To" *
+                       "change the mode, construct"
 const CLASS_W        = "`AbstractDict` of weights for each class can be " *
                        "specified using `class_w`."
 const W_KEY_MISMATCH = "Encountered target with levels different from the " *
                        "keys of user-specified dictionary of class weights."
 const W_PROMOTE_WARN = "As `class_w` specifies the weights for each class, " *
-                       "promoting average to `:macro`."
+                       "promoting average to `macro_avg`."
 
 
 """
@@ -1022,7 +1037,7 @@ $(docstring(MulticlassTruePositive()))
   multiclass_true_positive(ŷ, y)
 
 Number of true positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassTruePositive(; average=:micro)`.
+`y`. $DS_AVG_RET `MulticlassTruePositive(; average=type, return_type=type)`.
 
 For more information, run `info(multiclass_true_positive)`.
 
@@ -1039,7 +1054,7 @@ $(docstring(MulticlassTrueNegative()))
   multiclass_true_negative(ŷ, y)
 
 Number of true negatives for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassTrueNegative(; average=:micro)`.
+`y`. $DS_AVG_RET `MulticlassTrueNegative(; average=type, return_type=type)`.
 
 For more information, run `info(multiclass_true_negative)`.
 
@@ -1056,7 +1071,7 @@ $(docstring(MulticlassFalsePositive()))
   multiclass_false_positive(ŷ, y)
 
 Number of false positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassFalsePositive(; average=:micro)`.
+`y`. $DS_AVG_RET `MulticlassFalsePositive(; average=type, return_type=type)`.
 
 For more information, run `info(multiclass_false_positive)`.
 
@@ -1073,7 +1088,7 @@ $(docstring(MulticlassFalseNegative()))
   multiclass_false_negative(ŷ, y)
 
 Number of false positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassFalseNegative(; average=:micro)`.
+`y`. $DS_AVG_RET `MulticlassFalseNegative(; average=type, return_type=type)`.
 
 For more information, run `info(multiclass_false_negative)`.
 
@@ -1091,7 +1106,7 @@ $(docstring(MulticlassTruePositiveRate()))
     multiclass_true_positive_rate(ŷ, y, class_w)
 
 True positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassTruePositiveRate(; average=:micro)`. $CLASS_W
+$DS_AVG_RET `MulticlassTruePositiveRate(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_true_positive_rate)`.
 
@@ -1114,7 +1129,7 @@ $(docstring(MulticlassTrueNegativeRate()))
     multiclass_true_negative_rate(ŷ, y, class_w)
 
 True negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassTrueNegativeRate(; average=:micro)`. $CLASS_W
+$DS_AVG_RET `MulticlassTrueNegativeRate(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_true_negative_rate)`.
 
@@ -1138,7 +1153,7 @@ $(docstring(MulticlassFalsePositiveRate()))
     multiclass_false_positive_rate(ŷ, y, class_w)
 
 False positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalsePositiveRate(; average=:micro)`. $CLASS_W
+$DS_AVG_RET `MulticlassFalsePositiveRate(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_false_positive_rate)`.
 
@@ -1158,7 +1173,7 @@ $(docstring(MulticlassFalseNegativeRate()))
     multiclass_false_negative_rate(ŷ, y, class_w)
 
 False negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalseNegativeRate(; average=:micro)`. $CLASS_W
+$DS_AVG_RET `MulticlassFalseNegativeRate(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_false_negative_rate)`.
 
@@ -1178,7 +1193,7 @@ $(docstring(MulticlassTruePositiveRate()))
     multiclass_false_discovery_rate(ŷ, y, class_w)
 
 False discovery rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_MICRO_MACRO `MulticlassFalseDiscoveryRate(; average=:micro)`. $CLASS_W
+$DS_AVG_RET `MulticlassFalseDiscoveryRate(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_false_discovery_rate)`.
 
@@ -1197,7 +1212,7 @@ $(docstring(MulticlassPrecision()))
     multiclass_positive_predictive_value(ŷ, y, class_w)
 
 Positive predictive value for multiclass observations `ŷ` and ground truth
-`y`. $DS_MICRO_MACRO `MulticlassPrecision(; average=:micro)`. $CLASS_W
+`y`. $DS_AVG_RET `MulticlassPrecision(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_positive_predictive_value)`.
 
@@ -1217,7 +1232,7 @@ $(docstring(MulticlassNPV()))
     multiclass_negative_predictive_value(ŷ, y, class_w)
 
 Negative predictive value for multiclass observations `ŷ` and ground truth
-`y`.$DS_MICRO_MACRO `MulticlassNPV(; average=:micro)`. $CLASS_W
+`y`.$DS_AVG_RET `MulticlassNPV(; average=type, return_type=type)`. $CLASS_W
 
 For more information, run `info(multiclass_negative_predictive_value)`.
 
@@ -1230,11 +1245,12 @@ const MNPV                                 = MulticlassNPV
 ## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
 
 _mtp(m::CM) = diag(m.mat)
-_mfp(m::CM) = sum(m.mat, dims=2) .-= diag(m.mat)
-_mfn(m::CM) = sum(m.mat, dims=1)' .-= diag(m.mat)
+_mfp(m::CM) = (col_sum = vec(sum(m.mat, dims=2)); col_sum .-= diag(m.mat))
+_mfn(m::CM) = (row_sum = vec(collect(transpose(sum(m.mat, dims=1)))); row_sum .-= diag(m.mat))
 function _mtn(m::CM)
     _sum  = sum(m.mat, dims=2)
-    _sum .= sum(m.mat) .- (_sum .+= sum(m.mat, dims=1)'.+= diag(m.mat))
+    _sum .= sum(m.mat) .- (_sum .+= sum(m.mat, dims=1)'.+ diag(m.mat))
+    return vec(_sum)
 end
 
 @inline function _class_w(level_m::Vec{<:String}, class_w::AbstractDict{<:Any, <:Real})
@@ -1243,69 +1259,127 @@ end
     return [class_w[l] for l in class_w_labels]
 end
 
-function _mtpr(m::CM{N}; average=:macro) where N
-    n_classes = N
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real}, average::MacroAvg,
+                    return_type::Type{Vec})
+    return vec(a ./ (a + b))
+end
+
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real}, average::MacroAvg,
+                    return_type::Type{LittleDict})
+    return LittleDict(m.labels, _mc_helper(m, a, b, average, Vec))
+end
+
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real}, average::MicroAvg,
+                            return_type::T) where T<:Union{Type{Vec}, Type{LittleDict}}
+    a_sum, b_sum = sum(a), sum(b)
+    return a_sum / (a_sum + b_sum)
+end
+
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+                            class_w::AbstractDict{<:Any, <:Real},
+                            average::MacroAvg, return_type::Type{Vec})
+    level_w = _class_w(m.labels, class_w)
+    return _mc_helper(m, a, b, macro_avg, return_type) .* level_w
+end
+
+@inline function _mc_helper_b(m::CM, helper_name, class_w::AbstractDict{<:Any, <:Real},
+                              average::MacroAvg, return_type::Type{Vec})
+    level_w = _class_w(m.labels, class_w)
+    return (1 .- helper_name(m, macro_avg, return_type)) .* level_w
+end
+
+@inline function _mc_helper_b(m::CM, helper_name, class_w::AbstractDict{<:Any, <:Real},
+                              average::MacroAvg, return_type::Type{LittleDict})
+    level_w = _class_w(m.labels, class_w)
+    return LittleDict(m.labels, (1 .- helper_name(m, macro_avg, Vec)) .* level_w)
+     #_mc_helper_b(m, helper_name, class_w, average, Vec))
+end
+
+@inline function _mc_helper_b(m::CM, helper_name, average::MacroAvg,
+                              return_type::Type{LittleDict})
+    return LittleDict(m.labels, 1.0 .- helper_name(m, average, Vec))
+end
+
+@inline function _mc_helper_b(m::CM, helper_name, average::MicroAvg,
+                              return_type::Type{LittleDict})
+    return 1.0 .- helper_name(m, average, Vec)
+end
+
+@inline function _mc_helper_b(m::CM, helper_name, average::M,
+                              return_type::Type{Vec}) where M<:MulticlassAvg
+    return 1.0 .- helper_name(m, average, Vec)
+end
+
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+                            class_w::AbstractDict{<:Any, <:Real},
+                            average::MacroAvg, return_type::Type{LittleDict})
+    level_w = _class_w(m.labels, class_w)
+    return LittleDict(m.labels, _mc_helper(m, a, b, class_w, macro_avg, Vec))
+end
+
+@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real}, class_w::AbstractDict{<:Any, <:Real},
+                    average::MicroAvg, return_type::T) where T<:Union{Type{Vec}, Type{LittleDict}}
+    @warn W_PROMOTE_WARN
+    return _mc_helper(m, a, b, class_w, macro_avg, return_type)
+end
+
+function _mtpr(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
     mtp_val, mfn_val = mtp(m), mfn(m)
-    average == :micro && return sum(mtp_val) / (sum(mtp_val) + sum(mfn_val))
-    return mtp_val ./ (mtp_val + mfn_val)
+    _mc_helper(m, mtp_val, mfn_val, average, return_type)
 end
 
-function _mtpr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
-    return _mtpr(m, average=:macro) .* level_w
+function _mtpr(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    mtp_val, mfn_val = mtp(m), mfn(m)
+    _mc_helper(m, mtp_val, mfn_val, class_w, average, return_type)
 end
 
-function _mtnr(m::CM{N}; average=:macro) where N
-    n_classes = N
+function _mtnr(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
     mtn_val, mfp_val = mtn(m), mfp(m)
-    average == :micro && return sum(mtn_val) / (sum(mtn_val) + sum(mfp_val))
-    return mtn_val ./ (mtn_val + mfp_val)
+    _mc_helper(m, mtn_val, mfp_val, average, return_type)
 end
 
-function _mtnr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
-    return _mtnr(m, average=average) .* level_w
+function _mtnr(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    mtn_val, mfp_val = mtn(m), mfp(m)
+    _mc_helper(m, mtn_val, mfp_val, class_w, average, return_type)
 end
 
-_mfpr(m::CM{N}; average=:macro) where N = 1 .- _mtnr(m, average=average)
-function _mfpr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    level_w = _class_w(m.labels, class_w)
-    return (1 .- _mtnr(m, average=average)) .* level_w
+_mfpr(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}} =
+                _mc_helper_b(m, _mtnr, average, return_type)
+function _mfpr(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    return _mc_helper_b(m, _mtnr, class_w, average, return_type)
 end
 
-_mfnr(m::CM{N}; average=:macro) where N = 1 .- _mtpr(m, average=average)
-function _mfnr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    level_w = _class_w(m.labels, class_w)
-    return (1 .- _mtpr(m, average=average)) .* level_w
+_mfnr(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}} =
+                _mc_helper_b(m, _mtpr, average, return_type)
+
+function _mfnr(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    return _mc_helper_b(m, _mtpr, class_w, average, return_type)
 end
 
-function _mfdr(m::CM{N}; average=:macro) where N
-    n_classes = N
-    mtp_val, mfp_val = mtp(m), mfp(m)
-    average == :micro && return sum(mfp_val) / (sum(mtp_val) + sum(mfp_val))
-    return mfp_val ./ (mtp_val + mfp_val)
+function _mfdr(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    mfp_val, mtp_val = mfp(m), mtp(m)
+    _mc_helper(m, mfp_val, mtp_val, average, return_type)
 end
 
-function _mfdr(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
-    return _mfdr(m, average=average) .* level_w
+function _mfdr(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    mfp_val, mtp_val = mfp(m), mtp(m)
+    _mc_helper(m, mfp_val, mtp_val, class_w, average, return_type)
 end
 
-function _mnpv(m::CM{N}; average=:micro) where N
-    n_classes = N
+function _mnpv(m::CM, average::A, return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
     mtn_val, mfn_val = mtn(m), mfn(m)
-    average == :micro && return sum(mtn_val) / (sum(mtn_val) + sum(mfn_val))
-    return mtn_val ./ (mtn_val + mfn_val)
+    _mc_helper(m, mtn_val, mfn_val, average, return_type)
 end
 
-
-function _mnpv(m::CM, class_w::AbstractDict{<:Any, <:Real}; average=:macro)
-    average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
-    return _mnpv(m, average=average) .* level_w
+function _mnpv(m::CM, class_w::AbstractDict{<:Any, <:Real}, average::A,
+               return_type::U) where A<:MulticlassAvg where U<:Union{Type{Vec}, Type{LittleDict}}
+    mtn_val, mfn_val = mtn(m), mfn(m)
+    _mc_helper(m, mtn_val, mfn_val, class_w, average, return_type)
 end
 
 ## CALLABLES ON MULTICLASS CONFUSION MATRIX
@@ -1315,43 +1389,73 @@ end
 (::MulticlassFalsePositive)(m::CM{N}) where N = _mfp(m)
 (::MulticlassFalseNegative)(m::CM{N}) where N = _mfn(m)
 
-(r::MTPR)(m::CM) = _mtpr(m, average=r.average)
-(r::MTPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtpr(m, w, average=r.average)
+(r::MTPR)(m::CM) = _mtpr(m, r.average, r.return_type)
+(r::MTPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtpr(m, w, r.average, r.return_type)
 
-(r::MTNR)(m::CM) = _mtnr(m, average=r.average)
-(r::MTNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtnr(m, w, average=r.average)
+(r::MTNR)(m::CM) = _mtnr(m, r.average, r.return_type)
+(r::MTNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mtnr(m, w, r.average, r.return_type)
 
-(r::MFPR)(m::CM) = _mfpr(m, average=r.average)
-(r::MFPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfpr(m, w, average=r.average)
+(r::MFPR)(m::CM) = _mfpr(m, r.average, r.return_type)
+(r::MFPR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfpr(m, w, r.average, r.return_type)
 
-(r::MFNR)(m::CM) = _mfnr(m, average=r.average)
-(r::MFNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfnr(m, w, average=r.average)
+(r::MFNR)(m::CM) = _mfnr(m, r.average, r.return_type)
+(r::MFNR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfnr(m, w, r.average, r.return_type)
 
-(r::MFDR)(m::CM) = _mfdr(m, average=r.average)
-(r::MFDR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfdr(m, w, average=r.average)
+(r::MFDR)(m::CM) = _mfdr(m, r.average, r.return_type)
+(r::MFDR)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mfdr(m, w, r.average, r.return_type)
 
-(v::MNPV)(m::CM) = _mnpv(m, average=v.average)
-(v::MNPV)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mnpv(m, w, average=v.average)
+(v::MNPV)(m::CM) = _mnpv(m, v.average, v.return_type)
+(v::MNPV)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mnpv(m, w, v.average, v.return_type)
 
-(p::MulticlassPrecision)(m::CM) = 1.0 .- _mfdr(m, average=p.average)
+(p::MulticlassPrecision)(m::CM) = _mc_helper_b(m, _mfdr, p.average, p.return_type)
+#_mprec(m::CM, average, 1.0 .- values(_mfdr(m, p.average, p.return_type))
 function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
-    average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
-    return (1.0 .- _mfdr(m, average=p.average)) .* level_w
+    return _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 end
 
-function (f::MulticlassFScore{β})(m::CM) where β
+@inline function _fs_helper(m::CM, β::Int64, rec::Vec{<:Real}, prec::Vec{<:Real}, average::MicroAvg,
+                    return_type::U) where U<:Union{Type{Vec}, Type{LittleDict}}
     β2   = β^2
-    rec  = MulticlassRecall(; average=f.average)(m)
-    prec = MulticlassPrecision(; average=f.average)(m)
-    f.average == :micro && return (1 + β2) * (prec * rec) / (β* prec + rec)
+    return (1 + β2) * (prec * rec) / (β* prec + rec)
+end
+
+@inline function _fs_helper(m::CM, β::Int64, rec::Vec{<:Real}, prec::Vec{<:Real},
+                    average::MacroAvg, return_type::Type{LittleDict})
+    β2   = β^2
+    return LittleDict(m.labels, (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec))
+end
+
+@inline function _fs_helper(m::CM, β::Int64, rec::Vec{<:Real}, prec::Vec{<:Real},
+                    average::MacroAvg, return_type::Type{Vec})
+    β2   = β^2
     return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
 end
 
-function (f::MulticlassFScore{β})(m::CM, class_w::AbstractDict{<:Any, <:Real}) where β
-    f.average == :micro && @warn W_PROMOTE_WARN
-    level_w = _class_w(m.labels, class_w)
+function (f::MulticlassFScore{β})(m::CM) where β
+    rec  = MulticlassRecall(; average=f.average, return_type=Vec)(m)
+    prec = MulticlassPrecision(; average=f.average, return_type=Vec)(m)
+    return _fs_helper(m, β, rec, prec, f.average, f.return_type)
+end
+
+@inline function _fs_helper(m::CM, w::AbstractDict{<:Real, <:Real}, β::Int64, average::MicroAvg,
+                    return_type::U) where U<:Union{Type{Vec}, Type{LittleDict}}
+    @warn W_PROMOTE_WARN
+    _fs_helper(m, w, β, macro_avg, return_type)
+end
+
+@inline function _fs_helper(m::CM, w::AbstractDict{<:Real, <:Real}, β::Int64,
+                    average::MacroAvg, return_type::Type{LittleDict})
+    level_w = _class_w(m.labels, w)
+    return LittleDict(m.labels, MulticlassFScore{β}(return_type=Vec)(m) .* level_w)
+end
+
+@inline function _fs_helper(m::CM, w::AbstractDict{<:Real, <:Real}, β::Int64,
+                    average::MacroAvg, return_type::Type{Vec})
     return MulticlassFScore{β}()(m) .* level_w
+end
+
+function (f::MulticlassFScore{β})(m::CM, class_w::AbstractDict{<:Any, <:Real}) where β
+    _fs_helper(m, class_w, β,  f.average, f.return_type)
 end
 
 ## Callables on vectors
@@ -1368,9 +1472,9 @@ for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV)
 end
 
 (m::MulticlassFScore{β})(ŷ, y) where β =
-    MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y, warn=false))
+    MulticlassFScore{β}(; average=m.average, return_type=m.return_type)(confmat(ŷ, y, warn=false))
 (m::MulticlassFScore{β})(ŷ, y, class_w::AbstractDict{<:Any, <:Real}) where β =
-    MulticlassFScore{β}(; average=m.average)(confmat(ŷ, y, warn=false), class_w)
+    MulticlassFScore{β}(; average=m.average, return_type=m.return_type)(confmat(ŷ, y, warn=false), class_w)
 
 ## ROC COMPUTATION
 

@@ -245,8 +245,9 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
        multiclass_ppv, multiclass_recall, multiclass_sensitivity,
        multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
        multiclass_selectivity, macro_f1score, micro_f1score,
-       multiclass_f1score, multiclass_fallout, multiclass_precision
-
+       multiclass_f1score, multiclass_fallout, multiclass_precision,
+       # averaging modes
+       macro_avg, micro_avg
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
