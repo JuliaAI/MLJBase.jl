@@ -201,6 +201,16 @@ end
     @test micro_prec(cm) == micro_prec(ŷ, y) == 0.5
     @test micro_rec(cm) == micro_rec(ŷ, y) == 0.5
     @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
+
+    vec_precision = MulticlassPrecision(return_type=AbstractVector)
+    vec_recall  = MulticlassRecall(return_type=AbstractVector)
+    vec_f1score = MulticlassFScore{1}(return_type=AbstractVector)
+    @test vec_precision(cm, class_w) == vec_precision(ŷ, y, class_w) ==
+                                [0.0; 0.5; 1.3333333333333335]
+    @test vec_recall(cm, class_w) == vec_recall(ŷ, y, class_w) ==
+                                [0.0; 0.5; 1.0]
+    @test vec_f1score(cm, class_w) == vec_f1score(ŷ, y, class_w) ==
+                                [0.0; 0.5; 1.142857142857143]
 end
 
 @testset "Metadata binary" begin
@@ -364,12 +374,12 @@ end
     @test m(ŷ, y) == multiclass_f1score(ŷ, y)
     @test m(ŷ, y, w) == multiclass_f1score(ŷ, y, w)
     # check synonyms
-    m = MTPR()
-    @test m(ŷ, y) == multiclass_tpr(ŷ, y)
-    @test m(ŷ, y, w) == multiclass_tpr(ŷ, y, w)
-    m = MTNR()
-    @test m(ŷ, y) == multiclass_tnr(ŷ, y)
-    @test m(ŷ, y, w) == multiclass_tnr(ŷ, y, w)
+    m = MTPR(return_type=AbstractVector)
+    @test m(ŷ, y) == collect(values(multiclass_tpr(ŷ, y)))
+    @test m(ŷ, y, w) == collect(values(multiclass_tpr(ŷ, y, w)))
+    m = MTNR(return_type=AbstractVector)
+    @test m(ŷ, y) == collect(values(multiclass_tnr(ŷ, y)))
+    @test m(ŷ, y, w) == collect(values(multiclass_tnr(ŷ, y, w)))
     m = MFPR()
     @test m(ŷ, y) == multiclass_fpr(ŷ, y) == multiclass_fallout(ŷ, y)
     @test m(ŷ, y, w) == multiclass_fpr(ŷ, y, w) == multiclass_fallout(ŷ, y, w)

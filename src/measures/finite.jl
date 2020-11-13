@@ -1408,12 +1408,11 @@ end
 (v::MNPV)(m::CM, w::AbstractDict{<:Any, <:Real}) = _mnpv(m, w, v.average, v.return_type)
 
 (p::MulticlassPrecision)(m::CM) = _mc_helper_b(m, _mfdr, p.average, p.return_type)
-#_mprec(m::CM, average, 1.0 .- values(_mfdr(m, p.average, p.return_type))
 function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
     return _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 end
 
-@inline function _fs_helper(m::CM, β::Int64, rec::Vec{<:Real}, prec::Vec{<:Real}, average::MicroAvg,
+@inline function _fs_helper(m::CM, β::Int64, rec::Real, prec::Real, average::MicroAvg,
                     return_type::U) where U<:Union{Type{Vec}, Type{LittleDict}}
     β2   = β^2
     return (1 + β2) * (prec * rec) / (β* prec + rec)
@@ -1451,7 +1450,8 @@ end
 
 @inline function _fs_helper(m::CM, w::AbstractDict{<:Real, <:Real}, β::Int64,
                     average::MacroAvg, return_type::Type{Vec})
-    return MulticlassFScore{β}()(m) .* level_w
+    level_w = _class_w(m.labels, w)
+    return MulticlassFScore{β}(return_type=Vec)(m) .* level_w
 end
 
 function (f::MulticlassFScore{β})(m::CM, class_w::AbstractDict{<:Any, <:Real}) where β
