@@ -6,6 +6,7 @@ using CategoricalArrays
 using Statistics
 using LossFunctions
 using StableRNGs
+using OrderedCollections: LittleDict
 
 @testset "aggregation" begin
     v = rand(5)
