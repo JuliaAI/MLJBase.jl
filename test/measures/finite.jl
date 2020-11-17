@@ -181,23 +181,25 @@ end
     class_w = Dict(0=>0,2=>2,1=>1)
     cm = confmat(ŷ, y, warn=false)
 
-    @test multiclass_precision(cm) == multiclass_precision(ŷ, y) ==
-            LittleDict("0"=>0.4, "1"=>0.5, "2"=>0.6666666666666667)
-    @test multiclass_recall(cm) == multiclass_recall(ŷ, y) ==
-            LittleDict("0"=>0.5, "1"=>0.5, "2"=>0.5)
-    @test macro_f1score(cm) == macro_f1score(ŷ, y) ==
-            LittleDict("0"=>0.4444444444444445, "1"=>0.5, "2"=>0.5714285714285715)
+    @test collect(values(multiclass_precision(cm))) ≈
+        collect(values(multiclass_precision(ŷ, y))) ≈ [0.4; 0.5; 2/3]
+    @test collect(keys(multiclass_precision(cm))) ==
+        collect(keys(multiclass_precision(ŷ, y))) == ["0"; "1"; "2"]
+    @test collect(values(multiclass_recall(cm))) ≈
+        collect(values(multiclass_recall(ŷ, y))) ≈ [0.5; 0.5; 0.5]
+    @test collect(values(macro_f1score(cm))) ≈
+        collect(values(macro_f1score(ŷ, y))) ≈ [4/9; 0.5; 4/7]
 
-    @test multiclass_precision(cm, class_w) == multiclass_precision(ŷ, y, class_w) ==
-                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.3333333333333335])
-    @test multiclass_recall(cm, class_w) == multiclass_recall(ŷ, y, class_w) ==
-                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.0])
-    @test macro_f1score(cm, class_w) == multiclass_f1score(ŷ, y, class_w) ==
-                        LittleDict(["0", "1", "2"], [0.0; 0.5; 1.142857142857143])
+    @test collect(values(multiclass_precision(cm, class_w))) ≈
+        collect(values(multiclass_precision(ŷ, y, class_w))) ≈ [0.4; 0.5; 2/3] .* [0; 1; 2]
+    @test collect(values(multiclass_recall(cm, class_w))) ≈
+        collect(values(multiclass_recall(ŷ, y, class_w))) ≈ [0.5; 0.5; 0.5] .* [0; 1; 2]
+    @test collect(values(macro_f1score(cm, class_w))) ≈
+        collect(values(multiclass_f1score(ŷ, y, class_w))) ≈ [4/9; 0.5; 4/7] .* [0; 1; 2]
 
     micro_prec = MulticlassPrecision(average=micro_avg)
     micro_rec  = MulticlassRecall(average=micro_avg)
-    micro_f1score = MulticlassFScore{1}(average=micro_avg)
+
     @test micro_prec(cm) == micro_prec(ŷ, y) == 0.5
     @test micro_rec(cm) == micro_rec(ŷ, y) == 0.5
     @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
@@ -205,12 +207,12 @@ end
     vec_precision = MulticlassPrecision(return_type=AbstractVector)
     vec_recall  = MulticlassRecall(return_type=AbstractVector)
     vec_f1score = MulticlassFScore{1}(return_type=AbstractVector)
-    @test vec_precision(cm, class_w) == vec_precision(ŷ, y, class_w) ==
-                                [0.0; 0.5; 1.3333333333333335]
-    @test vec_recall(cm, class_w) == vec_recall(ŷ, y, class_w) ==
-                                [0.0; 0.5; 1.0]
-    @test vec_f1score(cm, class_w) == vec_f1score(ŷ, y, class_w) ==
-                                [0.0; 0.5; 1.142857142857143]
+    @test vec_precision(cm, class_w) ≈ vec_precision(ŷ, y, class_w) ≈
+                                [0.4; 0.5; 2/3] .* [0; 1; 2]
+    @test vec_recall(cm, class_w) ≈ vec_recall(ŷ, y, class_w) ≈
+                                [0.5; 0.5; 0.5] .* [0; 1; 2]
+    @test vec_f1score(cm, class_w) ≈ vec_f1score(ŷ, y, class_w) ≈
+                                [4/9; 0.5; 4/7] .* [0; 1; 2]
 end
 
 @testset "Metadata binary" begin
@@ -247,7 +249,7 @@ end
         e = info(m)
         m isa MulticlassRecall      && (@test e.name == "multiclass_true_positive_rate")
         m isa MulticlassPrecision   && (@test e.name == "multiclass_positive_predictive_value")
-        m == multiclass_f1score     && (@test e.name == "MulticlassFScore{1}")
+        m == multiclass_f1score     && (@test e.name == "MulticlassFScore{1.0}")
         m == multiclass_specificity && (@test e.name == "multiclass_true_negative_rate")
         @test e.target_scitype <: AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
@@ -370,7 +372,7 @@ end
     m = MulticlassNPV()
     @test m(ŷ, y) == multiclass_npv(ŷ, y)
     @test m(ŷ, y, w) == multiclass_npv(ŷ, y, w)
-    m = MulticlassFScore{1}()
+    m = MulticlassFScore()
     @test m(ŷ, y) == multiclass_f1score(ŷ, y)
     @test m(ŷ, y, w) == multiclass_f1score(ŷ, y, w)
     # check synonyms
