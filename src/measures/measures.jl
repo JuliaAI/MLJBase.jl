@@ -5,7 +5,7 @@ is_measure_type(::Any) = false
 const MEASURE_TRAITS =
     [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
      :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
-     :distribution_type]
+     :distribution_type, :supports_class_weights]
 
 # already defined in model_traits.jl:
 # name              - fallback for non-MLJType is string(M) where M is arg
@@ -27,6 +27,9 @@ reports_each_observation(m) = reports_each_observation(typeof(m))
 aggregation(m) = aggregation(typeof(m))
 is_feature_dependent(m) = is_feature_dependent(typeof(m))
 
+#specific to multiclass measures:
+supports_class_weights(::Type) = false
+
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
 
@@ -36,9 +39,11 @@ abstract type AggregationMode end
 
 struct Sum <: AggregationMode end
 (::Sum)(v) = sum(v)
+(::Sum)(v::LittleDict) = sum(values(v))
 
 struct Mean <: AggregationMode end
 (::Mean)(v) = mean(v)
+(::Mean)(v::LittleDict) = mean(values(v))
 
 # for rms and it's cousins:
 struct RootMeanSquare <: AggregationMode end
@@ -97,6 +102,7 @@ is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
 
 
+
 ## DISPLAY AND INFO
 
 Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
@@ -124,6 +130,7 @@ function metadata_measure(T; name::String="",
                           aggregation=Mean(),
                           is_feature_dependent::Bool=false,
                           supports_weights::Bool=false,
+                          supports_class_weights::Bool=false,
                           docstring::String="",
                           distribution_type=missing)
     pred_str        = "$prediction_type"
@@ -145,6 +152,7 @@ function metadata_measure(T; name::String="",
         reports_each_observation(::Type{<:$T}) = $reports_each_observation
         aggregation(::Type{<:$T}) = $aggregation
         is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
+        supports_class_weights(::Type{<:$T}) = $supports_class_weights
         distribution_type(::Type{<:$T}) = $dist
     end
     parentmodule(T).eval(ex)

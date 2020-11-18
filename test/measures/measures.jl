@@ -6,6 +6,7 @@ using CategoricalArrays
 using Statistics
 using LossFunctions
 using StableRNGs
+using OrderedCollections: LittleDict
 
 @testset "aggregation" begin
     v = rand(5)
@@ -15,6 +16,8 @@ using StableRNGs
     λ = rand()
     @test aggregate(λ, rms) === λ
     @test aggregate(aggregate(v, l2), l2) == aggregate(v, l2)
+    m = LittleDict([0, 1, 2, 3, 4], v)
+    @test aggregate(m, MTPR()) == mean(v)
 end
 
 @testset "metadata" begin
