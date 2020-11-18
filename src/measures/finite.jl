@@ -883,12 +883,11 @@ const macro_avg = MacroAvg()
 const micro_avg = MicroAvg()
 
 const DS_AVG_RET = "The `average` can be specified as `micro_avg` or " *
-                   "`macro_avg`. `macro_avg` is taken as default mode, and it" *
-                   " returns a value for each class. The `return_type` can be" *
-                   " `LittleDict`(default type) or `AbstractVector`. To " *
-                   "change the mode, construct"
-const CLASS_W    = "`AbstractDict` of weights for each class can be " *
-                   "specified using `class_w`."
+                   "`macro_avg` (default). "*
+                   "The `return_type` can be "*
+                   "`LittleDict`(default) or `AbstractVector`. "
+const CLASS_W    = "An optional `AbstractDict`, `class_w`, keyed on "*
+    "`levels(y)`, specifies class weights. "
 
 """
     MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict)
@@ -899,9 +898,9 @@ multiclass observations.
     MulticlassFScore()(ŷ, y)
     MulticlassFScore()(ŷ, y, class_w)
 
-Evaluate ``F_β`` score on multiclass observations, `ŷ`, given ground truth
-values, `y`. $DS_AVG_RET `MulticlassFScore(; β=1.0, average=type, return_type=type)`.
- $CLASS_W
+Evaluate the default score on multiclass observations, `ŷ`, given
+ground truth values, `y`. The `average` can be specified as
+`micro_avg` or `macro_avg` (default). $CLASS_W
 
 For more information, run `info(MulticlassFScore)`.
 
@@ -1063,14 +1062,14 @@ const W_PROMOTE_WARN = "As `class_w` specifies the weights for each class, " *
 
 
 """
-  multiclass_true_positive
+    MulticlassTruePositive(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassTruePositive()))
 
-  multiclass_true_positive(ŷ, y)
+    MulticlassTruePositive()(ŷ, y)
 
-Number of true positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassTruePositive(; average=type, return_type=type)`.
+Number of true positives for multiclass observations `ŷ` and ground
+truth `y`, using default averaging and return type. $DS_AVG_RET
 
 For more information, run `info(multiclass_true_positive)`.
 
@@ -1080,14 +1079,14 @@ const multiclass_truepositive   = MulticlassTruePositive()
 const mtp = MulticlassTruePositive()
 
 """
-  multiclass_true_negative
+    MulticlassTrueNegative(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassTrueNegative()))
 
-  multiclass_true_negative(ŷ, y)
+    MulticlassTrueNegative()(ŷ, y)
 
 Number of true negatives for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassTrueNegative(; average=type, return_type=type)`.
+`y`, using default averaging and return type. $DS_AVG_RET 
 
 For more information, run `info(multiclass_true_negative)`.
 
@@ -1097,14 +1096,14 @@ const multiclass_truenegative   = MulticlassTrueNegative()
 const mtn = MulticlassTrueNegative()
 
 """
-  multiclass_false_positive
+  MulticlassFalsePositive(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassFalsePositive()))
 
-  multiclass_false_positive(ŷ, y)
+  MulticlassFalsePositive()(ŷ, y)
 
 Number of false positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassFalsePositive(; average=type, return_type=type)`.
+`y`, using default averaging and return type. $DS_AVG_RET 
 
 For more information, run `info(multiclass_false_positive)`.
 
@@ -1114,14 +1113,14 @@ const multiclass_falsepositive  = MulticlassFalsePositive()
 const mfp = MulticlassFalsePositive()
 
 """
-  multiclass_false_negative
+    MulticlassFalseNegative
 
 $(docstring(MulticlassFalseNegative()))
 
-  multiclass_false_negative(ŷ, y)
+    MulticlassFalseNegative()(ŷ, y)
 
-Number of false positives for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassFalseNegative(; average=type, return_type=type)`.
+Number of false positives for multiclass observations `ŷ` and ground
+truth `y`, using default averaging and return type. $DS_AVG_RET
 
 For more information, run `info(multiclass_false_negative)`.
 
@@ -1131,15 +1130,15 @@ const multiclass_falsenegative  = MulticlassFalseNegative()
 const mfn = MulticlassFalseNegative()
 
 """
-    multiclass_true_positive_rate
+    MulticlassTruePositiveRate(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassTruePositiveRate()))
 
-    multiclass_true_positive_rate(ŷ, y)
-    multiclass_true_positive_rate(ŷ, y, class_w)
+    MulticlassTruePositiveRate(ŷ, y)
+    MulticlassTruePositiveRate(ŷ, y, class_w)
 
-True positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassTruePositiveRate(; average=type, return_type=type)`. $CLASS_W
+True positive rate for multiclass observations `ŷ` and ground truth
+`y`, using default averaging and return type. $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_true_positive_rate)`.
 
@@ -1157,8 +1156,8 @@ const MTPR                          = MulticlassTruePositiveRate
    MulticlassRecall()(ŷ, y)
    MulticlassRecall()(ŷ, y, class_w)
 
-Recall for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassRecall(; average=type, return_type=type)`. $CLASS_W
+Recall for multiclass observations `ŷ` and ground truth `y`, using
+default averaging and return type.  $DS_AVG_RET $CLASS_W
 
 For more information, run `info(MulticlassRecall)`.
 
@@ -1167,15 +1166,15 @@ const multiclass_recall             = MulticlassTruePositiveRate()
 const MulticlassRecall              = MulticlassTruePositiveRate
 
 """
-    multiclass_true_negative_rate
+    MulticlassTrueNegativeRate(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassTrueNegativeRate()))
 
-    multiclass_true_negative_rate(ŷ, y)
-    multiclass_true_negative_rate(ŷ, y, class_w)
+    MulticlassTrueNegativeRate()(ŷ, y)
+    MulticlassTrueNegativeRate()(ŷ, y, class_w)
 
-True negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassTrueNegativeRate(; average=type, return_type=type)`. $CLASS_W
+True negative rate for multiclass observations `ŷ` and ground truth
+`y`, using default averaging and return type. $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_true_negative_rate)`.
 
@@ -1189,15 +1188,15 @@ const MulticlassSpecificity         = MulticlassTrueNegativeRate
 const MTNR                          = MulticlassTrueNegativeRate
 
 """
-    multiclass_false_positive_rate
+    MulticlassFalsePositiveRate(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassFalsePositiveRate()))
 
-    multiclass_false_positive_rate(ŷ, y)
-    multiclass_false_positive_rate(ŷ, y, class_w)
+    MulticlassFalsePositiveRate()(ŷ, y)
+    MulticlassFalsePositiveRate()(ŷ, y, class_w)
 
-False positive rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassFalsePositiveRate(; average=type, return_type=type)`. $CLASS_W
+False positive rate for multiclass observations `ŷ` and ground truth
+`y`, using default averaging and return type.  $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_false_positive_rate)`.
 
@@ -1209,15 +1208,15 @@ const multiclass_fpr                 = MulticlassFalsePositiveRate()
 const multiclass_fallout             = MFPR()
 
 """
-    multiclass_false_negative_rate
+    MulticlassFalseNegativeRate(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassFalseNegativeRate()))
 
-    multiclass_false_negative_rate(ŷ, y)
-    multiclass_false_negative_rate(ŷ, y, class_w)
+    MulticlassFalseNegativeRate()(ŷ, y)
+    MulticlassFalseNegativeRate()(ŷ, y, class_w)
 
-False negative rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassFalseNegativeRate(; average=type, return_type=type)`. $CLASS_W
+False negative rate for multiclass observations `ŷ` and ground truth
+`y`, using default averaging and return type.  $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_false_negative_rate)`.
 
@@ -1229,15 +1228,15 @@ const MFNR                           = MulticlassFalseNegativeRate
 const multiclass_miss_rate           = MFNR()
 
 """
-    multiclass_false_discovery_rate
+    MulticlassFalseDiscoveryRate(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassTruePositiveRate()))
 
-    multiclass_false_discovery_rate(ŷ, y)
-    multiclass_false_discovery_rate(ŷ, y, class_w)
+    MulticlassFalseDiscoveryRate()(ŷ, y)
+    MulticlassFalseDiscoveryRate()(ŷ, y, class_w)
 
-False discovery rate for multiclass observations `ŷ` and ground truth `y`.
-$DS_AVG_RET `MulticlassFalseDiscoveryRate(; average=type, return_type=type)`. $CLASS_W
+False discovery rate for multiclass observations `ŷ` and ground truth
+`y`, using default averaging and return type.  $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_false_discovery_rate)`.
 
@@ -1248,15 +1247,16 @@ const multiclass_fdr                  = MulticlassFalseDiscoveryRate()
 const MFDR                            = MulticlassFalseDiscoveryRate
 
 """
-    multiclass_positive_predictive_value
+    MulticlassPositivePredictiveValue(; average=macro_avg, return_type=LittleDict)
 
-$(docstring(MulticlassPrecision()))
+$(docstring(MulticlassPredictiveValue()))
 
-    multiclass_positive_predictive_value(ŷ, y)
-    multiclass_positive_predictive_value(ŷ, y, class_w)
+    MulticlassPositivePredictiveValue()(ŷ, y)
+    MulticlassPositivePredictiveValue()(ŷ, y, class_w)
 
-Positive predictive value for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassPrecision(; average=type, return_type=type)`. $CLASS_W
+Positive predictive value for multiclass observations `ŷ` and ground
+truth `y`, using default averaging and return type. $DS_AVG_RET
+$CLASS_W
 
 For more information, run `info(multiclass_positive_predictive_value)`.
 
@@ -1269,11 +1269,13 @@ const MPPV                                 = MulticlassPrecision
 """
     MulticlassPrecision(; average=macro_avg, return_type=LittleDict)
 
+$(docstring(MulticlassPrecision()))
+
     MulticlassPrecision()(ŷ, y)
     MulticlassPrecision()(ŷ, y, class_w)
 
-Precision for multiclass observations `ŷ` and ground truth
-`y`. $DS_AVG_RET `MulticlassPrecision(; average=type, return_type=type)`. $CLASS_W
+Precision for multiclass observations `ŷ` and ground truth `y`, using
+default averaging and return type. $DS_AVG_RET $CLASS_W
 
 For more information, run `info(MulticlassPrecision)`.
 
@@ -1281,15 +1283,15 @@ For more information, run `info(MulticlassPrecision)`.
 const multiclass_precision = MulticlassPrecision()
 
 """
-    multiclass_negative_predictive_value
+    MulticlassNegativePredictiveValue(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassNPV()))
 
-    multiclass_negative_predictive_value(ŷ, y)
-    multiclass_negative_predictive_value(ŷ, y, class_w)
+    MulticlassNegativePredictiveValue()(ŷ, y)
+    MulticlassNegativePredictiveValue()(ŷ, y, class_w)
 
 Negative predictive value for multiclass observations `ŷ` and ground truth
-`y`.$DS_AVG_RET `MulticlassNPV(; average=type, return_type=type)`. $CLASS_W
+`y`, using default averaging and return type. $DS_AVG_RET $CLASS_W
 
 For more information, run `info(multiclass_negative_predictive_value)`.
 
@@ -1298,6 +1300,7 @@ const multiclass_npv                       = MulticlassNPV()
 const multiclass_negative_predictive_value = MulticlassNPV()
 const multiclass_negativepredictive_value  = MulticlassNPV()
 const MNPV                                 = MulticlassNPV
+
 
 ## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
 
