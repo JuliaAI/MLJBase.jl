@@ -105,9 +105,11 @@ is_measure(m) = is_measure_type(typeof(m))
 
 ## DISPLAY AND INFO
 
-Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
-    print(stream, "$(name(m)) (callable Measure)")
-Base.show(stream::IO, m::Measure) = print(stream, name(m))
+# Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
+#     print(stream, "$(name(m)) (callable Measure)")
+# Base.show(stream::IO, m::Measure) = print(stream, name(m))
+
+show_as_constructed(::Type{<:Measure}) = true
 
 function MLJScientificTypes.info(M, ::Val{:measure_type})
     values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
