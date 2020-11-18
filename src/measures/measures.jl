@@ -33,6 +33,7 @@ supports_class_weights(::Type) = false
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
 
+
 ## AGGREGATION
 
 abstract type AggregationMode end
@@ -100,7 +101,6 @@ end
 abstract type Measure <: MLJType end
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
-
 
 
 ## DISPLAY AND INFO

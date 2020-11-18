@@ -1002,53 +1002,53 @@ metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
     supports_weights         = false,
     supports_class_weights   = true)
 
-MMI.name(::Type{<:MulticlassTruePositive})       = "multiclass_true_positive"
+# MMI.name(::Type{<:MulticlassTruePositive})       = "multiclass_true_positive"
 MMI.docstring(::Type{<:MulticlassTruePositive})  = "Number of true positives; " *
                 "aliases: `multiclass_true_positive`, `multiclass_truepositive`."
-MMI.name(::Type{<:MulticlassTrueNegative})       = "multiclass_true_negative"
+# MMI.name(::Type{<:MulticlassTrueNegative})       = "multiclass_true_negative"
 MMI.docstring(::Type{<:MulticlassTrueNegative})  = "Number of true negatives; " *
                 "aliases: `multiclass_true_negative`, `multiclass_truenegative`."
-MMI.name(::Type{<:MulticlassFalsePositive})      = "multiclass_false_positive"
+# MMI.name(::Type{<:MulticlassFalsePositive})      = "multiclass_false_positive"
 MMI.docstring(::Type{<:MulticlassFalsePositive}) = "Number of false positives; " *
                 "aliases: `multiclass_false_positive`, `multiclass_falsepositive`."
-MMI.name(::Type{<:MulticlassFalseNegative})      = "multiclass_false_negative"
+# MMI.name(::Type{<:MulticlassFalseNegative})      = "multiclass_false_negative"
 MMI.docstring(::Type{<:MulticlassFalseNegative}) = "Number of false negatives; " *
                 "aliases: `multiclass_false_negative`, `multiclass_falsenegative`."
 
-MMI.name(::Type{<:MulticlassTruePositiveRate}) = "multiclass_true_positive_rate"
+# MMI.name(::Type{<:MulticlassTruePositiveRate}) = "multiclass_true_positive_rate"
 MMI.docstring(::Type{<:MulticlassTruePositiveRate}) =
                     "multiclass true positive rate; aliases: " *
                     "`multiclass_true_positive_rate`, `multiclass_tpr`, " *
                     "`multiclass_sensitivity`, `multiclass_recall`, " *
                     "`multiclass_hit_rate`, `multiclass_truepositive_rate`, " *
                     "`multiclass_recall=MulticlassRecall(; average=macro_avg, return_type=LittleDict)`."
-MMI.name(::Type{<:MulticlassTrueNegativeRate}) = "multiclass_true_negative_rate"
+# MMI.name(::Type{<:MulticlassTrueNegativeRate}) = "multiclass_true_negative_rate"
 MMI.docstring(::Type{<:MulticlassTrueNegativeRate}) =
                         "multiclass true negative rate; aliases: " *
                        "`multiclass_true_negative_rate`, `multiclass_tnr` " *
                        " `multiclass_specificity`, `multiclass_selectivity`, " *
                        "`multiclass_truenegative_rate`."
-MMI.name(::Type{<:MulticlassFalsePositiveRate}) = "multiclass_false_positive_rate"
+# MMI.name(::Type{<:MulticlassFalsePositiveRate}) = "multiclass_false_positive_rate"
 MMI.docstring(::Type{<:MulticlassFalsePositiveRate}) =
                         "multiclass false positive rate; aliases: " *
                        "`multiclass_false_positive_rate`, `multiclass_fpr` " *
                        "`multiclass_fallout`, `multiclass_falsepositive_rate`."
-MMI.name(::Type{<:MulticlassFalseNegativeRate}) = "multiclass_false_negative_rate"
+# MMI.name(::Type{<:MulticlassFalseNegativeRate}) = "multiclass_false_negative_rate"
 MMI.docstring(::Type{<:MulticlassFalseNegativeRate}) =
                         "multiclass false negative rate; aliases: " *
                        "`multiclass_false_negative_rate`, `multiclass_fnr`, " *
                        "`multiclass_miss_rate`, `multiclass_falsenegative_rate`."
-MMI.name(::Type{<:MulticlassFalseDiscoveryRate}) = "multiclass_false_discovery_rate"
+# MMI.name(::Type{<:MulticlassFalseDiscoveryRate}) = "multiclass_false_discovery_rate"
 MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) =
                         "multiclass false discovery rate; "*
                        "aliases: `multiclass_false_discovery_rate`, " *
                        "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
-MMI.name(::Type{<:MulticlassNPV}) = "multiclass_negative_predictive_value"
+# MMI.name(::Type{<:MulticlassNPV}) = "multiclass_negative_predictive_value"
 MMI.docstring(::Type{<:MulticlassNPV}) =
                         "multiclass negative predictive value; aliases: " *
                        "`multiclass_negative_predictive_value`, " *
                        "`multiclass_negativepredictive_value`, `multiclass_npv`."
-MMI.name(::Type{<:MulticlassPrecision}) = "multiclass_positive_predictive_value"
+# MMI.name(::Type{<:MulticlassPrecision}) = "multiclass_positive_predictive_value"
 MMI.docstring(::Type{<:MulticlassPrecision}) =
   "multiclass positive predictive value (aka precision);"*
   " aliases: `multiclass_positive_predictive_value`, `multiclass_ppv`, " *
@@ -1247,26 +1247,6 @@ const multiclass_fdr                  = MulticlassFalseDiscoveryRate()
 const MFDR                            = MulticlassFalseDiscoveryRate
 
 """
-    MulticlassPositivePredictiveValue(; average=macro_avg, return_type=LittleDict)
-
-$(docstring(MulticlassPredictiveValue()))
-
-    MulticlassPositivePredictiveValue()(ŷ, y)
-    MulticlassPositivePredictiveValue()(ŷ, y, class_w)
-
-Positive predictive value for multiclass observations `ŷ` and ground
-truth `y`, using default averaging and return type. $DS_AVG_RET
-$CLASS_W
-
-For more information, run `info(multiclass_positive_predictive_value)`.
-
-"""
-const multiclass_ppv                       = MulticlassPrecision()
-const multiclass_positive_predictive_value = MulticlassPrecision()
-const multiclass_positivepredictive_value  = MulticlassPrecision()
-const MPPV                                 = MulticlassPrecision
-
-"""
     MulticlassPrecision(; average=macro_avg, return_type=LittleDict)
 
 $(docstring(MulticlassPrecision()))
@@ -1280,7 +1260,12 @@ default averaging and return type. $DS_AVG_RET $CLASS_W
 For more information, run `info(MulticlassPrecision)`.
 
 """
-const multiclass_precision = MulticlassPrecision()
+const multiclass_precision                 = MulticlassPrecision()
+const multiclass_ppv                       = MulticlassPrecision()
+const multiclass_positive_predictive_value = MulticlassPrecision()
+const multiclass_positivepredictive_value  = MulticlassPrecision()
+const MPPV                                 = MulticlassPrecision
+
 
 """
     MulticlassNegativePredictiveValue(; average=macro_avg, return_type=LittleDict)
