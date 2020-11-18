@@ -206,13 +206,20 @@ end
 
     vec_precision = MulticlassPrecision(return_type=AbstractVector)
     vec_recall  = MulticlassRecall(return_type=AbstractVector)
-    vec_f1score = MulticlassFScore{1}(return_type=AbstractVector)
+    vec_f1score = MulticlassFScore(return_type=AbstractVector)
     @test vec_precision(cm, class_w) ≈ vec_precision(ŷ, y, class_w) ≈
                                 [0.4; 0.5; 2/3] .* [0; 1; 2]
     @test vec_recall(cm, class_w) ≈ vec_recall(ŷ, y, class_w) ≈
                                 [0.5; 0.5; 0.5] .* [0; 1; 2]
     @test vec_f1score(cm, class_w) ≈ vec_f1score(ŷ, y, class_w) ≈
                                 [4/9; 0.5; 4/7] .* [0; 1; 2]
+
+    v_mi_prec = MulticlassPrecision(average=micro_avg, return_type=AbstractVector)
+    v_mi_rec  = MulticlassRecall(average=micro_avg, return_type=AbstractVector)
+    v_mi_f1  = MulticlassFScore(average=micro_avg, return_type=AbstractVector)
+    @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == 0.5
+    @test v_mi_rec(cm) == v_mi_rec(ŷ, y) == 0.5
+    @test v_mi_f1(cm) == v_mi_f1(ŷ, y) == 0.5
 end
 
 @testset "Metadata binary" begin
