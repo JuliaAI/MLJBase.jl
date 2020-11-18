@@ -256,7 +256,7 @@ end
         e = info(m)
         m isa MulticlassRecall      && (@test e.name == "multiclass_true_positive_rate")
         m isa MulticlassPrecision   && (@test e.name == "multiclass_positive_predictive_value")
-        m == multiclass_f1score     && (@test e.name == "MulticlassFScore{1.0}")
+        m == multiclass_f1score     && (@test e.name == "MulticlassFScore{MLJBase.MacroAvg}")
         m == multiclass_specificity && (@test e.name == "multiclass_true_negative_rate")
         @test e.target_scitype <: AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
