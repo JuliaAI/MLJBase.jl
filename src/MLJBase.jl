@@ -220,7 +220,8 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        recall, sensitivity, hit_rate, miss_rate,
        specificity, selectivity, f1score, fallout
 
-#measures/finite.jl -- multiclass order independent:
+# measures/finite.jl -- multiclass generalizations of above (but order
+# independent):
 export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
        MulticlassFalseNegative, MulticlassTruePositiveRate,
        MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
@@ -248,6 +249,7 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
        multiclass_f1score, multiclass_fallout, multiclass_precision,
        # averaging modes
        macro_avg, micro_avg
+
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # CategoricalArrays, InvertedIndices:
