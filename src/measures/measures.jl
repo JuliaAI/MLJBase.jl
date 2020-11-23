@@ -103,6 +103,7 @@ is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
 
 
+
 ## DISPLAY AND INFO
 
 # Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
