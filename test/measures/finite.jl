@@ -1,5 +1,7 @@
 rng = StableRNG(51803)
 
+const Vec = AbstractVector
+
 @testset "built-in classifier measures" begin
     y    = categorical(collect("asdfasdfaaassdd"))
     yhat = categorical(collect("asdfaadfaasssdf"))
@@ -175,6 +177,107 @@ end
     @test f1score_rev(ŷ, y) == 2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
 end
 
+@testset "confusion matrix {n}" begin
+    y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], Multiclass)
+    ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], Multiclass)
+    class_w = Dict(0=>0,2=>2,1=>1)
+    cm = confmat(ŷ, y, warn=false)
+
+    #               ┌─────────────────────────────────────────┐
+    #               │              Ground Truth               │
+    # ┌─────────────┼─────────────┬─────────────┬─────────────┤
+    # │  Predicted  │      0      │      1      │      2      │
+    # ├─────────────┼─────────────┼─────────────┼─────────────┤
+    # │      0      │      2      │      1      │      2      │
+    # ├─────────────┼─────────────┼─────────────┼─────────────┤
+    # │      1      │      2      │      2      │      0      │
+    # ├─────────────┼─────────────┼─────────────┼─────────────┤
+    # │      2      │      0      │      1      │      2      │
+    # └─────────────┴─────────────┴─────────────┴─────────────┘
+
+    #`no_avg` and `LittleDict`
+    @test collect(values(MulticlassPrecision(average=no_avg)(cm))) ≈
+        collect(values(MulticlassPrecision(average=no_avg)(ŷ, y))) ≈
+        [0.4; 0.5; 2/3]
+    @test MulticlassPrecision(average=macro_avg)(cm) ≈
+        MulticlassPrecision(average=macro_avg)(ŷ, y) ≈ mean([0.4; 0.5; 2/3])
+    @test collect(keys(MulticlassPrecision(average=no_avg)(cm)))  ==
+        collect(keys(MulticlassPrecision(average=no_avg)(ŷ, y))) ==
+        ["0"; "1"; "2"]
+    @test collect(values(MulticlassRecall(average=no_avg)(cm))) ≈
+        collect(values(MulticlassRecall(average=no_avg)(ŷ, y))) ≈
+        [0.5; 0.5; 0.5]
+    @test collect(values(MulticlassFScore(average=no_avg)(cm))) ≈
+        collect(values(MulticlassFScore(average=no_avg)(ŷ, y))) ≈
+        [4/9; 0.5; 4/7]
+
+    #`no_avg` and `LittleDict` with class weights
+    @test collect(values(MulticlassPrecision(average=no_avg)(cm, class_w))) ≈
+        collect(values(MulticlassPrecision(average=no_avg)(ŷ, y, class_w))) ≈
+        [0.4; 0.5; 2/3] .* [0; 1; 2]
+    @test collect(values(MulticlassRecall(average=no_avg)(cm, class_w))) ≈
+        collect(values(MulticlassRecall(average=no_avg)(ŷ, y, class_w))) ≈
+        [0.5; 0.5; 0.5] .* [0; 1; 2]
+    @test collect(values(MulticlassFScore(average=no_avg)(cm, class_w))) ≈
+        collect(values(MulticlassFScore(average=no_avg)(ŷ, y, class_w))) ≈
+        [4/9; 0.5; 4/7] .* [0; 1; 2]
+
+    #`macro_avg` and `LittleDict`
+    macro_prec = MulticlassPrecision(average=macro_avg)
+    macro_rec  = MulticlassRecall(average=macro_avg)
+
+    @test macro_prec(cm)    ≈ macro_prec(ŷ, y)    ≈ mean([0.4, 0.5, 2/3])
+    @test macro_rec(cm)     ≈ macro_rec(ŷ, y)     ≈ mean([0.5; 0.5; 0.5])
+    @test macro_f1score(cm) ≈ macro_f1score(ŷ, y) ≈ mean([4/9; 0.5; 4/7])
+
+    #`micro_avg` and `LittleDict`
+    micro_prec = MulticlassPrecision(average=micro_avg)
+    micro_rec  = MulticlassRecall(average=micro_avg)
+
+    @test micro_prec(cm)    == micro_prec(ŷ, y)    == 0.5
+    @test micro_rec(cm)     == micro_rec(ŷ, y)     == 0.5
+    @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
+
+    #`no_avg` and `Vector` with class weights
+    vec_precision = MulticlassPrecision(return_type=Vector)
+    vec_recall    = MulticlassRecall(return_type=Vector)
+    vec_f1score   = MulticlassFScore(return_type=Vector)
+
+    @test vec_precision(cm, class_w) ≈ vec_precision(ŷ, y, class_w) ≈
+        mean([0.4; 0.5; 2/3] .* [0; 1; 2])
+    @test vec_recall(cm, class_w)    ≈ vec_recall(ŷ, y, class_w)    ≈
+        mean([0.5; 0.5; 0.5] .* [0; 1; 2])
+    @test vec_f1score(cm, class_w)   ≈ vec_f1score(ŷ, y, class_w)   ≈
+        mean([4/9; 0.5; 4/7] .* [0; 1; 2])
+
+    #`macro_avg` and `Vector`
+    v_ma_prec = MulticlassPrecision(average=macro_avg,
+                                    return_type=Vector)
+    v_ma_rec  = MulticlassRecall(average=macro_avg, return_type=Vector)
+    v_ma_f1   = MulticlassFScore(average=macro_avg, return_type=Vector)
+
+    @test v_ma_prec(cm) ≈ v_ma_prec(ŷ, y) ≈ mean([0.4, 0.5, 2/3])
+    @test v_ma_rec(cm)  ≈ v_ma_rec(ŷ, y)  ≈ mean([0.5; 0.5; 0.5])
+    @test v_ma_f1(cm)   ≈ v_ma_f1(ŷ, y)   ≈ mean([4/9; 0.5; 4/7])
+
+    #`macro_avg` and `Vector` with class weights
+    @test v_ma_prec(cm, class_w) ≈ v_ma_prec(ŷ, y, class_w) ≈
+        mean([0.4, 0.5, 2/3] .* [0, 1, 2])
+    @test v_ma_rec(cm, class_w)  ≈ v_ma_rec(ŷ, y, class_w)  ≈
+        mean([0.5; 0.5; 0.5] .* [0, 1, 2])
+    @test v_ma_f1(cm, class_w)   ≈ v_ma_f1(ŷ, y, class_w)   ≈
+        mean([4/9; 0.5; 4/7] .* [0, 1, 2])
+
+    #`micro_avg` and `Vector`
+    v_mi_prec = MulticlassPrecision(average=micro_avg, return_type=Vector)
+    v_mi_rec  = MulticlassRecall(average=micro_avg, return_type=Vector)
+    v_mi_f1   = MulticlassFScore(average=micro_avg, return_type=Vector)
+
+    @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == 0.5
+    @test v_mi_rec(cm)  == v_mi_rec(ŷ, y)  == 0.5
+    @test v_mi_f1(cm)   == v_mi_f1(ŷ, y)   == 0.5
+end
+
 @testset "Metadata binary" begin
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
@@ -201,6 +304,28 @@ end
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false
     @test e.supports_weights == false
+end
+
+@testset "Metadata multiclass" begin
+    for m in (MulticlassRecall(), MulticlassPrecision(),
+              MulticlassFScore(), MulticlassTrueNegativeRate())
+        e = info(m)
+        m isa MulticlassRecall &&
+            (@test e.name == "MulticlassTruePositiveRate")
+        m isa MulticlassPrecision   &&
+            (@test e.name == "MulticlassPrecision")
+        m isa MulticlassFScore &&
+            (@test e.name == "MulticlassFScore")
+        m isa MulticlassTrueNegativeRate &&
+            (@test e.name == "MulticlassTrueNegativeRate")
+        @test e.target_scitype <: AbstractVector{<:Finite}
+        @test e.prediction_type == :deterministic
+        @test e.orientation == :score
+        @test e.reports_each_observation == false
+        @test e.is_feature_dependent == false
+        @test e.supports_weights == false
+        @test e.supports_class_weights == true
+    end
 end
 
 @testset "More binary metrics" begin
@@ -274,6 +399,177 @@ end
     sk_rec_rev = 0.46153846153846156
     rec_rev = Recall(rev=true)
     @test rec_rev(ŷ, y) ≈ sk_rec_rev
+end
+
+@testset "More multiclass metrics" begin
+    y = coerce(categorical([1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
+                            2, 1, 0, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
+                            2, 2, 2]), Multiclass)
+    ŷ = coerce(categorical([2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
+                            1, 1, 1, 2, 0, 1, 2, 1, 2, 2, 2, 1, 2,
+                            1, 2, 2]), Multiclass)
+    w = Dict(0=>1, 1=>2, 2=>3) #class_w
+    # check all constructors
+    m = MulticlassTruePositive()
+    @test m(ŷ, y) == multiclass_truepositive(ŷ, y)
+    m = MulticlassTrueNegative()
+    @test m(ŷ, y) == multiclass_truenegative(ŷ, y)
+    m = MulticlassFalsePositive()
+    @test m(ŷ, y) == multiclass_falsepositive(ŷ, y)
+    m = MulticlassFalseNegative()
+    @test m(ŷ, y) == multiclass_falsenegative(ŷ, y)
+    m = MulticlassTruePositiveRate()
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y) ==
+        multiclass_truepositive_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tpr(ŷ, y, w) ==
+        multiclass_truepositive_rate(ŷ, y, w)
+    m = MulticlassTrueNegativeRate()
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y) ==
+        multiclass_truenegative_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tnr(ŷ, y, w) ==
+        multiclass_truenegative_rate(ŷ, y, w)
+    m = MulticlassFalsePositiveRate()
+    @test m(ŷ, y) == multiclass_fpr(ŷ, y) ==
+        multiclass_falsepositive_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fpr(ŷ, y, w) ==
+        multiclass_falsepositive_rate(ŷ, y, w)
+    m = MulticlassFalseNegativeRate()
+    @test m(ŷ, y) == multiclass_fnr(ŷ, y) ==
+        multiclass_falsenegative_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fnr(ŷ, y, w) ==
+        multiclass_falsenegative_rate(ŷ, y, w)
+    m = MulticlassFalseDiscoveryRate()
+    @test m(ŷ, y) == multiclass_fdr(ŷ, y) ==
+        multiclass_falsediscovery_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fdr(ŷ, y, w) ==
+        multiclass_falsediscovery_rate(ŷ, y, w)
+    m = MulticlassPrecision()
+    @test m(ŷ, y) == multiclass_precision(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_precision(ŷ, y, w)
+    m = MulticlassNegativePredictiveValue()
+    @test m(ŷ, y) == multiclass_npv(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_npv(ŷ, y, w)
+    m = MulticlassFScore()
+    @test m(ŷ, y) == macro_f1score(ŷ, y)
+    @test m(ŷ, y, w) == macro_f1score(ŷ, y, w)
+    # check synonyms
+    m = MTPR(return_type=Vector)
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tpr(ŷ, y, w)
+    m = MTNR(return_type=Vector)
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tnr(ŷ, y, w)
+    m = MFPR()
+    @test m(ŷ, y) == multiclass_fpr(ŷ, y) == multiclass_fallout(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fpr(ŷ, y, w) ==
+        multiclass_fallout(ŷ, y, w)
+    m = MFNR()
+    @test m(ŷ, y) == multiclass_fnr(ŷ, y) ==
+        multiclass_miss_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fnr(ŷ, y, w) ==
+        multiclass_miss_rate(ŷ, y, w)
+    m = MFDR()
+    @test m(ŷ, y) == multiclass_fdr(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_fdr(ŷ, y, w)
+    m = MPPV()
+    @test m(ŷ, y) == MulticlassPrecision()(ŷ, y) ==
+        multiclass_ppv(ŷ, y)
+    @test m(ŷ, y, w) == MulticlassPrecision()(ŷ, y, w) ==
+        multiclass_ppv(ŷ, y, w)
+    m = MulticlassRecall()
+    @test m(ŷ, y) == multiclass_tpr(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tpr(ŷ, y, w)
+    @test m(ŷ, y) == multiclass_sensitivity(ŷ, y) ==
+        multiclass_hit_rate(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_sensitivity(ŷ, y, w) ==
+        multiclass_hit_rate(ŷ, y, w)
+    m = MulticlassSpecificity()
+    @test m(ŷ, y) == multiclass_tnr(ŷ, y) == multiclass_specificity(ŷ, y) ==
+        multiclass_selectivity(ŷ, y)
+    @test m(ŷ, y, w) == multiclass_tnr(ŷ, y, w) ==
+        multiclass_specificity(ŷ, y, w) == multiclass_selectivity(ŷ, y, w)
+end
+
+
+@testset "Additional multiclass functions" begin
+    table = reshape(collect("aabbbccccddbabccbacccd"), 11, 2)
+    table = coerce(table, Multiclass);
+    yhat = table[:,1] # ['a', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'd', 'd']
+    y    = table[:,2] # ['b', 'a', 'b', 'c', 'c', 'b', 'a', 'c', 'c', 'c', 'd']
+    class_w = Dict('a'=>7, 'b'=>5, 'c'=>2, 'd'=> 0)
+
+    # class | TP | FP | TP + FP | precision | FN | TP + FN | recall
+    # ------|----|----|------------------------------------|-------
+    # a     | 1  | 1  | 2       | 1/2       | 1  | 2       | 1/2
+    # b     | 1  | 2  | 3       | 1/3       | 2  | 3       | 1/3
+    # c     | 2  | 2  | 4       | 1/2       | 3  | 5       | 2/5
+    # d     | 1  | 1  | 2       | 1/2       | 0  | 1       | 1
+
+    # helper:
+    inverse(x) = 1/x
+    harmonic_mean(x, y; beta=1.0) =
+        (1 + inverse(beta^2))*inverse(mean(inverse(beta^2*x)+ inverse(y)))
+
+    # precision:
+    p_macro = mean([1/2, 1/3, 1/2, 1/2])
+    @test MulticlassPrecision()(yhat, y) ≈ p_macro
+    p_macro_w = mean([7/2, 5/3, 2/2, 0/2])
+    @test MulticlassPrecision()(yhat, y, class_w) ≈ p_macro_w
+    @test p_macro_w ≈
+        @test_logs((:warn, r"Using macro"),
+                     MulticlassPrecision(average=micro_avg)(yhat, y, class_w))
+    p_micro = (1 + 1 + 2 + 1)/(2 + 3 + 4 + 2)
+    @test MulticlassPrecision(average=micro_avg)(yhat, y) ≈ p_micro
+
+    # recall:
+    r_macro = mean([1/2, 1/3, 2/5, 1])
+    @test MulticlassRecall(average=macro_avg)(yhat, y) ≈ r_macro
+    r_macro_w = mean([7/2, 5/3, 4/5, 0/1])
+    @test MulticlassRecall(average=macro_avg)(yhat, y, class_w) ≈ r_macro_w
+    @test r_macro_w ≈
+        @test_logs((:warn, r"Using macro"),
+                     MulticlassRecall(average=micro_avg)(yhat, y, class_w))
+    r_micro = (1 + 1 + 2 + 1)/(2 + 3 + 5 + 1)
+    @test MulticlassPrecision(average=micro_avg)(yhat, y) ≈ r_micro
+
+    # fscore:
+    harm_means = [harmonic_mean(1/2, 1/2),
+                     harmonic_mean(1/3, 1/3),
+                     harmonic_mean(1/2, 2/5),
+                     harmonic_mean(1/2, 1)]
+    f1_macro = mean(harm_means)
+    @test MulticlassFScore(average=macro_avg)(yhat, y) ≈ f1_macro
+    @test MulticlassFScore(average=no_avg,
+                           return_type=Vector)(yhat, y, class_w) ≈
+        [7, 5, 2, 0] .* harm_means
+    f1_macro_w = mean([7, 5, 2, 0] .* harm_means)
+    @test MulticlassFScore(average=macro_avg)(yhat, y, class_w) ≈ f1_macro_w
+    @test f1_macro_w ≈
+        @test_logs((:warn, r"Using macro"),
+                     MulticlassFScore(average=micro_avg)(yhat, y, class_w))
+    f1_micro = harmonic_mean(p_micro, r_micro)
+    @test MulticlassFScore(average=micro_avg)(yhat, y) ≈ f1_micro
+
+    # fscore, β=1/3:
+    harm_means = [harmonic_mean(1/2, 1/2, beta=1/3),
+                     harmonic_mean(1/3, 1/3, beta=1/3),
+                     harmonic_mean(1/2, 2/5, beta=1/3),
+                     harmonic_mean(1/2, 1, beta=1/3)]
+    f1_macro = mean(harm_means)
+    @test MulticlassFScore(β=1/3, average=macro_avg)(yhat, y) ≈ f1_macro
+    @test MulticlassFScore(β=1/3,
+                           average=no_avg,
+                           return_type=Vector)(yhat, y, class_w) ≈
+        [7, 5, 2, 0] .* harm_means
+    f1_macro_w = mean([7, 5, 2, 0] .* harm_means)
+    @test MulticlassFScore(β=1/3,
+                           average=macro_avg)(yhat, y, class_w) ≈ f1_macro_w
+    @test f1_macro_w ≈
+        @test_logs((:warn, r"Using macro"),
+                   MulticlassFScore(β=1/3,
+                                    average=micro_avg)(yhat, y, class_w))
+    f1_micro = harmonic_mean(p_micro, r_micro, beta=1/3)
+    @test MulticlassFScore(β=1/3, average=micro_avg)(yhat, y) ≈ f1_micro
 end
 
 @testset "ROC" begin
