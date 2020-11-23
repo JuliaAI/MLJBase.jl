@@ -197,10 +197,10 @@ export cross_entropy, BrierScore, brier_score,
        balanced_accuracy, bacc, bac,
        matthews_correlation, mcc
 
-# measures/finite.jl -- binary order independent:
+# measures/finite.jl -- Multiclass{2} (order independent):
 export auc, area_under_curve, roc_curve, roc
 
-# measures/finite.jl -- binary order dependent:
+# measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
        FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
@@ -220,41 +220,42 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
        recall, sensitivity, hit_rate, miss_rate,
        specificity, selectivity, f1score, fallout
 
-# measures/finite.jl -- multiclass generalizations of above (but order
-# independent):
+# measures/finite.jl -- Finite{N} - multiclass generalizations of
+# above OrderedFactor{2} measures (but order independent):
 export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
-       MulticlassFalseNegative, MulticlassTruePositiveRate,
-       MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
-       MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
-       MulticlassPrecision, MulticlassNPV, MulticlassFScore,
-       # standard synonyms
-       MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
-       MulticlassRecall, MulticlassSpecificity,
-       # instances and their synonyms
-       multiclass_truepositive, multiclass_truenegative, multiclass_falsepositive,
-       multiclass_falsenegative, multiclass_true_positive,
-       multiclass_true_negative, multiclass_false_positive,
-       multiclass_false_negative, multiclass_truepositive_rate,
-       multiclass_truenegative_rate, multiclass_falsepositive_rate,
-       multiclass_true_positive_rate, multiclass_true_negative_rate,
-       multiclass_false_positive_rate, multiclass_falsenegative_rate,
-       multiclass_negativepredictive_value, multiclass_false_negative_rate,
-       multiclass_negative_predictive_value, multiclass_positivepredictive_value,
-       multiclass_positive_predictive_value, multiclass_tpr, multiclass_tnr,
-       multiclass_fpr, multiclass_fnr, multiclass_falsediscovery_rate,
-       multiclass_false_discovery_rate, multiclass_fdr, multiclass_npv,
-       multiclass_ppv, multiclass_recall, multiclass_sensitivity,
-       multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
-       multiclass_selectivity, macro_f1score, micro_f1score,
-       multiclass_f1score, multiclass_fallout, multiclass_precision,
-       # averaging modes
-       macro_avg, micro_avg
+      MulticlassFalseNegative, MulticlassTruePositiveRate,
+      MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
+      MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
+      MulticlassPrecision, MulticlassNegativePredictiveValue, MulticlassFScore,
+      # standard synonyms
+      MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
+      MulticlassRecall, MulticlassSpecificity,
+      # instances and their synonyms
+      multiclass_truepositive, multiclass_truenegative,
+      multiclass_falsepositive,
+      multiclass_falsenegative, multiclass_true_positive,
+      multiclass_true_negative, multiclass_false_positive,
+      multiclass_false_negative, multiclass_truepositive_rate,
+      multiclass_truenegative_rate, multiclass_falsepositive_rate,
+      multiclass_true_positive_rate, multiclass_true_negative_rate,
+      multiclass_false_positive_rate, multiclass_falsenegative_rate,
+      multiclass_negativepredictive_value, multiclass_false_negative_rate,
+      multiclass_negative_predictive_value, multiclass_positivepredictive_value,
+      multiclass_positive_predictive_value, multiclass_tpr, multiclass_tnr,
+      multiclass_fpr, multiclass_fnr, multiclass_falsediscovery_rate,
+      multiclass_false_discovery_rate, multiclass_fdr, multiclass_npv,
+      multiclass_ppv, multiclass_recall, multiclass_sensitivity,
+      multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
+      multiclass_selectivity, macro_f1score, micro_f1score,
+      multiclass_f1score, multiclass_fallout, multiclass_precision,
+      # averaging modes
+      no_avg, macro_avg, micro_avg
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
-# CategoricalArrays, InvertedIndices:
+# OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not, support, logpdf
+       levels, levels!, std, Not, support, logpdf, LittleDict
 
 
 # ===================================================================
