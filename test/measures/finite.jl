@@ -1,5 +1,7 @@
 rng = StableRNG(51803)
 
+const Vec = AbstractVector
+
 @testset "built-in classifier measures" begin
     y    = categorical(collect("asdfasdfaaassdd"))
     yhat = categorical(collect("asdfaadfaasssdf"))
