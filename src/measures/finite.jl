@@ -889,7 +889,7 @@ const DS_AVG_RET = "Options for `average` are: `no_avg`, `macro_avg` "*
     "applying in the `no_avg` case, are: `LittleDict` (default) or "*
     "`Vector`. "
 
-const DS_RET = "Options `return_type` are: "*
+const DS_RET = "Options for `return_type` are: "*
     "`LittleDict`(default) or "*
     "`Vector`. "
 
@@ -1084,6 +1084,10 @@ const W_KEY_MISMATCH = "Encountered target with levels different from the " *
 const W_PROMOTE_WARN = "Using macro averaging instead of micro averaging, as "*
     "class weights specified. "
 
+
+# ----------------------------------------------------
+# MulticlassTruePositive
+
 """
     MulticlassTruePositive(; return_type=LittleDict)
 
@@ -1097,9 +1101,14 @@ truth `y`, using default return type. $DS_RET
 For more information, run `info(MulticlassTruePositive)`.
 
 """
+function MulticlassTruePositive end
 const multiclass_true_positive  = MulticlassTruePositive()
 const multiclass_truepositive   = MulticlassTruePositive()
 const mtp = MulticlassTruePositive()
+
+
+# ----------------------------------------------------
+# MulticlassTrueNegative
 
 """
     MulticlassTrueNegative(; return_type=LittleDict)
@@ -1114,10 +1123,14 @@ Number of true negatives for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassTrueNegative)`.
 
 """
+function MulticlassTrueNegative end
 const multiclass_true_negative  = MulticlassTrueNegative()
 const multiclass_truenegative   = MulticlassTrueNegative()
 const mtn = MulticlassTrueNegative()
 
+
+# ----------------------------------------------------
+# MulticlassFalsePositive
 
 """
     MulticlassFalsePositive(; return_type=LittleDict)
@@ -1132,9 +1145,14 @@ truth `y`, using default return type. $DS_RET
 For more information, run `info(MulticlassFalsePositive)`.
 
 """
+function MulticlassPositive end
 const multiclass_false_positive = MulticlassFalsePositive()
 const multiclass_falsepositive  = MulticlassFalsePositive()
 const mfp = MulticlassFalsePositive()
+
+
+# ----------------------------------------------------
+# MulticlassFalseNegative
 
 """
     MulticlassFalseNegative(; return_type=LittleDict)
@@ -1149,9 +1167,14 @@ truth `y`, using default return type. $DS_RET
 For more information, run `info(MulticlassFalseNegative)`.
 
 """
+function MulticlassNegative end
 const multiclass_false_negative = MulticlassFalseNegative()
 const multiclass_falsenegative  = MulticlassFalseNegative()
 const mfn = MulticlassFalseNegative()
+
+
+# ----------------------------------------------------
+# MulticlassTruePositiveRate
 
 """
     MulticlassTruePositiveRate(; average=macro_avg, return_type=LittleDict)
@@ -1168,6 +1191,7 @@ averaging and return type. $DS_AVG_RET $CLASS_W
 For more information, run `info(MulticlassTruePositiveRate)`.
 
 """
+function MulticlassTruePositiveRate end
 const multiclass_true_positive_rate = MulticlassTruePositiveRate()
 const multiclass_truepositive_rate  = MulticlassTruePositiveRate()
 const multiclass_tpr                = MulticlassTruePositiveRate()
@@ -1176,6 +1200,10 @@ const multiclass_hit_rate           = MulticlassTruePositiveRate()
 const MTPR                          = MulticlassTruePositiveRate
 const multiclass_recall             = MulticlassTruePositiveRate()
 const MulticlassRecall              = MulticlassTruePositiveRate
+
+
+# ----------------------------------------------------
+# MulticlassTrueNegativeRate
 
 """
     MulticlassTrueNegativeRate(; average=macro_avg, return_type=LittleDict)
@@ -1191,6 +1219,7 @@ True negative rate for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassTrueNegativeRate)`.
 
 """
+function MulticlassTrueNegativeRate end
 const multiclass_true_negative_rate = MulticlassTrueNegativeRate()
 const multiclass_truenegative_rate  = MulticlassTrueNegativeRate()
 const multiclass_tnr                = MulticlassTrueNegativeRate()
@@ -1198,6 +1227,10 @@ const multiclass_specificity        = MulticlassTrueNegativeRate()
 const multiclass_selectivity        = MulticlassTrueNegativeRate()
 const MulticlassSpecificity         = MulticlassTrueNegativeRate
 const MTNR                          = MulticlassTrueNegativeRate
+
+
+# ----------------------------------------------------
+# MulticlassFalsePositiveRate
 
 """
     MulticlassFalsePositiveRate(; average=macro_avg, return_type=LittleDict)
@@ -1213,11 +1246,16 @@ False positive rate for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassFalsePositiveRate)`.
 
 """
+function MulticlassFalsePositiveRate end
 const multiclass_false_positive_rate = MulticlassFalsePositiveRate()
 const multiclass_falsepositive_rate  = MulticlassFalsePositiveRate()
 const multiclass_fpr                 = MulticlassFalsePositiveRate()
 const MFPR                           = MulticlassFalsePositiveRate
 const multiclass_fallout             = MFPR()
+
+
+# ----------------------------------------------------
+# MulticlassFalseNegativeRate
 
 """
     MulticlassFalseNegativeRate(; average=macro_avg, return_type=LittleDict)
@@ -1233,11 +1271,16 @@ False negative rate for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassFalseNegativeRate)`.
 
 """
+function MulticlassFalseNegativeRate end
 const multiclass_false_negative_rate = MulticlassFalseNegativeRate()
 const multiclass_falsenegative_rate  = MulticlassFalseNegativeRate()
 const multiclass_fnr                 = MulticlassFalseNegativeRate()
 const MFNR                           = MulticlassFalseNegativeRate
 const multiclass_miss_rate           = MFNR()
+
+
+# ----------------------------------------------------
+# MulticlassFalseDiscoveryRate
 
 """
     MulticlassFalseDiscoveryRate(; average=macro_avg, return_type=LittleDict)
@@ -1253,10 +1296,15 @@ False discovery rate for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassFalseDiscoveryRate)`.
 
 """
+function MulticlassFalseDiscoveryRate end
 const multiclass_false_discovery_rate = MulticlassFalseDiscoveryRate()
 const multiclass_falsediscovery_rate  = MulticlassFalseDiscoveryRate()
 const multiclass_fdr                  = MulticlassFalseDiscoveryRate()
 const MFDR                            = MulticlassFalseDiscoveryRate
+
+
+# ----------------------------------------------------
+# MulticlassPrecision
 
 """
     MulticlassPrecision(; average=macro_avg, return_type=LittleDict)
@@ -1272,11 +1320,16 @@ default averaging and return type. $DS_AVG_RET $CLASS_W
 For more information, run `info(MulticlassPrecision)`.
 
 """
+function MulticlassPrecision end
 const multiclass_precision                 = MulticlassPrecision()
 const multiclass_ppv                       = MulticlassPrecision()
 const multiclass_positive_predictive_value = MulticlassPrecision()
 const multiclass_positivepredictive_value  = MulticlassPrecision()
 const MPPV                                 = MulticlassPrecision
+
+
+# ----------------------------------------------------
+# MulticlassNPV
 
 """
     MulticlassNPV(; average=macro_avg, return_type=LittleDict)
@@ -1292,12 +1345,14 @@ Negative predictive value for multiclass observations `ŷ` and ground truth
 For more information, run `info(MulticlassNPV)`.
 
 """
+function MulticlassNPV end
 const multiclass_npv                       = MulticlassNPV()
 const multiclass_negative_predictive_value = MulticlassNPV()
 const multiclass_negativepredictive_value  = MulticlassNPV()
 const MNPV                                 = MulticlassNPV
 
 
+# -----------------------------------------------------
 ## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
 
 _mtp(m::CM, return_type::Type{Vector}) = diag(m.mat)
