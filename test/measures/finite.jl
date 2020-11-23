@@ -238,10 +238,10 @@ end
     @test micro_rec(cm)     == micro_rec(ŷ, y)     == 0.5
     @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
 
-    #`no_avg` and `AbstractVector` with class weights
-    vec_precision = MulticlassPrecision(return_type=AbstractVector)
-    vec_recall    = MulticlassRecall(return_type=AbstractVector)
-    vec_f1score   = MulticlassFScore(return_type=AbstractVector)
+    #`no_avg` and `Vector` with class weights
+    vec_precision = MulticlassPrecision(return_type=Vector)
+    vec_recall    = MulticlassRecall(return_type=Vector)
+    vec_f1score   = MulticlassFScore(return_type=Vector)
 
     @test vec_precision(cm, class_w) ≈ vec_precision(ŷ, y, class_w) ≈
         mean([0.4; 0.5; 2/3] .* [0; 1; 2])
@@ -250,17 +250,17 @@ end
     @test vec_f1score(cm, class_w)   ≈ vec_f1score(ŷ, y, class_w)   ≈
         mean([4/9; 0.5; 4/7] .* [0; 1; 2])
 
-    #`macro_avg` and `AbstractVector`
+    #`macro_avg` and `Vector`
     v_ma_prec = MulticlassPrecision(average=macro_avg,
-                                    return_type=AbstractVector)
-    v_ma_rec  = MulticlassRecall(average=macro_avg, return_type=AbstractVector)
-    v_ma_f1   = MulticlassFScore(average=macro_avg, return_type=AbstractVector)
+                                    return_type=Vector)
+    v_ma_rec  = MulticlassRecall(average=macro_avg, return_type=Vector)
+    v_ma_f1   = MulticlassFScore(average=macro_avg, return_type=Vector)
 
     @test v_ma_prec(cm) ≈ v_ma_prec(ŷ, y) ≈ mean([0.4, 0.5, 2/3])
     @test v_ma_rec(cm)  ≈ v_ma_rec(ŷ, y)  ≈ mean([0.5; 0.5; 0.5])
     @test v_ma_f1(cm)   ≈ v_ma_f1(ŷ, y)   ≈ mean([4/9; 0.5; 4/7])
 
-    #`macro_avg` and `AbstractVector` with class weights
+    #`macro_avg` and `Vector` with class weights
     @test v_ma_prec(cm, class_w) ≈ v_ma_prec(ŷ, y, class_w) ≈
         mean([0.4, 0.5, 2/3] .* [0, 1, 2])
     @test v_ma_rec(cm, class_w)  ≈ v_ma_rec(ŷ, y, class_w)  ≈
@@ -268,10 +268,10 @@ end
     @test v_ma_f1(cm, class_w)   ≈ v_ma_f1(ŷ, y, class_w)   ≈
         mean([4/9; 0.5; 4/7] .* [0, 1, 2])
 
-    #`micro_avg` and `AbstractVector`
-    v_mi_prec = MulticlassPrecision(average=micro_avg, return_type=AbstractVector)
-    v_mi_rec  = MulticlassRecall(average=micro_avg, return_type=AbstractVector)
-    v_mi_f1   = MulticlassFScore(average=micro_avg, return_type=AbstractVector)
+    #`micro_avg` and `Vector`
+    v_mi_prec = MulticlassPrecision(average=micro_avg, return_type=Vector)
+    v_mi_rec  = MulticlassRecall(average=micro_avg, return_type=Vector)
+    v_mi_f1   = MulticlassFScore(average=micro_avg, return_type=Vector)
 
     @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == 0.5
     @test v_mi_rec(cm)  == v_mi_rec(ŷ, y)  == 0.5
@@ -453,10 +453,10 @@ end
     @test m(ŷ, y) == macro_f1score(ŷ, y)
     @test m(ŷ, y, w) == macro_f1score(ŷ, y, w)
     # check synonyms
-    m = MTPR(return_type=AbstractVector)
+    m = MTPR(return_type=Vector)
     @test m(ŷ, y) == multiclass_tpr(ŷ, y)
     @test m(ŷ, y, w) == multiclass_tpr(ŷ, y, w)
-    m = MTNR(return_type=AbstractVector)
+    m = MTNR(return_type=Vector)
     @test m(ŷ, y) == multiclass_tnr(ŷ, y)
     @test m(ŷ, y, w) == multiclass_tnr(ŷ, y, w)
     m = MFPR()
@@ -538,7 +538,7 @@ end
                      harmonic_mean(1/2, 1)]
     f1_macro = mean(harm_means)
     @test MulticlassFScore(average=macro_avg)(yhat, y) ≈ f1_macro
-    @test MulticlassFScore(average=no_avg, return_type=Vec)(yhat, y, class_w) ≈
+    @test MulticlassFScore(average=no_avg, return_type=Vector)(yhat, y, class_w) ≈
         [7, 5, 2, 0] .* harm_means
     f1_macro_w = mean([7, 5, 2, 0] .* harm_means)
     @test MulticlassFScore(average=macro_avg)(yhat, y, class_w) ≈ f1_macro_w

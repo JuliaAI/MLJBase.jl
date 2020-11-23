@@ -253,9 +253,9 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
-# CategoricalArrays, InvertedIndices:
+# OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not, support, logpdf
+       levels, levels!, std, Not, support, logpdf, LittleDict
 
 
 # ===================================================================
