@@ -894,8 +894,8 @@ const DS_RET = "Options for `return_type` are: "*
     "`Vector`. "
 
 const CLASS_W = "An optional `AbstractDict`, denoted `class_w` above, "*
-    "keyed on `levels(y)`, specifies class weights. It applies only if "*
-    "`average=macro_avg`."
+    "keyed on `levels(y)`, specifies class weights. It applies if "*
+    "`average=macro_avg` or `average=no_avg`."
 
 """
     MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict)
@@ -907,7 +907,7 @@ multiclass observations.
     MulticlassFScore()(ŷ, y, class_w)
 
 Evaluate the default score on multiclass observations, `ŷ`, given
-ground truth values, `y`. $DS_AVG_RET (default). $CLASS_W
+ground truth values, `y`. $DS_AVG_RET $CLASS_W
 
 For more information, run `info(MulticlassFScore)`.
 
@@ -933,12 +933,12 @@ metadata_measure(MulticlassFScore;
 MLJModelInterface.docstring(::Type{<:MulticlassFScore}) =
     "Multiclass F_β score; aliases: " *
     "`macro_f1score=MulticlassFScore()`, "*
-    "`multiclass_f1score=MulticlassFScore(average=no_avg)` " *
+    "`multiclass_f1score=MulticlassFScore()` " *
     "`micro_f1score=MulticlassFScore(average=micro_avg)`."
 
 const micro_f1score      = MulticlassFScore(average=micro_avg)
 const macro_f1score      = MulticlassFScore(average=macro_avg)
-const multiclass_f1score = MulticlassFScore(average=no_avg)
+const multiclass_f1score = MulticlassFScore(average=macro_avg)
 
 for M in (:MulticlassTruePositive, :MulticlassTrueNegative,
           :MulticlassFalsePositive, :MulticlassFalseNegative)
@@ -1411,13 +1411,13 @@ end
 end
 
 @inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
-                            average::MacroAvg, return_type::Type{U}) where U
+                            average::MacroAvg, return_type)
     return _mean(_mc_helper(m, a, b, no_avg, Vector))
 end
 
 @inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
-                            average::MicroAvg, return_type::Type{U}) where U
-     a_sum, b_sum = sum(a), sum(b)
+                            average::MicroAvg, return_type) 
+    a_sum, b_sum = sum(a), sum(b)
     return a_sum / (a_sum + b_sum)
 end
 
@@ -1625,7 +1625,7 @@ end
 @inline function _fs_helper(m::CM, β::Real, rec::Real, prec::Real,
                             average::MicroAvg, return_type::Type{U}) where U
     β2 = β^2
-    return (1 + β2) * (prec * rec) / (β * prec + rec)
+    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
 end
 
 function (f::MulticlassFScore)(m::CM)

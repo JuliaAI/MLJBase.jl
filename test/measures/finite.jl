@@ -507,7 +507,8 @@ end
 
     # helper:
     inverse(x) = 1/x
-    harmonic_mean(x...) = inverse(mean(inverse.(x)))
+    harmonic_mean(x, y; beta=1.0) =
+        (1 + inverse(beta^2))*inverse(mean(inverse(beta^2*x)+ inverse(y)))
 
     # precision:
     p_macro = mean([1/2, 1/3, 1/2, 1/2])
@@ -538,7 +539,8 @@ end
                      harmonic_mean(1/2, 1)]
     f1_macro = mean(harm_means)
     @test MulticlassFScore(average=macro_avg)(yhat, y) ≈ f1_macro
-    @test MulticlassFScore(average=no_avg, return_type=Vector)(yhat, y, class_w) ≈
+    @test MulticlassFScore(average=no_avg,
+                           return_type=Vector)(yhat, y, class_w) ≈
         [7, 5, 2, 0] .* harm_means
     f1_macro_w = mean([7, 5, 2, 0] .* harm_means)
     @test MulticlassFScore(average=macro_avg)(yhat, y, class_w) ≈ f1_macro_w
@@ -547,6 +549,27 @@ end
                      MulticlassFScore(average=micro_avg)(yhat, y, class_w))
     f1_micro = harmonic_mean(p_micro, r_micro)
     @test MulticlassFScore(average=micro_avg)(yhat, y) ≈ f1_micro
+
+    # fscore, β=1/3:
+    harm_means = [harmonic_mean(1/2, 1/2, beta=1/3),
+                     harmonic_mean(1/3, 1/3, beta=1/3),
+                     harmonic_mean(1/2, 2/5, beta=1/3),
+                     harmonic_mean(1/2, 1, beta=1/3)]
+    f1_macro = mean(harm_means)
+    @test MulticlassFScore(β=1/3, average=macro_avg)(yhat, y) ≈ f1_macro
+    @test MulticlassFScore(β=1/3,
+                           average=no_avg,
+                           return_type=Vector)(yhat, y, class_w) ≈
+        [7, 5, 2, 0] .* harm_means
+    f1_macro_w = mean([7, 5, 2, 0] .* harm_means)
+    @test MulticlassFScore(β=1/3,
+                           average=macro_avg)(yhat, y, class_w) ≈ f1_macro_w
+    @test f1_macro_w ≈
+        @test_logs((:warn, r"Using macro"),
+                   MulticlassFScore(β=1/3,
+                                    average=micro_avg)(yhat, y, class_w))
+    f1_micro = harmonic_mean(p_micro, r_micro, beta=1/3)
+    @test MulticlassFScore(β=1/3, average=micro_avg)(yhat, y) ≈ f1_micro
 end
 
 @testset "ROC" begin
