@@ -959,7 +959,7 @@ const _mtn_vec = MulticlassTrueNegative(return_type=Vector)
 
 for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
           :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
-          :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNPV)
+          :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNegativePredictiveValue)
     ex = quote
         struct $M{T<:MulticlassAvg, U<:Union{Vector, LittleDict}} <: Measure
             average::T
@@ -1005,7 +1005,7 @@ metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
     supports_weights         = false,
     supports_class_weights   = false)
 
-metadata_measure.((MulticlassTrueNegativeRate, MulticlassNPV);
+metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue);
     target_scitype           = Vec{<:Finite{N}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
@@ -1067,8 +1067,8 @@ MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) =
     "multiclass false discovery rate; "*
     "aliases: `multiclass_false_discovery_rate`, " *
     "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
-# MMI.name(::Type{<:MulticlassNPV}) = "multiclass_negative_predictive_value"
-MMI.docstring(::Type{<:MulticlassNPV}) =
+# MMI.name(::Type{<:MulticlassNegativePredictiveValue}) = "multiclass_negative_predictive_value"
+MMI.docstring(::Type{<:MulticlassNegativePredictiveValue}) =
     "multiclass negative predictive value; aliases: " *
     "`multiclass_negative_predictive_value`, " *
     "`multiclass_negativepredictive_value`, `multiclass_npv`."
@@ -1329,27 +1329,27 @@ const MPPV                                 = MulticlassPrecision
 
 
 # ----------------------------------------------------
-# MulticlassNPV
+# MulticlassNegativePredictiveValue
 
 """
-    MulticlassNPV(; average=macro_avg, return_type=LittleDict)
+    MulticlassNegativePredictiveValue(; average=macro_avg, return_type=LittleDict)
 
-$(docstring(MulticlassNPV()))
+$(docstring(MulticlassNegativePredictiveValue()))
 
-    MulticlassNPV()(ŷ, y)
-    MulticlassNPV()(ŷ, y, class_w)
+    MulticlassNegativePredictiveValue()(ŷ, y)
+    MulticlassNegativePredictiveValue()(ŷ, y, class_w)
 
 Negative predictive value for multiclass observations `ŷ` and ground truth
 `y`, using default averaging and return type. $DS_AVG_RET $CLASS_W
 
-For more information, run `info(MulticlassNPV)`.
+For more information, run `info(MulticlassNegativePredictiveValue)`.
 
 """
-function MulticlassNPV end
-const multiclass_npv                       = MulticlassNPV()
-const multiclass_negative_predictive_value = MulticlassNPV()
-const multiclass_negativepredictive_value  = MulticlassNPV()
-const MNPV                                 = MulticlassNPV
+function MulticlassNegativePredictiveValue end
+const multiclass_npv                       = MulticlassNegativePredictiveValue()
+const multiclass_negative_predictive_value = MulticlassNegativePredictiveValue()
+const multiclass_negativepredictive_value  = MulticlassNegativePredictiveValue()
+const MNPV                                 = MulticlassNegativePredictiveValue
 
 
 # -----------------------------------------------------

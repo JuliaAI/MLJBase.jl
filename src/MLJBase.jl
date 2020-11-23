@@ -226,7 +226,7 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
       MulticlassFalseNegative, MulticlassTruePositiveRate,
       MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
       MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
-      MulticlassPrecision, MulticlassNPV, MulticlassFScore,
+      MulticlassPrecision, MulticlassNegativePredictiveValue, MulticlassFScore,
       # standard synonyms
       MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
       MulticlassRecall, MulticlassSpecificity,

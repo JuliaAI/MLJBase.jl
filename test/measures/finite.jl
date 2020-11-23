@@ -446,7 +446,7 @@ end
     m = MulticlassPrecision()
     @test m(ŷ, y) == multiclass_precision(ŷ, y)
     @test m(ŷ, y, w) == multiclass_precision(ŷ, y, w)
-    m = MulticlassNPV()
+    m = MulticlassNegativePredictiveValue()
     @test m(ŷ, y) == multiclass_npv(ŷ, y)
     @test m(ŷ, y, w) == multiclass_npv(ŷ, y, w)
     m = MulticlassFScore()
