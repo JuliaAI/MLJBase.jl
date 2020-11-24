@@ -186,7 +186,13 @@ export orientation, reports_each_observation,
     spports_weights, prediction_type
 
 # measures/continuous.jl:
-export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
+    MAV, MAE, MeanAbsoluteError, mean_absolute_error, mean_absolute_value,
+    LPLoss, RootMeanSquaredProportionalError, RMSP,
+    RMS, rmse, RootMeanSquaredError, root_mean_squared_error,
+    RootMeanSquaredLogError, RMSL, root_mean_squared_log_error, rmsl, rmsle,
+    RootMeanSquaredLogProportionalError, rmsl1, RMSLP,
+    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat

@@ -100,7 +100,7 @@ function is_uppercase(char::Char)
     i > 64 && i < 91
 end
 
-function snakecase(str::AbstractString)
+function snakecase(str::AbstractString; delim='_')
     snake = Char[]
     n = length(str)
     for i in eachindex(str)
@@ -108,7 +108,7 @@ function snakecase(str::AbstractString)
         if is_uppercase(char)
             if i != 1 && i < n &&
                 !(is_uppercase(str[i + 1]) && is_uppercase(str[i - 1]))
-                push!(snake, '_')
+                push!(snake, delim)
             end
             push!(snake, lowercase(char))
         else

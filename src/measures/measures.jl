@@ -1,9 +1,10 @@
-## TRAITS FOR MEASURES
+## TRAITS
 
 is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
-    [:name, :target_scitype, :supports_weights, :prediction_type, :orientation,
+    [:name, :instances, :target_scitype, :supports_weights,
+     :prediction_type, :orientation,
      :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
      :distribution_type, :supports_class_weights]
 
@@ -20,18 +21,50 @@ orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
 aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
+instances(::Type) = String[]
 
 # extend to instances:
 orientation(m) = orientation(typeof(m))
 reports_each_observation(m) = reports_each_observation(typeof(m))
 aggregation(m) = aggregation(typeof(m))
 is_feature_dependent(m) = is_feature_dependent(typeof(m))
+instance(m) = instances(typeof(m))
 
-#specific to multiclass measures:
+#specific to `Finite` measures:
 supports_class_weights(::Type) = false
+supports_class_weights(m) = supports_class_weights(typeof(m))
 
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
+
+
+## FOR BUILT-IN MEASURES
+
+abstract type Measure <: MLJType end
+is_measure_type(::Type{<:Measure}) = true
+is_measure(m) = is_measure_type(typeof(m))
+
+# docstring fall-back:
+informal_name(M) = snakecase(name(M), delim=' ')
+_decorate(s::AbstractString) = "`$s`"
+_decorate(v::Vector{<:AbstractString}) = join(_decorate.(v), ", ")
+function MMI.docstring(M::Type{<:Measure})
+    list = _decorate(instances(M))
+    ret = "`$(name(M))` - $(informal_name(M)) type"
+    isempty(list) || (ret *= " with instances $list")
+    ret *= ". "
+    return ret
+end
+
+# display:
+show_as_constructed(::Type{<:Measure}) = true
+
+# info (see also src/init.jl):
+function MLJScientificTypes.info(M, ::Val{:measure_type})
+    values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
+    return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
+end
+MLJScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
 ## AGGREGATION
@@ -96,73 +129,10 @@ function check_pools(ŷ, y)
     return nothing
 end
 
-## FOR BUILT-IN MEASURES
-
-abstract type Measure <: MLJType end
-is_measure_type(::Type{<:Measure}) = true
-is_measure(m) = is_measure_type(typeof(m))
-
-
-
-## DISPLAY AND INFO
-
-# Base.show(stream::IO, ::MIME"text/plain", m::Measure) =
-#     print(stream, "$(name(m)) (callable Measure)")
-# Base.show(stream::IO, m::Measure) = print(stream, name(m))
-
-show_as_constructed(::Type{<:Measure}) = true
-
-function MLJScientificTypes.info(M, ::Val{:measure_type})
-    values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
-    return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
-end
-
-MLJScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
-
-
-"""
-    metadata_measure(T; kw...)
-
-Helper function to write the metadata for a single measure.
-"""
-function metadata_measure(T; name::String="",
-                          target_scitype=Unknown,
-                          prediction_type::Symbol=:unknown,
-                          orientation::Symbol=:unknown,
-                          reports_each_observation::Bool=true,
-                          aggregation=Mean(),
-                          is_feature_dependent::Bool=false,
-                          supports_weights::Bool=false,
-                          supports_class_weights::Bool=false,
-                          docstring::String="",
-                          distribution_type=missing)
-    pred_str        = "$prediction_type"
-    orientation_str = "$orientation"
-    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
-    ex = quote
-        if !isempty($name)
-            MMI.name(::Type{<:$T}) = $name
-        end
-        if !isempty($docstring)
-            MMI.docstring(::Type{<:$T}) = $docstring
-        end
-        # traits common with models
-        MMI.target_scitype(::Type{<:$T}) = $target_scitype
-        MMI.prediction_type(::Type{<:$T}) = Symbol($pred_str)
-        MMI.supports_weights(::Type{<:$T}) = $supports_weights
-        # traits specific to measures
-        orientation(::Type{<:$T}) = Symbol($orientation_str)
-        reports_each_observation(::Type{<:$T}) = $reports_each_observation
-        aggregation(::Type{<:$T}) = $aggregation
-        is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
-        supports_class_weights(::Type{<:$T}) = $supports_class_weights
-        distribution_type(::Type{<:$T}) = $dist
-    end
-    parentmodule(T).eval(ex)
-end
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
 
+include("meta_utilities.jl")
 include("continuous.jl")
 include("confusion_matrix.jl")
 include("finite.jl")
@@ -171,7 +141,7 @@ include("loss_functions_interface.jl")
 ## DEFAULT MEASURES
 default_measure(T, S) = nothing
 
-# Deterministic + Continuous / Count ==> RMS
+# Deterministic + Continuous / Count ==> RootMeanSquaredError
 default_measure(::Type{<:Deterministic},
                 ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}}) = rms
 

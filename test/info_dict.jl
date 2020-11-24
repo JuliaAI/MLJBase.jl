@@ -179,8 +179,7 @@ end
 end
 
 @testset "info for measures" begin
-    @test info(rms).name == "rms"
-    info(L2DistLoss()).name == "LPDistLoss{2}"
+    @test info(rms).name == "RootMeanSquaredError"
 end
 
 end

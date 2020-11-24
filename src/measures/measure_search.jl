@@ -21,7 +21,7 @@ push!(MEASURE_TYPES, Confusion)
 const MeasureProxy = NamedTuple{Tuple(MEASURE_TRAITS)}
 
 Base.show(stream::IO, p::MeasureProxy) =
-    print(stream, "(name = $(p.name), ...)")
+    print(stream, "(name = $(p.name), instances= $(p.instances), ...)")
 
 function Base.show(stream::IO, ::MIME"text/plain", p::MeasureProxy)
     printstyled(IOContext(stream, :color=> MLJBase.SHOW_COLOR),
