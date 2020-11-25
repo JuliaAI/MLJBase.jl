@@ -27,5 +27,4 @@ end
 @test !("LogLoss" in ms)
 @test "RootMeanSquaredError"  in ms
 
-
 true

@@ -100,7 +100,7 @@ function metadata_measure(T; name::String="",
                           distribution_type=missing)
     pred_str        = "$prediction_type"
     orientation_str = "$orientation"
-    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
+#    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
     ex = quote
 
         # traits common with models:
@@ -126,7 +126,7 @@ function metadata_measure(T; name::String="",
         aggregation(::Type{<:$T}) = $aggregation
         is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
         supports_class_weights(::Type{<:$T}) = $supports_class_weights
-        distribution_type(::Type{<:$T}) = $dist
+        distribution_type(::Type{<:$T}) = $distribution_type
 
     end
     parentmodule(T).eval(ex)
