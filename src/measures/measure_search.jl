@@ -1,14 +1,4 @@
-# *Important:* If there is a measure trait that depends on the value
-# of a type parameter (eg, `target_scitype(Brier_Score{D})` depends on
-# the value of `D`) then we need a separate listing below for each
-# case. Otherwise, the UnionAll type suffices. So, for example,
-# although `FScore{β}` has a type parameter `β`, no trait depends on the
-# value of `β`, so we need only an entry for `FScore`
-
-
 const LOCAL_MEASURE_TYPES = subtypes(MLJBase.Measure)
-filter!(M -> M != BrierScore, LOCAL_MEASURE_TYPES)
-push!(LOCAL_MEASURE_TYPES, BrierScore{UnivariateFinite})
 
 const LOSSFUNCTIONS_MEASURE_TYPES =
     vcat(subtypes(LossFunctions.MarginLoss),
@@ -20,8 +10,10 @@ push!(MEASURE_TYPES, Confusion)
 
 const MeasureProxy = NamedTuple{Tuple(MEASURE_TRAITS)}
 
-Base.show(stream::IO, p::MeasureProxy) =
-    print(stream, "(name = $(p.name), instances= $(p.instances), ...)")
+function Base.show(stream::IO, p::MeasureProxy)
+    instances = "["*join(p.instances, ", ")*"]"
+    print(stream, "(name = $(p.name), instances = $instances, ...)")
+end
 
 function Base.show(stream::IO, ::MIME"text/plain", p::MeasureProxy)
     printstyled(IOContext(stream, :color=> MLJBase.SHOW_COLOR),

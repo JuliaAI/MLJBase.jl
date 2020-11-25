@@ -1,4 +1,7 @@
-## REGRESSOR METRICS (FOR DETERMINISTIC PREDICTIONS)
+const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
+
+# ===========================================================
+## DETERMINISTIC PREDICTIONS
 
 # -----------------------------------------------------------
 # MeanAbsoluteError
@@ -19,13 +22,12 @@ const MAE = MeanAbsoluteError
 const MAV = MeanAbsoluteError
 @create_aliases MeanAbsoluteError
 
-body =
+@create_docs(MeanAbsoluteError,
+body=
 """
 ``\\text{mean absolute error} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
-"""
-"$(detailed_doc_string(MeanAbsoluteError, body=body))"
-function MeanAbsoluteError end
+""")
 
 function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -65,16 +67,15 @@ metadata_measure(RootMeanSquaredError;
                  is_feature_dependent     = false,
                  supports_weights         = true)
 
-const RMS = RootMeanSquaredError()
+const RMS = RootMeanSquaredError
 @create_aliases RootMeanSquaredError
 
-body =
+@create_docs(RootMeanSquaredError,
+body=
 """
 ``\\text{root mean squared error} = \\sqrt{n^{-1}∑ᵢ|yᵢ-ŷᵢ|^2}`` or
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
-"""
-"$(detailed_doc_string(RootMeanSquaredError, body=body))"
-function RootMeanSquaredError end
+""")
 
 function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -118,13 +119,12 @@ metadata_measure(LPLoss;
 const l1 = LPLoss(1)
 const l2 = LPLoss(2)
 
+@create_docs(LPLoss,
 body=
 """
-Constructor key-word arguments: `p` (default = 2). Reports
+Constructor signature: `LPLoss(p=2)`. Reports
 `|ŷ[i] - y[i]|^p` for every index `i`.
-"""
-"$(detailed_doc_string(LPLoss, body=body))"
-function LPLoss end
+""")
 
 function (m::LPLoss)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -155,14 +155,14 @@ metadata_measure(RootMeanSquaredLogError;
 
 const RMSL = RootMeanSquaredLogError
 @create_aliases RootMeanSquaredLogError
-body =
+
+@create_docs(RootMeanSquaredLogError,
+body=
 """
 ``\\text{root mean squared log error} =
 n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
-"""
-footer = "See also [`rmslp1`](@ref)."
-"$(detailed_doc_string(RootMeanSquaredLogError, body=body, footer=footer))"
-function RootMeanSquaredLogError end
+""",
+footer="See also [`rmslp1`](@ref).")
 
 function (::RootMeanSquaredLogError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -197,16 +197,15 @@ metadata_measure(RootMeanSquaredLogProportionalError;
 const RMSLP = RootMeanSquaredLogProportionalError
 @create_aliases RootMeanSquaredLogProportionalError
 
-body =
+@create_docs(RootMeanSquaredLogProportionalError,
+body=
 """
-Constructor key-word arguments: `offset` (default = 1.0).
+Constructor signature: `RootMeanSquaredLogProportionalError(; offset = 1.0)`.
 
 ``\\text{root mean squared log proportional error} =
 n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\right)``
-"""
-footer = "See also [`rmsl`](@ref). "
-"$(detailed_doc_string(RMSLP, body=body, footer=footer))"
-function RootMeanSquaredLogProportionalError end
+""",
+footer="See also [`rmsl`](@ref). ")
 
 function (m::RMSLP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -241,7 +240,8 @@ metadata_measure(RootMeanSquaredProportionalError;
 const RMSP = RootMeanSquaredProportionalError
 @create_aliases RMSP
 
-body =
+@create_docs(RootMeanSquaredProportionalError,
+body=
 """
 Constructor keyword arguments: `tol` (default = `eps()`).
 
@@ -251,9 +251,7 @@ m^{-1}∑ᵢ \\left({yᵢ-ŷᵢ \\over yᵢ}\\right)^2``
 where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 
-"""
-"$(detailed_doc_string(RMSP, body=body))"
-function RootMeanSquaredProportionalError end
+""")
 
 function (m::RootMeanSquaredProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -293,6 +291,7 @@ metadata_measure(MeanAbsoluteProportionalError;
 const MAPE = MeanAbsoluteProportionalError
 @create_aliases MAPE
 
+@create_docs(MeanAbsoluteProportionalError,
 body=
 """
 Constructor key-word arguments: `tol` (default = `eps()`).
@@ -301,9 +300,7 @@ Constructor key-word arguments: `tol` (default = `eps()`).
 
 where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
-"""
-"$(detailed_doc_string(MAPE, body=body))"
-function MeanAbsoluteProportionalError end
+""")
 
 function (m::MeanAbsoluteProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     check_dimensions(ŷ, y)
@@ -340,9 +337,8 @@ metadata_measure(LogCoshLoss;
 const LogCosh = LogCoshLoss
 @create_aliases LogCoshLoss
 
-body = "Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. "
-"$(detailed_doc_string(LogCoshLoss, body=body))"
-function LogCoshLoss end
+@create_docs(LogCoshLoss,
+body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ")
 
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))

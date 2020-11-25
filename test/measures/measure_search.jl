@@ -1,7 +1,7 @@
 ms = map(measures()) do m
     m.name
 end
-@test "cross_entropy" in ms
+@test "LogLoss" in ms
 @test "RootMeanSquaredError"  in ms
 
 # test `M()` makes sense for all measure types `M` extracted from `name`,
@@ -18,13 +18,13 @@ end
 ms = map(measures(matching(categorical(1:3)))) do m
          m.name
 end
-@test "cross_entropy" in ms
+@test "LogLoss" in ms
 @test !("RootMeanSquaredError"  in ms)
 
 ms = map(measures(matching(rand(3)))) do m
          m.name
 end
-@test !("cross_entropy" in ms)
+@test !("LogLoss" in ms)
 @test "RootMeanSquaredError"  in ms
 
 

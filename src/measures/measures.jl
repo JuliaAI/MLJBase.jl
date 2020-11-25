@@ -3,7 +3,7 @@
 is_measure_type(::Any) = false
 
 const MEASURE_TRAITS =
-    [:name, :instances, :target_scitype, :supports_weights,
+    [:name, :instances, :human_name, :target_scitype, :supports_weights,
      :prediction_type, :orientation,
      :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
      :distribution_type, :supports_class_weights]
@@ -22,35 +22,34 @@ reports_each_observation(::Type) = false
 aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
 instances(::Type) = String[]
+human_name(::Type) = snakecase(name(M), delim=' ')
 
-# extend to instances:
-orientation(m) = orientation(typeof(m))
-reports_each_observation(m) = reports_each_observation(typeof(m))
-aggregation(m) = aggregation(typeof(m))
-is_feature_dependent(m) = is_feature_dependent(typeof(m))
-instance(m) = instances(typeof(m))
-
-#specific to `Finite` measures:
+# specific to `Finite` measures:
 supports_class_weights(::Type) = false
-supports_class_weights(m) = supports_class_weights(typeof(m))
 
 # specific to probabilistic measures:
 distribution_type(::Type) = missing
 
+# extend to instances:
+for trait in [:orientation, :reports_each_observation, :aggregation,
+              :is_feature_dependent, :instances, :supports_class_weights,
+              :distribution_type]
+    eval(:($trait(m) = $trait(typeof(m))))
+end
 
-## FOR BUILT-IN MEASURES
+
+## FOR BUILT-IN MEASURES (subtyping Measure)
 
 abstract type Measure <: MLJType end
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
 
 # docstring fall-back:
-informal_name(M) = snakecase(name(M), delim=' ')
 _decorate(s::AbstractString) = "`$s`"
 _decorate(v::Vector{<:AbstractString}) = join(_decorate.(v), ", ")
 function MMI.docstring(M::Type{<:Measure})
     list = _decorate(instances(M))
-    ret = "`$(name(M))` - $(informal_name(M)) type"
+    ret = "`$(name(M))` - $(human_name(M)) type"
     isempty(list) || (ret *= " with instances $list")
     ret *= ". "
     return ret
@@ -141,7 +140,7 @@ include("loss_functions_interface.jl")
 ## DEFAULT MEASURES
 default_measure(T, S) = nothing
 
-# Deterministic + Continuous / Count ==> RootMeanSquaredError
+# Deterministic + Continuous / Count ==> RMS
 default_measure(::Type{<:Deterministic},
                 ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}}) = rms
 

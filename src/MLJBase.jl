@@ -80,29 +80,30 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-       fitted_params, predict, predict_mode, predict_mean, predict_median, predict_joint,
-       evaluate, clean!
+    fitted_params, predict,
+    predict_mode, predict_mean, predict_median, predict_joint,
+    evaluate, clean!
 
 # model/measure matching:
 export Checker, matching
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
-       is_pure_julia, package_name, package_license,
-       load_path, package_uuid, package_url,
-       is_wrapper, supports_weights, supports_online,
-       docstring, name, is_supervised,
-       prediction_type, implemented_methods, hyperparameters,
-       hyperparameter_types, hyperparameter_ranges
+    is_pure_julia, package_name, package_license,
+    load_path, package_uuid, package_url,
+    is_wrapper, supports_weights, supports_online,
+    docstring, name, is_supervised,
+    prediction_type, implemented_methods, hyperparameters,
+    hyperparameter_types, hyperparameter_ranges
 
 # data operations
 export matrix, int, classes, decoder, table,
-       nrows, selectrows, selectcols, select
+    nrows, selectrows, selectcols, select
 
 # re-exports from MLJScientificTypes
 export Unknown, Known, Finite, Infinite,
-       OrderedFactor, Multiclass, Count, Continuous, Textual,
-       Binary, ColorImage, GrayImage, Image, Table
+    OrderedFactor, Multiclass, Count, Continuous, Textual,
+    Binary, ColorImage, GrayImage, Image, Table
 export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
 
@@ -183,7 +184,7 @@ export measures, metadata_measure
 export orientation, reports_each_observation,
     is_feature_dependent, aggregation,
     aggregate, default_measure, value,
-    spports_weights, prediction_type
+    supports_class_weights, prediction_type, human_name
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
@@ -197,11 +198,14 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat
 
-# measures/finite.jl
+# measures/finite.jl:
 export cross_entropy, BrierScore, brier_score,
-       misclassification_rate, mcr, accuracy,
-       balanced_accuracy, bacc, bac,
-       matthews_correlation, mcc
+    BrierLoss, brier_loss,
+    LogLoss, log_loss,
+    misclassification_rate, mcr, accuracy,
+    balanced_accuracy, bacc, bac,
+    matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
+    MisclassificationRate, Accuracy, MCR, BACC, BAC
 
 # measures/finite.jl -- Multiclass{2} (order independent):
 export auc, area_under_curve, roc_curve, roc
