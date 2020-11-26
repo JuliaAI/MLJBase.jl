@@ -51,8 +51,8 @@ function detailed_doc_string(M; body="", footer="", scientific_type="")
     isempty(body) || (ret *= "$body\n\n")
     ret *= "Requires `scitype(y)` to be a subtype of $scientific_type; "
     ret *= "`ŷ` must be a $(prediction_type(M)) prediction. "
-    ret *= "\n\n"
     isempty(footer) ||(ret *= "\n\n$footer")
+    ret *= "\n\n"
     ret *= "For more information, run `info($(name(M)))`. "
     return ret
 end

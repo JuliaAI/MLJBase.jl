@@ -9,7 +9,8 @@ const MEASURE_TRAITS =
      :distribution_type, :supports_class_weights]
 
 # already defined in model_traits.jl:
-# name              - fallback for non-MLJType is string(M) where M is arg
+# name              - fallback for non-MLJType is string(coretype(M))
+#                                                      where M is arg
 # target_scitype    - fallback value = Unknown
 # supports_weights  - fallback value = false
 # prediction_type   - fallback value = :unknown (also: :deterministic,
@@ -21,8 +22,8 @@ orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
 aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
-instances(::Type) = String[]
 human_name(::Type) = snakecase(name(M), delim=' ')
+instances(::Type) = String[]
 
 # specific to `Finite` measures:
 supports_class_weights(::Type) = false
@@ -32,7 +33,7 @@ distribution_type(::Type) = missing
 
 # extend to instances:
 for trait in [:orientation, :reports_each_observation, :aggregation,
-              :is_feature_dependent, :instances, :supports_class_weights,
+              :is_feature_dependent, :supports_class_weights,
               :distribution_type]
     eval(:($trait(m) = $trait(typeof(m))))
 end

@@ -4,7 +4,7 @@ using MLJBase, Test
 import Distributions
 using CategoricalArrays
 using Statistics
-using LossFunctions
+import LossFunctions
 using StableRNGs
 using OrderedCollections: LittleDict
 

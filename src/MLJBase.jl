@@ -52,6 +52,13 @@ const Dist = Distributions
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
+# external loss functions:
+import LossFunctions: DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss,
+    L2MarginLoss, LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss,
+    SigmoidLoss, SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
+    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss, QuantileLoss
+
+
 # ===================================================================
 ## EXPORTS
 
@@ -261,6 +268,21 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
       # averaging modes
       no_avg, macro_avg, micro_avg
 
+# measures/loss_functions_interface.jl
+export dwd_margin_loss, exp_loss, l1_hinge_loss, l2_hinge_loss, l2_margin_loss,
+    logit_margin_loss, modified_huber_loss, perceptron_loss, sigmoid_loss,
+    smoothed_l1_hinge_loss, zero_one_loss, huber_loss, l1_epsilon_ins_loss,
+    l2_epsilon_ins_loss, lp_dist_loss, logit_dist_loss, periodic_loss,
+    quantile_loss
+
+# ------------------------------------------------------------------------
+# re-export from LossFunctions:
+export DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss, L2MarginLoss,
+    LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss, SigmoidLoss,
+    SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
+    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss,
+    QuantileLoss
+ 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # OrderedCollections, CategoricalArrays, InvertedIndices:

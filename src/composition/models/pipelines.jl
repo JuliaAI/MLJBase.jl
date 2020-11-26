@@ -118,6 +118,8 @@ function snakecase(str::AbstractString; delim='_')
     return join(snake)
 end
 
+snakecase(s::Symbol) = Symbol(snakecase(string(s)))
+
 # `M` is a model type and the return value a `Symbol`. The
 # `existing_names` gets updated.
 function generate_name!(M::DataType, existing_names)
