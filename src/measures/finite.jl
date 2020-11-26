@@ -5,9 +5,9 @@
 # LogLoss
 
 struct LogLoss{R} <: Measure where R <: Real
-    eps::R
+    tol::R
 end
-LogLoss(;eps=eps()) = LogLoss(eps)
+LogLoss(;eps=eps(), tol=eps) = LogLoss(tol)
 
 metadata_measure(LogLoss;
                  instances                = ["log_loss", "cross_entropy"],
@@ -27,35 +27,35 @@ body=
 """
 Since the score is undefined in the case that the true observation is
 predicted to occur with probability zero, probablities are clipped
-between `eps` and `1-eps`, where `eps` is a constructor key-word
+between `tol` and `1-tol`, where `tol` is a constructor key-word
 argument.
 
 If `sᵢ` is the predicted probability for the true class `yᵢ` then
 the score for that example is given by
 
-    -log(clamp(sᵢ, eps), 1 - eps)
+    -log(clamp(sᵢ, tol), 1 - tol)
 
 A score is reported for every observation.
 """,
 scientific_type=DOC_FINITE)
 
 # for single observation:
-_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, eps) where {S,V,R,P} =
-    -log(clamp(pdf(d, y), P(eps), P(1) - P(eps)))
+_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
+    -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
 
 # multiple observations:
 function (c::LogLoss)(ŷ::Vec{<:UnivariateFinite},
                            y::Vec)
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y, c.eps)
+    return broadcast(_cross_entropy, ŷ, y, c.tol)
 end
 # performant in case of UnivariateFiniteArray:
 function (c::LogLoss)(ŷ::UnivariateFiniteVector{S,V,R,P},
                            y::Vec) where {S,V,R,P}
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.eps), P(1) - P(c.eps)))
+    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
 end
 
 # -----------------------------------------------------
@@ -696,8 +696,10 @@ ground truth values, `y`. $DS_AVG_RET $CLASS_W
 For more information, run `info(MulticlassFScore)`.
 
 """
-struct MulticlassFScore{M<:MulticlassAvg, U<:Union{Vector, LittleDict}} <:Measure
-    β::Float64
+struct MulticlassFScore{T<:Real,
+                        M<:MulticlassAvg,
+                        U<:Union{Vector, LittleDict}} <:Measure
+    β::T
     average::M
     return_type::Type{U}
 end
@@ -743,7 +745,8 @@ const _mtn_vec = MulticlassTrueNegative(return_type=Vector)
 
 for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
           :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
-          :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNegativePredictiveValue)
+          :MulticlassFalseDiscoveryRate, :MulticlassPrecision,
+          :MulticlassNegativePredictiveValue)
     ex = quote
         struct $M{T<:MulticlassAvg, U<:Union{Vector, LittleDict}} <: Measure
             average::T

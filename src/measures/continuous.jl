@@ -99,8 +99,8 @@ end
 # -------------------------------------------------------------------
 # LP
 
-struct LPLoss <: Measure
-    p::Float64
+struct LPLoss{T<:Real} <: Measure
+    p::T
 end
 
 LPLoss(; p=2.0) = LPLoss(p)
@@ -175,8 +175,8 @@ end
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
 
-struct RootMeanSquaredLogProportionalError <: Measure
-    offset::Float64
+struct RootMeanSquaredLogProportionalError{T<:Real} <: Measure
+    offset::T
 end
 
 RootMeanSquaredLogProportionalError(; offset=1.0) =
@@ -218,8 +218,8 @@ end
 # --------------------------------------------------------------------------
 # RootMeanSquaredProportionalError
 
-struct RootMeanSquaredProportionalError <: Measure
-    tol::Float64
+struct RootMeanSquaredProportionalError{T<:Real} <: Measure
+    tol::T
 end
 
 RootMeanSquaredProportionalError(; tol=eps()) =
@@ -269,8 +269,8 @@ end
 # -----------------------------------------------------------------------
 # MeanAbsoluteProportionalError
 
-struct MeanAbsoluteProportionalError <: Measure
-    tol::Float64
+struct MeanAbsoluteProportionalError{T} <: Measure
+    tol::T
 end
 
 MeanAbsoluteProportionalError(; tol=eps()) = MeanAbsoluteProportionalError(tol)
