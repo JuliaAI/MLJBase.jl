@@ -210,32 +210,34 @@ export cross_entropy, BrierScore, brier_score,
     BrierLoss, brier_loss,
     LogLoss, log_loss,
     misclassification_rate, mcr, accuracy,
-    balanced_accuracy, bacc, bac,
+    balanced_accuracy, bacc, bac, BalancedAccuracy,
     matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
-    MisclassificationRate, Accuracy, MCR, BACC, BAC
+    MisclassificationRate, Accuracy, MCR, BACC, BAC,
+    MatthewsCorrelation
 
 # measures/finite.jl -- Multiclass{2} (order independent):
 export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
-       TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
-       FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
-       # standard synonyms
-       TPR, TNR, FPR, FNR, FDR, PPV,
-       Recall, Specificity, BACC,
-       # instances and their synonyms
-       truepositive, truenegative, falsepositive, falsenegative,
-       true_positive, true_negative, false_positive, false_negative,
-       truepositive_rate, truenegative_rate, falsepositive_rate,
-       true_positive_rate, true_negative_rate, false_positive_rate,
-       falsenegative_rate, negativepredictive_value,
-       false_negative_rate, negative_predictive_value,
-       positivepredictive_value, positive_predictive_value,
-       tpr, tnr, fpr, fnr,
-       falsediscovery_rate, false_discovery_rate, fdr, npv, ppv,
-       recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, fallout
+    TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
+    FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
+    NegativePredictiveValue,
+    # standard synonyms
+    TPR, TNR, FPR, FNR, FDR, PPV,
+    Recall, Specificity, BACC,
+    # instances and their synonyms
+    truepositive, truenegative, falsepositive, falsenegative,
+    true_positive, true_negative, false_positive, false_negative,
+    truepositive_rate, truenegative_rate, falsepositive_rate,
+    true_positive_rate, true_negative_rate, false_positive_rate,
+    falsenegative_rate, negativepredictive_value,
+    false_negative_rate, negative_predictive_value,
+    positivepredictive_value, positive_predictive_value,
+    tpr, tnr, fpr, fnr,
+    falsediscovery_rate, false_discovery_rate, fdr, npv, ppv,
+    recall, sensitivity, hit_rate, miss_rate,
+    specificity, selectivity, f1score, fallout
 
 # measures/finite.jl -- Finite{N} - multiclass generalizations of
 # above OrderedFactor{2} measures (but order independent):

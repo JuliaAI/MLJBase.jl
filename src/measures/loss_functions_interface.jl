@@ -102,7 +102,7 @@ for M_ex in MARGIN_LOSSES
          @create_aliases $M_ex
          @create_docs($M_ex,
             body="See above for original LossFunctions.jl documentation. ",
-            scientific_type=DOC_FINITE_BINARY,
+            scitype=DOC_FINITE_BINARY,
             footer= sig)
          end)
 end

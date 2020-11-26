@@ -17,12 +17,12 @@ macro create_aliases(M_ex)
         end)
 end
 
-function detailed_doc_string(M; body="", footer="", scientific_type="")
+function detailed_doc_string(M; body="", footer="", scitype="")
 
     _instances = _decorate(instances(M))
     human_name = MLJBase.human_name(M)
-    if isempty(scientific_type)
-        scientific_type = target_scitype(M) |> string
+    if isempty(scitype)
+        scitype = target_scitype(M) |> string
     end
 
     ret =  "    $M\n\n"
@@ -49,7 +49,7 @@ function detailed_doc_string(M; body="", footer="", scientific_type="")
         (ret *= DOC_CLASS_WEIGHTS)
     ret *= "\n\n"
     isempty(body) || (ret *= "$body\n\n")
-    ret *= "Requires `scitype(y)` to be a subtype of $scientific_type; "
+    ret *= "Requires `scitype(y)` to be a subtype of $scitype; "
     ret *= "`ŷ` must be a $(prediction_type(M)) prediction. "
     isempty(footer) ||(ret *= "\n\n$footer")
     ret *= "\n\n"
@@ -60,7 +60,7 @@ end
 
 _err_create_docs() = error(
     "@create_docs syntax error. Usage: \n"*
-    "@create_docs(MeasureType, body=..., scientific_type=..., footer=...")
+    "@create_docs(MeasureType, body=..., scitype=..., footer=...")
 macro create_docs(M_ex, exs...)
     M_ex isa Symbol || _err_create_docs()
     b = ""
@@ -69,11 +69,11 @@ macro create_docs(M_ex, exs...)
     for ex in exs
         ex.head == :(=) || _err_create_docs()
         ex.args[1] == :body &&            (b = ex.args[2])
-        ex.args[1] == :scientific_type && (s = ex.args[2])
+        ex.args[1] == :scitype && (s = ex.args[2])
         ex.args[1] == :footer &&          (f = ex.args[2])
     end
     esc(quote
-        "$(detailed_doc_string($M_ex, body=$b, scientific_type=$s, footer=$f))"
+        "$(detailed_doc_string($M_ex, body=$b, scitype=$s, footer=$f))"
         function $M_ex end
         end)
 end

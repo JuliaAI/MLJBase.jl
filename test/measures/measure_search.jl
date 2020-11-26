@@ -5,11 +5,10 @@ end
 @test "RootMeanSquaredError"  in ms
 
 # test `M()` makes sense for all measure types `M` extracted from `name`,
-# and that all detailed doc strings are non-empty:
-@test_broken all(Symbol.(ms)) do ex
-    m = try
+@test all(Symbol.(ms)) do ex
+    try
         eval(:($ex()))
-        !isempty(MLJBase.detailed_doc_string(typeof(m)))
+        true
     catch
         false
     end

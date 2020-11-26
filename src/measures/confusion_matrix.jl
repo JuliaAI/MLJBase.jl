@@ -226,7 +226,7 @@ Use `ConfusionMatrix(perm=[2, 1])` to reverse the class order for binary
 data. For more than two classes, specify an appropriate permutation, as in
 `ConfusionMatrix(perm=[2, 3, 1])`.
 """,
-scientific_type=DOC_ORDERED_FACTOR_BINARY)
+scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
 (m::ConfusionMatrix)(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue}) =

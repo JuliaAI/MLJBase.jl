@@ -37,7 +37,7 @@ the score for that example is given by
 
 A score is reported for every observation.
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # for single observation:
 _cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
@@ -92,7 +92,7 @@ despite the name. Moreover, the present implementation does not treat
 the binary case as special, so that the score may differ, in that
 case, by a factor of two from usage elsewhere.
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # calling on single observations (no checks):
 function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
@@ -176,7 +176,7 @@ positive).  Note also the present implementation does not treat the
 binary case as special, so that the loss may differ, in that case, by
 a factor of two from usage elsewhere.
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # calling on single observations (no checks):
 function _brier_loss(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
@@ -225,7 +225,7 @@ body=
 A confusion matrix can also be passed as argument.
 $INVARIANT_LABEL
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # calling behaviour:
 (::MCR)(ŷ::Vec{<:CategoricalValue},
@@ -257,7 +257,7 @@ body=
 Accuracy is proportion of correct predictions `ŷ[i]` that match the
 ground truth `y[i]` observations. $INVARIANT_LABEL
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # calling behaviour:
 (::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
@@ -287,7 +287,7 @@ Balanced accuracy compensates standard [`Accuracy`](@ref) for class imbalance.
 See [https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data](https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data).
 $INVARIANT_LABEL
 """,
-scientific_type=DOC_FINITE)
+scitype=DOC_FINITE)
 
 # calling behavior:
 function (::BACC)(ŷ::Vec{<:CategoricalValue},
@@ -333,7 +333,7 @@ body=
 [https://en.wikipedia.org/wiki/Matthews_correlation_coefficient](https://en.wikipedia.org/wiki/Matthews_correlation_coefficient)
 $INVARIANT_LABEL
 """,
-scientific_type=DOC_FINITE_BINARY)
+scitype=DOC_FINITE_BINARY)
 
 # calling behaviour:
 function (::MCC)(cm::ConfusionMatrixObject{C}) where C
@@ -465,7 +465,7 @@ Constructor signature: `FScore(; β=1.0, rev=true)`.
 By default, the second element of `levels(y)` is designated as
 `true`. To reverse roles, specify `rev=true`.
 """,
-scientific_type=DOC_ORDERED_FACTOR_BINARY,
+scitype=DOC_ORDERED_FACTOR_BINARY,
 footer="Constructor signature: `FScore(β=1.0, rev=false)`. ")
 
 # calling on conf matrix:
@@ -587,7 +587,7 @@ for M in TRUE_POSITIVE_AND_COUSINS
          Assigns `false` to first element of `levels(y)`. To reverse roles,
          use `$(name($M))(rev=true)`.
          """,
-         scientific_type=DOC_ORDERED_FACTOR_BINARY)
+         scitype=DOC_ORDERED_FACTOR_BINARY)
          end)
 end
 
