@@ -51,7 +51,7 @@ end
     y = categorical(['m', 'f', 'n', 'f', 'm', 'n', 'n', 'm', 'f'])
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
-            accuracy(_confmat(ŷ, y, warn=false))  == 1-mcr(_confmat(ŷ, y, warn=false))
+            accuracy(MLJBase._confmat(ŷ, y, warn=false))  == 1-mcr(MLJBase._confmat(ŷ, y, warn=false))
     w = randn(rng,length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
@@ -82,7 +82,7 @@ end
     sk_mcc = -0.09759509982785947
     @test mcc(ŷ, y) == matthews_correlation(ŷ, y) ≈ sk_mcc
     # invariance with respect to permutation ?
-    cm = _confmat(ŷ, y, perm=[3, 1, 2, 4])
+    cm = MLJBase._confmat(ŷ, y, perm=[3, 1, 2, 4])
     @test mcc(cm) ≈ sk_mcc
 end
 
@@ -140,7 +140,7 @@ end
     # first class is 1 is assumed negative, second positive
     y = categorical([1, 2, 1, 2, 1, 1, 2])
     ŷ = categorical([1, 2, 2, 2, 2, 1, 2])
-    cm = _confmat(ŷ, y, warn=false)
+    cm = MLJBase._confmat(ŷ, y, warn=false)
     TN = sum(ŷ .== y .== 1) # pred and true = - (1)
     TP = sum(ŷ .== y .== 2) # pred and true = + (2)
     FP = sum(ŷ .!= y .== 1) # pred + (2) and true - (1)
@@ -150,7 +150,7 @@ end
     @test cm[1,2] == FN
     @test cm[2,1] == FP
 
-    cm2 = _confmat(ŷ, y; rev=true)
+    cm2 = MLJBase._confmat(ŷ, y; rev=true)
     @test cm2[1,1] == cm[2,2]
     @test cm2[1,2] == cm[2,1]
     @test cm2[2,2] == cm[1,1]
@@ -185,7 +185,7 @@ end
     y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], Multiclass)
     ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], Multiclass)
     class_w = Dict(0=>0,2=>2,1=>1)
-    cm = _confmat(ŷ, y, warn=false)
+    cm = MLJBase._confmat(ŷ, y, warn=false)
 
     #               ┌─────────────────────────────────────────┐
     #               │              Ground Truth               │
