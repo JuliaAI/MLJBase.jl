@@ -1,3 +1,14 @@
+const DOC_FINITE =
+    "`AbstractArray{<:Finite}` (multiclass classification)"
+const DOC_FINITE_BINARY =
+    "`AbstractArray{<:Finite{2}}` (binary classification)"
+const DOC_ORDERED_FACTOR =
+    "`AbstractArray{<:OrderedFactor}` (classification of ordered target)"
+const DOC_ORDERED_FACTOR_BINARY =
+    "`AbstractArray{<:OrderedFactor{2}}` "*
+    "(binary classification where choice of \"true\" effects the measure)"
+const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
+
 ## TRAITS
 
 is_measure_type(::Any) = false

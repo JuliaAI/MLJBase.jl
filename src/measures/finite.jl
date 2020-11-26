@@ -1,14 +1,3 @@
-const DOC_FINITE =
-    "`AbstractArray{<:Finite}` (multiclass classification)"
-const DOC_FINITE_BINARY =
-    "`AbstractArray{<:Finite{2}}` (binary classification)"
-const DOC_ORDERED_FACTOR =
-    "`AbstractArray{<:OrderedFactor}` (classification of ordered target)"
-const DOC_ORDERED_FACTOR_BINARY =
-    "`AbstractArray{<:OrderedFactor{2}}` "*
-    "(binary classification where choice of \"true\" effects the measure)"
-
-
 # ============================================================
 # PROBABILISTIC PREDICTIONS
 
@@ -244,7 +233,7 @@ scientific_type=DOC_FINITE)
 (::MCR)(ŷ::Vec{<:CategoricalValue},
         y::Vec{<:CategoricalValue},
         w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
-(::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
+(::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
 # accuracy
@@ -272,7 +261,7 @@ scientific_type=DOC_FINITE)
 
 # calling behaviour:
 (::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
-(::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
+(::Accuracy)(m::ConfusionMatrixObject) = sum(diag(m.mat)) / sum(m.mat)
 
 # -----------------------------------------------------------
 # balanced accuracy
@@ -347,7 +336,7 @@ $INVARIANT_LABEL
 scientific_type=DOC_FINITE_BINARY)
 
 # calling behaviour:
-function (::MCC)(cm::ConfusionMatrix{C}) where C
+function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     # http://rk.kvl.dk/introduction/index.html
     # NOTE: this is O(C^3), there may be a clever way to
     # speed this up though in general this is only used for low  C
@@ -373,7 +362,7 @@ end
 
 (m::MCC)(ŷ::Vec{<:CategoricalValue},
          y::Vec{<:CategoricalValue}) =
-             confmat(ŷ, y, warn=false) |> m
+             _confmat(ŷ, y, warn=false) |> m
 
 # ---------------------------------------------------------
 # AreaUnderCurve
@@ -439,7 +428,7 @@ end
 # ==========================================================================
 # DETERMINISTIC BINARY PREDICTIONS - ORDER DEPENDENT
 
-const CM2 = ConfusionMatrix{2}
+const CM2 = ConfusionMatrixObject{2}
 
 # --------------------------------------------------------------------------
 # FScore
@@ -489,7 +478,7 @@ function (score::FScore)(m::CM2)
 end
 
 # calling on vectors:
-(m::FScore)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
+(m::FScore)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
 # TruePositive and its cousins - struct and metadata declerations
@@ -657,18 +646,18 @@ _npv(m::CM2) = _tn(m) / (_tn(m) + _fn(m))
 # on vectors (ŷ, y):
 for M_ex in TRUE_POSITIVE_AND_COUSINS
     local M = eval(M_ex)
-    (m::M)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
+    (m::M)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 end
 
 # special `precision` case (conflict with Base.precision):
 Base.precision(m::CM2) = m |> Precision()
-Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
+Base.precision(ŷ, y)   = _confmat(ŷ, y) |> Precision()
 
 
 # =================================================================
 #MULTICLASS AND ORDER INDEPENDENT
 
-const CM = ConfusionMatrix{N} where N
+const CM = ConfusionMatrixObject{N} where N
 
 abstract type MulticlassAvg end
 struct MacroAvg <: MulticlassAvg end
@@ -1470,14 +1459,14 @@ end
 
 for M in (MulticlassTruePositive, MulticlassTrueNegative,
           MulticlassFalsePositive, MulticlassFalseNegative)
-    (m::M)(ŷ, y) = m(confmat(ŷ, y, warn=false))
+    (m::M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
 end
 
 for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV,
           MulticlassFScore)
-    @eval (m::$M)(ŷ, y) = m(confmat(ŷ, y, warn=false))
+    @eval (m::$M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
     @eval (m::$M)(ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
-                          m(confmat(ŷ, y, warn=false), class_w)
+                          m(_confmat(ŷ, y, warn=false), class_w)
 end
 
 

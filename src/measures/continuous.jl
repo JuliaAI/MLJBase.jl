@@ -1,5 +1,3 @@
-const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
-
 # ===========================================================
 ## DETERMINISTIC PREDICTIONS
 

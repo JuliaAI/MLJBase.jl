@@ -203,7 +203,7 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
     MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss
 
 # measures/confusion_matrix.jl:
-export confusion_matrix, confmat
+export confusion_matrix, confmat, ConfusionMatrix
 
 # measures/finite.jl:
 export cross_entropy, BrierScore, brier_score,
