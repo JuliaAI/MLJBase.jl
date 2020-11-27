@@ -44,14 +44,14 @@ const Vec = AbstractVector
               [.35, .65], [0.2, 0.8], [0.3, 0.7]]
     yhat3 = [UnivariateFinite(L2, prob) for prob in probs2]
     @test -mean(BrierScore()(yhat3, y2) / 2) ≈ 0.21875
-
+    @test mean(BrierLoss()(yhat3, y2) / 2) ≈ -mean(BrierScore()(yhat3, y2) / 2)
 end
 
 @testset "mcr, acc, bacc, mcc" begin
     y = categorical(['m', 'f', 'n', 'f', 'm', 'n', 'n', 'm', 'f'])
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
-            accuracy(confmat(ŷ, y, warn=false))  == 1-mcr(confmat(ŷ, y, warn=false))
+            accuracy(MLJBase._confmat(ŷ, y, warn=false))  == 1-mcr(MLJBase._confmat(ŷ, y, warn=false))
     w = randn(rng,length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
@@ -82,7 +82,7 @@ end
     sk_mcc = -0.09759509982785947
     @test mcc(ŷ, y) == matthews_correlation(ŷ, y) ≈ sk_mcc
     # invariance with respect to permutation ?
-    cm = confmat(ŷ, y, perm=[3, 1, 2, 4])
+    cm = MLJBase._confmat(ŷ, y, perm=[3, 1, 2, 4])
     @test mcc(cm) ≈ sk_mcc
 end
 
@@ -140,7 +140,7 @@ end
     # first class is 1 is assumed negative, second positive
     y = categorical([1, 2, 1, 2, 1, 1, 2])
     ŷ = categorical([1, 2, 2, 2, 2, 1, 2])
-    cm = confmat(ŷ, y, warn=false)
+    cm = MLJBase._confmat(ŷ, y, warn=false)
     TN = sum(ŷ .== y .== 1) # pred and true = - (1)
     TP = sum(ŷ .== y .== 2) # pred and true = + (2)
     FP = sum(ŷ .!= y .== 1) # pred + (2) and true - (1)
@@ -150,7 +150,7 @@ end
     @test cm[1,2] == FN
     @test cm[2,1] == FP
 
-    cm2 = confmat(ŷ, y; rev=true)
+    cm2 = MLJBase._confmat(ŷ, y; rev=true)
     @test cm2[1,1] == cm[2,2]
     @test cm2[1,2] == cm[2,1]
     @test cm2[2,2] == cm[1,1]
@@ -158,30 +158,34 @@ end
 
     @test accuracy(ŷ, y) == accuracy(cm) == sum(y .== ŷ) / length(y)
 
-    @test @test_logs (:warn, "The classes are un-ordered,\nusing: negative='1' and positive='2'.\nTo suppress this warning, consider coercing to OrderedFactor.") recall(ŷ, y) == TP / (TP + FN)
+    @test @test_logs((:warn, r"The classes are un-ordered"),
+                     recall(ŷ, y) == TP / (TP + FN))
 
     ŷ = coerce(ŷ, OrderedFactor)
     y = coerce(y, OrderedFactor)
 
     @test precision(ŷ, y)   == TP / (TP + FP)
     @test specificity(ŷ, y) == TN / (TN + FP)
-    @test f1score(ŷ, y)     == 2.0 / (1.0 / recall(ŷ, y) + 1.0 / precision(ŷ, y))
+    @test f1score(ŷ, y)     ==
+        2.0 / (1.0 / recall(ŷ, y) + 1.0 / precision(ŷ, y))
 
     recall_rev = Recall(rev=true)
-    @test recall_rev(ŷ, y) == TN / (TN + FP) # no warning because rev is specified
+    @test recall_rev(ŷ, y) ==
+        TN / (TN + FP) # no warning because rev is specified
     precision_rev = Precision(rev=true)
     @test precision_rev(ŷ, y) == TN / (TN + FN)
     specificity_rev = Specificity(rev=true)
     @test specificity_rev(ŷ, y) == TP / (TP + FN)
-    f1score_rev = FScore{1}(rev=true)
-    @test f1score_rev(ŷ, y) == 2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
+    f1score_rev = FScore(rev=true)
+    @test f1score_rev(ŷ, y) ==
+        2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
 end
 
 @testset "confusion matrix {n}" begin
     y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], Multiclass)
     ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], Multiclass)
     class_w = Dict(0=>0,2=>2,1=>1)
-    cm = confmat(ŷ, y, warn=false)
+    cm = MLJBase._confmat(ŷ, y, warn=false)
 
     #               ┌─────────────────────────────────────────┐
     #               │              Ground Truth               │
@@ -281,11 +285,11 @@ end
 @testset "Metadata binary" begin
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
-        m == accuracy    && (@test e.name == "accuracy")
-        m == recall      && (@test e.name == "true_positive_rate")
-        m isa Precision  && (@test e.name == "positive_predictive_value")
-        m == f1score     && (@test e.name == "FScore{1}")
-        m == specificity && (@test e.name == "true_negative_rate")
+        m == accuracy    && (@test e.name == "Accuracy")
+        m == recall      && (@test e.name == "TruePositiveRate")
+        m isa Precision  && (@test e.name == "Precision")
+        m == f1score     && (@test e.name == "FScore")
+        m == specificity && (@test e.name == "TrueNegativeRate")
         @test e.target_scitype <: AbstractVector{<:Finite}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
@@ -298,7 +302,7 @@ end
         end
     end
     e = info(auc)
-    @test e.name == "area_under_curve"
+    @test e.name == "AreaUnderCurve"
     @test e.target_scitype == AbstractVector{<:Finite{2}}
     @test e.prediction_type == :probabilistic
     @test e.reports_each_observation == false
@@ -360,7 +364,7 @@ end
     @test m(ŷ, y) == precision(ŷ, y)
     m = NPV()
     @test m(ŷ, y) == npv(ŷ, y)
-    m = FScore{1}()
+    m = FScore()
     @test m(ŷ, y) == f1score(ŷ, y)
     # check synonyms
     m = TPR()
@@ -389,7 +393,7 @@ end
     sk_rec = 0.6875
     @test recall(ŷ, y) == sk_rec # m.recall_score(y, yhat, pos_label=2)
     sk_f05 = 0.625
-    f05 = FScore{0.5}()
+    f05 = FScore(β=0.5)
     @test f05(ŷ, y) == sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
 
     # reversion mechanism
@@ -491,7 +495,7 @@ end
 end
 
 
-@testset "Additional multiclass functions" begin
+@testset "Additional multiclass tests" begin
     table = reshape(collect("aabbbccccddbabccbacccd"), 11, 2)
     table = coerce(table, Multiclass);
     yhat = table[:,1] # ['a', 'a', 'b', 'b', 'b', 'c', 'c', 'c', 'c', 'd', 'd']
@@ -587,5 +591,5 @@ end
 end
 
 @testset "docstrings coverage" begin
-    @test startswith(info(BrierScore()).docstring, "Brier proper scoring rule")
+    @test startswith(info(BrierScore()).docstring, "`BrierScore`")
 end
