@@ -33,7 +33,7 @@ orientation(::Type) = :loss  # other options are :score, :other
 reports_each_observation(::Type) = false
 aggregation(::Type) = Mean()  # other option is Sum() or callable object
 is_feature_dependent(::Type) = false
-human_name(::Type) = snakecase(name(M), delim=' ')
+human_name(M::Type) = snakecase(name(M), delim=' ')
 instances(::Type) = String[]
 
 # specific to `Finite` measures:

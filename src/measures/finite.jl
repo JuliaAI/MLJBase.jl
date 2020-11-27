@@ -708,13 +708,15 @@ MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict) =
     MulticlassFScore(β, average, return_type)
 
 metadata_measure(MulticlassFScore;
-    target_scitype           = Vec{<:Finite{N}} where N,
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    supports_class_weights   = true)
+                 instances = ["macro_f1score", "micro_f1score",
+                              "multiclass_f1score"],
+                 target_scitype           = Vec{<:Finite{N}} where N,
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = false,
+                 supports_class_weights   = true)
 
 MLJModelInterface.docstring(::Type{<:MulticlassFScore}) =
     "Multiclass F_β score; aliases: " *
@@ -810,61 +812,80 @@ metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
     supports_weights         = false,
     supports_class_weights   = true)
 
-# MMI.name(::Type{<:MulticlassTruePositive})       = "multiclass_true_positive"
 MMI.docstring(::Type{<:MulticlassTruePositive})  =
     "Number of true positives; " *
     "aliases: `multiclass_true_positive`, `multiclass_truepositive`."
-# MMI.name(::Type{<:MulticlassTrueNegative})       = "multiclass_true_negative"
+instances(::Type{<:MulticlassTruePositive})  =
+    ["multiclass_true_positive", "multiclass_truepositive"]
 MMI.docstring(::Type{<:MulticlassTrueNegative})  =
     "Number of true negatives; " *
     "aliases: `multiclass_true_negative`, `multiclass_truenegative`."
-# MMI.name(::Type{<:MulticlassFalsePositive})      = "multiclass_false_positive"
+instances(::Type{<:MulticlassTrueNegative})  =
+    ["multiclass_true_negative", "multiclass_truenegative"]
 MMI.docstring(::Type{<:MulticlassFalsePositive}) =
     "Number of false positives; " *
     "aliases: `multiclass_false_positive`, `multiclass_falsepositive`."
-# MMI.name(::Type{<:MulticlassFalseNegative})      = "multiclass_false_negative"
+instances(::Type{<:MulticlassFalsePositive}) =
+    ["multiclass_false_positive", "multiclass_falsepositive"]
 MMI.docstring(::Type{<:MulticlassFalseNegative}) =
     "Number of false negatives; " *
     "aliases: `multiclass_false_negative`, `multiclass_falsenegative`."
+instances(::Type{<:MulticlassFalseNegative}) =
+    ["multiclass_false_negative", "multiclass_falsenegative"]
 
-# MMI.name(::Type{<:MulticlassTruePositiveRate}) = "multiclass_true_positive_rate"
 MMI.docstring(::Type{<:MulticlassTruePositiveRate}) =
     "multiclass true positive rate; aliases: " *
     "`multiclass_true_positive_rate`, `multiclass_tpr`, " *
     "`multiclass_sensitivity`, `multiclass_recall`, " *
     "`multiclass_hit_rate`, `multiclass_truepositive_rate`, "
-# MMI.name(::Type{<:MulticlassTrueNegativeRate}) = "multiclass_true_negative_rate"
+instances(::Type{<:MulticlassTruePositiveRate}) =
+    ["multiclass_true_positive_rate", "multiclass_tpr",
+    "multiclass_sensitivity", "multiclass_recall",
+    "multiclass_hit_rate", "multiclass_truepositive_rate"]
 MMI.docstring(::Type{<:MulticlassTrueNegativeRate}) =
     "multiclass true negative rate; aliases: " *
     "`multiclass_true_negative_rate`, `multiclass_tnr` " *
     " `multiclass_specificity`, `multiclass_selectivity`, " *
     "`multiclass_truenegative_rate`."
-# MMI.name(::Type{<:MulticlassFalsePositiveRate}) = "multiclass_false_positive_rate"
+instances(::Type{<:MulticlassTrueNegativeRate}) =
+    ["multiclass_true_negative_rate", "multiclass_tnr",
+    "multiclass_specificity", "multiclass_selectivity",
+    "multiclass_truenegative_rate"]
 MMI.docstring(::Type{<:MulticlassFalsePositiveRate}) =
                        "multiclass false positive rate; aliases: " *
                        "`multiclass_false_positive_rate`, `multiclass_fpr` " *
                        "`multiclass_fallout`, `multiclass_falsepositive_rate`."
-# MMI.name(::Type{<:MulticlassFalseNegativeRate}) = "multiclass_false_negative_rate"
+instances(::Type{<:MulticlassFalsePositiveRate}) =
+    ["multiclass_false_positive_rate", "multiclass_fpr",
+     "multiclass_fallout", "multiclass_falsepositive_rate"]
 MMI.docstring(::Type{<:MulticlassFalseNegativeRate}) =
     "multiclass false negative rate; aliases: " *
     "`multiclass_false_negative_rate`, `multiclass_fnr`, " *
     "`multiclass_miss_rate`, `multiclass_falsenegative_rate`."
-# MMI.name(::Type{<:MulticlassFalseDiscoveryRate}) = "multiclass_false_discovery_rate"
+instances(::Type{<:MulticlassFalseNegativeRate}) =
+    ["multiclass_false_negative_rate", "multiclass_fnr",
+    "multiclass_miss_rate", "multiclass_falsenegative_rate"]
 MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) =
     "multiclass false discovery rate; "*
     "aliases: `multiclass_false_discovery_rate`, " *
     "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
-# MMI.name(::Type{<:MulticlassNegativePredictiveValue}) = "multiclass_negative_predictive_value"
+instances(::Type{<:MulticlassFalseDiscoveryRate}) =
+    ["multiclass_falsediscovery_rate", "multiclass_fdr"]
 MMI.docstring(::Type{<:MulticlassNegativePredictiveValue}) =
     "multiclass negative predictive value; aliases: " *
     "`multiclass_negative_predictive_value`, " *
     "`multiclass_negativepredictive_value`, `multiclass_npv`."
-# MMI.name(::Type{<:MulticlassPrecision}) = "multiclass_positive_predictive_value"
+instances(::Type{<:MulticlassNegativePredictiveValue}) =
+    ["multiclass_negative_predictive_value",
+    "multiclass_negativepredictive_value", "multiclass_npv"]
 MMI.docstring(::Type{<:MulticlassPrecision}) =
   "multiclass positive predictive value (aka precision);"*
   " aliases: `multiclass_positive_predictive_value`, `multiclass_ppv`, " *
-  "`MulticlassPrecision()`, `multiclass_positivepredictive_value`, " *
+  "`multiclass_positivepredictive_value`, " *
   "`multiclass_recall`."
+instances(::Type{<:MulticlassPrecision}) =
+    ["multiclass_positive_predictive_value", "multiclass_ppv",
+     "multiclass_positivepredictive_value", "multiclass_recall"]
 
 const W_KEY_MISMATCH = "Encountered target with levels different from the " *
                        "keys of user-specified dictionary of class weights."
