@@ -290,8 +290,8 @@ end
 
     # check class distribution is preserved in a larger randomized example:
     N = 30
-    y = shuffle(vcat(fill(:a, N), fill(:b, 2N),
-                        fill(:c, 3N), fill(:d, 4N))) |> categorical;
+    y = shuffle(vcat(fill('a', N), fill('b', 2N),
+                        fill('c', 3N), fill('d', 4N))) |> categorical;
     d = Distributions.fit(MLJBase.UnivariateFinite, y)
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
@@ -366,7 +366,7 @@ struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
     end
 
     X = (x = rand(rng,8), )
-    y = categorical([:x, :y, :x, :x, :y, :x, :x, :y])
+    y = categorical(string.([:x, :y, :x, :x, :y, :x, :x, :y]))
     @test MLJBase.train_test_pairs(DummyResamplingStrategy(), 2:6, X, y) ==
         [([3, 4, 6], [2, 5]),]
 

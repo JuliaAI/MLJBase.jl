@@ -346,7 +346,7 @@ function MMI.UnivariateFinite(::FI,
             "or more dimensions. "))
     end
 
-    support = [Symbol("class_$i") for i in 1:c]
+    support = ["class_$i" for i in 1:c]
 
     return MMI.UnivariateFinite(FI(),
                                 support,
