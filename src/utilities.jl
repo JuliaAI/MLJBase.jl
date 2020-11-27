@@ -112,7 +112,7 @@ function reduce_nested_field(ex)
     tail = ex.args[2]
     tail isa QuoteNode || throw(ArgumentError)
     field = tail.value
-    field isa Symbol || throw(ArgmentError)
+    field isa Symbol || throw(ArgumentError)
     subex = ex.args[1]
     return (subex, field)
 end
