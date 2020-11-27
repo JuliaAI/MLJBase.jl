@@ -1,4 +1,4 @@
-module MLJBase
+module MLJBase 
 
 # ===================================================================
 # IMPORTS
@@ -52,6 +52,13 @@ const Dist = Distributions
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
+# external loss functions:
+import LossFunctions: DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss,
+    L2MarginLoss, LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss,
+    SigmoidLoss, SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
+    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss, QuantileLoss
+
+
 # ===================================================================
 ## EXPORTS
 
@@ -80,29 +87,30 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-       fitted_params, predict, predict_mode, predict_mean, predict_median, predict_joint,
-       evaluate, clean!
+    fitted_params, predict,
+    predict_mode, predict_mean, predict_median, predict_joint,
+    evaluate, clean!
 
 # model/measure matching:
 export Checker, matching
 
 # model traits
 export input_scitype, output_scitype, target_scitype,
-       is_pure_julia, package_name, package_license,
-       load_path, package_uuid, package_url,
-       is_wrapper, supports_weights, supports_online,
-       docstring, name, is_supervised,
-       prediction_type, implemented_methods, hyperparameters,
-       hyperparameter_types, hyperparameter_ranges
+    is_pure_julia, package_name, package_license,
+    load_path, package_uuid, package_url,
+    is_wrapper, supports_weights, supports_online,
+    docstring, name, is_supervised,
+    prediction_type, implemented_methods, hyperparameters,
+    hyperparameter_types, hyperparameter_ranges
 
 # data operations
 export matrix, int, classes, decoder, table,
-       nrows, selectrows, selectcols, select
+    nrows, selectrows, selectcols, select
 
 # re-exports from MLJScientificTypes
 export Unknown, Known, Finite, Infinite,
-       OrderedFactor, Multiclass, Count, Continuous, Textual,
-       Binary, ColorImage, GrayImage, Image, Table
+    OrderedFactor, Multiclass, Count, Continuous, Textual,
+    Binary, ColorImage, GrayImage, Image, Table
 export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
 
@@ -183,42 +191,53 @@ export measures, metadata_measure
 export orientation, reports_each_observation,
     is_feature_dependent, aggregation,
     aggregate, default_measure, value,
-    spports_weights, prediction_type
+    supports_class_weights, prediction_type, human_name
 
 # measures/continuous.jl:
-export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh
+export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
+    MAV, MAE, MeanAbsoluteError, mean_absolute_error, mean_absolute_value,
+    LPLoss, RootMeanSquaredProportionalError, RMSP,
+    RMS, rmse, RootMeanSquaredError, root_mean_squared_error,
+    RootMeanSquaredLogError, RMSL, root_mean_squared_log_error, rmsl, rmsle,
+    RootMeanSquaredLogProportionalError, rmsl1, RMSLP,
+    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss
 
 # measures/confusion_matrix.jl:
-export confusion_matrix, confmat
+export confusion_matrix, confmat, ConfusionMatrix
 
-# measures/finite.jl
+# measures/finite.jl:
 export cross_entropy, BrierScore, brier_score,
-       misclassification_rate, mcr, accuracy,
-       balanced_accuracy, bacc, bac,
-       matthews_correlation, mcc
+    BrierLoss, brier_loss,
+    LogLoss, log_loss,
+    misclassification_rate, mcr, accuracy,
+    balanced_accuracy, bacc, bac, BalancedAccuracy,
+    matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
+    MisclassificationRate, Accuracy, MCR, BACC, BAC,
+    MatthewsCorrelation
 
 # measures/finite.jl -- Multiclass{2} (order independent):
 export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
-       TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
-       FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
-       # standard synonyms
-       TPR, TNR, FPR, FNR, FDR, PPV,
-       Recall, Specificity, BACC,
-       # instances and their synonyms
-       truepositive, truenegative, falsepositive, falsenegative,
-       true_positive, true_negative, false_positive, false_negative,
-       truepositive_rate, truenegative_rate, falsepositive_rate,
-       true_positive_rate, true_negative_rate, false_positive_rate,
-       falsenegative_rate, negativepredictive_value,
-       false_negative_rate, negative_predictive_value,
-       positivepredictive_value, positive_predictive_value,
-       tpr, tnr, fpr, fnr,
-       falsediscovery_rate, false_discovery_rate, fdr, npv, ppv,
-       recall, sensitivity, hit_rate, miss_rate,
-       specificity, selectivity, f1score, fallout
+    TruePositiveRate, TrueNegativeRate, FalsePositiveRate,
+    FalseNegativeRate, FalseDiscoveryRate, Precision, NPV, FScore,
+    NegativePredictiveValue,
+    # standard synonyms
+    TPR, TNR, FPR, FNR, FDR, PPV,
+    Recall, Specificity, BACC,
+    # instances and their synonyms
+    truepositive, truenegative, falsepositive, falsenegative,
+    true_positive, true_negative, false_positive, false_negative,
+    truepositive_rate, truenegative_rate, falsepositive_rate,
+    true_positive_rate, true_negative_rate, false_positive_rate,
+    falsenegative_rate, negativepredictive_value,
+    false_negative_rate, negative_predictive_value,
+    positivepredictive_value, positive_predictive_value,
+    tpr, tnr, fpr, fnr,
+    falsediscovery_rate, false_discovery_rate, fdr, npv, ppv,
+    recall, sensitivity, hit_rate, miss_rate,
+    specificity, selectivity, f1score, fallout
 
 # measures/finite.jl -- Finite{N} - multiclass generalizations of
 # above OrderedFactor{2} measures (but order independent):
@@ -251,6 +270,21 @@ export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
       # averaging modes
       no_avg, macro_avg, micro_avg
 
+# measures/loss_functions_interface.jl
+export dwd_margin_loss, exp_loss, l1_hinge_loss, l2_hinge_loss, l2_margin_loss,
+    logit_margin_loss, modified_huber_loss, perceptron_loss, sigmoid_loss,
+    smoothed_l1_hinge_loss, zero_one_loss, huber_loss, l1_epsilon_ins_loss,
+    l2_epsilon_ins_loss, lp_dist_loss, logit_dist_loss, periodic_loss,
+    quantile_loss
+
+# ------------------------------------------------------------------------
+# re-export from LossFunctions:
+export DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss, L2MarginLoss,
+    LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss, SigmoidLoss,
+    SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
+    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss,
+    QuantileLoss
+ 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # OrderedCollections, CategoricalArrays, InvertedIndices:

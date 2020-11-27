@@ -4,7 +4,7 @@ using MLJBase, Test
 import Distributions
 using CategoricalArrays
 using Statistics
-using LossFunctions
+import LossFunctions
 using StableRNGs
 using OrderedCollections: LittleDict
 
@@ -37,8 +37,7 @@ end
     @test reports_each_observation(auc) == false
     @test is_feature_dependent(auc) == false
 
-    @test MLJBase.distribution_type(BrierScore{UnivariateFinite}) ==
-        MLJBase.UnivariateFinite
+    @test MLJBase.distribution_type(BrierScore) == MLJBase.UnivariateFinite
 end
 
 mutable struct DRegressor <: Deterministic end

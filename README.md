@@ -42,7 +42,7 @@ repository provides core functionality for MLJ, including:
   for **performance measures** (losses and scores), enabling the
   integration of the
   [LossFunctions.jl](https://github.com/JuliaML/LossFunctions.jl)
-  library, user-defined measures, as well as about two dozen natively
+  library, user-defined measures, as well as about forty natively
   defined measures.
 
 - integration with [OpenML](https://www.openml.org)

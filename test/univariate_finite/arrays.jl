@@ -28,21 +28,21 @@ c   = 3
     u = UnivariateFinite(probs, pool=missing, augment=true)
     @test length(u) == n
     @test size(u) == (n,)
-    @test pdf.(u, :class_2) ≈ probs
+    @test pdf.(u, "class_2") ≈ probs
     probs = probs ./ sum(probs)
     u = UnivariateFinite(probs, pool=missing)
     @test u isa UnivariateFinite
-    @test pdf(u, :class_1) == probs[1]
+    @test pdf(u, "class_1") == probs[1]
     probs = rand(10, 2)
     probs = probs ./ sum(probs, dims=2)
     u = UnivariateFinite(probs, pool=missing)
     @test length(u) == 10
     u.scitype == Multiclass{2}
-    pdf.(u, :class_1) == probs[:, 1]
+    pdf.(u, "class_1") == probs[:, 1]
     u = UnivariateFinite(probs, pool=missing, augment=true)
     @test length(u) == 10
     u.scitype == Multiclass{3}
-    pdf.(u, :class_2) == probs[:, 1]
+    pdf.(u, "class_2") == probs[:, 1]
 
     probs = [-1,0,1]
     @test_throws(DomainError,
@@ -59,7 +59,7 @@ end
 @testset "get and set" begin
     # binary
     s = rand(rng, n)
-    u = UnivariateFinite([:yes, :no], s, augment=true, pool=missing)
+    u = UnivariateFinite(["yes", "no"], s, augment=true, pool=missing)
 
     @test u[1] isa UnivariateFinite
     v = u[3:4]
@@ -67,9 +67,9 @@ end
     @test v[1] ≈ u[3]
 
     # set:
-    u[1] = UnivariateFinite([:yes, :no], [0.1, 0.9], pool=u[1])
-    @test pdf(u[1], :yes) == 0.1
-    @test pdf(u[1], :no) == 0.9
+    u[1] = UnivariateFinite(["yes", "no"], [0.1, 0.9], pool=u[1])
+    @test pdf(u[1], "yes") == 0.1
+    @test pdf(u[1], "no") == 0.9
 
     # multiclass
     P   = rand(rng, n, c)
@@ -91,7 +91,7 @@ end
 
 n = 10
 P = rand(n);
-all_classes = categorical([:no, :yes], ordered=true)
+all_classes = categorical(["no", "yes"], ordered=true)
 u = UnivariateFinite(all_classes, P, augment=true) #uni_fin_arr
 
 # next is not specific to `UnivariateFiniteArray` but is for any
@@ -99,22 +99,22 @@ u = UnivariateFinite(all_classes, P, augment=true) #uni_fin_arr
 @testset "piratical pdf and logpdf" begin
     # test pdf(uni_fin_arr, labels) and
     # logpdf(uni_fin_arr, labels)
-    @test pdf(u, [:yes, :no]) == hcat(P, 1 .- P)
-    @test isequal(logpdf(u, [:yes, :no]), log.(hcat(P, 1 .- P)))
+    @test pdf(u, ["yes", "no"]) == hcat(P, 1 .- P)
+    @test isequal(logpdf(u, ["yes", "no"]), log.(hcat(P, 1 .- P)))
     @test pdf(u, reverse(all_classes)) == hcat(P, 1 .- P)
     @test isequal(logpdf(u, reverse(all_classes)), log.(hcat(P, 1 .- P)))
     
     # test pdf(::Array{UnivariateFinite, 1}, labels) and
     # logpdf(::Array{UnivariateFinite, labels)
-    @test pdf([u...], [:yes, :no]) == hcat(P, 1 .- P)
-    @test isequal(logpdf([u...], [:yes, :no]), log.(hcat(P, 1 .- P)))
+    @test pdf([u...], ["yes", "no"]) == hcat(P, 1 .- P)
+    @test isequal(logpdf([u...], ["yes", "no"]), log.(hcat(P, 1 .- P)))
     @test pdf([u...], all_classes) == hcat(1 .- P, P)
     @test isequal(logpdf([u...], all_classes), log.(hcat(1 .- P, P)))
 end
 
 @testset "broadcasting: pdf.(uni_fin_arr, scalar) and logpdf.(uni_fin_arr, scalar) " begin
-    @test pdf.(u,:yes) == P
-    @test isequal(logpdf.(u,:yes), log.(P))
+    @test pdf.(u,"yes") == P
+    @test isequal(logpdf.(u,"yes"), log.(P))
     @test pdf.(u,all_classes[2]) == P
     @test isequal(logpdf.(u,all_classes[2]), log.(P))
 
@@ -172,7 +172,7 @@ end
 @testset "cat for UnivariateFiniteArray" begin
 
     # ordered:
-    v = categorical([:no, :yes, :maybe, :unseen])
+    v = categorical(["no", "yes", "maybe", "unseen"])
     u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
     u2 = UnivariateFinite([v[3], v[2]], rand(6), augment=true)
     us = (u1, u2)
@@ -180,7 +180,7 @@ end
     @test length(u) == length(u1) + length(u2)
     @test classes(u) == classes(u1)
     supp = Distributions.support(u)
-    @test Set(supp) == Set([:no, :yes, :maybe])
+    @test Set(supp) == Set(["no", "yes", "maybe"])
     s1 = Distributions.support(u1)
     s2 = Distributions.support(u2)
     @test pdf(u, s1)[1:length(u1),:] == pdf(u1, s1)
@@ -192,7 +192,7 @@ end
     @test pdf.(u, v[4]) == zeros(length(u))
 
     # unordered:
-    v = categorical([:no, :yes, :maybe, :unseen], ordered=true)
+    v = categorical(["no", "yes", "maybe", "unseen"], ordered=true)
     u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
     u2 = UnivariateFinite([v[3], v[2]], rand(6), augment=true)
     us = (u1, u2)
@@ -200,7 +200,7 @@ end
     @test length(u) == length(u1) + length(u2)
     @test classes(u) == classes(u1)
     supp = Distributions.support(u)
-    @test Set(supp) == Set([:no, :yes, :maybe])
+    @test Set(supp) == Set(["no", "yes", "maybe"])
     s1 = Distributions.support(u1)
     s2 = Distributions.support(u2)
     @test pdf(u, s1)[1:length(u1),:] == pdf(u1, s1)

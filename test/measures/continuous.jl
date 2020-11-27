@@ -23,7 +23,6 @@ rng = StableRNG(666899)
     @test isapprox(mape(yhat, y), (1/1 + 1/2 + 1/3 + 1/4)/4)
 end
 
-
 @testset "MLJBase.value" begin
     yhat = randn(rng,5)
     X = (weight=randn(rng,5), x1 = randn(rng,5))

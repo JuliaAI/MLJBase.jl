@@ -1,143 +1,100 @@
-# ---------------------------------------------------
-## CLASSIFICATION METRICS (PROBABILISTIC PREDICTIONS)
-# >> CrossEntropy
-# >> BriersScore
+# ============================================================
+# PROBABILISTIC PREDICTIONS
 
 # -----------------------------------------------------
-# cross entropy
+# LogLoss
 
-struct CrossEntropy{R} <: Measure where R <: AbstractFloat
-    eps::R
+struct LogLoss{R} <: Measure where R <: Real
+    tol::R
 end
-CrossEntropy(;eps=eps()) = CrossEntropy(eps)
+LogLoss(;eps=eps(), tol=eps) = LogLoss(tol)
 
-metadata_measure(CrossEntropy;
-    name                     = "cross_entropy",
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :probabilistic,
-    orientation              = :loss,
-    reports_each_observation = true,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Cross entropy loss with probabilities " *
-                 "clamped between `eps()` and `1-eps()`; "*
-                 "aliases: `cross_entropy`.",
-    distribution_type        = UnivariateFinite)
+metadata_measure(LogLoss;
+                 instances                = ["log_loss", "cross_entropy"],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :probabilistic,
+                 orientation              = :loss,
+                 reports_each_observation = true,
+                 is_feature_dependent     = false,
+                 supports_weights         = false,
+                 distribution_type        = UnivariateFinite)
 
+const CrossEntropy = LogLoss
+@create_aliases LogLoss
+
+@create_docs(LogLoss,
+body=
 """
-    cross_entropy
-
-$(docstring(CrossEntropy()))
-
-    ce = CrossEntropy(; eps=eps())
-    ce(ŷ, y)
-
-Given an abstract vector of distributions `ŷ` and an abstract vector
-of true observations `y`, return the corresponding cross-entropy
-loss (aka log loss) scores.
-
-Since the score is undefined in the case of the true observation has
-predicted probability zero, probablities are clipped between `eps` and
-`1-eps` where `eps` can be specified.
+Since the score is undefined in the case that the true observation is
+predicted to occur with probability zero, probablities are clipped
+between `tol` and `1-tol`, where `tol` is a constructor key-word
+argument.
 
 If `sᵢ` is the predicted probability for the true class `yᵢ` then
 the score for that example is given by
 
-    -log(clamp(sᵢ, eps, 1-eps))
+    -log(clamp(sᵢ, tol), 1 - tol)
 
-For more information, run `info(cross_entropy)`.
-"""
-cross_entropy = CrossEntropy()
+A score is reported for every observation.
+""",
+scitype=DOC_FINITE)
 
 # for single observation:
-_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, eps) where {S,V,R,P} =
-    -log(clamp(pdf(d, y), P(eps), P(1) - P(eps)))
+_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
+    -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
 
 # multiple observations:
-function (c::CrossEntropy)(ŷ::Vec{<:UnivariateFinite},
+function (c::LogLoss)(ŷ::Vec{<:UnivariateFinite},
                            y::Vec)
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y, c.eps)
+    return broadcast(_cross_entropy, ŷ, y, c.tol)
 end
 # performant in case of UnivariateFiniteArray:
-function (c::CrossEntropy)(ŷ::UnivariateFiniteVector{S,V,R,P},
+function (c::LogLoss)(ŷ::UnivariateFiniteVector{S,V,R,P},
                            y::Vec) where {S,V,R,P}
     check_dimensions(ŷ, y)
     check_pools(ŷ, y)
-    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.eps), P(1) - P(c.eps)))
+    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
 end
 
 # -----------------------------------------------------
-# brier score
+# BrierScore
 
-# TODO: support many distributions/samplers D below:
+struct BrierScore <: Measure end
 
-struct BrierScore{D} <: Measure end
+metadata_measure(BrierScore;
+                 human_name = "Brier score (a.k.a. quadratic score)",
+                 instances                = ["brier_score",],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :probabilistic,
+                 orientation              = :score,
+                 reports_each_observation = true,
+                 is_feature_dependent     = false,
+                 supports_weights         = true,
+                 distribution_type        = UnivariateFinite)
 
-# As this measure is parametric, the use of `metadata_measure` is not
-# appropriate.
+@create_aliases BrierScore
 
-MLJModelInterface.name(::Type{<:BrierScore{D}}) where D =
-    "BrierScore{$(string(D))}"
-MLJModelInterface.docstring(::Type{<:BrierScore{D}}) where D =
-    "Brier proper scoring rule for distributions of type $D; "*
-    "aliases: `BrierScore{$D}`"
-MLJModelInterface.docstring(::Type{<:BrierScore{<:UnivariateFinite}}) =
-    "Brier proper scoring rule for `MultiClass` or `OrderedFactor` data; "*
-    "aliases: `BrierScore()`, `BrierScore{UnivariateFinite}`"
-MLJModelInterface.docstring(::Type{BrierScore}) =
-    "Brier proper scoring rule for various distribution types; " *
-    "use `brier_score` for `BrierScore{UnivariateFinite}` "*
-"(`Multiclass` or `OrderedFactor` targets)."
-MLJModelInterface.target_scitype(::Type{<:BrierScore{D}}) where D =
-    AbstractVector{<:Finite}
-MLJModelInterface.prediction_type(::Type{<:BrierScore}) = :probabilistic
-orientation(::Type{<:BrierScore}) = :score
-reports_each_observation(::Type{<:BrierScore}) = true
-is_feature_dependent(::Type{<:BrierScore}) = false
-MLJModelInterface.supports_weights(::Type{<:BrierScore}) =  true
-distribution_type(::Type{<:BrierScore{D}}) where D =
-    UnivariateFinite
-
+@create_docs(BrierScore,
+body=
 """
-    BrierScore(; distribution=UnivariateFinite)(ŷ, y [, w])
-
-Given an abstract vector of distributions `ŷ` of type `distribution`,
-and an abstract vector of true observations `y`, return the
-corresponding Brier (aka quadratic) scores. Weight the scores using
-`w` if provided.
-
-Currently only `distribution=UnivariateFinite` is supported, which is
-applicable to superivised models with `Finite` target scitype. In this
-case, if `p(y)` is the predicted probability for a *single*
+If `p(y)` is the predicted probability for a *single*
 observation `y`, and `C` all possible classes, then the corresponding
 Brier score for that observation is given by
 
 ``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
 
-Note that `BrierScore()=BrierScore{UnivariateFinite}` has the alias
-`brier_score`.
-
-*Warning.* Here `BrierScore` is a "score" in the sense that bigger is
+*Warning.* `BrierScore()` is a "score" in the sense that bigger is
 better (with `0` optimal, and all other values negative). In Brier's
 original 1950 paper, and many other places, it has the opposite sign,
 despite the name. Moreover, the present implementation does not treat
 the binary case as special, so that the score may differ, in that
 case, by a factor of two from usage elsewhere.
+""",
+scitype=DOC_FINITE)
 
-For more information, run `info(BrierScore)`.
-
-"""
-function BrierScore(; distribution=UnivariateFinite)
-    distribution == UnivariateFinite ||
-        error("Only `UnivariateFinite` Brier scores currently supported. ")
-    return BrierScore{distribution}()
-end
-
-# For single observations (no checks):
-
-# UnivariateFinite:
+# calling on single observations (no checks):
 function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
@@ -145,14 +102,10 @@ function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     return P(2) * pdf(d, y) - offset
 end
 
-# For multiple observations:
-
-# UnivariateFinite:
-function (::BrierScore{<:UnivariateFinite})(
-    ŷ::Vec{<:UnivariateFinite},
-    y::Vec,
-    w::Union{Nothing,Vec{<:Real}}=nothing)
-
+# calling on multiple observations:
+function (::BrierScore)(ŷ::Vec{<:UnivariateFinite},
+                        y::Vec,
+                        w::Union{Nothing,Vec{<:Real}}=nothing)
     check_dimensions(ŷ, y)
     w == nothing || check_dimensions(w, y)
 
@@ -164,8 +117,9 @@ function (::BrierScore{<:UnivariateFinite})(
     end
     return w.*unweighted
 end
-# performant version in case of UnivariateFiniteArray:
-function (::BrierScore{<:UnivariateFinite})(
+
+# Performant version in case of UnivariateFiniteArray:
+function (::BrierScore)(
     ŷ::UnivariateFiniteVector{S,V,R,P},
     y::Vec,
     w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
@@ -188,18 +142,65 @@ function (::BrierScore{<:UnivariateFinite})(
     return w.*unweighted
 end
 
-const brier_score = BrierScore()
+# -----------------------------------------------------
+# BrierLoss
+
+struct BrierLoss <: Measure end
+
+metadata_measure(BrierLoss;
+                 human_name = "Brier loss (a.k.a. quadratic loss)",
+                 instances                = ["brier_loss",],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :probabilistic,
+                 orientation              = :score,
+                 reports_each_observation = true,
+                 is_feature_dependent     = false,
+                 supports_weights         = true,
+                 distribution_type        = UnivariateFinite)
+
+@create_aliases BrierLoss
+
+@create_docs(BrierLoss,
+body=
+"""
+If `p(y)` is the predicted probability for a *single*
+observation `y`, and `C` all possible classes, then the corresponding
+Brier score for that observation is given by
+
+``\\left(\\sum_{η ∈ C} p(η)^2\\right) - 2p(y) + 1``
+
+*Warning.* In Brier's original 1950 paper, what is implemented here is
+called a "loss". It is, however, a "score" in the contemporary use of
+that term: smaller is better (with `0` optimal, and all other values
+positive).  Note also the present implementation does not treat the
+binary case as special, so that the loss may differ, in that case, by
+a factor of two from usage elsewhere.
+""",
+scitype=DOC_FINITE)
+
+# calling on single observations (no checks):
+function _brier_loss(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
+    levels = classes(d)
+    pvec = broadcast(pdf, d, levels)
+    offset = P(1) + sum(pvec.^2)
+    return P(2) * pdf(d, y) - offset
+end
+
+(m::BrierLoss)(ŷ::Vec{<:UnivariateFinite},
+               y::Vec,
+               w::Union{Nothing,Vec{<:Real}}=nothing) =
+                   - brier_score(ŷ, y, w)
 
 
-# ============================================================
-## CLASSIFICATION METRICS (DETERMINISTIC PREDICTIONS)
 
-const INVARIANT_LABEL_MULTICLASS = "This metric is invariant to class labelling and can be used for multiclass classification."
-const INVARIANT_LABEL_BINARY = "This metric is invariant to class labelling and can be used only for binary classification."
-const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be used for binary classification."
 
-# ==============================================================
-## MULTICLASS
+const INVARIANT_LABEL =
+    "This metric is invariant to class reordering."
+const VARIANT_LABEL =
+    "This metric is *not* invariant to class re-ordering"
+
+# =============================================================
+# DETERMINISTIC FINITE PREDICTIONS
 
 # ---------------------------------------------------
 # misclassification rate
@@ -207,46 +208,32 @@ const VARIANT_LABEL_BINARY = "This metric is labelling-dependent and can only be
 struct MisclassificationRate <: Measure end
 
 metadata_measure(MisclassificationRate;
-    name                     = "misclassification_rate",
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :deterministic,
-    orientation              = :loss,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = true,
-    docstring                = "misclassification rate; aliases: " *
-                               "`misclassification_rate`, `mcr`.")
+                 instances  = ["misclassification_rate", "mcr"],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :deterministic,
+                 orientation              = :loss,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = true)
 
-"""
-    misclassification_rate
-
-$(docstring(MisclassificationRate()))
-
-    misclassification_rate(ŷ, y)
-    misclassification_rate(ŷ, y, w)
-    misclassification_rate(conf_mat)
-
-Returns the rate of misclassification of the (point) predictions `ŷ`,
-given true observations `y`, optionally weighted by the weights
-`w`. All three arguments must be abstract vectors of the same length.
-A confusion matrix can also be passed as argument.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(misclassification_rate)`.
-
-"""
-const misclassification_rate = MisclassificationRate()
-const mcr = misclassification_rate
 const MCR = MisclassificationRate
+@create_aliases MCR
 
+@create_docs(MisclassificationRate,
+body=
+"""
+A confusion matrix can also be passed as argument.
+$INVARIANT_LABEL
+""",
+scitype=DOC_FINITE)
+
+# calling behaviour:
 (::MCR)(ŷ::Vec{<:CategoricalValue},
         y::Vec{<:CategoricalValue}) = mean(y .!= ŷ)
-
 (::MCR)(ŷ::Vec{<:CategoricalValue},
         y::Vec{<:CategoricalValue},
         w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
-
-(::MCR)(cm::ConfusionMatrix) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
+(::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
 # accuracy
@@ -254,37 +241,27 @@ const MCR = MisclassificationRate
 struct Accuracy <: Measure end
 
 metadata_measure(Accuracy;
-    name                     = "accuracy",
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = true,
-    docstring                = "Classification accuracy; aliases: `accuracy`.")
+                 instances = ["accuracy",],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = true),
 
+@create_aliases Accuracy
+
+@create_docs(Accuracy,
+body=
 """
-    accuracy
+Accuracy is proportion of correct predictions `ŷ[i]` that match the
+ground truth `y[i]` observations. $INVARIANT_LABEL
+""",
+scitype=DOC_FINITE)
 
-$(docstring(Accuracy()))
-
-    accuracy(ŷ, y)
-    accuracy(ŷ, y, w)
-    accuracy(conf_mat)
-
-Returns the accuracy of the (point) predictions `ŷ`,
-given true observations `y`, optionally weighted by the weights
-`w`. All three arguments must be abstract vectors of the same length.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(accuracy)`.
-
-"""
-const accuracy = Accuracy()
-
+# calling behaviour:
 (::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
-(::Accuracy)(m::ConfusionMatrix) = sum(diag(m.mat)) / sum(m.mat)
-
+(::Accuracy)(m::ConfusionMatrixObject) = sum(diag(m.mat)) / sum(m.mat)
 
 # -----------------------------------------------------------
 # balanced accuracy
@@ -292,38 +269,27 @@ const accuracy = Accuracy()
 struct BalancedAccuracy <: Measure end
 
 metadata_measure(BalancedAccuracy;
-    name                     = "balanced_accuracy",
-    target_scitype           = Vec{<:Finite},
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = true,
-    docstring                = "Balanced classification accuracy; aliases: "*
-                               "`balanced_accuracy`, `bacc`, `bac`.")
+                 instances = ["balanced_accuracy", "bacc", "bac"],
+                 target_scitype           = Vec{<:Finite},
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = true)
 
-"""
-    balanced_accuracy
-
-$(docstring(BalancedAccuracy()))
-
-    balanced_accuracy(ŷ, y [, w])
-    balanced_accuracy(conf_mat)
-
-Return the balanced accuracy of the point prediction `ŷ`, given true
-observations `y`, optionally weighted by `w`. The balanced accuracy takes
-into consideration class imbalance.
-All  three arguments must have the same length.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(balanced_accuracy)`.
-
-"""
-const balanced_accuracy = BalancedAccuracy()
-const bacc = balanced_accuracy
-const bac  = bacc
 const BACC = BalancedAccuracy
+@create_aliases BACC
 
+@create_docs(BalancedAccuracy,
+body=
+"""
+Balanced accuracy compensates standard [`Accuracy`](@ref) for class imbalance.
+See [https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data](https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data).
+$INVARIANT_LABEL
+""",
+scitype=DOC_FINITE)
+
+# calling behavior:
 function (::BACC)(ŷ::Vec{<:CategoricalValue},
                   y::Vec{<:CategoricalValue})
     class_count = Dist.countmap(y)
@@ -343,7 +309,7 @@ function (::BACC)(ŷ::Vec{<:CategoricalValue},
 end
 
 # ==================================================================
-## BINARY AND ORDER-INDEPENDENT
+## DETERMINISTIC BINARY PREDICTIONS - ORDER-INDEPENDENT
 
 # ------------------------------------------------------------------
 # Matthew's correlation
@@ -351,36 +317,26 @@ end
 struct MatthewsCorrelation <: Measure end
 
 metadata_measure(MatthewsCorrelation;
-    name                     = "matthews_correlation",
-    target_scitype           = Vec{<:Finite{2}},
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Matthew's correlation; aliases: " *
-                               "`matthews_correlation`, `mcc`")
-
-"""
-    matthews_correlation
-
-$(docstring(MatthewsCorrelation()))
-
-    matthews_correlation(ŷ, y)
-    matthews_correlation(conf_mat)
-
-Return Matthews' correlation coefficient corresponding to the point
-prediction `ŷ`, given true observations `y`.
-$INVARIANT_LABEL_MULTICLASS
-
-For more information, run `info(matthews_correlation)`.
-
-"""
-const matthews_correlation = MatthewsCorrelation()
-const mcc = matthews_correlation
+                 instances = ["matthews_correlation", "mcc"],
+                 target_scitype           = Vec{<:Finite{2}},
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = false)
 const MCC = MatthewsCorrelation
+@create_aliases MCC
 
-function (::MCC)(cm::ConfusionMatrix{C}) where C
+@create_docs(MatthewsCorrelation,
+body=
+"""
+[https://en.wikipedia.org/wiki/Matthews_correlation_coefficient](https://en.wikipedia.org/wiki/Matthews_correlation_coefficient)
+$INVARIANT_LABEL
+""",
+scitype=DOC_FINITE_BINARY)
+
+# calling behaviour:
+function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     # http://rk.kvl.dk/introduction/index.html
     # NOTE: this is O(C^3), there may be a clever way to
     # speed this up though in general this is only used for low  C
@@ -406,43 +362,41 @@ end
 
 (m::MCC)(ŷ::Vec{<:CategoricalValue},
          y::Vec{<:CategoricalValue}) =
-             confmat(ŷ, y, warn=false) |> m
+             _confmat(ŷ, y, warn=false) |> m
 
 # ---------------------------------------------------------
-# area under the ROC curve
+# AreaUnderCurve
 
-struct AUC <: Measure end
-
-metadata_measure(AUC;
-    name                     = "area_under_curve",
-    target_scitype           = Vec{<:Finite{2}},
-    prediction_type          = :probabilistic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Area under the ROC curve; "*
-       "aliases: `area_under_curve`, `auc`")
-
-"""
-    area_under_curve
-
-$(docstring(AUC()))
-
-    area_under_curve(ŷ, y)
-
-Return the area under the receiver operator characteristic (curve),
-for probabilistic predictions `ŷ`, given ground truth `y`.
-$INVARIANT_LABEL_BINARY
-
-For more information, run `info(area_under_curve)`.
-
-"""
-const area_under_curve = AUC()
-const auc = AUC()
-
-# implementation drawn from
+#. Implementation drawn from
 # https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
+# but this link is now broken. Author contacted here:
+# https://www.kaggle.com/c/microsoft-malware-prediction/discussion/76013.
+
+struct AreaUnderCurve <: Measure end
+
+metadata_measure(AreaUnderCurve;
+                 human_name = "area under the ROC",
+                 instances = ["area_under_curve", "auc"],
+                 target_scitype           = Vec{<:Finite{2}},
+                 prediction_type          = :probabilistic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = false)
+
+const AUC = AreaUnderCurve
+@create_aliases AreaUnderCurve
+
+@create_docs(AreaUnderCurve,
+body=
+"""
+Returns the area under the ROC ([receiver operator
+characteristic](https://en.wikipedia.org/wiki/Receiver_operating_characteristic))
+$INVARIANT_LABEL
+""",
+scitpye = DOC_FINITE_BINARY)
+
+# core algorithm:
 function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
               y::Vec) where P<:Real # type of probabilities
     lab_pos = classes(first(ŷ))[2] # 'positive' label
@@ -463,65 +417,79 @@ function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
     return auc / (n_neg * n_pos)
 end
 
-# ŷ inhomogeneous type:
+# calling behaviour:
 (::AUC)(ŷ::Vec{<:UnivariateFinite}, y::Vec) = _auc(Float64, ŷ, y)
 
-# ŷ homogeneous type (eg UnivariateFiniteVector case):
+# performant version for UnivariateFiniteVector:
 (::AUC)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}}, y::Vec) where {S,V,R,P} =
     _auc(P, ŷ, y)
 
 
 # ==========================================================================
-## BINARY AND ORDER DEPENDENT
+# DETERMINISTIC BINARY PREDICTIONS - ORDER DEPENDENT
 
-const CM2 = ConfusionMatrix{2}
+const CM2 = ConfusionMatrixObject{2}
 
 # --------------------------------------------------------------------------
-# F_β-Score
+# FScore
 
-"""
-    FScore{β}(rev=nothing)
+struct FScore{T<:Real} <: Measure
+    β::T
+    rev::Union{Nothing,Bool}
+end
 
-One-parameter generalization, ``F_β``, of the F-measure or balanced F-score.
-
-[Wikipedia entry](https://en.wikipedia.org/wiki/F1_score)
-
-    FScore()(ŷ, y)
-
-Evaluate ``F_β`` score on observations,`ŷ`, given ground truth values, `y`.
-
-By default, the second element of `levels(y)` is designated as
-`true`. To reverse roles, use `FScore{β}(rev=true)` instead of
-`FScore{β}`.
-
-For more information, run `info(FScore)`.
-
-"""
-struct FScore{β} <: Measure rev::Union{Nothing,Bool} end
-
-FScore{β}(; rev=nothing) where β = FScore{β}(rev)
-FScore(; β=1.0, rev=nothing) = FScore{β}(rev)
+FScore(; β=1.0, rev=nothing) = FScore(β, rev)
 
 metadata_measure(FScore;
-    target_scitype           = Vec{<:Finite{2}},
-    prediction_type          = :deterministic,
-    orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false)
+                 human_name = "F-Score",
+                 instances = ["f1score",],
+                 target_scitype           = Vec{<:Finite{2}},
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 reports_each_observation = false,
+                 is_feature_dependent     = false,
+                 supports_weights         = false)
 
-MLJModelInterface.name(::Type{<:FScore{β}}) where β = "FScore{$β}"
-MLJModelInterface.name(::Type{FScore})            = "FScore" # for registry
-MLJModelInterface.docstring(::Type{<:FScore})       = "F_β score; aliases: " *
-                                        "`FScore{β}`, `f1score=FScore{1}`"
-const f1score      = FScore{1}()
+@create_aliases FScore
+
+@create_docs(FScore,
+body=
+"""
+This is the one-parameter generalization, ``F_β``, of the F-measure or
+balanced F-score.
+
+[https://en.wikipedia.org/wiki/F1_score](https://en.wikipedia.org/wiki/F1_score)
+
+Constructor signature: `FScore(; β=1.0, rev=true)`.
+
+By default, the second element of `levels(y)` is designated as
+`true`. To reverse roles, specify `rev=true`.
+""",
+scitype=DOC_ORDERED_FACTOR_BINARY,
+footer="Constructor signature: `FScore(β=1.0, rev=false)`. ")
+
+# calling on conf matrix:
+function (score::FScore)(m::CM2)
+    β = score.β
+    β2   = β^2
+    prec = precision(m)
+    rec  = recall(m)
+    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+end
+
+# calling on vectors:
+(m::FScore)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
-# truepositive, true_negative, etc
+# TruePositive and its cousins - struct and metadata declerations
 
-for M in (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
-          :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate,
-          :FalseNegativeRate, :FalseDiscoveryRate, :Precision, :NPV)
+const TRUE_POSITIVE_AND_COUSINS =
+    (:TruePositive, :TrueNegative, :FalsePositive, :FalseNegative,
+     :TruePositiveRate, :TrueNegativeRate, :FalsePositiveRate,
+     :FalseNegativeRate, :FalseDiscoveryRate, :Precision,
+     :NegativePredictiveValue)
+
+for M in TRUE_POSITIVE_AND_COUSINS
     ex = quote
         struct $M <: Measure rev::Union{Nothing,Bool} end
         $M(; rev=nothing) = $M(rev)
@@ -555,7 +523,8 @@ metadata_measure.((TruePositive, TrueNegative);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, NPV);
+metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
+                   NegativePredictiveValue);
     target_scitype           = Vec{<:Finite{2}},
     prediction_type          = :deterministic,
     orientation              = :score,
@@ -563,317 +532,132 @@ metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision, NPV);
     is_feature_dependent     = false,
     supports_weights         = false)
 
-# adjustments
-MMI.name(::Type{<:TruePositive})       = "true_positive"
-MMI.docstring(::Type{<:TruePositive})  = "Number of true positives; " *
-                                         "aliases: `true_positive`, `truepositive`."
-MMI.name(::Type{<:TrueNegative})       = "true_negative"
-MMI.docstring(::Type{<:TrueNegative})  = "Number of true negatives; " *
-                                         "aliases: `true_negative`, `truenegative`."
-MMI.name(::Type{<:FalsePositive})      = "false_positive"
-MMI.docstring(::Type{<:FalsePositive}) = "Number of false positives; " *
-                                         "aliases: `false_positive`, `falsepositive`."
-MMI.name(::Type{<:FalseNegative})      = "false_negative"
-MMI.docstring(::Type{<:FalseNegative}) = "Number of false negatives; " *
-                                         "aliases: `false_negative`, `falsenegative`."
+# adjustments:
+instances(::Type{<:TruePositive}) = ["true_positive", "truepositive"]
+human_name(::Type{<:TruePositive})  = "number of true positives"
 
-MMI.name(::Type{<:TruePositiveRate})      = "true_positive_rate"
-MMI.docstring(::Type{<:TruePositiveRate}) = "True positive rate; aliases: " *
-                               "`true_positive_rate`, `truepositive_rate`, `tpr`, `sensitivity`, " *
-                               "`recall`, `hit_rate`."
-MMI.name(::Type{<:TrueNegativeRate})      = "true_negative_rate"
-MMI.docstring(::Type{<:TrueNegativeRate}) = "true negative rate; aliases: " *
-                               "`true_negative_rate`, `truenegative_rate`, `tnr`, `specificity`, " *
-                               "`selectivity`."
-MMI.name(::Type{<:FalsePositiveRate})      = "false_positive_rate"
-MMI.docstring(::Type{<:FalsePositiveRate}) = "false positive rate; aliases: " *
-                               "`false_positive_rate`, `falsepositive_rate`, `fpr`, `fallout`."
-MMI.name(::Type{<:FalseNegativeRate})      = "false_negative_rate"
-MMI.docstring(::Type{<:FalseNegativeRate}) = "false negative rate; aliases: " *
-                               "`false_negative_rate`, `falsenegative_rate`, `fnr`, `miss_rate`."
-MMI.name(::Type{<:FalseDiscoveryRate})      = "false_discovery_rate"
-MMI.docstring(::Type{<:FalseDiscoveryRate}) = "false discovery rate; "*
-                               "aliases: `false_discovery_rate`, `falsediscovery_rate`, `fdr`."
-MMI.name(::Type{<:NPV})      = "negative_predictive_value"
-MMI.docstring(::Type{<:NPV}) = "negative predictive value; aliases: " *
-                               "`negative_predictive_value`, `negativepredictive_value`, `npv`."
+instances(::Type{<:TrueNegative}) = ["true_negative", "truenegative"]
+human_name(::Type{<:TrueNegative}) = "number of true negatives"
 
-MMI.name(::Type{<:Precision})         = "positive_predictive_value"
-MMI.docstring(::Type{<:Precision})    = "positive predictive value "*
-  "(aka precision); aliases: `positive_predictive_value`, `ppv`, `Precision()`, `positivepredictive_value`. "
+instances(::Type{<:FalsePositive}) = ["false_positive", "falsepositive"]
+human_name(::Type{<:FalsePositive}) = "number of false positives"
 
-"""
-    true_positive
+instances(::Type{<:FalseNegative}) = ["false_negative", "falsenegative"]
+human_name(::Type{<:FalseNegative}) = "number of false negatives"
 
-$(docstring(TruePositive()))
+instances(::Type{<:TruePositiveRate}) =
+    ["true_positive_rate", "truepositive_rate",
+     "tpr", "sensitivity", "recall", "hit_rate"]
+human_name(::Type{<:TruePositiveRate}) =
+    "true positive rate (a.k.a recall)"
 
-    true_positive(ŷ, y)
+instances(::Type{<:TrueNegativeRate}) =
+    ["true_negative_rate", "truenegative_rate", "tnr",
+     "specificity", "selectivity"]
 
-Number of true positives for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `TruePositive(rev=true)` instead of `true_positive`.
+instances(::Type{<:FalsePositiveRate}) =
+    ["false_positive_rate", "falsepositive_rate",
+     "fpr", "fallout"]
+                               "."
+instances(::Type{<:FalseNegativeRate}) =
+    ["false_negative_rate", "falsenegative_rate", "fnr", "miss_rate"]
+                               "."
+instances(::Type{<:FalseDiscoveryRate}) =
+    ["false_discovery_rate", "falsediscovery_rate", "fdr"]
 
-For more information, run `info(true_positive)`.
+instances(::Type{<:NegativePredictiveValue}) =
+    ["negative_predictive_value", "negativepredictive_value", "npv"]
 
-"""
-const true_positive = TruePositive()
-const tp = TruePositive()
-const truepositive  = TruePositive()
-
-"""
-    true_negative
-
-$(docstring(TrueNegative()))
-
-    true_negative(ŷ, y)
-
-Number of true negatives for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `TrueNegative(rev=true)` instead of `true_negative`.
+instances(::Type{<:Precision}) =
+    ["positive_predictive_value", "ppv", "positivepredictive_value", "precision"]
+human_name(::Type{<:Precision}) =
+    "precision (a.k.a. positive predictive value)"
 
 
-For more information, run `info(true_negative)`.
+# ---------------------------------------------------------------------
+# TruePositive and its cousins - doc-string building and alias creation
 
-"""
-const true_negative = TrueNegative()
-const tn = TrueNegative()
-const truenegative  = TrueNegative()
+for M in TRUE_POSITIVE_AND_COUSINS
+    eval(quote
+         $M == Precision || @create_aliases $M # precision handled separately
 
-"""
-    false_positive
+         @create_docs($M,
+         body=
+         """
+         Assigns `false` to first element of `levels(y)`. To reverse roles,
+         use `$(name($M))(rev=true)`.
+         """,
+         scitype=DOC_ORDERED_FACTOR_BINARY)
+         end)
+end
 
-$(docstring(FalsePositive()))
-
-    false_positive(ŷ, y)
-
-Number of false positives for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalsePositive(rev=true)` instead of `false_positive`.
-
-
-For more information, run `info(false_positive)`.
-
-"""
-const false_positive = FalsePositive()
-const fp = FalsePositive()
-const falsepositive = FalsePositive()
-
-"""
-    false_negative
-
-$(docstring(FalseNegative()))
-
-    false_negative(ŷ, y)
-
-Number of false positives for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `FalseNegative(rev=true)` instead of `false_negative`.
-
-For more information, run `info(false_negative)`.
-
-"""
-const false_negative = FalseNegative()
-const fn = FalseNegative()
-const falsenegative = FalseNegative()
-
-"""
-    true_positive_rate
-
-$(docstring(TruePositiveRate()))
-
-    true_positive_rate(ŷ, y)
-
-True positive rate for observations `ŷ` and ground truth `y`. Assigns
-`false` to first element of `levels(y)`. To reverse roles, use
-`TruePositiveRate(rev=true)` instead of `true_positive_rate`.
-
-For more information, run `info(true_positive_rate)`.
-
-"""
-const true_positive_rate = TruePositiveRate()
-const tpr = TruePositiveRate()
-const TPR = TruePositiveRate
-const truepositive_rate  = TPR()
-const recall = TPR()
-const Recall = TPR
-const sensitivity  = recall
-const hit_rate     = recall
-
-"""
-    true_negative_rate
-
-$(docstring(TrueNegativeRate()))
-
-    true_negative_rate(ŷ, y)
-
-True negative rate for observations `ŷ` and ground truth `y`. Assigns
-`false` to first element of `levels(y)`. To reverse roles, use
-`TrueNegativeRate(rev=true)` instead of `true_negative_rate`.
-
-For more information, run `info(true_negative_rate)`.
-
-"""
-const true_negative_rate = TrueNegativeRate()
-const tnr = TrueNegativeRate()
+# type aliases:
 const TNR = TrueNegativeRate
-const truenegative_rate  = TNR()
-const Specificity = TNR
-const specificity  = truenegative_rate
-const selectivity  = specificity
-
-"""
-    false_positive_rate
-
-$(docstring(FalsePositiveRate()))
-
-    false_positive_rate(ŷ, y)
-
-False positive rate for observations `ŷ` and ground truth `y`. Assigns
-`false` to first element of `levels(y)`. To reverse roles, use
-`FalsePositiveRate(rev=true)` instead of `false_positive_rate`.
-
-For more information, run `info(false_positive_rate)`.
-
-"""
-const false_positive_rate = FalsePositiveRate()
-const fpr = FalsePositiveRate()
+const Specificity = TrueNegativeRate
+const TPR = TruePositiveRate
+const Recall = TPR
 const FPR = FalsePositiveRate
-const falsepositive_rate = FPR()
-const fallout      = falsepositive_rate
-
-"""
-    false_negative_rate
-
-$(docstring(FalseNegativeRate()))
-
-    false_negative_rate(ŷ, y)
-
-False negative rate for observations `ŷ` and ground truth `y`. Assigns
-`false` to first element of `levels(y)`. To reverse roles, use
-`FalseNegativeRate(rev=true)` instead of `false_negative_rate`.
-
-For more information, run `info(false_negative_rate)`.
-
-"""
-const false_negative_rate = FalseNegativeRate()
-const fnr = FalseNegativeRate()
 const FNR = FalseNegativeRate
-const falsenegative_rate = FNR()
-const miss_rate    = falsenegative_rate
-
-"""
-    false_discovery_rate
-
-$(docstring(FalseDiscoveryRate()))
-
-    false_discovery_rate(ŷ, y)
-
-False discovery rate for observations `ŷ` and ground truth `y`. Assigns
-`false` to first element of `levels(y)`. To reverse roles, use
-`FalseDiscoveryRate(rev=true)` instead of `false_discovery_rate`.
-
-For more information, run `info(false_discovery_rate)`.
-
-"""
-const false_discovery_rate = FalseDiscoveryRate()
-const fdr = FalseDiscoveryRate()
 const FDR = FalseDiscoveryRate
-const falsediscovery_rate = FDR()
+const NPV = NegativePredictiveValue
+const PPV = Precision
 
-"""
-    negative_predictive_value
-
-$(docstring(NPV()))
-
-    negative_predictive_value(ŷ, y)
-
-Negative predictive value for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `NPV(rev=true)` instead of `negative_predictive_value`.
-
-For more information, run `info(negative_predictive_value)`.
-
-"""
-const negative_predictive_value = NPV()
-const npv = NPV()
-const negativepredictive_value = NPV()
-
-"""
-    positive_predictive_value
-
-$(docstring(Precision()))
-
-    positive_predictive_value(ŷ, y)
-
-Positive predictive value for observations `ŷ` and ground truth
-`y`. Assigns `false` to first element of `levels(y)`. To reverse roles,
-use `Precision(rev=true)` instead of `positive_predictive_value`.
-
-For more information, run `info(positive_predictive_value)`.
-
-"""
+# special case of precision; cannot generate alias's automatically due
+# to conflict with Base.precision:
 const positive_predictive_value = Precision()
 const ppv = Precision()
 const positivepredictive_value = Precision()
-const PPV = Precision
 
-
-## INTERNAL FUNCTIONS ON CONFUSION MATRIX
+# ----------------------------------------------------------------------
+# TruePositive and its cousins - helper functions for confusion matrices
 
 _tp(m::CM2) = m[2,2]
 _tn(m::CM2) = m[1,1]
 _fp(m::CM2) = m[2,1]
 _fn(m::CM2) = m[1,2]
 
-_tpr(m::CM2) = tp(m) / (tp(m) + fn(m))
-_tnr(m::CM2) = tn(m) / (tn(m) + fp(m))
+_tpr(m::CM2) = _tp(m) / (_tp(m) + _fn(m))
+_tnr(m::CM2) = _tn(m) / (_tn(m) + _fp(m))
 _fpr(m::CM2) = 1 - _tnr(m)
 _fnr(m::CM2) = 1 - _tpr(m)
 
-_fdr(m::CM2) = fp(m) / (tp(m) + fp(m))
-_npv(m::CM2) = tn(m) / (tn(m) + fn(m))
+_fdr(m::CM2) = _fp(m) / (_tp(m) + _fp(m))
+_npv(m::CM2) = _tn(m) / (_tn(m) + _fn(m))
 
-## Callables on CM2
+# ----------------------------------------------------------------------
+# TruePositive and its cousins - calling behaviour
+
 # NOTE: here we assume the CM was constructed a priori with the
 # proper ordering so the field `rev` in the measure is ignored
 
+# on confusion matrices:
 (::TruePositive)(m::CM2)  = _tp(m)
 (::TrueNegative)(m::CM2)  = _tn(m)
 (::FalsePositive)(m::CM2) = _fp(m)
 (::FalseNegative)(m::CM2) = _fn(m)
-
 (::TPR)(m::CM2) = _tpr(m)
 (::TNR)(m::CM2) = _tnr(m)
 (::FPR)(m::CM2) = _fpr(m)
 (::FNR)(m::CM2) = _fnr(m)
-
 (::FDR)(m::CM2) = _fdr(m)
 (::NPV)(m::CM2) = _npv(m)
-
 (::Precision)(m::CM2) = 1.0 - _fdr(m)
 
-function (::FScore{β})(m::CM2) where β
-    β2   = β^2
-    prec = precision(m)
-    rec  = recall(m)
-    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+# on vectors (ŷ, y):
+for M_ex in TRUE_POSITIVE_AND_COUSINS
+    local M = eval(M_ex)
+    (m::M)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 end
 
-## Callables on vectors
-
-for M in (TruePositive, TrueNegative, FalsePositive, FalseNegative,
-          TPR, TNR, FPR, FNR,
-          FDR, Precision, NPV, FScore)
-    (m::M)(ŷ, y) = confmat(ŷ, y; rev=m.rev) |> m
-end
-
-# specify this as `precision` is in Base and so is ambiguous
+# special `precision` case (conflict with Base.precision):
 Base.precision(m::CM2) = m |> Precision()
-Base.precision(ŷ, y)   = confmat(ŷ, y) |> Precision()
+Base.precision(ŷ, y)   = _confmat(ŷ, y) |> Precision()
 
-## MULTICLASS AND ORDER INDEPENDENT
 
-const CM = ConfusionMatrix{N} where N
+# =================================================================
+#MULTICLASS AND ORDER INDEPENDENT
+
+const CM = ConfusionMatrixObject{N} where N
 
 abstract type MulticlassAvg end
 struct MacroAvg <: MulticlassAvg end
@@ -912,8 +696,10 @@ ground truth values, `y`. $DS_AVG_RET $CLASS_W
 For more information, run `info(MulticlassFScore)`.
 
 """
-struct MulticlassFScore{M<:MulticlassAvg, U<:Union{Vector, LittleDict}} <:Measure
-    β::Float64
+struct MulticlassFScore{T<:Real,
+                        M<:MulticlassAvg,
+                        U<:Union{Vector, LittleDict}} <:Measure
+    β::T
     average::M
     return_type::Type{U}
 end
@@ -959,7 +745,8 @@ const _mtn_vec = MulticlassTrueNegative(return_type=Vector)
 
 for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
           :MulticlassFalsePositiveRate, :MulticlassFalseNegativeRate,
-          :MulticlassFalseDiscoveryRate, :MulticlassPrecision, :MulticlassNegativePredictiveValue)
+          :MulticlassFalseDiscoveryRate, :MulticlassPrecision,
+          :MulticlassNegativePredictiveValue)
     ex = quote
         struct $M{T<:MulticlassAvg, U<:Union{Vector, LittleDict}} <: Measure
             average::T
@@ -1416,7 +1203,7 @@ end
 end
 
 @inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
-                            average::MicroAvg, return_type) 
+                            average::MicroAvg, return_type)
     a_sum, b_sum = sum(a), sum(b)
     return a_sum / (a_sum + b_sum)
 end
@@ -1675,14 +1462,14 @@ end
 
 for M in (MulticlassTruePositive, MulticlassTrueNegative,
           MulticlassFalsePositive, MulticlassFalseNegative)
-    (m::M)(ŷ, y) = m(confmat(ŷ, y, warn=false))
+    (m::M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
 end
 
 for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV,
           MulticlassFScore)
-    @eval (m::$M)(ŷ, y) = m(confmat(ŷ, y, warn=false))
+    @eval (m::$M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
     @eval (m::$M)(ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
-                          m(confmat(ŷ, y, warn=false), class_w)
+                          m(_confmat(ŷ, y, warn=false), class_w)
 end
 
 

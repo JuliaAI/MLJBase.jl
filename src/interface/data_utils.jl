@@ -50,6 +50,7 @@ MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
 # table
 
 function MMI.table(::FI, cols::NamedTuple; prototype=NamedTuple())
+
     Tables.istable(prototype) || error("`prototype` is not a table. ")
     if !Tables.istable(cols)
         tuple_of_vectors = tuple((collect(v) for v in values(cols))...)
