@@ -106,17 +106,17 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     @test isapprox(freq[Q]/N, 0.2, atol=0.05)
 
     # corner case:
-    d = UnivariateFinite([:ying, :yang], 0.3, augment=true,
+    d = UnivariateFinite(["ying", "yang"], 0.3, augment=true,
                          ordered=true, pool=missing)
-    @test pdf(d, :yang) == 0.3
-    @test classes(d)[1] == :ying
+    @test pdf(d, "yang") == 0.3
+    @test classes(d)[1] == "ying"
     d = UnivariateFinite(classes(d), 0.3, augment=true)
-    @test pdf(d, :yang) == 0.3
+    @test pdf(d, "yang") == 0.3
 
     # no support specified:
     @test_logs (:warn, r"No ") UnivariateFinite([0.7, 0.3])
     d = UnivariateFinite([0.7, 0.3], pool=missing)
-    @test pdf(d, :class_1) == 0.7
+    @test pdf(d, "class_1") == 0.7
 end
 
 @testset "constructor arguments not categorical values" begin

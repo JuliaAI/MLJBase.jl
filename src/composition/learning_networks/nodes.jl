@@ -358,10 +358,10 @@ Y = @node selectrows(X, 3:4)
 julia> Y()
 3:4
 
-julia> Y([:one, :two, :three, :four])
+julia> Y(["one", "two", "three", "four"])
 2-element Array{Symbol,1}:
- :three
- :four
+ "three"
+ "four"
 
 X1 = source(4)
 X2 = source(5)

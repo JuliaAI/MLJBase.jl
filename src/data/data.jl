@@ -1,4 +1,4 @@
-## SPLITTING DATA SETS
+# SPLITTING DATA SETS
 
 # Helper function for partitioning in the non-stratified case
 function _partition(rows, fractions, ::Nothing)
@@ -156,7 +156,7 @@ specifies the seed of an automatically generated Mersenne twister. If
 ### Example
 
 ```
-julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=[:A, :B])
+julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
 julia> Z, XY = unpack(table, ==(:z), !=(:w);
                :x=>Continuous, :y=>Multiclass)
 julia> XY
@@ -322,14 +322,14 @@ the pool contained in `e`. Here `X` is a raw value (an element of
 `levels(e)`) or an `AbstractArray` of such values.
 
 ```julia
-v = categorical([:x, :y, :y, :x, :x])
-julia> transform(v, :x)
-CategoricalValue{Symbol,UInt32} :x
+v = categorical(["x", "y", "y", "x", "x"])
+julia> transform(v, "x")
+CategoricalValue{String,UInt32} "x"
 
-julia> transform(v[1], [:x :x; missing :y])
+julia> transform(v[1], ["x" "x"; missing "y"])
 2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
- :x       :x
- missing  :y
+ "x"       "x"
+ missing   "y"
 
 """
 MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
