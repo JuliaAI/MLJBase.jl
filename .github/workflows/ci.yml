@@ -47,24 +47,18 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
     steps:
-      - run: echo "The base branch is ${{ github.base_ref }}."
-      - run: echo "The head branch is ${{ github.head_ref }}."
-      - run: echo "The base repo is ${{ github.repository }}."
-      - run: echo "The head repo is ${{ github.event.pull_request.head.repo.full_name }}."
       - uses: actions/checkout@v2
-      - if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
-        uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v1
         with:
           version: '1'
-      - if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
-        run: |
+      - run: |
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
-      - if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
-        run: julia --project=docs docs/make.jl
+      - run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
