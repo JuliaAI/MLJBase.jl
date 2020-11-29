@@ -1,8 +1,14 @@
 # implementation of MLJ measure interface for LossFunctions.jl
 
 naked(T::Type) = split(string(T), '.') |> last |> Symbol
-const MARGIN_LOSSES = naked.(subtypes(MarginLoss))
-const DISTANCE_LOSSES = naked.(subtypes(DistanceLoss))
+
+const MARGIN_LOSSES =
+    [:DWDMarginLoss, :ExpLoss, :L1HingeLoss, :L2HingeLoss, :L2MarginLoss,
+     :LogitMarginLoss, :ModifiedHuberLoss, :PerceptronLoss, :SigmoidLoss,
+     :SmoothedL1HingeLoss, :ZeroOneLoss]
+const DISTANCE_LOSSES =
+    [:HuberLoss, :L1EpsilonInsLoss, :L2EpsilonInsLoss, :LPDistLoss,
+     :LogitDistLoss, :PeriodicLoss, :QuantileLoss]
 
 # Supervised Loss -- measure traits
 const LSF = LossFunctions
