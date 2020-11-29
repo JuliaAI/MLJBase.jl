@@ -809,14 +809,13 @@ function evaluate!(mach::Machine, resampling, weights,
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
         if weights == nothing
-            wtest = nothing
+            if class_weights == nothing 
+                wtest = nothing
+            else
+                wtest = class_weights
+            end
         else
             wtest = weights[test]
-        end
-        if class_weights == nothing
-            wtest = nothing
-        else
-            wtest = class_weights
         end
         yhat = operation(mach, Xtest)
 
@@ -968,7 +967,7 @@ end
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
 MLJBase.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_weights(M)
-MLJBase.supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
+supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_class_weights(M)
 MLJBase.is_pure_julia(::Type{<:Resampler}) = true
 

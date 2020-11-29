@@ -4,6 +4,7 @@ using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
+using MLJScikitLearnInterface: RidgeCVClassifier
 
 @everywhere begin
     using .Models
@@ -323,11 +324,28 @@ end
     @test e ≈ mean([efold1, efold2])
 end
 
+@testset_accelerated "class weights in evaluation" accel begin
+    X, y = @load_iris
+    ridge = @load RidgeCVClassifier
+    mach = machine(ridge, X, y)
+    cv=CV(nfolds=6)
+    class_w = Dict(zip(["setosa", "versicolor", "virginica"],[1,2,3]))
+    e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
+                  class_weights=class_w, verbosity=verb, 
+                  acceleration=accel).measurement[1]
+    @test round(e, digits=3) ≈ mean([0.333, 0.327, 0.323, 0.258, 0.649, 0.78])
+
+    # if class weights in `evaluate!` isn't specified:
+    e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
+                  verbosity=verb, acceleration=accel).measurement[1]
+    @test round(e, digits=3) ≈ 
+        round(mean([0.333, 0.327, 0.162, 0.129, 0.216, 0.26]), digits=3)
+end
+
 @testset_accelerated "resampler as machine" accel begin
     N = 50
     X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
     y = X.x1 -2X.x2 + 0.05*rand(rng,N)
-
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
     resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae)
@@ -425,6 +443,7 @@ end
     X = (x = rand(rng,3N), );
     y = categorical(rand(rng,"abcd", 3N));
     w = rand(rng,3N);
+    class_w = Dict(zip(levels(y), rand(length(levels(y)))));
     rows = StatsBase.sample(1:3N, 2N, replace=false);
     Xsmall = selectrows(X, rows);
     ysmall = selectrows(y, rows);
@@ -472,6 +491,24 @@ end
                      measure=misclassification_rate,
                      operation=predict_mode,
                      weights=weval,
+                     acceleration=accel, verbosity=verb).measurement[1]
+
+    @test e1 ≈ e2
+
+    #resampler as a machine with class weights specified
+    cweval = Dict(zip(levels(y), rand(length(levels(y)))));
+    resampler = Resampler(model=model, resampling=CV();
+                          measure=misclassification_rate,
+                          operation=predict_mode,
+                          class_weights=cweval, acceleration=accel)
+    resampling_machine = machine(resampler, X, y, class_w)
+    fit!(resampling_machine, verbosity=verb)
+    e1   = evaluate(resampling_machine).measurement[1]
+    mach = machine(model, X, y, class_w)
+    e2   = evaluate!(mach, resampling=CV();
+                     measure=misclassification_rate,
+                     operation=predict_mode,
+                     class_weights=cweval,
                      acceleration=accel, verbosity=verb).measurement[1]
 
     @test e1 ≈ e2

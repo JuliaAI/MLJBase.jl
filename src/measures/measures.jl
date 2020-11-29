@@ -110,8 +110,8 @@ aggregate(x::MeasureValue, measure) = x
 
 function value(measure, yhat, X, y, w)
     vfdep     = Val(is_feature_dependent(measure))
-    vsweights = Val(supports_weights(measure))
-    vsweights = Val(supports_class_weights(measure))
+    vsweights = Val(supports_weights(measure) ||
+                    supports_class_weights(measure))
     return value(measure, yhat, X, y, w, vfdep, vsweights)
 end
 
