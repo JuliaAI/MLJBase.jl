@@ -1,4 +1,4 @@
-module MLJBase 
+module MLJBase
 
 # ===================================================================
 # IMPORTS
@@ -134,7 +134,7 @@ export params # note this is *not* an extension of StatsBase.params
 export partition, unpack, complement, restrict, corestrict
 
 # utilities.jl:
-export @set_defaults, flat_values, recursive_setproperty!,
+export flat_values, recursive_setproperty!,
        recursive_getproperty, pretty, unwind
 
 # show.jl
@@ -162,7 +162,7 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, anonymize!, @from_network, @pipeline,
+export machines, sources, @from_network, @pipeline,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
@@ -284,7 +284,7 @@ export DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss, L2MarginLoss,
     SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
     L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss,
     QuantileLoss
- 
+
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # OrderedCollections, CategoricalArrays, InvertedIndices:
