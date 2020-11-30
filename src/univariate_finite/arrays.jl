@@ -96,7 +96,7 @@ for func in [:pdf, :logpdf]
         function Distributions.$func(
             u::AbstractArray{UnivariateFinite{S,V,R,P},N},
             C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
-        
+
             #ret = Array{P,N+1}(undef, size(u)..., length(C))
             ret = zeros(P, size(u)..., length(C))
             for i in eachindex(C)
@@ -117,9 +117,9 @@ end
 # v - a vector of CategoricalArrays
 
 # dummy function
-# returns `x[i]` for `Array` inputs `x` 
+# returns `x[i]` for `Array` inputs `x`
 # For non-Array inputs returns `zero(dtype)`
-#This avoids using an if statement 
+#This avoids using an if statement
 _getindex(x::Array,i, dtype)=x[i]
 _getindex(::Nothing, i, dtype) = zero(dtype)
 
@@ -130,15 +130,15 @@ function Base.Broadcast.broadcasted(
     cv::CategoricalValue) where {S,V,R,P,N}
 
     cv in classes(u) || _err_missing_class(cv)
-    
-    f() = zeros(P, size(u)) #default caller function 
-    
+
+    f() = zeros(P, size(u)) #default caller function
+
     return Base.Broadcast.Broadcasted(
     	identity,
     	(get(f, u.prob_given_ref, int(cv)),)
     	)
 end
-        
+
 # pdf.(u, v)
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
@@ -149,14 +149,14 @@ function Base.Broadcast.broadcasted(
         "Arrays could not be broadcast to a common size; "*
         "got a dimension with lengths $(length(u)) and $(length(v))"))
     for cv in v
-        cv in classes(u) || _err_missing_class(c)
+        cv in classes(u) || _err_missing_class(cv)
     end
 
     # will use linear indexing:
     v_flat = ((v[i], i) for i in 1:length(v))
-    
+
     getter((cv, i), dtype) = _getindex(get(u.prob_given_ref, int(cv), nothing), i, dtype)
-    
+
     ret_flat = getter.(v_flat, P)
     return reshape(ret_flat, size(u))
 end
@@ -173,9 +173,9 @@ end
 
 # logpdf.(u::UniFinArr{S,V,R,P,N}, cv::CategoricalValue)
 # logpdf.(u::UniFinArr{S,V,R,P,N}, v::AbstractArray{<:CategoricalValue{V,R},N})
-# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N}) 
-# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V) 
-for typ in (:CategoricalValue, 
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N})
+# logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V)
+for typ in (:CategoricalValue,
 	    :(AbstractArray{<:CategoricalValue{V,R},N}),
 	    :V,
 	    :(AbstractArray{V,N}))
@@ -188,11 +188,11 @@ for typ in (:CategoricalValue,
 
     	    # Start with the pdf array
     	    # take advantage of loop fusion
-    	    result = log.(pdf.(u, c)) 
+    	    result = log.(pdf.(u, c))
  	    return result
     	end
     	end)
-    	
+
   else
   	eval(quote
     	function Base.Broadcast.broadcasted(
@@ -201,18 +201,18 @@ for typ in (:CategoricalValue,
 	    	     		c::$typ) where {S,V,R,P,N}
 
     	    # Start with the pdf array
-    	    result = pdf.(u, c) 
-	    	    
+    	    result = pdf.(u, c)
+
 	    # Take the log of each entry in-place
   	    @simd for j in eachindex(result)
   	    	@inbounds result[j] = log(result[j])
 	    end
-		
+
  	    return result
     	end
     	end)
   end
-    
+
 end
 
 ## PERFORMANT BROADCASTING OF mode:
