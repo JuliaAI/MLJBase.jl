@@ -62,19 +62,23 @@ jobs:
                    println(io, "$(name)=$(value)")
                end
            end
-           base_ref = "${{ github.base_ref }}"
-           head_ref = "${{ github.head_ref }}"
-           base_repository = "${{ github.repository }}"
-           head_repository = "${{ github.event.pull_request.head.repo.full_name }}"
-           build_docs = (base_ref == "master") && (head_ref == "dev") && (base_repository == head_repository)
+           event_name = "${{ github.event_name }}"
+           if event_name == "pull_request"
+               base_ref = "${{ github.base_ref }}"
+               head_ref = "${{ github.head_ref }}"
+               base_repository = "${{ github.repository }}"
+               head_repository = "${{ github.event.pull_request.head.repo.full_name }}"
+               build_docs = (base_ref == "master") && (head_ref == "dev") && (base_repository == head_repository)
+           else 
+               build_docs = true
+           end
            if build_docs
-               msg = "This is a PR from dev into master, so we will build the docs"
+               @info("We will build the docs")
                set_environment_variable("BUILD_DOCS", "true")
            else 
-               msg = "This is NOT a PR from dev into master, so we will NOT build the docs"
+               @info("We will NOT build the docs")
                set_environment_variable("BUILD_DOCS", "false")
-           end
-           @info msg build_docs base_ref head_ref base_repository head_repository'
+           end'
       - run: |
           julia --project=docs -e '
             if ENV["BUILD_DOCS"] == "true"
