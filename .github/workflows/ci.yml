@@ -47,8 +47,8 @@ jobs:
           file: lcov.info
   docs:
     name: Documentation
-    runs-on: ubuntu-latest
     if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
