@@ -77,14 +77,16 @@ jobs:
            @info msg build_docs base_ref head_ref base_repository head_repository'
       - run: |
           julia --project=docs -e '
-            using Pkg
-            Pkg.develop(PackageSpec(path=pwd()))
-            Pkg.instantiate()'
+            if ENV["BUILD_DOCS"] == "true"
+                using Pkg
+                Pkg.develop(PackageSpec(path=pwd()))
+                Pkg.instantiate()
+            end'
       - run: |
           julia --project=docs -e '
-            using Documenter: doctest
-            using MLJBase
             if ENV["BUILD_DOCS"] == "true"
+                using Documenter: doctest
+                using MLJBase
                 @info "attempting to run the doctests"
                 doctest(MLJBase)
             else
