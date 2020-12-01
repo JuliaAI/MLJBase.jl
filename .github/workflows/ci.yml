@@ -51,22 +51,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-	if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
-	uses: actions/checkout@v2
+        if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
+        uses: actions/checkout@v2
       - name: Setup Julia
-	if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
-	uses: julia-actions/setup-julia@v1
-	with:
+        if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
+        uses: julia-actions/setup-julia@v1
+        with:
 	  version: '1'
       - name: Add package to environmemnt
         if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
         run: |
-	  julia --project=docs -e '
-	    using Pkg
-	    Pkg.develop(PackageSpec(path=pwd()))
-	    Pkg.instantiate()'
+            julia --project=docs -e '
+              using Pkg
+              Pkg.develop(PackageSpec(path=pwd()))
+              Pkg.instantiate()'
       - name: Run doc make.jl file
         run: julia --project=docs docs/make.jl
-	env:
-	  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-	  DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
