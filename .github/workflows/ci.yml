@@ -57,7 +57,7 @@ jobs:
         if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
         uses: julia-actions/setup-julia@v1
         with:
-	  version: '1'
+          version: '1'
       - name: Add package to environmemnt
         if: ${{ github.base_ref }} == 'master' && ${{ github.head_ref }} == 'dev' && github.repository == github.event.pull_request.head.repo.full_name
         run: |
