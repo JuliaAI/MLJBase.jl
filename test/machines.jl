@@ -154,5 +154,31 @@ end
 
 end
 
+
+mutable struct Fozy <: Unsupervised end
+mutable struct Box
+    matrix::Matrix{Int}
+end
+
+MLJBase.fit(model::Fozy, verbosity, X) = minimum(X.matrix), nothing, nothing
+MLJBase.transform(model::Fozy, fitresult, new_table) =
+    fill(fitresult, nrows(new_table))
+MLJBase.MLJModelInterface.reformat(model::Fozy, user_data) =
+    (Box(MLJBase.matrix(user_data)),)
+MLJBase.selectrows(model::Fozy, I, X...) = (Box(X[1].matrix[I,:]),)
+
+@testset "overloading reformat(::Model, ...), selectrows(::Model, ...)" begin
+    model = Fozy()
+    args = ((x1=[10, 30, 50], x2 = [20, 40, 60]),)
+    data = MLJBase.MLJModelInterface.reformat(model, args...)
+    @test data[1] isa Box && data[1].matrix == [10 20; 30 40; 50 60]
+    @test selectrows(model, 2:3, data...)[1].matrix == [30 40; 50 60]
+    @test fit(model, 1, data...)[1] == 10
+    mach = machine(model, args...)
+    @test_logs (:info, r"Training") fit!(mach, rows=2:3);
+    @test transform(mach, (x1 = 1:4, x2 = 1:4)) == [30, 30, 30, 30]
+end
+
+
 end # module
 true

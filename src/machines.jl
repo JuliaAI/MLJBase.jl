@@ -6,7 +6,17 @@ mutable struct Machine{M<:Model} <: MLJType
     old_model::M # for remembering the model used in last call to `fit!`
     fitresult
     cache
+
+    # training arguments (`Node`s or user-specified data wrapped in
+    # `Source`s):
     args::Tuple{Vararg{AbstractNode}}
+
+    # model-specific reformatting of args:
+    data
+
+    # cached subsample of data:
+    resampled_data
+
     report
     frozen::Bool
     old_rows
@@ -398,26 +408,37 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
     warning = clean!(mach.model)
     isempty(warning) || verbosity < 0 || @warn warning
 
-    rows === nothing && (rows = (:))
-
-    rows_have_changed = !isdefined(mach, :old_rows) ||
-                          rows != mach.old_rows
-
     upstream_state = upstream(mach)
 
-    data_has_changed =
-        rows_have_changed ||upstream_state != mach.old_upstream_state
-    previously_fit = (mach.state > 0)
+    rows === nothing && (rows = (:))
+    rows_is_new = !isdefined(mach, :old_rows) || rows != mach.old_rows
 
-    raw_args = [N(rows=rows) for N in mach.args]
+    generating_new_resampled_data = rows_is_new
+
+    data_is_valid =
+        isdefined(mach, :data)  &&
+        mach.old_upstream_state == upstream_state
+
+    # build or update `data` if necessary:
+    if !data_is_valid
+        generating_new_resampled_data = true
+        raw_args = map(N -> N(), mach.args)
+        mach.data = MMI.reformat(mach.model, raw_args...)
+    end
+
+    # build or update `resampled_data` if necessary:
+    if !data_is_valid || rows_is_new
+        mach.resampled_data =
+            selectrows(mach.model, rows, mach.data...)
+    end
 
     # we `fit`, `update`, or return untouched:
-    if !previously_fit || data_has_changed || force
+    if generating_new_resampled_data || force
         # fit the model:
         fitlog(mach, :train, verbosity)
         mach.fitresult, mach.cache, mach.report =
             try
-                fit(mach.model, verbosity, raw_args...)
+                fit(mach.model, verbosity, mach.resampled_data...)
             catch exception
                 @error "Problem fitting the machine $mach, "*
                 "possibly because an upstream node in a learning "*
@@ -428,6 +449,7 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
                     all((!isempty).(_sources)) ||
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
+                raw_args = map(N -> N(), mach.args)
                 check(mach.model, source.(raw_args)... ; full=true) &&
                     @info "Type checks okay. "
                 rethrow()
@@ -440,7 +462,7 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
                    verbosity,
                    mach.fitresult,
                    mach.cache,
-                   raw_args...)
+                   mach.resampled_data...)
     else
         # don't fit the model and return without incrementing `state`:
         fitlog(mach, :skip, verbosity)
@@ -449,7 +471,7 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
 
     # If we get to here it's because we have run `fit` or `update`!
 
-    if rows_have_changed
+    if rows_is_new
         mach.old_rows = deepcopy(rows)
     end
 
@@ -701,8 +723,8 @@ function machine(file::Union{String,IO}, args...; kwargs...)
     else
         mach = machine(model, args...)
     end
-    mach.fitresult = fitresult
     mach.state = 1
+    mach.fitresult = fitresult
     mach.report = report
     return mach
 end

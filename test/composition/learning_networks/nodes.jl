@@ -9,8 +9,6 @@ using CategoricalArrays
 import Random.seed!
 seed!(1234)
 
-
-
 @load KNNRegressor
 @load DecisionTreeClassifier
 
@@ -150,11 +148,9 @@ end
     knnM = machine(knn, W, z)
     zhat1 = predict(knnM, W)
 
-    # should be able to test a "nodal" machine if its training
-    # arguments have been fit:
     @test_mach_sequence fit!(W) [(:train, hotM), ]
     @test_mach_sequence fit!(z) [(:train, coxM), ]
-    evaluate!(knnM, verbosity=0)
+    evaluate!(knnM, measure=l2, verbosity=0);
     fit!(knnM, verbosity=0)
 
     cox.shift=true
@@ -198,12 +194,12 @@ end
                     (:skip, treeM), (:skip, knnM)])
 
     # error handling:
-    MLJBase.rebind!(X, "junk")
+    MLJBase.rebind!(X, "junk2")
     @test_logs((:error, r""),
                (:error, r""),
                (:error, r""),
                (:error, r""),
-               @test_throws Exception fit!(yhat, verbosity=-1))
+               @test_throws Exception fit!(yhat, verbosity=-1, force=true))
 
 end
 
