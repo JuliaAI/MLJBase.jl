@@ -11,7 +11,7 @@ using JLSO
 rng = StableRNG(661)
 
 @testset "predict_*" begin
-    X = (x = rand(rng, 5),)
+    X = rand(rng, 5)
     yfinite = categorical(collect("abaaa"))
     ycont = float.(1:5)
 

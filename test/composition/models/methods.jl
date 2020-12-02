@@ -88,7 +88,6 @@ end
 
 model = Rubbish(KNNRegressor(), Standardizer(), 42)
 
-
 function MLJBase.fit(model::Rubbish, verbosity, X, y)
     Xs = source(X)
     ys = source(y)
@@ -302,8 +301,74 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
 end
 
 
+## DATA FRONT-END IN AN EXPORTED LEARNING NETWORK
 
+mutable struct Scale <: MLJBase.Static
+    scaling::Float64
+end
 
+function MLJBase.transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X * s.scaling
+    MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
+end
+
+function MLJBase.inverse_transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X / s.scaling
+    MLJBase.table(MLJBase.matrix(X) / s.scaling, prototype=X)
+end
+
+mutable struct ElephantModel <: ProbabilisticComposite
+    scaler
+    clf
+    cache::Bool
+end
+
+function MLJBase.fit(model::ElephantModel, verbosity, X, y)
+
+    Xs = source(X)
+    ys = source(y)
+
+    scaler = model.scaler
+    mach1 = machine(scaler, cache=model.cache)
+    W = transform(mach1, Xs)
+
+    # a classifier with reformat front-end:
+    clf = model.clf
+    mach2 = machine(clf, W, ys, cache=model.cache)
+    yhat = predict(mach2, W)
+
+    mach = machine(Probabilistic(), Xs, ys, predict=yhat)
+    return!(mach, model, verbosity)
+end
+
+@testset "reformat/selectrows logic in composite model" begin
+
+    X = (x1=ones(5), x2=ones(5))
+    y = categorical(collect("abaaa"))
+    model = ElephantModel(Scale(2.0),
+                        ConstantClassifier(testing=true, bogus=1.0),
+                        true)
+    mach = machine(model, X, y, cache=false)
+
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(mach, verbosity=0, rows=1:3)
+               )
+    @test mach.state == 1
+
+    # new clf hyperparmater (same rows) means no reformatting or resampling:
+    model.clf.bogus = 10
+    @test_logs fit!(mach, verbosity=0, rows=1:3)
+    @test mach.state == 2
+
+    # however changing an upstream hyperparameter forces reformatting
+    # and resampling:
+    model.scaler.scaling = 3.1
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(mach, verbosity=0, rows=1:3))
 
 end
+
+end # module
 true

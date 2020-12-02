@@ -20,6 +20,16 @@ import StatsBase
     using .Threads
 end
 
+@testset "_feature_dependencies_exist" begin
+    measures = Any[rms, log_loss, brier_score]
+    @test !MLJBase._feature_dependencies_exist(measures)
+    my_feature_dependent_loss(ŷ, X, y) =
+        sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);
+    MLJBase.is_feature_dependent(::typeof(my_feature_dependent_loss)) = true
+    push!(measures, my_feature_dependent_loss)
+    @test MLJBase._feature_dependencies_exist(measures)
+end
+
 @testset_accelerated "dispatch of resources and progress meter" accel begin
 
     X = (x = [1, ],)
@@ -126,32 +136,35 @@ end
                   ([1, 2, 3, 4, 5, 6, 9, 10], 7:8),
                   (1:8, 9:10)]
 
-    model = Models.DeterministicConstantRegressor()
-    mach  = machine(model, X, y)
+    for cache in [true, false]
 
-    # check detection of incompatible measure (cross_entropy):
-    @test_throws ArgumentError evaluate!(mach, resampling=resampling,
-                                         measure=[cross_entropy, rmslp1],
-                                         verbosity=verb,
-                                         acceleration=accel)
-    result = evaluate!(mach, resampling=resampling, verbosity=verb,
-                       measure=[my_rms, my_mae, rmslp1], acceleration=accel)
+        model = Models.DeterministicConstantRegressor()
+        mach  = machine(model, X, y, cache=cache)
 
-    v = [1/2, 3/4, 1/2, 3/4, 1/2]
+        # check detection of incompatible measure (cross_entropy):
+        @test_throws ArgumentError evaluate!(mach, resampling=resampling,
+                                             measure=[cross_entropy, rmslp1],
+                                             verbosity=verb,
+                                             acceleration=accel)
+        result = evaluate!(mach, resampling=resampling, verbosity=verb,
+                           measure=[my_rms, my_mae, rmslp1], acceleration=accel)
 
-    @test result.per_fold[1] ≈ v
-    @test result.per_fold[2] ≈ v
-    @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
-    @test ismissing(result.per_observation[1])
-    @test result.per_observation[2][1] ≈ [1/2, 1/2]
-    @test result.per_observation[2][2] ≈ [3/4, 3/4]
-    @test result.measurement[1] ≈ mean(v)
-    @test result.measurement[2] ≈ mean(v)
+        v = [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    # fitted_params and report per fold:
-    @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
-        [1.5, 1.25, 1.5, 1.25, 1.5]
-    @test all(==(NamedTuple()), result.report_per_fold)
+        @test result.per_fold[1] ≈ v
+        @test result.per_fold[2] ≈ v
+        @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
+        @test ismissing(result.per_observation[1])
+        @test result.per_observation[2][1] ≈ [1/2, 1/2]
+        @test result.per_observation[2][2] ≈ [3/4, 3/4]
+        @test result.measurement[1] ≈ mean(v)
+        @test result.measurement[2] ≈ mean(v)
+
+        # fitted_params and report per fold:
+        @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
+            [1.5, 1.25, 1.5, 1.25, 1.5]
+        @test all(==(NamedTuple()), result.report_per_fold)
+    end
 end
 
 @testset "repeated resampling" begin
@@ -162,19 +175,22 @@ end
 
     holdout = Holdout(fraction_train=0.75, rng=rng)
     model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=holdout, verbosity=verb,
-                       measure=[rms, rmslp1], repeats=6)
-    per_fold = result.per_fold[1]
-    @test unique(per_fold) |> length == 6
-    @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
 
-    cv = CV(nfolds=3, rng=rng)
-    result = evaluate!(mach, resampling=cv, verbosity=verb,
+    for cache in [true, false]
+        mach = machine(model, X, y, cache=cache)
+        result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
-    per_fold = result.per_fold[1]
-    @test unique(per_fold) |> length == 18
-    @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
+        per_fold = result.per_fold[1]
+        @test unique(per_fold) |> length == 6
+        @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
+
+        cv = CV(nfolds=3, rng=rng)
+        result = evaluate!(mach, resampling=cv, verbosity=verb,
+                       measure=[rms, rmslp1], repeats=6)
+        per_fold = result.per_fold[1]
+        @test unique(per_fold) |> length == 18
+        @test abs(mean(per_fold) - std(y)) < 0.06 # very rough check
+    end
 end
 
 @testset_accelerated "holdout" accel begin
@@ -186,29 +202,34 @@ end
     @test MLJBase.show_as_constructed(Holdout)
     holdout = Holdout(fraction_train=0.75)
     model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=holdout, verbosity=verb,
-                       measure=[rms, rmslp1], acceleration=accel)
-    result = evaluate!(mach, resampling=holdout, verbosity=verb,
-                       acceleration=accel)
-    result.measurement[1] ≈ 2/3
+    for cache in [true, false]
+        mach = machine(model, X, y, cache=cache)
+        result = evaluate!(mach, resampling=holdout, verbosity=verb,
+                           measure=[rms, rmslp1], acceleration=accel)
+        result = evaluate!(mach, resampling=holdout, verbosity=verb,
+                           acceleration=accel)
+        result.measurement[1] ≈ 2/3
 
-    # test direct evaluation of a model + data:
-    result = evaluate(model, X, y, verbosity=1,
-                      resampling=holdout, measure=rms)
-    @test result.measurement[1] ≈ 2/3
+        # test direct evaluation of a model + data:
+        result = evaluate(model, X, y, verbosity=1,
+                          resampling=holdout, measure=rms, cache=cache)
+        @test result.measurement[1] ≈ 2/3
+    end
 
     X = (x=rand(rng,100),)
     y = rand(rng,100)
-    mach = machine(model, X, y)
-    evaluate!(mach, verbosity=verb,
-              resampling=Holdout(shuffle=true, rng=rng), acceleration=accel)
-    e1 = evaluate!(mach, verbosity=verb,
-                   resampling=Holdout(shuffle=true),
-                   acceleration=accel).measurement[1]
-    @test e1 != evaluate!(mach, verbosity=verb,
-                          resampling=Holdout(),
-                          acceleration=accel).measurement[1]
+
+    for cache in [true, false]
+        mach = machine(model, X, y, cache=cache)
+        evaluate!(mach, verbosity=verb,
+                  resampling=Holdout(shuffle=true, rng=rng), acceleration=accel)
+        e1 = evaluate!(mach, verbosity=verb,
+                       resampling=Holdout(shuffle=true),
+                       acceleration=accel).measurement[1]
+        @test e1 != evaluate!(mach, verbosity=verb,
+                              resampling=Holdout(),
+                              acceleration=accel).measurement[1]
+    end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
@@ -227,16 +248,18 @@ end
 
     @test MLJBase.show_as_constructed(CV)
     cv=CV(nfolds=5)
-    model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
-                       acceleration=accel, verbosity=verb)
+    for cache in [true, false]
+        model = Models.DeterministicConstantRegressor()
+        mach = machine(model, X, y, cache=cache)
+        result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
+                           acceleration=accel, verbosity=verb)
 
-    @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
+        @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    shuffled = evaluate!(mach, resampling=CV(shuffle=true), verbosity=verb,
-                          acceleration=accel) # using rms default
-    @test shuffled.measurement[1] != result.measurement[1]
+        shuffled = evaluate!(mach, resampling=CV(shuffle=true), verbosity=verb,
+                             acceleration=accel) # using rms default
+        @test shuffled.measurement[1] != result.measurement[1]
+    end
 end
 
 @testset "stratified_cv" begin
@@ -384,39 +407,41 @@ end
     y = categorical(yraw)
     w = [1, 10, 1, 10, 5]
 
-    # without weights:
-    mach = machine(ConstantClassifier(), X, y)
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1.0
+    for cache in [true, false]
+        # without weights:
+        mach = machine(ConstantClassifier(), X, y, cache=cache)
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      acceleration=accel, verbosity=verb)
+        @test e.measurement[1] ≈ 1.0
 
-    # with weights in training and evaluation:
-    mach = machine(ConstantClassifier(), X, y, w)
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel, verbosity=verb, weights=w)
-    @test e.measurement[1] ≈ mean([10*0, 5*1])
+        # with weights in training and evaluation:
+        mach = machine(ConstantClassifier(), X, y, w, cache=cache)
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      acceleration=accel, verbosity=verb, weights=w)
+        @test e.measurement[1] ≈ mean([10*0, 5*1])
 
-    # with different weights in training and evaluation:
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  weights = fill(1, 5), acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1/2
+        # with different weights in training and evaluation:
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      weights = fill(1, 5), acceleration=accel, verbosity=verb)
+        @test e.measurement[1] ≈ 1/2
 
-    @test_throws(DimensionMismatch,
-                 evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                           operation=predict_mode,
-                           measure=misclassification_rate,
-                           weights = fill(1, 100), acceleration=accel,
-                           verbosity=verb))
+        @test_throws(DimensionMismatch,
+                     evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                               operation=predict_mode,
+                               measure=misclassification_rate,
+                               weights = fill(1, 100), acceleration=accel,
+                               verbosity=verb))
 
-    @test_throws(ArgumentError,
-                 evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                           operation=predict_mode,
-                           measure=misclassification_rate,
-                           weights = fill('a', 5), acceleration=accel,
-                           verbosity=verb))
+        @test_throws(ArgumentError,
+                     evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                               operation=predict_mode,
+                               measure=misclassification_rate,
+                               weights = fill('a', 5), acceleration=accel,
+                               verbosity=verb))
+    end
 
     # resampling on a subset of all rows:
     model = @load KNNClassifier
@@ -430,51 +455,67 @@ end
     ysmall = selectrows(y, rows);
     wsmall = selectrows(w, rows);
 
-    mach1 = machine(model, Xsmall, ysmall, wsmall)
-    e1 = evaluate!(mach1, resampling=CV(),
-                   measure=misclassification_rate, weights=wsmall,
-                   operation=predict_mode, acceleration=accel, verbosity=verb)
+    for cache in [true, false]
+        mach1 = machine(model, Xsmall, ysmall, wsmall, cache=cache)
+        e1 = evaluate!(mach1,
+                       resampling=CV(),
+                       measure=misclassification_rate,
+                       weights=wsmall,
+                       operation=predict_mode,
+                       acceleration=accel,
+                       verbosity=verb)
 
-    mach2 = machine(model, X, y, w)
-    e2 = evaluate!(mach2, resampling=CV(),
-                   measure=misclassification_rate, weights=w,
-                   operation=predict_mode,
-                   rows=rows, acceleration=accel, verbosity=verb)
+        mach2 = machine(model, X, y, w, cache=cache)
+        e2 = evaluate!(mach2,
+                       resampling=CV(),
+                       measure=misclassification_rate,
+                       weights=w,
+                       operation=predict_mode,
+                       rows=rows,
+                       acceleration=accel,
+                       verbosity=verb)
 
-    @test e1.per_fold ≈ e2.per_fold
+        @test e1.per_fold ≈ e2.per_fold
+    end
 
-    # resampler as machine with evaluation weights not specified:
-    resampler = Resampler(model=model, resampling=CV();
-                          measure=misclassification_rate,
-                          operation=predict_mode)
-    resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine, verbosity=verb)
-    e1 = evaluate(resampling_machine).measurement[1]
-    mach = machine(model, X, y, w)
-    e2 = evaluate!(mach, resampling=CV();
-                   measure=misclassification_rate,
-                   operation=predict_mode,
-                   acceleration=accel, verbosity=verb).measurement[1]
+    for cache in [true, false]
 
-    @test e1 ≈ e2
+        # resampler as machine with evaluation weights not specified:
+        resampler = Resampler(model=model, resampling=CV();
+                              measure=misclassification_rate,
+                              operation=predict_mode,
+                              cache=cache)
+        resampling_machine = machine(resampler, X, y, w, cache=false)
+        fit!(resampling_machine, verbosity=verb)
+        e1 = evaluate(resampling_machine).measurement[1]
+        mach = machine(model, X, y, w, cache=!cache)
+        e2 = evaluate!(mach, resampling=CV();
+                       measure=misclassification_rate,
+                       operation=predict_mode,
+                       acceleration=accel, verbosity=verb).measurement[1]
 
-    # resampler as machine with evaluation weights specified:
-    weval = rand(rng,3N);
-    resampler = Resampler(model=model, resampling=CV();
-                          measure=misclassification_rate,
-                          operation=predict_mode,
-                          weights=weval, acceleration=accel)
-    resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine, verbosity=verb)
-    e1   = evaluate(resampling_machine).measurement[1]
-    mach = machine(model, X, y, w)
-    e2   = evaluate!(mach, resampling=CV();
-                     measure=misclassification_rate,
-                     operation=predict_mode,
-                     weights=weval,
-                     acceleration=accel, verbosity=verb).measurement[1]
+        @test e1 ≈ e2
 
-    @test e1 ≈ e2
+        # resampler as machine with evaluation weights specified:
+        weval = rand(rng,3N);
+        resampler = Resampler(model=model, resampling=CV();
+                              measure=misclassification_rate,
+                              operation=predict_mode,
+                              weights=weval, acceleration=accel,
+                              cache=cache)
+        resampling_machine = machine(resampler, X, y, w, cache=false)
+        fit!(resampling_machine, verbosity=verb)
+        e1   = evaluate(resampling_machine).measurement[1]
+        mach = machine(model, X, y, w, cache=!cache)
+        e2   = evaluate!(mach, resampling=CV();
+                         measure=misclassification_rate,
+                         operation=predict_mode,
+                         weights=weval,
+                         acceleration=accel, verbosity=verb).measurement[1]
+
+        @test e1 ≈ e2
+
+    end
 end
 
 #end
