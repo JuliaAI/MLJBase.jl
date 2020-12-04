@@ -5,7 +5,7 @@ Repository for developers that provides core functionality for the
 learning framework.
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
-[![Build Status](https://travis-ci.com/alan-turing-institute/MLJBase.jl.svg?branch=master)](https://travis-ci.com/alan-turing-institute/MLJBase.jl)
+[![Build Status](https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg)](https://github.com/alan-turing-institute/MLJBase.jl/actions)
 [![Coverage](http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master)](http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
 
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
