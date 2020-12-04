@@ -53,6 +53,6 @@ including:
 
 Previously MLJBase provided the model interface for integrating third
 party machine learning models into MLJ. That role has now shifted to
-the light-weight
+the lightweight
 [MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
 package.
