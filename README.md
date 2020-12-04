@@ -1,4 +1,4 @@
-## MLJBase 
+## MLJBase  
 
 Repository for developers that provides core functionality for the
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) machine
@@ -23,7 +23,7 @@ repository provides core functionality for MLJ, including:
   networks** and **pipelines**
 
 - basic utilities for **manipulating data**
-
+  
 - an extension to
   [Distributions.jl](https://github.com/JuliaStats/Distributions.jl)
   called `UnivariateFinite` for randomly sampling *labeled*
