@@ -808,8 +808,8 @@ function evaluate!(mach::Machine, resampling, weights,
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         Xtest = selectrows(X, test)
         ytest = selectrows(y, test)
-        if weights == nothing
-            if class_weights == nothing 
+        if weights === nothing
+            if class_weights === nothing 
                 wtest = nothing
             else
                 wtest = class_weights
