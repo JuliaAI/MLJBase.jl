@@ -4,7 +4,7 @@
 # -----------------------------------------------------
 # LogLoss
 
-struct LogLoss{R} <: Measure where R <: Real
+struct LogLoss{R <: Real} <: Measure
     tol::R
 end
 LogLoss(;eps=eps(), tol=eps) = LogLoss(tol)
@@ -107,12 +107,12 @@ function (::BrierScore)(ŷ::Vec{<:UnivariateFinite},
                         y::Vec,
                         w::Union{Nothing,Vec{<:Real}}=nothing)
     check_dimensions(ŷ, y)
-    w == nothing || check_dimensions(w, y)
+    w === nothing || check_dimensions(w, y)
 
     check_pools(ŷ, y)
     unweighted = broadcast(_brier_score, ŷ, y)
 
-    if w == nothing
+    if w === nothing
         return unweighted
     end
     return w.*unweighted
@@ -125,7 +125,7 @@ function (::BrierScore)(
     w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
 
     check_dimensions(ŷ, y)
-    w == nothing || check_dimensions(w, y)
+    w === nothing || check_dimensions(w, y)
 
     isempty(y) && return P(0)
 
@@ -136,7 +136,7 @@ function (::BrierScore)(
 
     unweighted = P(2) .* broadcast(pdf, ŷ, y) .- offset
 
-    if w == nothing
+    if w === nothing
         return unweighted
     end
     return w.*unweighted
