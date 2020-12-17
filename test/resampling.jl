@@ -326,21 +326,21 @@ end
 end
 
 @testset_accelerated "class weights in evaluation" accel begin
-    seed!(1234)
-    X, y = table(rand(1000,10)), coerce(rand([1,2,3], 1000), Multiclass)
+    x = [1,2,3,4,5,6,7]
+    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
     model = @load DeterministicConstantClassifier
     mach = machine(model, X, y)
-    cv=CV(nfolds =6)
+    cv=CV(nfolds = 2)
     class_w = Dict(1=>1, 2=>2, 3=>3) 
     e = evaluate!(mach, resampling=cv, measure=MLJBase.MulticlassFScore(return_type=Vector),
                   class_weights=class_w, verbosity=verb, 
                   acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 0.236
+    @test round(e, digits=3) ≈ 0.217
 
     # if class weights in `evaluate!` isn't specified:
     e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
                   verbosity=verb, acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 0.159
+    @test e ≈ 0.15
 end
 
 @testset_accelerated "resampler as machine" accel begin
@@ -496,8 +496,8 @@ end
 
     @test e1 ≈ e2
 
-    X = table(rand(rng, 1000,10))
-    y = coerce(rand(rng,[1,2,3], 1000), Multiclass)
+    x = [1,2,3,4,5,6,7]
+    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
     model = @load DeterministicConstantClassifier  
     class_w = Dict(zip(levels(y), rand(length(levels(y)))))
 
