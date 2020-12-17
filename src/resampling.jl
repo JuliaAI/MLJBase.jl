@@ -445,7 +445,7 @@ function _process_accel_settings(accel::CPUThreads)
       throw(ArgumentError("`n`used in `acceleration = CPUThreads(n)`must" *
                         "be an instance of type `T<:Signed`"))
       accel.settings > 0 ||
-            throw(error("Can't create $(acceleration.settings) tasks)"))
+            throw(error("Can't create $(accel.settings) tasks)"))
       _accel = accel
     end
     return _accel

@@ -102,7 +102,7 @@ function machines(W::Node, model=nothing)
                     (machines(arg) for arg in W.args)...,
                     (machines(arg) for arg in W.machine.args)...) |> unique
     end
-    model == nothing && return machs
+    model === nothing && return machs
     return filter(machs) do mach
         mach.model == model
     end
