@@ -5,7 +5,6 @@ import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
 using Tables: table
-using Random: seed!
 
 @everywhere begin
     using .Models
