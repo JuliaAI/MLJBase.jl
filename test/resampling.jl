@@ -4,7 +4,8 @@ using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
-using LIBSVM: SVC
+using Tables: table
+using Random: seed!
 
 @everywhere begin
     using .Models
@@ -325,39 +326,21 @@ end
 end
 
 @testset_accelerated "class weights in evaluation" accel begin
-    X, y = @load_iris
-    svc = @load SVC
-    mach = machine(svc, X, y)
+    seed!(1234)
+    X, y = table(rand(1000,10)), coerce(rand([1,2,3], 1000), Multiclass)
+    model = @load DeterministicConstantClassifier
+    mach = machine(model, X, y)
     cv=CV(nfolds =6)
-    class_w = Dict(zip(["setosa", "versicolor", "virginica"],[1,2,3]))
-    e = evaluate!(mach, resampling=cv, measure=MulticlassFScore(return_type=Vector),
+    class_w = Dict(1=>1, 2=>2, 3=>3) 
+    e = evaluate!(mach, resampling=cv, measure=MLJBase.MulticlassFScore(return_type=Vector),
                   class_weights=class_w, verbosity=verb, 
                   acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 
-        round(mean([0.333, 0.333, 0.624, 0.639, 0.913, 0.864]), digits=3)
-
-    # if class weights in `evaluate!` isn't specified:
-    e = evaluate!(mach, resampling=cv, measure=MulticlassFScore(return_type=Vector),
-                  verbosity=verb, acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 
-        round(mean([0.333, 0.333, 0.312, 0.319, 0.304, 0.288]), digits=3)
-end
-
-@testset_accelerated "class weights in evaluation (native)" accel begin
-    X, y = @load_iris
-    svc = @load DeterministicConstantClassifier
-    mach = machine(svc, X, y)
-    cv=CV(nfolds =6)
-    class_w = Dict(zip(["setosa", "versicolor", "virginica"],[1,2,3]))
-    e = evaluate!(mach, resampling=cv, measure=MulticlassFScore(return_type=Vector),
-                  class_weights=class_w, verbosity=verb, 
-                  acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 0.0
+    @test round(e, digits=3) ≈ 0.236
 
     # if class weights in `evaluate!` isn't specified:
     e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
                   verbosity=verb, acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 0.0
+    @test round(e, digits=3) ≈ 0.159
 end
 
 @testset_accelerated "resampler as machine" accel begin
@@ -513,26 +496,27 @@ end
 
     @test e1 ≈ e2
 
-    model = @load SVC
-    X, y = @load_iris
+    X = table(rand(rng, 1000,10))
+    y = coerce(rand(rng,[1,2,3], 1000), Multiclass)
+    model = @load DeterministicConstantClassifier  
     class_w = Dict(zip(levels(y), rand(length(levels(y)))))
+
     #resampler as a machine with class weights specified 
     cweval = Dict(zip(levels(y), rand(length(levels(y)))));
     resampler = Resampler(model=model, resampling=CV();
                           measure=MulticlassFScore(return_type=Vector),
-                          operation=predict_mode,
                           class_weights=cweval, acceleration=accel)
-    resampling_machine = machine(resampler, X, y, class_w)
+    resampling_machine = machine(resampler, X, y)
     fit!(resampling_machine, verbosity=verb)
     e1   = evaluate(resampling_machine).measurement[1]
-    mach = machine(model, X, y, class_w)
+    mach = machine(model, X, y)
     e2   = evaluate!(mach, resampling=CV();
                      measure=MulticlassFScore(return_type=Vector),
-                     operation=predict_mode,
                      class_weights=cweval,
                      acceleration=accel, verbosity=verb).measurement[1]
 
     @test e1 ≈ e2
+    
 end
 
 #end
