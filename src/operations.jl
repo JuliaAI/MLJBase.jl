@@ -22,22 +22,17 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median, :predict_joint,
-                    :transform, :inverse_transform)
+const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
+                    :predict_joint, :transform, :inverse_transform)
+
+# 0. operations on machine, given rows=...:
 
 for operation in OPERATIONS
 
     if operation != :inverse_transform
 
         ex = quote
-            # 0. operations on machine, given rows=...:
             function $(operation)(mach::Machine; rows=:)
-                # Base.depwarn("`$($operation)(mach)` and "*
-                #              "`$($operation)(mach, rows=...)` are "*
-                #              "deprecated. Data or nodes "*
-                #              "should be explictly specified, "*
-                #              "as in `$($operation)(mach, X)`. ",
-                #              Base.Core.Typeof($operation).name.mt.name)
                 if isempty(mach.args) # deserialized machine with no data
                     throw(ArgumentError("Calling $($operation) on a "*
                                         "deserialized machine with no data "*
@@ -61,18 +56,12 @@ const ROWS_NOT_ALLOWED = "Calling `transform(mach, rows=...)` when "*
 transform(mach::Machine{<:Static}; rows=:) =
     throw(ArgumentError(ROWS_NOT_ALLOWED))
 
-for operation in (:inverse_transform,)
-    ex = quote
-        # 0. operations on machines, given empty data:
-        $operation(mach::Machine; rows=:) =
-            throw(ArgumentError("`$($operation)(mach)` and "*
-                                "`$($operation)(mach, rows=...)` is "*
+inverse_transform(mach::Machine; rows=:) =
+            throw(ArgumentError("`inverse_transform()(mach)` and "*
+                                "`inverse_transform(mach, rows=...)` are "*
                                 "not supported. Data or nodes "*
                                 "must be explictly specified, "*
-                                "as in `$($operation)(mach, X)`. "))
-    end
-    eval(ex)
-end
+                                "as in `inverse_transform(mach, X)`. "))
 
 _symbol(f) = Base.Core.Typeof(f).name.mt.name
 
@@ -88,7 +77,7 @@ for operation in OPERATIONS
                 error("$mach has not been trained.")
             end
         end
-        
+
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
             isdefined(mach, :fitresult) || (mach.fitresult = nothing)
             return $(operation)(mach.model, mach.fitresult,
@@ -98,9 +87,11 @@ for operation in OPERATIONS
         # 2. operations on machines, given *dynamic* data (nodes):
         $operation(mach::Machine, X::AbstractNode) =
             node($(operation), mach, X)
-            
-        $operation(mach::Machine{<:Static}, X::AbstractNode, Xmore::AbstractNode...) =
-            node($(operation), mach, X, Xmore...)
+
+        $operation(mach::Machine{<:Static},
+                   X::AbstractNode,
+                   Xmore::AbstractNode...) =
+                       node($(operation), mach, X, Xmore...)
     end
     eval(ex)
 end
@@ -116,12 +107,14 @@ for operation in [:predict, :predict_joint, :transform, :inverse_transform]
     eval(ex)
 end
 
-for (operation, fallback) in [(:predict_mode, :mode), (:predict_mean, :mean), (:predict_median, :median)]
+for (operation, fallback) in [(:predict_mode, :mode),
+                              (:predict_mean, :mean),
+                              (:predict_median, :median)]
     ex = quote
         function $(operation)(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
-                                    fitresult,
-                                    Xnew)
-        if haskey(fitresult, $(QuoteNode(operation)))
+                              fitresult,
+                              Xnew)
+            if haskey(fitresult, $(QuoteNode(operation)))
                 return fitresult.$(operation)(Xnew)
             end
             return $(fallback).(predict(m, fitresult, Xnew))
