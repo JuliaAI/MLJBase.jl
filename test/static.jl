@@ -5,6 +5,7 @@ using StableRNGs
 
 rng = StableRNG(5312515)
 
+
 ## SIMPLE UNIVARIATE FUNCTION
 
 mutable struct Scale <: MLJBase.Static

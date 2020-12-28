@@ -30,7 +30,7 @@ for operation in OPERATIONS
     if operation != :inverse_transform
 
         ex = quote
-            # 0. operations on machs, given empty data:
+            # 0. operations on machine, given rows=...:
             function $(operation)(mach::Machine; rows=:)
                 # Base.depwarn("`$($operation)(mach)` and "*
                 #              "`$($operation)(mach, rows=...)` are "*
@@ -50,6 +50,16 @@ for operation in OPERATIONS
 
     end
 end
+
+const ROWS_NOT_ALLOWED = "Calling `transform(mach, rows=...)` when "*
+                        "`mach.model isa Static` is not allowed, as no data "*
+                        "is bound to `mach` in this case. Specify a explicit "*
+                        "data or node, as in `transform(mach, X)`, or "*
+                        "`transform(mach, X1, X2, ...)`. "
+
+# special case of Static models (no training arguments):
+transform(mach::Machine{<:Static}; rows=:) =
+    throw(ArgumentError(ROWS_NOT_ALLOWED))
 
 for operation in (:inverse_transform,)
     ex = quote
