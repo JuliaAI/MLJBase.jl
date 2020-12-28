@@ -371,6 +371,37 @@ end
 
 end
 
+@testset "reformat logic" begin
+    X = (x1=rand(5), x2=rand(5))
+    y = categorical(collect("abaaa"))
+
+    Xs = source(X)
+    ys = source(y)
+
+    std = Standardizer()
+    mach1 = machine(std, Xs)
+    W = transform(mach1, Xs)
+
+    # a classifier with reformat front-end:
+    clf = ConstantClassifier(testing=true)
+    mach2 = machine(clf, W, ys)
+    yhat = predict(mach2, W)
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:3))
+
+    # training network with new rows changes upstream state of
+    # classifier and hence retriggers reformatting of data:
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2))
+
+    # however just changing classifier hyper-parameter avoids
+    # reformatting and resampling:
+    clf.bogus = 123
+    @test_logs fit!(yhat, verbosity=0, rows=1:2)
+end
+
 @testset "@node" begin
     X1 = source(4)
     X2 = source(5)
@@ -386,7 +417,6 @@ end
     Y = @node selectrows(Xp, 3:4)
     @test Y() == 3:4
     @test Y([:one, :two, :three, :four]) == [:three, :four]
-
 end
 
 end
