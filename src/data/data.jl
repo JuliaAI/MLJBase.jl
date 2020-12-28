@@ -130,8 +130,8 @@ end
     t1, t2, ...., tk = unnpack(table, f1, f2, ... fk;
                                wrap_singles=false,
                                shuffle=false,
-                               rng::Union{AbstractRNG,Int}=nothing)
-)
+                               rng::Union{AbstractRNG,Int,Nothing}=nothing)
+
 
 
 Split any Tables.jl compatible `table` into smaller tables (or

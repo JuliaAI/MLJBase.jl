@@ -1,6 +1,13 @@
 using Distributed
 addprocs()
 
+using MLJBase
+if !MLJBase.TESTING
+    error("To test MLJBase, the environment variable "*
+          "`TEST_MLJBASE` must be set to `\"true\"`\n"*
+          "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"")
+end
+
 @info "nprocs() = $(nprocs())"
 @static if VERSION >= v"1.3.0-DEV.573"
     import .Threads
