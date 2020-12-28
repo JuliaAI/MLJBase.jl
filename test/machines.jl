@@ -256,5 +256,27 @@ MLJModelInterface.selectrows(model::SomeModel, I, A, y) =
 end
 
 
+@testset "fit! for models with reformat front-end" begin
+    X = (x1=ones(5), x2=2*ones(5))
+    y = categorical(collect("abaaa"))
+
+    clf = @load ConstantClassifier
+    clf = ConstantClassifier(testing=true)
+    mach = machine(clf, X, y)
+    # first call to fit reformats data and resamples data:
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(mach, rows=1:3, verbosity=0))
+    @test mach.data == (MLJBase.matrix(X), y)
+    @test mach.resampled_data[1] == mach.data[1][1:3,:]
+    @test mach.resampled_data[2] == y[1:3]
+    @test predict_mode(mach, X) == fill('a', 5)
+    # calling fit with new `rows` triggers resampling but no
+    # reformatting:
+    @test_logs((:info, "resampling X, y"),
+               fit!(mach, rows=1:2, verbosity=0))
+end
+
 end # module
+
 true
