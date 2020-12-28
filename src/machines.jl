@@ -317,7 +317,7 @@ end
 # - `fit!`: trains a machine after first progressively training all
 #   machines on which the machine depends. Implicitly this involves
 #   making `fit_only!` calls on those machines, scheduled by the node
-#   `@tuple N1 N2 ... `.)
+#   `glb(N1, N2, ... )`, where `glb` means greatest lower bound.)
 
 
 function fitlog(mach, action::Symbol, verbosity)
