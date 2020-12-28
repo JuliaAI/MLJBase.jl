@@ -89,7 +89,7 @@ end
 
 @testset "static transformer machines" begin
     s = Scale(2)
-    X = randn(2, 3)
+    X = ones(2, 3)
     Xt = MLJBase.table(X)
 
     @test_throws ArgumentError machine(Scale(2), X)
@@ -100,6 +100,9 @@ end
     R  = transform(mach, X)
     IR = inverse_transform(mach, R)
     @test IR ≈ X
+
+    @test_throws(ArgumentError(MLJBase.ROWS_NOT_ALLOWED),
+                 transform(mach, rows=1:2))
 end
 
 @testset "serialization" begin
