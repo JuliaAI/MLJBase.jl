@@ -358,22 +358,23 @@ bound to it, and restricting the data to `rows` if specified:
 ### Training action logic
 
 For the action to be a no-operation, either `mach.frozen == true` or
-none of the following apply:
+or none of the following apply:
 
 - (i) `mach` has never been trained (`mach.state == 0`).
 
-- (ii) `force == true`
+- (ii) `force == true`.
 
 - (iii) The `state` of some other machine on which `mach` depends has
   changed since the last time `mach` was trained (ie, the last time
-  `mach.state` was last incremented)
+  `mach.state` was last incremented).
 
-- (iv) The specified `rows` have changed since the last retraining.
+- (iv) The specified `rows` have changed since the last retraining and
+  `mach.model` does not have `Static` type.
 
 - (v) `mach.model` has changed since the last retraining.
 
-In cases (i) - (iv), `mach` is trained ab initio. In case (v) a
-training update is applied.
+In any of the cases (i) - (iv), `mach` is trained ab initio. If only
+(v) fails, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -413,7 +414,7 @@ function fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
     rows === nothing && (rows = (:))
     rows_is_new = !isdefined(mach, :old_rows) || rows != mach.old_rows
 
-    generating_new_resampled_data = rows_is_new
+    generating_new_resampled_data = rows_is_new && !(mach.model isa Static)
 
     data_is_valid =
         isdefined(mach, :data)  &&

@@ -371,7 +371,7 @@ end
 
 end
 
-@testset "reformat logic" begin
+@testset "reformat logic - with upstream transformer learning from data" begin
     X = (x1=rand(5), x2=rand(5))
     y = categorical(collect("abaaa"))
 
@@ -392,6 +392,57 @@ end
 
     # training network with new rows changes upstream state of
     # classifier and hence retriggers reformatting of data:
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2))
+
+    # however just changing classifier hyper-parameter avoids
+    # reformatting and resampling:
+    clf.bogus = 123
+    @test_logs fit!(yhat, verbosity=0, rows=1:2)
+end
+
+mutable struct Scale <: MLJBase.Static
+    scaling::Float64
+end
+
+function MLJBase.transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X * s.scaling
+    MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
+end
+
+function MLJBase.inverse_transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X / s.scaling
+    MLJBase.table(MLJBase.matrix(X) / s.scaling, prototype=X)
+end
+
+@testset "reformat logic - with upstream Static transformer" begin
+    X = (x1=ones(5), x2=ones(5))
+    y = categorical(collect("abaaa"))
+
+    Xs = source(X)
+    ys = source(y)
+
+    scaler = Scale(2.0)
+    mach1 = machine(scaler)
+    W = transform(mach1, Xs)
+
+    # a classifier with reformat front-end:
+    clf = ConstantClassifier(testing=true)
+    mach2 = machine(clf, W, ys)
+    yhat = predict(mach2, W)
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:3))
+
+    # training network with new rows does not change upstream state of
+    # classifier, because `scaler isa Static` and no reformatting of
+    # data:
+    @test_logs((:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2))
+
+    # however changing an upstream hyperparameter forces reforamatting:
+    scaler.scaling = 3.0
     @test_logs((:info, "reformatting X, y"),
                (:info, "resampling X, y"),
                fit!(yhat, verbosity=0, rows=1:2))

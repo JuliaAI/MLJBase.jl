@@ -99,10 +99,22 @@ end
     @test_throws ArgumentError machine(Scale(2), source(X))
 
     mach = machine(Scale(2))
-    fit!(mach) # no-op
+    @test_logs (:info, r"Training") fit!(mach) # no-op
+    state = mach.state
+
     R  = transform(mach, X)
     IR = inverse_transform(mach, R)
     @test IR ≈ X
+
+    # changing rows does not alter state (and "training" is skipped):
+    @test_logs (:info, r"Not retraining") fit!(mach, rows=1:3)
+    @test mach.state == state
+
+    # changing hyper-parameters *does* change state (and "training" is
+    # not skipped):
+    mach.model.scaling = 3.0
+    @test_logs (:info, r"Updating") fit!(mach, rows=1:3)
+    @test mach.state != state
 
     @test_throws(ArgumentError(MLJBase.ROWS_NOT_ALLOWED),
                  transform(mach, rows=1:2))

@@ -73,11 +73,13 @@ training target data. So, `pdf(d, level)` is the proportion of levels
 in the training data coinciding with `level`. Use `predict_mode` to
 obtain the training target mode instead.
 """
-struct ConstantClassifier <: MMI.Probabilistic
+mutable struct ConstantClassifier <: MMI.Probabilistic
     testing::Bool
+    bogus::Int
 end
 
-ConstantClassifier(; testing=false) = ConstantClassifier(testing)
+ConstantClassifier(; testing=false, bogus=0) =
+    ConstantClassifier(testing, bogus)
 
 function MMI.reformat(model::ConstantClassifier, X, y)
     model.testing && @info "reformatting X, y"
