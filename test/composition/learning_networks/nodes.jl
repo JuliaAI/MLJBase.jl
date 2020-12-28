@@ -301,6 +301,29 @@ end
 
 end
 
+mutable struct PermuteArgs <: MLJBase.Static
+    permutation::NTuple{N,Int} where N
+end
+
+MLJBase.transform(p::PermuteArgs, _, args...) =
+    Tuple([args[i] for i in p.permutation])
+MLJBase.inverse_transform(p::PermuteArgs, _, args...) =
+    Tuple([args[i] for i in sortperm(p.permutation |> collect)])
+
+@testset "nodes wrapping Static transformers can be called with rows" begin
+
+    y1 = source(10*ones(Int, 3))
+    y2 = source(20*ones(Int, 3))
+    y3 = source(30*ones(Int, 3))
+
+    permuter = PermuteArgs((2, 3, 1))
+    mach = machine(permuter)
+    y = transform(mach, y1, y2, y3)
+
+    @test y(rows=1:2) == (20*ones(Int, 2), 30*ones(Int, 2), 10*ones(Int, 2))
+
+end
+
 @testset "overloading methods for AbstractNode" begin
 
     A  = rand(3,7)
