@@ -20,6 +20,16 @@ import StatsBase
     using .Threads
 end
 
+@testset "_feature_dependencies_exist" begin
+    measures = Any[rms, log_loss, brier_score]
+    @test !MLJBase._feature_dependencies_exist(measures)
+    my_feature_dependent_loss(ŷ, X, y) =
+        sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);
+    MLJBase.is_feature_dependent(::typeof(my_feature_dependent_loss)) = true
+    push!(measures, my_feature_dependent_loss)
+    @test MLJBase._feature_dependencies_exist(measures)
+end
+
 @testset_accelerated "dispatch of resources and progress meter" accel begin
 
     X = (x = [1, ],)

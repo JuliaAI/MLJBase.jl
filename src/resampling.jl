@@ -766,6 +766,10 @@ const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
+# helper:
+_feature_dependencies_exist(measures) =
+    !all(m->!(is_feature_dependent(m)), measures)
+
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
@@ -785,18 +789,23 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
+    feature_dependencies_exist = _feature_dependencies_exist(measures)
+
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
-        Xtest = selectrows(X, test)
+        yhat = operation(mach, rows=test) # for "back-end" sampling
+        if feature_dependencies_exist
+            Xtest = selectrows(X, test)
+        else
+            Xtest = nothing
+        end
         ytest = selectrows(y, test)
         if weights === nothing
             wtest = nothing
         else
-            wtest = weights[test]
-        end
-        yhat = operation(mach, Xtest)
-
+        wtest = weights[test]
+    end
         measurements =  [value(m, yhat, Xtest, ytest, wtest)
                          for m in measures]
         fp = fitted_params(mach)
