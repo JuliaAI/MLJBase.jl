@@ -274,7 +274,7 @@ end
 
     clf = @load ConstantClassifier
     clf = ConstantClassifier(testing=true)
-    mach = machine(clf, X, y)
+    mach = machine(clf, X, y, cache=true)
     # first call to fit reformats data and resamples data:
     @test_logs((:info, "reformatting X, y"),
                (:info, "resampling X, y"),
@@ -283,7 +283,7 @@ end
     @test mach.resampled_data[1] == mach.data[1][1:3,:]
     @test mach.resampled_data[2] == y[1:3]
     @test predict_mode(mach, X) == fill('a', 5)
-    # calling fit with new `rows` triggers resampling but no
+    # calling fit! with new `rows` triggers resampling but no
     # reformatting:
     @test_logs((:info, "resampling X, y"),
                fit!(mach, rows=1:2, verbosity=0))

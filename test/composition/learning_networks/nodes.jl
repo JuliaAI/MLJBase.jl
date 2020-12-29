@@ -27,20 +27,22 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
 
     mach2 = machine(DecisionTreeClassifier(), W, ys)
     yhat = predict(mach2, W)
-    @test_logs((:error, r"because an upstream"),
+    @test_logs((:error, r"Problem fitting"),
                (:info, r"Running type checks"),
                (:warn, r"^The scitype of"),
+               (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
                @test_throws Exception fit!(yhat, verbosity=-1))
 
     Xs = source()
     mach1 = machine(Standardizer(), Xs)
     W = transform(mach1, Xs)
-    @test_logs((:error, r"^Problem"),
-               (:warn, r"are empty"),
-               (:info, r"Running"),
-               (:warn, r"^The scitype of "),
-               (:error, r"^Problem"),
+    @test_logs((:error, r"Problem fitting"),
+               (:warn, r"^Some learning network source"),
+               (:info, r"Running type checks"),
+               (:warn, r"^The scitype of"),
+               (:info, r"^It seems an upstream"),
+               (:error, r"^Problem fitting"),
                @test_throws Exception fit!(W, verbosity=-1))
 end
 
@@ -137,15 +139,15 @@ end
     y = source(y)
 
     cox = UnivariateBoxCoxTransformer()
-    coxM = machine(cox, y)
+    coxM = machine(cox, y, cache=true)
     z = transform(coxM, y)
 
     hot = OneHotEncoder()
-    hotM = machine(hot, X)
+    hotM = machine(hot, X, cache=true)
     W = transform(hotM, X)
 
     knn = KNNRegressor()
-    knnM = machine(knn, W, z)
+    knnM = machine(knn, W, z, cache=true)
     zhat1 = predict(knnM, W)
 
     @test_mach_sequence fit!(W) [(:train, hotM), ]
@@ -165,7 +167,7 @@ end
 
 
     tree = @load DecisionTreeRegressor
-    treeM = machine(tree, W, z)
+    treeM = machine(tree, W, z, cache=true)
     zhat2 = predict(treeM, W)
 
     zhat = 0.5*zhat1 + 0.5*zhat2
@@ -194,7 +196,7 @@ end
                     (:skip, treeM), (:skip, knnM)])
 
     # error handling:
-    MLJBase.rebind!(X, "junk2")
+    MLJBase.rebind!(X, "junk5")
     @test_logs((:error, r""),
                (:error, r""),
                (:error, r""),
@@ -384,7 +386,7 @@ end
 
     # a classifier with reformat front-end:
     clf = ConstantClassifier(testing=true)
-    mach2 = machine(clf, W, ys)
+    mach2 = machine(clf, W, ys; cache=true)
     yhat = predict(mach2, W)
     @test_logs((:info, "reformatting X, y"),
                (:info, "resampling X, y"),
@@ -429,7 +431,7 @@ end
 
     # a classifier with reformat front-end:
     clf = ConstantClassifier(testing=true)
-    mach2 = machine(clf, W, ys)
+    mach2 = machine(clf, W, ys, cache=true)
     yhat = predict(mach2, W)
     @test_logs((:info, "reformatting X, y"),
                (:info, "resampling X, y"),
