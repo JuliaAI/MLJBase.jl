@@ -69,8 +69,24 @@ end
 
 const KNN = Union{KNNRegressor, KNNClassifier}
 
-function MLJBase.fit(m::KNN, verbosity::Int, X, y, w=nothing)
-    Xmatrix = MLJBase.matrix(X, transpose=true) # NOTE: copies the data
+MMI.reformat(::KNN, X, y) = (MMI.matrix(X, transpose=true), y)
+MMI.reformat(::KNN, X, y, w) =
+    error("$Weights must be abstract vectors with `AbstractFloat` "*
+          "or `Integer` eltype, or be `nothing`. ")
+
+MMI.reformat(::KNN, X, y, w::Union{Nothing,AbstractVector{<:AbstractFloat}}) =
+    (MMI.matrix(X, transpose=true), y, w)
+MMI.reformat(::KNN, X, y, w::AbstractVector{<:Integer}) =
+    (MMI.matrix(X, transpose=true), y, float.(w))
+
+MMI.selectrows(::KNN, I, Xmatrix, y) =
+    (view(Xmatrix, :, I), view(y, I))
+MMI.selectrows(::KNN, I, Xmatrix, y, w) =
+    (view(Xmatrix, :, I), view(y, I), view(w, I))
+MMI.selectrows(::KNN, I, Xmatrix, y, ::Nothing) =
+    (view(Xmatrix, :, I), view(y, I), nothing)
+
+function MLJBase.fit(m::KNN, verbosity::Int, Xmatrix, y, w=nothing)
     if m.algorithm == :kdtree
         tree = NN.KDTree(Xmatrix; leafsize=m.leafsize, reorder=m.reorder)
     elseif m.algorithm == :balltree
