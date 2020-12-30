@@ -24,7 +24,6 @@ t = machine(tree, X, y)
 @test_logs (:info, r"Not retraining") fit!(t, rows=train)
 @test_logs (:info, r"Training") fit!(t)
 t.model.max_depth = 1
-# MLJBase.recursive_setproperty!(t, :(model.max_depth),  1)
 @test_logs (:info, r"Updating") fit!(t)
 
 predict(t, selectrows(X,test));
@@ -116,8 +115,7 @@ end
     @test_logs (:info, r"Updating") fit!(mach, rows=1:3)
     @test mach.state != state
 
-    @test_throws(ArgumentError(MLJBase.ROWS_NOT_ALLOWED),
-                 transform(mach, rows=1:2))
+    @test_throws ArgumentError transform(mach, rows=1:2)
 end
 
 @testset "serialization" begin
@@ -181,8 +179,8 @@ end
 
 mutable struct Fozy <: Unsupervised end
 MLJBase.fit(model::Fozy, verbosity, X) = minimum(X.matrix), nothing, nothing
-MLJBase.transform(model::Fozy, fitresult, new_table) =
-    fill(fitresult, nrows(new_table))
+MLJBase.transform(model::Fozy, fitresult, newbox) =
+    fill(fitresult, nrows(newbox.matrix))
 MLJBase.MLJModelInterface.reformat(model::Fozy, user_data) =
     (Box(MLJBase.matrix(user_data)),)
 MLJBase.selectrows(model::Fozy, I, X...) = (Box(X[1].matrix[I,:]),)

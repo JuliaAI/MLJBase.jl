@@ -75,7 +75,7 @@ struct Holdout <: ResamplingStrategy
     end
 end
 
-# Keyword Constructor
+# Keyword Constructor:
 Holdout(; fraction_train::Float64=0.7, shuffle=nothing, rng=nothing) =
     Holdout(fraction_train, shuffle_and_rng(shuffle, rng)...)
 

@@ -25,6 +25,17 @@
 const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
                     :predict_joint, :transform, :inverse_transform)
 
+_err_rows_not_allowed() =
+    throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
+                        "`mach.model isa Static` is not allowed, as no data "*
+                        "is bound to `mach` in this case. Specify a explicit "*
+                        "data or node, as in `transform(mach, X)`, or "*
+                        "`transform(mach, X1, X2, ...)`. "))
+_err_serialized(operation) =
+    throw(ArgumentError("Calling $operation on a "*
+                        "deserialized machine with no data "*
+                        "bound to it. "))
+
 # 0. operations on machine, given rows=...:
 
 for operation in OPERATIONS
@@ -32,13 +43,18 @@ for operation in OPERATIONS
     if operation != :inverse_transform
 
         ex = quote
-            function $(operation)(mach::Machine; rows=:)
-                if isempty(mach.args) # deserialized machine with no data
-                    throw(ArgumentError("Calling $($operation) on a "*
-                                        "deserialized machine with no data "*
-                                        "bound to it. "))
-                end
+            function $(operation)(mach::Machine{<:Model,false}; rows=:)
+                # catch deserialized machine with no data:
+                isempty(mach.args) && _err_serialized($operation)
                 return ($operation)(mach, mach.args[1](rows=rows))
+            end
+            function $(operation)(mach::Machine{<:Model,true}; rows=:)
+                # catch deserialized machine with no data:
+                isempty(mach.args) && _err_serialized($operation)
+                model = mach.model
+                return ($operation)(model,
+                                    mach.fitresult,
+                                    selectrows(model, rows, mach.data[1])...)
             end
         end
         eval(ex)
@@ -46,15 +62,8 @@ for operation in OPERATIONS
     end
 end
 
-const ROWS_NOT_ALLOWED = "Calling `transform(mach, rows=...)` when "*
-                        "`mach.model isa Static` is not allowed, as no data "*
-                        "is bound to `mach` in this case. Specify a explicit "*
-                        "data or node, as in `transform(mach, X)`, or "*
-                        "`transform(mach, X1, X2, ...)`. "
-
 # special case of Static models (no training arguments):
-transform(mach::Machine{<:Static}; rows=:) =
-    throw(ArgumentError(ROWS_NOT_ALLOWED))
+transform(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
 
 inverse_transform(mach::Machine; rows=:) =
             throw(ArgumentError("`inverse_transform()(mach)` and "*
@@ -71,8 +80,9 @@ for operation in OPERATIONS
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
             if mach.state > 0
-                return $(operation)(mach.model, mach.fitresult,
-                                    Xraw)
+                return $(operation)(mach.model,
+                                    mach.fitresult,
+                                    reformat(mach.model, Xraw)...)
             else
                 error("$mach has not been trained.")
             end

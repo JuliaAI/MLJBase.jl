@@ -29,7 +29,9 @@ function MMI.clean!(model::ConstantRegressor{D}) where D
     return message
 end
 
+MMI.reformat(::ConstantRegressor, X) = (MMI.matrix(X),)
 MMI.reformat(::ConstantRegressor, X, y) = (MMI.matrix(X), y)
+MMI.selectrows(::ConstantRegressor, I, A) = (view(A, I, :),)
 MMI.selectrows(::ConstantRegressor, I, A, y) = (view(A, I, :), y[I])
 
 function MMI.fit(::ConstantRegressor{D}, verbosity::Int, A, y) where D
@@ -81,14 +83,39 @@ end
 ConstantClassifier(; testing=false, bogus=0) =
     ConstantClassifier(testing, bogus)
 
+function MMI.reformat(model::ConstantClassifier, X)
+    model.testing && @info "reformatting X"
+    return (MMI.matrix(X),)
+end
+
 function MMI.reformat(model::ConstantClassifier, X, y)
     model.testing && @info "reformatting X, y"
     return (MMI.matrix(X), y)
 end
 
+function MMI.reformat(model::ConstantClassifier, X, y, w)
+    model.testing && @info "reformatting X, y, w"
+    return (MMI.matrix(X), y, w)
+end
+
+function MMI.selectrows(model::ConstantClassifier, I, A)
+    model.testing && @info "resampling X, y"
+    return (view(A, I, :),)
+end
+
 function MMI.selectrows(model::ConstantClassifier, I, A, y)
     model.testing && @info "resampling X, y"
     return (view(A, I, :), y[I])
+end
+
+function MMI.selectrows(model::ConstantClassifier, I, A, y, ::Nothing)
+    model.testing && @info "resampling X, y, nothing"
+    return (view(A, I, :), y[I], nothing)
+end
+
+function MMI.selectrows(model::ConstantClassifier, I, A, y, w)
+    model.testing && @info "resampling X, y, nothing"
+    return (view(A, I, :), y[I], w[I])
 end
 
 # here `args` is `y` or `y, w`:
