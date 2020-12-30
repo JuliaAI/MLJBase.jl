@@ -288,14 +288,18 @@ machines(::Source) = Machine[]
 
 ## DISPLAY
 
+_cache_status(::Machine{<:Any,true}) = " caches data"
+_cache_status(::Machine{<:Any,false}) = " does not cache data"
+
 function Base.show(io::IO, ::MIME"text/plain", mach::Machine)
     show(io, mach)
     print(io, " trained $(mach.state) time")
     if mach.state == 1
-        println(io, ".")
+        print(io, ";")
     else
-        println(io, "s.")
+        print(io, "s;")
     end
+    println(io, _cache_status(mach))
     println(io, "  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
