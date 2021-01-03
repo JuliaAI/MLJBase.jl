@@ -631,10 +631,11 @@ function evaluate!(mach::Machine{<:Supervised};
 end
 
 """
-    evaluate(model, data...; kw_options...)
+    evaluate(model, data...; cache=true, kw_options...)
 
-Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
-See the machine version `evaluate!` for the complete list of options.
+Equivalent to `evaluate!(machine(model, data..., cache=cache);
+wk_options...)`.  See the machine version `evaluate!` for the complete
+list of options.
 
 """
 evaluate(model::Supervised, args...; cache=true, kwargs...) =

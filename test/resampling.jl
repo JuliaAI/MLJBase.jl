@@ -177,7 +177,7 @@ end
     model = Models.DeterministicConstantRegressor()
 
     for cache in [true, false]
-        mach = machine(model, X, y)
+        mach = machine(model, X, y, cache=cache)
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
         per_fold = result.per_fold[1]
@@ -203,7 +203,7 @@ end
     holdout = Holdout(fraction_train=0.75)
     model = Models.DeterministicConstantRegressor()
     for cache in [true, false]
-        mach = machine(model, X, y)
+        mach = machine(model, X, y, cache=cache)
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
                            measure=[rms, rmslp1], acceleration=accel)
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
@@ -220,7 +220,7 @@ end
     y = rand(rng,100)
 
     for cache in [true, false]
-        mach = machine(model, X, y)
+        mach = machine(model, X, y, cache=cache)
         evaluate!(mach, verbosity=verb,
                   resampling=Holdout(shuffle=true, rng=rng), acceleration=accel)
         e1 = evaluate!(mach, verbosity=verb,
@@ -248,16 +248,18 @@ end
 
     @test MLJBase.show_as_constructed(CV)
     cv=CV(nfolds=5)
-    model = Models.DeterministicConstantRegressor()
-    mach = machine(model, X, y)
-    result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
-                       acceleration=accel, verbosity=verb)
+    for cache in [true, false]
+        model = Models.DeterministicConstantRegressor()
+        mach = machine(model, X, y, cache=cache)
+        result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
+                           acceleration=accel, verbosity=verb)
 
-    @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
+        @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
 
-    shuffled = evaluate!(mach, resampling=CV(shuffle=true), verbosity=verb,
-                          acceleration=accel) # using rms default
-    @test shuffled.measurement[1] != result.measurement[1]
+        shuffled = evaluate!(mach, resampling=CV(shuffle=true), verbosity=verb,
+                             acceleration=accel) # using rms default
+        @test shuffled.measurement[1] != result.measurement[1]
+    end
 end
 
 @testset "stratified_cv" begin
@@ -405,39 +407,41 @@ end
     y = categorical(yraw)
     w = [1, 10, 1, 10, 5]
 
-    # without weights:
-    mach = machine(ConstantClassifier(), X, y)
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1.0
+    for cache in [true, false]
+        # without weights:
+        mach = machine(ConstantClassifier(), X, y, cache=cache)
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      acceleration=accel, verbosity=verb)
+        @test e.measurement[1] ≈ 1.0
 
-    # with weights in training and evaluation:
-    mach = machine(ConstantClassifier(), X, y, w)
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  acceleration=accel, verbosity=verb, weights=w)
-    @test e.measurement[1] ≈ mean([10*0, 5*1])
+        # with weights in training and evaluation:
+        mach = machine(ConstantClassifier(), X, y, w, cache=cache)
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      acceleration=accel, verbosity=verb, weights=w)
+        @test e.measurement[1] ≈ mean([10*0, 5*1])
 
-    # with different weights in training and evaluation:
-    e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                  operation=predict_mode, measure=misclassification_rate,
-                  weights = fill(1, 5), acceleration=accel, verbosity=verb)
-    @test e.measurement[1] ≈ 1/2
+        # with different weights in training and evaluation:
+        e = evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                      operation=predict_mode, measure=misclassification_rate,
+                      weights = fill(1, 5), acceleration=accel, verbosity=verb)
+        @test e.measurement[1] ≈ 1/2
 
-    @test_throws(DimensionMismatch,
-                 evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                           operation=predict_mode,
-                           measure=misclassification_rate,
-                           weights = fill(1, 100), acceleration=accel,
-                           verbosity=verb))
+        @test_throws(DimensionMismatch,
+                     evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                               operation=predict_mode,
+                               measure=misclassification_rate,
+                               weights = fill(1, 100), acceleration=accel,
+                               verbosity=verb))
 
-    @test_throws(ArgumentError,
-                 evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                           operation=predict_mode,
-                           measure=misclassification_rate,
-                           weights = fill('a', 5), acceleration=accel,
-                           verbosity=verb))
+        @test_throws(ArgumentError,
+                     evaluate!(mach, resampling=Holdout(fraction_train=0.6),
+                               operation=predict_mode,
+                               measure=misclassification_rate,
+                               weights = fill('a', 5), acceleration=accel,
+                               verbosity=verb))
+    end
 
     # resampling on a subset of all rows:
     model = @load KNNClassifier
@@ -451,18 +455,28 @@ end
     ysmall = selectrows(y, rows);
     wsmall = selectrows(w, rows);
 
-    mach1 = machine(model, Xsmall, ysmall, wsmall)
-    e1 = evaluate!(mach1, resampling=CV(),
-                   measure=misclassification_rate, weights=wsmall,
-                   operation=predict_mode, acceleration=accel, verbosity=verb)
+    for cache in [true, false]
+        mach1 = machine(model, Xsmall, ysmall, wsmall, cache=cache)
+        e1 = evaluate!(mach1,
+                       resampling=CV(),
+                       measure=misclassification_rate,
+                       weights=wsmall,
+                       operation=predict_mode,
+                       acceleration=accel,
+                       verbosity=verb)
 
-    mach2 = machine(model, X, y, w)
-    e2 = evaluate!(mach2, resampling=CV(),
-                   measure=misclassification_rate, weights=w,
-                   operation=predict_mode,
-                   rows=rows, acceleration=accel, verbosity=verb)
+        mach2 = machine(model, X, y, w, cache=cache)
+        e2 = evaluate!(mach2,
+                       resampling=CV(),
+                       measure=misclassification_rate,
+                       weights=w,
+                       operation=predict_mode,
+                       rows=rows,
+                       acceleration=accel,
+                       verbosity=verb)
 
-    @test e1.per_fold ≈ e2.per_fold
+        @test e1.per_fold ≈ e2.per_fold
+    end
 
     # resampler as machine with evaluation weights not specified:
     resampler = Resampler(model=model, resampling=CV();
