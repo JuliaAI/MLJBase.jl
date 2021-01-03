@@ -637,8 +637,8 @@ Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
 See the machine version `evaluate!` for the complete list of options.
 
 """
-evaluate(model::Supervised, args...; kwargs...) =
-    evaluate!(machine(model, args...); kwargs...)
+evaluate(model::Supervised, args...; cache=true, kwargs...) =
+    evaluate!(machine(model, args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by

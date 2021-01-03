@@ -60,7 +60,14 @@ function MMI.fit(::DeterministicConstantRegressor, verbosity::Int, X, y)
     return fitresult, cache, report
 end
 
-MMI.predict(::DeterministicConstantRegressor, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MMI.reformat(::DeterministicConstantRegressor, X) = (MMI.matrix(X),)
+MMI.reformat(::DeterministicConstantRegressor, X, y) = (MMI.matrix(X), y)
+MMI.selectrows(::DeterministicConstantRegressor, I, A) = (view(A, I, :),)
+MMI.selectrows(::DeterministicConstantRegressor, I, A, y) =
+    (view(A, I, :), y[I])
+
+MMI.predict(::DeterministicConstantRegressor, fitresult, Xnew) =
+    fill(fitresult, nrows(Xnew))
 
 ##
 ## THE CONSTANT CLASSIFIER
@@ -126,9 +133,11 @@ function MMI.fit(::ConstantClassifier, verbosity::Int, A, y, w=nothing)
     return fitresult, cache, report
 end
 
-MMI.fitted_params(::ConstantClassifier, fitresult) = (target_distribution=fitresult,)
+MMI.fitted_params(::ConstantClassifier, fitresult) =
+    (target_distribution=fitresult,)
 
-MMI.predict(::ConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MMI.predict(::ConstantClassifier, fitresult, Xnew) =
+    fill(fitresult, nrows(Xnew))
 
 ##
 ## DETERMINISTIC CONSTANT CLASSIFIER (FOR TESTING)
@@ -138,13 +147,20 @@ struct DeterministicConstantClassifier <: MMI.Deterministic end
 
 function MMI.fit(::DeterministicConstantClassifier, verbosity::Int, X, y)
     # dump missing target values and make into a regular array:
-    fitresult = mode(skipmissing(y) |> collect) # a CategoricalValue or CategoricalString
+    fitresult = mode(skipmissing(y) |> collect) # a CategoricalValue
     cache     = nothing
     report    = NamedTuple()
     return fitresult, cache, report
 end
 
-MMI.predict(::DeterministicConstantClassifier, fitresult, Xnew) = fill(fitresult, nrows(Xnew))
+MMI.reformat(::DeterministicConstantClassifier, X) = (MMI.matrix(X),)
+MMI.reformat(::DeterministicConstantClassifier, X, y) = (MMI.matrix(X), y)
+MMI.selectrows(::DeterministicConstantClassifier, I, A) = (view(A, I, :),)
+MMI.selectrows(::DeterministicConstantClassifier, I, A, y) =
+    (view(A, I, :), y[I])
+
+MMI.predict(::DeterministicConstantClassifier, fitresult, Xnew) =
+    fill(fitresult, nrows(Xnew))
 
 #
 # METADATA
