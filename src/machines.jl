@@ -1,6 +1,6 @@
 ## MACHINE TYPE
 
-mutable struct Machine{M<:Model,cache_data} <: MLJType
+mutable struct Machine{M<:Model,C} <: MLJType
 
     model::M
     old_model::M # for remembering the model used in last call to `fit!`
@@ -11,10 +11,10 @@ mutable struct Machine{M<:Model,cache_data} <: MLJType
     # `Source`s):
     args::Tuple{Vararg{AbstractNode}}
 
-    # cached model-specific reformatting of args:
+    # cached model-specific reformatting of args (for C=true):
     data
 
-    # cached subsample of data:
+    # cached subsample of data (for C=true):
     resampled_data
 
     report

@@ -478,38 +478,44 @@ end
         @test e1.per_fold ≈ e2.per_fold
     end
 
-    # resampler as machine with evaluation weights not specified:
-    resampler = Resampler(model=model, resampling=CV();
-                          measure=misclassification_rate,
-                          operation=predict_mode)
-    resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine, verbosity=verb)
-    e1 = evaluate(resampling_machine).measurement[1]
-    mach = machine(model, X, y, w)
-    e2 = evaluate!(mach, resampling=CV();
-                   measure=misclassification_rate,
-                   operation=predict_mode,
-                   acceleration=accel, verbosity=verb).measurement[1]
+    for cache in [true, false]
 
-    @test e1 ≈ e2
+        # resampler as machine with evaluation weights not specified:
+        resampler = Resampler(model=model, resampling=CV();
+                              measure=misclassification_rate,
+                              operation=predict_mode,
+                              cache=cache)
+        resampling_machine = machine(resampler, X, y, w, cache=false)
+        fit!(resampling_machine, verbosity=verb)
+        e1 = evaluate(resampling_machine).measurement[1]
+        mach = machine(model, X, y, w, cache=!cache)
+        e2 = evaluate!(mach, resampling=CV();
+                       measure=misclassification_rate,
+                       operation=predict_mode,
+                       acceleration=accel, verbosity=verb).measurement[1]
 
-    # resampler as machine with evaluation weights specified:
-    weval = rand(rng,3N);
-    resampler = Resampler(model=model, resampling=CV();
-                          measure=misclassification_rate,
-                          operation=predict_mode,
-                          weights=weval, acceleration=accel)
-    resampling_machine = machine(resampler, X, y, w)
-    fit!(resampling_machine, verbosity=verb)
-    e1   = evaluate(resampling_machine).measurement[1]
-    mach = machine(model, X, y, w)
-    e2   = evaluate!(mach, resampling=CV();
-                     measure=misclassification_rate,
-                     operation=predict_mode,
-                     weights=weval,
-                     acceleration=accel, verbosity=verb).measurement[1]
+        @test e1 ≈ e2
 
-    @test e1 ≈ e2
+        # resampler as machine with evaluation weights specified:
+        weval = rand(rng,3N);
+        resampler = Resampler(model=model, resampling=CV();
+                              measure=misclassification_rate,
+                              operation=predict_mode,
+                              weights=weval, acceleration=accel,
+                              cache=cache)
+        resampling_machine = machine(resampler, X, y, w, cache=false)
+        fit!(resampling_machine, verbosity=verb)
+        e1   = evaluate(resampling_machine).measurement[1]
+        mach = machine(model, X, y, w, cache=!cache)
+        e2   = evaluate!(mach, resampling=CV();
+                         measure=misclassification_rate,
+                         operation=predict_mode,
+                         weights=weval,
+                         acceleration=accel, verbosity=verb).measurement[1]
+
+        @test e1 ≈ e2
+
+    end
 end
 
 #end

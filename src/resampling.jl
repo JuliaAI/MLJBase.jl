@@ -942,6 +942,7 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     acceleration::AbstractResource
     check_measure::Bool
     repeats::Int
+    cache::Bool
 end
 
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
@@ -965,12 +966,18 @@ function MLJBase.clean!(resampler::Resampler)
     return warning
 end
 
-function Resampler(; model=nothing, resampling=CV(),
-            measure=nothing, weights=nothing, operation=predict,
-            acceleration=default_resource(), check_measure=true, repeats=1)
+function Resampler(; model=nothing,
+                   resampling=CV(),
+                   measure=nothing,
+                   weights=nothing,
+                   operation=predict,
+                   acceleration=default_resource(),
+                   check_measure=true,
+                   repeats=1,
+                   cache=true)
 
     resampler = Resampler(model, resampling, measure, weights, operation,
-                          acceleration, check_measure, repeats)
+                          acceleration, check_measure, repeats, cache)
     message = MLJBase.clean!(resampler)
     isempty(message) || @warn message
 
@@ -980,7 +987,7 @@ end
 
 function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
-    mach = machine(resampler.model, args...)
+    mach = machine(resampler.model, args...; cache=resampler.cache)
 
     measures =
         _process_weights_measures(resampler.weights,
@@ -1026,7 +1033,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     if reusable
         mach = old_mach
     else
-        mach = machine(resampler.model, args...)
+        mach = machine(resampler.model, args...; cache=resampler.cache)
         cache = (mach, deepcopy(resampler.resampling))
     end
 
