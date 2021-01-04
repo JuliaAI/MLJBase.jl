@@ -1,5 +1,8 @@
 ## MACHINE TYPE
 
+caches_data_by_default(::Type{<:Model}) = true
+caches_data_by_default(m::M) where M<:Model = caches_data_by_default(M)
+
 mutable struct Machine{M<:Model,C} <: MLJType
 
     model::M
@@ -27,7 +30,7 @@ mutable struct Machine{M<:Model,C} <: MLJType
     fit_okay::Channel{Bool}
 
     function Machine(model::M, args::AbstractNode...;
-                     cache=true) where M<:Model
+                     cache=caches_data_by_default(M)) where M<:Model
         mach = new{M,cache}(model)
         mach.frozen = false
         mach.state = 0
