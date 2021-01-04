@@ -280,11 +280,15 @@ end
     @test mach.data == (MLJBase.matrix(X), y)
     @test mach.resampled_data[1] == mach.data[1][1:3,:]
     @test mach.resampled_data[2] == y[1:3]
-    @test predict_mode(mach, X) == fill('a', 5)
+    yhat = @test_logs (:info, r"reformatting X") predict_mode(mach, X)
+    @test yhat == fill('a', 5)
+    yhat = @test_logs (:info, "resampling X") predict_mode(mach, rows=1:2)
+    @test yhat == fill('a', 2)
     # calling fit! with new `rows` triggers resampling but no
     # reformatting:
     @test_logs((:info, "resampling X, y"),
                fit!(mach, rows=1:2, verbosity=0))
+
 end
 
 end # module

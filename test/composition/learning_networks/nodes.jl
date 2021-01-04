@@ -441,7 +441,8 @@ end
     # classifier, because `scaler isa Static` and no reformatting of
     # data:
     @test_logs((:info, "resampling X, y"),
-               fit!(yhat, verbosity=0, rows=1:2))
+               fit!(yhat, verbosity=0, rows=1:2)
+               )
 
     # however changing an upstream hyperparameter forces reforamatting:
     scaler.scaling = 3.0

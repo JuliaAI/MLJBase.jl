@@ -106,7 +106,7 @@ function MMI.reformat(model::ConstantClassifier, X, y, w)
 end
 
 function MMI.selectrows(model::ConstantClassifier, I, A)
-    model.testing && @info "resampling X, y"
+    model.testing && @info "resampling X"
     return (view(A, I, :),)
 end
 
