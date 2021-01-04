@@ -349,7 +349,7 @@ end
 
 # for getting model specific representation of the row-restricted
 # training data from a machine, according to the value of the machine
-# type parameter `cache_data` (`true` or `false`):
+# type parameter `C` (`true` or `false`):
 _resampled_data(mach::Machine{<:Model,true}, rows) = mach.resampled_data
 function _resampled_data(mach::Machine{<:Model,false}, rows)
     raw_args = map(N -> N(), mach.args)
