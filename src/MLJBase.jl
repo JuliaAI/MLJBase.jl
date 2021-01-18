@@ -1,4 +1,4 @@
-module MLJBase 
+module MLJBase
 
 # ===================================================================
 # IMPORTS
@@ -9,9 +9,17 @@ import Base.+, Base.*
 # Scitype
 import MLJScientificTypes.ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
-using MLJModelInterface
+
+# Traits for models and measures (which are being overloaded):
+using StatisticalTraits
+for trait in StatisticalTraits.TRAITS
+    eval(:(import StatisticalTraits.$trait))
+end
+import Base.instances # considered a trait for measures
+import StatisticalTraits.snakecase
 
 # Interface
+using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict,
     predict_mode, predict_mean, predict_median, predict_joint,
