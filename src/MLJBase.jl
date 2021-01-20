@@ -99,9 +99,6 @@ export fit, update, update_data, transform, inverse_transform,
     predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!
 
-# model/measure matching:
-export Checker, matching
-
 # model traits
 export input_scitype, output_scitype, target_scitype,
     is_pure_julia, package_name, package_license,
@@ -369,7 +366,6 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
-include("matching.jl")
 include("measures/measures.jl")
 include("measures/measure_search.jl")
 
