@@ -124,7 +124,7 @@ export coerce, coerce!, autotype, schema, info
 
 export DeterministicComposite,
     ProbabilisticComposite,
-    UnsupervisedComposite, @load
+    UnsupervisedComposite
 
 # computational_resources.jl:
 export default_resource
@@ -170,7 +170,7 @@ export make_blobs, make_moons, make_circles, make_regression
 export machines, sources, @from_network, @pipeline,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
-    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
+    rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
     DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
 
@@ -321,9 +321,6 @@ const FI  = MLJModelInterface.FullInterface
 
 default_resource()    = DEFAULT_RESOURCE[]
 default_resource(res) = (DEFAULT_RESOURCE[] = res)
-
-# stub for @load (extended by MLJModels)
-macro load end
 
 # ===================================================================
 # Includes
