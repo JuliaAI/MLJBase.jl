@@ -148,9 +148,6 @@ export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 # univariate_finite/
 export average, UnivariateFiniteArray, UnivariateFiniteVector
 
-# info_dict.jl:
-export info_dict
-
 # datasets.jl:
 export load_boston, load_ames, load_iris,
        load_reduced_ames, load_crabs, load_smarket,
@@ -328,7 +325,6 @@ default_resource(res) = (DEFAULT_RESOURCE[] = res)
 include("init.jl")
 include("utilities.jl")
 include("show.jl")
-include("info_dict.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 

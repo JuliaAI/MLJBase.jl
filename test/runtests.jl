@@ -45,7 +45,6 @@ print("\r                                           \r")
 
 @testset "misc" begin
    @test include("utilities.jl")
-   @test include("info_dict.jl")
    @test include("static.jl")
 end
 
