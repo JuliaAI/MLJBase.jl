@@ -76,6 +76,12 @@ import LossFunctions: DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss,
 # ambiguities between the raw constructor (MLJBase.UnivariateFinite)
 # and the general method (MLJModelInterface.UnivariateFinite)
 
+# traits for measures and models:
+using StatisticalTraits
+for trait in StatisticalTraits.TRAITS
+    eval(:(export $trait))
+end
+
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
     Probabilistic, JointProbabilistic, Deterministic, Interval, Static,
@@ -189,11 +195,8 @@ export OpenML
 # measures/registry.jl:
 export measures, metadata_measure
 
-# measure/measures.jl:
-export orientation, reports_each_observation,
-    is_feature_dependent, aggregation,
-    aggregate, default_measure, value,
-    supports_class_weights, prediction_type, human_name
+# measure/measures.jl (excluding traits):
+export aggregate, default_measure, value
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
