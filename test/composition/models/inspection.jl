@@ -12,8 +12,6 @@ using Statistics
 X = (x1=rand(3), x2=rand(3), x3=rand(3))
 y = float.([1, 2, 3])
 
-@load KNNRegressor
-
 @testset "tuple_keyed_on_model_names" begin
 
     model1 = KNNRegressor(K=1)

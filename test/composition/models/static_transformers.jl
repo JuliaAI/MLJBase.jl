@@ -31,7 +31,7 @@ X = (x1=x1, x2=x2, x3=x3)
 
 f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 
-knn = @load KNNRegressor
+knn = KNNRegressor()
 
 # 1. function in a pipeline:
 comp1 = @pipeline f Standardizer knn target=UnivariateBoxCoxTransformer

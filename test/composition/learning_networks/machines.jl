@@ -149,7 +149,7 @@ yhat = exp(zhat)
                          (:train, oakM2), (:train, knnM2)])
 
     @test length(MLJBase.machines(yhat)) == length(MLJBase.machines(yhat2))
-    @test models(yhat) == models(yhat2)
+    @test MLJBase.models(yhat) == MLJBase.models(yhat2)
     @test sources(yhat) == sources(yhat2)
     @test MLJBase.tree(yhat) == MLJBase.tree(yhat2)
     @test yhat() ≈ yhat2()

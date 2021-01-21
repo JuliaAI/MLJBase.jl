@@ -419,7 +419,7 @@ end
                            verbosity=verb))
 
     # resampling on a subset of all rows:
-    model = @load KNNClassifier
+    model = KNNClassifier()
 
     N = 200
     X = (x = rand(rng,3N), );

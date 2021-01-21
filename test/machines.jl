@@ -5,7 +5,7 @@ using Test
 using Statistics
 using ..Models
 
-@load DecisionTreeRegressor
+DecisionTreeRegressor()
 
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
@@ -111,7 +111,7 @@ end
     @test MLJBase._filename("mymodel.gz") == "mymodel"
     @test MLJBase._filename("mymodel") == "mymodel"
 
-    model = @load DecisionTreeRegressor
+    model = DecisionTreeRegressor()
 
     X = (a = Float64[98, 53, 93, 67, 90, 68],
          b = Float64[64, 43, 66, 47, 16, 66],)
