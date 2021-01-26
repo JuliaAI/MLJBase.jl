@@ -270,7 +270,7 @@ end
     X = (x1=ones(5), x2=2*ones(5))
     y = categorical(collect("abaaa"))
 
-    clf = @load ConstantClassifier
+    clf = ConstantClassifier()
     clf = ConstantClassifier(testing=true)
     mach = machine(clf, X, y, cache=true)
     # first call to fit reformats data and resamples data:
