@@ -11,9 +11,6 @@ using OrderedCollections
 import Random.seed!
 seed!(1234)
 
-@load KNNRegressor
-@load Standardizer
-
 mutable struct Rubbish <: DeterministicComposite
     model_in_network
     model_not_in_network
