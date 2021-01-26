@@ -95,31 +95,6 @@ end
 
 ## PREPROCESSING
 
-function is_uppercase(char::Char)
-    i = Int(char)
-    i > 64 && i < 91
-end
-
-function snakecase(str::AbstractString; delim='_')
-    snake = Char[]
-    n = length(str)
-    for i in eachindex(str)
-        char = str[i]
-        if is_uppercase(char)
-            if i != 1 && i < n &&
-                !(is_uppercase(str[i + 1]) && is_uppercase(str[i - 1]))
-                push!(snake, delim)
-            end
-            push!(snake, lowercase(char))
-        else
-            push!(snake, char)
-        end
-    end
-    return join(snake)
-end
-
-snakecase(s::Symbol) = Symbol(snakecase(string(s)))
-
 # `M` is a model type and the return value a `Symbol`. The
 # `existing_names` gets updated.
 function generate_name!(M::DataType, existing_names)

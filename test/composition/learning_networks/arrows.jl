@@ -8,8 +8,6 @@ using StableRNGs
 
 @testset "|> syntax for pipelines" begin
     rng = StableRNG(56161)
-    @load RidgeRegressor pkg="MultivariateStats"
-    @load KNNRegressor pkg="NearestNeighbors"
     X = MLJBase.table(randn(rng, 500, 5))
     y = abs.(randn(rng, 500))
     train, test = partition(eachindex(y), 0.7)
@@ -42,8 +40,6 @@ using StableRNGs
 end
 
 @testset "Auto-source" begin
-    @load PCA
-    @load RidgeRegressor pkg="MultivariateStats"
     rng = StableRNG(51616161)
 
     X = MLJBase.table(randn(rng,500, 5))
@@ -67,8 +63,6 @@ end
 end
 
 @testset "Auto-table" begin
-    @load PCA
-    @load RidgeRegressor pkg="MultivariateStats"
     rng = StableRNG(5661)
 
     X = randn(rng,500, 5)
@@ -84,9 +78,6 @@ end
 end
 
 @testset "Stacking" begin
-    @load PCA
-    @load RidgeRegressor pkg=MultivariateStats
-    @load DecisionTreeRegressor pkg=DecisionTree
     rng = StableRNG(66161)
 
     X = randn(rng,500, 5)
@@ -117,7 +108,7 @@ end
 
     f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 
-    knn = @load KNNRegressor
+    knn = KNNRegressor()
 
     XXs = source(XX)
     yys = source(yy)

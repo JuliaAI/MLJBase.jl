@@ -3,6 +3,8 @@
 # *Note.* Be sure to read Note 4 in src/operations.jl to see see how
 # fallbacks are provided for operations acting on Composite models.
 
+caches_data_by_default(::Type{<:Composite}) = true
+
 fitted_params(::Union{Composite,Surrogate},
               fitresult::NamedTuple) =
                   fitted_params(glb(values(fitresult)...))

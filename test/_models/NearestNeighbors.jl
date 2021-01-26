@@ -69,8 +69,26 @@ end
 
 const KNN = Union{KNNRegressor, KNNClassifier}
 
-function MLJBase.fit(m::KNN, verbosity::Int, X, y, w=nothing)
-    Xmatrix = MLJBase.matrix(X, transpose=true) # NOTE: copies the data
+MMI.reformat(::KNN, X) = (MMI.matrix(X, transpose=true),)
+MMI.reformat(::KNN, X, y) = (MMI.matrix(X, transpose=true), y)
+MMI.reformat(::KNN, X, y, w) =
+    error("$Weights must be abstract vectors with `AbstractFloat` "*
+          "or `Integer` eltype, or be `nothing`. ")
+MMI.reformat(::KNN, X, y, w::Union{Nothing,AbstractVector{<:AbstractFloat}}) =
+    (MMI.matrix(X, transpose=true), y, w)
+MMI.reformat(::KNN, X, y, w::AbstractVector{<:Integer}) =
+    (MMI.matrix(X, transpose=true), y, float.(w))
+
+MMI.selectrows(::KNN, I, Xmatrix) =
+    (view(Xmatrix, :, I),)
+MMI.selectrows(::KNN, I, Xmatrix, y) =
+    (view(Xmatrix, :, I), view(y, I))
+MMI.selectrows(::KNN, I, Xmatrix, y, w) =
+    (view(Xmatrix, :, I), view(y, I), view(w, I))
+MMI.selectrows(::KNN, I, Xmatrix, y, ::Nothing) =
+    (view(Xmatrix, :, I), view(y, I), nothing)
+
+function MLJBase.fit(m::KNN, verbosity::Int, Xmatrix, y, w=nothing)
     if m.algorithm == :kdtree
         tree = NN.KDTree(Xmatrix; leafsize=m.leafsize, reorder=m.reorder)
     elseif m.algorithm == :balltree
@@ -84,8 +102,7 @@ end
 
 MLJBase.fitted_params(model::KNN, (tree, _)) = (tree=tree,)
 
-function MLJBase.predict(m::KNNClassifier, (tree, y, w), X)
-    Xmatrix = MLJBase.matrix(X, transpose=true) # NOTE: copies the data
+function MLJBase.predict(m::KNNClassifier, (tree, y, w), Xmatrix)
     # for each entry, get the K closest training point + their distance
     idxs, dists = NN.knn(tree, Xmatrix, m.K)
 
@@ -120,8 +137,7 @@ function MLJBase.predict(m::KNNClassifier, (tree, y, w), X)
     return preds
 end
 
-function MLJBase.predict(m::KNNRegressor, (tree, y, w), X)
-    Xmatrix     = MLJBase.matrix(X, transpose=true) # NOTE: copies the data
+function MLJBase.predict(m::KNNRegressor, (tree, y, w), Xmatrix)
     idxs, dists = NN.knn(tree, Xmatrix, m.K)
     preds       = zeros(length(idxs))
 
