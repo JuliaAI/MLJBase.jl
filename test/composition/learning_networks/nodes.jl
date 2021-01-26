@@ -9,8 +9,8 @@ using CategoricalArrays
 import Random.seed!
 seed!(1234)
 
-@load KNNRegressor
-@load DecisionTreeClassifier
+KNNRegressor()
+DecisionTreeClassifier()
 
 N =100
 X = (x1=rand(N), x2=rand(N), x3=rand(N));
@@ -166,7 +166,7 @@ end
                    [(:skip, hotM), (:skip, coxM), (:skip, knnM)])
 
 
-    tree = @load DecisionTreeRegressor
+    tree = DecisionTreeRegressor()
     treeM = machine(tree, W, z, cache=true)
     zhat2 = predict(treeM, W)
 

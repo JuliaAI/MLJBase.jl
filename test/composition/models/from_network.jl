@@ -10,13 +10,8 @@ using StableRNGs
 using Parameters
 rng = StableRNG(616161)
 
-@load KNNRegressor
-
 ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
-
-@load DecisionTreeRegressor
-@load DecisionTreeClassifier
 
 
 ## FROM_NETWORK_PREPROCESS
@@ -485,7 +480,6 @@ mach = machine(NoTraining()) |> fit!
 
 target_stand = Standardizer()
 stand = Standardizer()
-@load KNNRegressor
 rgs = KNNRegressor()
 
 X = source()

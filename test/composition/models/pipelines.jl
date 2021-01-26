@@ -16,8 +16,6 @@ end
 MLJBase.transform(transf::MyTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
-@load KNNRegressor
-
 NN = 7
 X = MLJBase.table(rand(rng,NN, 3));
 y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);

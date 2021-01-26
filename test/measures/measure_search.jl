@@ -14,16 +14,27 @@ end
     end
 end
 
-ms = map(measures(matching(categorical(1:3)))) do m
-         m.name
+task(m) = AbstractVector{<:Finite} <: m.target_scitype
+
+ms = map(measures(task)) do m
+    m.name
 end
+
 @test "LogLoss" in ms
 @test !("RootMeanSquaredError"  in ms)
 
-ms = map(measures(matching(rand(3)))) do m
-         m.name
+task(m) = AbstractVector{Continuous} <: m.target_scitype
+
+ms = map(measures(task)) do m
+    m.name
 end
+
 @test !("LogLoss" in ms)
 @test "RootMeanSquaredError"  in ms
 
+ms = map(measures("Brier")) do  m
+    m.name
+end
+
+@test Set(ms) == Set(["BrierLoss", "BrierScore"])
 true
