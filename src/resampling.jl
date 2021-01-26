@@ -736,7 +736,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
         end
         clean!(mach.model)
         #One tmach for each task:
-        machines = [mach, [machine(mach.model, mach.args...) for
+        machines = [mach, [machine(mach.model, mach.args...;mach.cache) for
                            _ in 2:length(partitions)]...]
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
