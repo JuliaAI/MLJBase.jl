@@ -706,6 +706,9 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
+
+_caches_data(::Machine{M, C}) = C # determines if an instantiated machine caches data
+    
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
@@ -737,7 +740,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
         clean!(mach.model)
         #One tmach for each task:       
         machines = vcat(mach, [
-           machine(mach.model, mach.args...; cache = mach.cache) 
+           machine(mach.model, mach.args...; cache = _caches_data(mach)) 
            for _ in 2:length(partitions)
  	])
 
