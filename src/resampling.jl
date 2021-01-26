@@ -75,7 +75,7 @@ struct Holdout <: ResamplingStrategy
     end
 end
 
-# Keyword Constructor
+# Keyword Constructor:
 Holdout(; fraction_train::Float64=0.7, shuffle=nothing, rng=nothing) =
     Holdout(fraction_train, shuffle_and_rng(shuffle, rng)...)
 
@@ -631,14 +631,15 @@ function evaluate!(mach::Machine{<:Supervised};
 end
 
 """
-    evaluate(model, data...; kw_options...)
+    evaluate(model, data...; cache=true, kw_options...)
 
-Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
-See the machine version `evaluate!` for the complete list of options.
+Equivalent to `evaluate!(machine(model, data..., cache=cache);
+wk_options...)`.  See the machine version `evaluate!` for the complete
+list of options.
 
 """
-evaluate(model::Supervised, args...; kwargs...) =
-    evaluate!(machine(model, args...); kwargs...)
+evaluate(model::Supervised, args...; cache=true, kwargs...) =
+    evaluate!(machine(model, args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by
@@ -766,6 +767,10 @@ const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
+# helper:
+_feature_dependencies_exist(measures) =
+    !all(m->!(is_feature_dependent(m)), measures)
+
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    rows, verbosity, repeats,
@@ -785,18 +790,23 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
+    feature_dependencies_exist = _feature_dependencies_exist(measures)
+
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
-        Xtest = selectrows(X, test)
+        yhat = operation(mach, rows=test) # for "back-end" sampling
+        if feature_dependencies_exist
+            Xtest = selectrows(X, test)
+        else
+            Xtest = nothing
+        end
         ytest = selectrows(y, test)
         if weights === nothing
             wtest = nothing
         else
-            wtest = weights[test]
-        end
-        yhat = operation(mach, Xtest)
-
+        wtest = weights[test]
+    end
         measurements =  [value(m, yhat, Xtest, ytest, wtest)
                          for m in measures]
         fp = fitted_params(mach)
@@ -932,6 +942,7 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     acceleration::AbstractResource
     check_measure::Bool
     repeats::Int
+    cache::Bool
 end
 
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
@@ -955,12 +966,18 @@ function MLJBase.clean!(resampler::Resampler)
     return warning
 end
 
-function Resampler(; model=nothing, resampling=CV(),
-            measure=nothing, weights=nothing, operation=predict,
-            acceleration=default_resource(), check_measure=true, repeats=1)
+function Resampler(; model=nothing,
+                   resampling=CV(),
+                   measure=nothing,
+                   weights=nothing,
+                   operation=predict,
+                   acceleration=default_resource(),
+                   check_measure=true,
+                   repeats=1,
+                   cache=true)
 
     resampler = Resampler(model, resampling, measure, weights, operation,
-                          acceleration, check_measure, repeats)
+                          acceleration, check_measure, repeats, cache)
     message = MLJBase.clean!(resampler)
     isempty(message) || @warn message
 
@@ -970,7 +987,7 @@ end
 
 function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
-    mach = machine(resampler.model, args...)
+    mach = machine(resampler.model, args...; cache=resampler.cache)
 
     measures =
         _process_weights_measures(resampler.weights,
@@ -1016,7 +1033,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     if reusable
         mach = old_mach
     else
-        mach = machine(resampler.model, args...)
+        mach = machine(resampler.model, args...; cache=resampler.cache)
         cache = (mach, deepcopy(resampler.resampling))
     end
 

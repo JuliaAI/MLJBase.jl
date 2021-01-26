@@ -429,7 +429,7 @@ exs = [f, m, k, :(prediction_type=:probabilistic)]
 
 exs = [h, c, u]
 @test_logs((:info, r"Treating"),
-           (:warn, r"Pipeline is applying"), 
+           (:warn, r"Pipeline is applying"),
            MLJBase.pipeline_preprocess(TestPipelines, exs...))
 
 
@@ -464,6 +464,7 @@ p.constant_classifier = ConstantRegressor()
 @test_logs((:error, r"^Problem"),
            (:info, r"^Running type"),
            (:warn, r"The scitype of"),
+           (:info, r"It seems"),
            (:error, r"Problem"),
            @test_throws Exception fit!(mach, verbosity=-1))
 

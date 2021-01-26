@@ -227,10 +227,9 @@ following:
   called `cache`, for passing onto the MLJ logic that handles smart
   updating (namely, an `MLJBase.update` fallback for composite models).
 
-
 - Calls `fit!(mach, verbosity=verbosity)`.
 
-- Moves any data in sources nodes of the learning network into `cache`
+- Moves any data in source nodes of the learning network into `cache`
   (for data-anonymization purposes).
 
 - Records a copy of `model` in `cache`.

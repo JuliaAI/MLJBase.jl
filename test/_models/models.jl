@@ -3,6 +3,8 @@ module Models
 using MLJModelInterface
 import MLJBase # needed for UnivariateFinite in ConstantClassifier
 
+const MMI = MLJModelInterface
+
 include("Constant.jl")
 include("DecisionTree.jl")
 include("NearestNeighbors.jl")

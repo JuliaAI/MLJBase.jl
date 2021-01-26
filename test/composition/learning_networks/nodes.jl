@@ -9,8 +9,6 @@ using CategoricalArrays
 import Random.seed!
 seed!(1234)
 
-@show names(Models)
-
 KNNRegressor()
 DecisionTreeClassifier()
 
@@ -29,20 +27,22 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
 
     mach2 = machine(DecisionTreeClassifier(), W, ys)
     yhat = predict(mach2, W)
-    @test_logs((:error, r"because an upstream"),
+    @test_logs((:error, r"Problem fitting"),
                (:info, r"Running type checks"),
                (:warn, r"^The scitype of"),
+               (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
                @test_throws Exception fit!(yhat, verbosity=-1))
 
     Xs = source()
     mach1 = machine(Standardizer(), Xs)
     W = transform(mach1, Xs)
-    @test_logs((:error, r"^Problem"),
-               (:warn, r"are empty"),
-               (:info, r"Running"),
-               (:warn, r"^The scitype of "),
-               (:error, r"^Problem"),
+    @test_logs((:error, r"Problem fitting"),
+               (:warn, r"^Some learning network source"),
+               (:info, r"Running type checks"),
+               (:warn, r"^The scitype of"),
+               (:info, r"^It seems an upstream"),
+               (:error, r"^Problem fitting"),
                @test_throws Exception fit!(W, verbosity=-1))
 end
 
@@ -139,22 +139,20 @@ end
     y = source(y)
 
     cox = UnivariateBoxCoxTransformer()
-    coxM = machine(cox, y)
+    coxM = machine(cox, y, cache=true)
     z = transform(coxM, y)
 
     hot = OneHotEncoder()
-    hotM = machine(hot, X)
+    hotM = machine(hot, X, cache=true)
     W = transform(hotM, X)
 
     knn = KNNRegressor()
-    knnM = machine(knn, W, z)
+    knnM = machine(knn, W, z, cache=true)
     zhat1 = predict(knnM, W)
 
-    # should be able to test a "nodal" machine if its training
-    # arguments have been fit:
     @test_mach_sequence fit!(W) [(:train, hotM), ]
     @test_mach_sequence fit!(z) [(:train, coxM), ]
-    evaluate!(knnM, verbosity=0)
+    evaluate!(knnM, measure=l2, verbosity=0);
     fit!(knnM, verbosity=0)
 
     cox.shift=true
@@ -169,7 +167,7 @@ end
 
 
     tree = DecisionTreeRegressor()
-    treeM = machine(tree, W, z)
+    treeM = machine(tree, W, z, cache=true)
     zhat2 = predict(treeM, W)
 
     zhat = 0.5*zhat1 + 0.5*zhat2
@@ -198,12 +196,12 @@ end
                     (:skip, treeM), (:skip, knnM)])
 
     # error handling:
-    MLJBase.rebind!(X, "junk")
+    MLJBase.rebind!(X, "junk5")
     @test_logs((:error, r""),
                (:error, r""),
                (:error, r""),
                (:error, r""),
-               @test_throws Exception fit!(yhat, verbosity=-1))
+               @test_throws Exception fit!(yhat, verbosity=-1, force=true))
 
 end
 
@@ -375,6 +373,89 @@ end
 
 end
 
+@testset "reformat logic - with upstream transformer learning from data" begin
+    X = (x1=rand(5), x2=rand(5))
+    y = categorical(collect("abaaa"))
+
+    Xs = source(X)
+    ys = source(y)
+
+    std = Standardizer()
+    mach1 = machine(std, Xs)
+    W = transform(mach1, Xs)
+
+    # a classifier with reformat front-end:
+    clf = ConstantClassifier(testing=true)
+    mach2 = machine(clf, W, ys; cache=true)
+    yhat = predict(mach2, W)
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:3))
+
+    # training network with new rows changes upstream state of
+    # classifier and hence retriggers reformatting of data:
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2))
+
+    # however just changing classifier hyper-parameter avoids
+    # reformatting and resampling:
+    clf.bogus = 123
+    @test_logs fit!(yhat, verbosity=0, rows=1:2)
+end
+
+mutable struct Scale <: MLJBase.Static
+    scaling::Float64
+end
+
+function MLJBase.transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X * s.scaling
+    MLJBase.table(s.scaling * MLJBase.matrix(X), prototype=X)
+end
+
+function MLJBase.inverse_transform(s::Scale, _, X)
+    X isa AbstractVecOrMat && return X / s.scaling
+    MLJBase.table(MLJBase.matrix(X) / s.scaling, prototype=X)
+end
+
+@testset "reformat logic - with upstream Static transformer" begin
+    X = (x1=ones(5), x2=ones(5))
+    y = categorical(collect("abaaa"))
+
+    Xs = source(X)
+    ys = source(y)
+
+    scaler = Scale(2.0)
+    mach1 = machine(scaler)
+    W = transform(mach1, Xs)
+
+    # a classifier with reformat front-end:
+    clf = ConstantClassifier(testing=true)
+    mach2 = machine(clf, W, ys, cache=true)
+    yhat = predict(mach2, W)
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:3))
+
+    # training network with new rows does not change upstream state of
+    # classifier, because `scaler isa Static` and no reformatting of
+    # data:
+    @test_logs((:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2)
+               )
+
+    # however changing an upstream hyperparameter forces reforamatting:
+    scaler.scaling = 3.0
+    @test_logs((:info, "reformatting X, y"),
+               (:info, "resampling X, y"),
+               fit!(yhat, verbosity=0, rows=1:2))
+
+    # however just changing classifier hyper-parameter avoids
+    # reformatting and resampling:
+    clf.bogus = 123
+    @test_logs fit!(yhat, verbosity=0, rows=1:2)
+end
+
 @testset "@node" begin
     X1 = source(4)
     X2 = source(5)
@@ -390,7 +471,6 @@ end
     Y = @node selectrows(Xp, 3:4)
     @test Y() == 3:4
     @test Y([:one, :two, :three, :four]) == [:three, :four]
-
 end
 
 end
