@@ -706,6 +706,9 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
+
+_caches_data(::Machine{M, C}) where {M, C} = C # determines if an instantiated machine caches data
+    
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
@@ -735,9 +738,12 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
             end
         end
         clean!(mach.model)
-        #One tmach for each task:
-        machines = [mach, [machine(mach.model, mach.args...) for
-                           _ in 2:length(partitions)]...]
+        #One tmach for each task:       
+        machines = vcat(mach, [
+           machine(mach.model, mach.args...; cache = _caches_data(mach)) 
+           for _ in 2:length(partitions)
+ 	])
+
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
                 results[i] = mapreduce(vcat, parts) do k
