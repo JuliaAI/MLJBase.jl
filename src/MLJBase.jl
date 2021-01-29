@@ -81,6 +81,7 @@ using StatisticalTraits
 for trait in StatisticalTraits.TRAITS
     eval(:(export $trait))
 end
+export implemented_methods # defined here and not in StatisticalTraits
 
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
@@ -104,15 +105,6 @@ export fit, update, update_data, transform, inverse_transform,
     fitted_params, predict,
     predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!
-
-# model traits
-export input_scitype, output_scitype, target_scitype,
-    is_pure_julia, package_name, package_license,
-    load_path, package_uuid, package_url,
-    is_wrapper, supports_weights, supports_online,
-    docstring, name, is_supervised,
-    prediction_type, implemented_methods, hyperparameters,
-    hyperparameter_types, hyperparameter_ranges
 
 # data operations
 export matrix, int, classes, decoder, table,
