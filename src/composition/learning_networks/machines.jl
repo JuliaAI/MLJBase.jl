@@ -50,6 +50,8 @@ function model_supertype(signature)
 
 end
 
+caches_data_by_default(::Type{<:Surrogate}) = false
+
 function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:

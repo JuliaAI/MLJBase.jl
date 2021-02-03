@@ -62,6 +62,10 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     # supervised - predict_mode
     fit!(mach)
     @test predict_mode(mach, X) == mode.(predict(mach, X))
+    @test predict(mach, rows=1:2) == predict(mach, rows=:)[1:2]
+
+    # evaluate a learning machine
+    evaluate!(mach, measure=LogLoss())
 
     # supervised - predict_median, predict_mean
     X, y = make_regression(20)
