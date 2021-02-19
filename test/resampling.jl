@@ -350,7 +350,7 @@ end
 @testset_accelerated "class weights in evaluation" accel begin
     x = [1,2,3,4,5,6,7]
     X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
-    model = @load DeterministicConstantClassifier
+    model = Models.DeterministicConstantClassifier()
     mach = machine(model, X, y)
     cv=CV(nfolds = 2)
     class_w = Dict(1=>1, 2=>2, 3=>3)
@@ -507,7 +507,7 @@ end
         resampling_machine = machine(resampler, X, y, w, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1 = evaluate(resampling_machine).measurement[1]
-        mach = machine(model, X, y, w, cache=!cache)
+        mach = machine(model, X, y, w, cache=cache)
         e2 = evaluate!(mach, resampling=CV();
                        measure=misclassification_rate,
                        operation=predict_mode,
@@ -525,7 +525,7 @@ end
         resampling_machine = machine(resampler, X, y, w, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1   = evaluate(resampling_machine).measurement[1]
-        mach = machine(model, X, y, w, cache=!cache)
+        mach = machine(model, X, y, w, cache=cache)
         e2   = evaluate!(mach, resampling=CV();
                          measure=misclassification_rate,
                          operation=predict_mode,
@@ -538,7 +538,7 @@ end
 
     x = [1,2,3,4,5,6,7]
     X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
-    model = @load DeterministicConstantClassifier
+    model = Models.DeterministicConstantClassifier()
     class_w = Dict(zip(levels(y), rand(length(levels(y)))))
 
     for cache in [true, false]
@@ -548,10 +548,10 @@ end
         resampler = Resampler(model=model, resampling=CV();
                               measure=MulticlassFScore(return_type=Vector),
                               class_weights=cweval, acceleration=accel)
-        resampling_machine = machine(resampler, X, y)
+        resampling_machine = machine(resampler, X, y, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1   = evaluate(resampling_machine).measurement[1]
-        mach = machine(model, X, y)
+        mach = machine(model, X, y, cache=cache)
         e2   = evaluate!(mach, resampling=CV();
                          measure=MulticlassFScore(return_type=Vector),
                          class_weights=cweval,
