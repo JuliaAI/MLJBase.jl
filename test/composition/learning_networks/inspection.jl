@@ -4,7 +4,7 @@ using Test
 using MLJBase
 using ..Models
 
-@load KNNRegressor
+KNNRegressor()
 
 @constant X = source()
 @constant y = source()
@@ -30,7 +30,7 @@ knnM = machine(knn, W, y)
                                            train_arg1 = (source = X, )),
                              train_arg2 = (source = y,))
 
-@test Set(models(yhat)) == Set([hot, knn])
+@test Set(MLJBase.models(yhat)) == Set([hot, knn])
 @test Set(sources(yhat)) == Set([X, y])
 @test Set(origins(yhat)) == Set([X,])
 @test Set(machines(yhat)) == Set([knnM, hotM])
@@ -53,9 +53,9 @@ W2 = transform(machine(UnivariateStandardizer(), X), X)
 # @test input_scitype(X, glb(W, W2)) == Union{}
 # @test input_scitype(X, glb(Q, W)) == Unknown
 
-y1 = predict(machine(@load(DecisionTreeRegressor), X, y), X)
+y1 = predict(machine(DecisionTreeRegressor(), X, y), X)
 @test input_scitype(y1) == Table(Continuous, OrderedFactor, Count)
-y2 = predict(machine(@load(KNNRegressor), X, y), X)
+y2 = predict(machine(KNNRegressor(), X, y), X)
 @test input_scitype(y2) == Table(Continuous)
 # @test input_scitype(X, glb(y1, y2)) == Table(Continuous)
 # @test input_scitype(X, glb(y1, y2, Q)) == Unknown

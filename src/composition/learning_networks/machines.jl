@@ -50,6 +50,8 @@ function model_supertype(signature)
 
 end
 
+caches_data_by_default(::Type{<:Surrogate}) = false
+
 function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
@@ -227,10 +229,9 @@ following:
   called `cache`, for passing onto the MLJ logic that handles smart
   updating (namely, an `MLJBase.update` fallback for composite models).
 
-
 - Calls `fit!(mach, verbosity=verbosity)`.
 
-- Moves any data in sources nodes of the learning network into `cache`
+- Moves any data in source nodes of the learning network into `cache`
   (for data-anonymization purposes).
 
 - Records a copy of `model` in `cache`.

@@ -203,10 +203,10 @@ ConfusionMatrix(; perm=nothing) = ConfusionMatrix(perm)
 is_measure(::ConfusionMatrix) = true
 is_measure_type(::Type{ConfusionMatrix}) = true
 human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
-MLJModelInterface.target_scitype(::Type{ConfusionMatrix}) =
+target_scitype(::Type{ConfusionMatrix}) =
     AbstractVector{<:Finite}
-MLJModelInterface.supports_weights(::Type{ConfusionMatrix}) = false
-MLJModelInterface.prediction_type(::Type{ConfusionMatrix}) = :deterministic
+supports_weights(::Type{ConfusionMatrix}) = false
+prediction_type(::Type{ConfusionMatrix}) = :deterministic
 instances(::Type{<:ConfusionMatrix}) = ["confusion_matrix", "confmat"]
 orientation(::Type{ConfusionMatrix}) = :other
 reports_each_observation(::Type{ConfusionMatrix}) = false

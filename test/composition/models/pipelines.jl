@@ -16,8 +16,6 @@ end
 MLJBase.transform(transf::MyTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
-@load KNNRegressor
-
 NN = 7
 X = MLJBase.table(rand(rng,NN, 3));
 y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);
@@ -431,7 +429,7 @@ exs = [f, m, k, :(prediction_type=:probabilistic)]
 
 exs = [h, c, u]
 @test_logs((:info, r"Treating"),
-           (:warn, r"Pipeline is applying"), 
+           (:warn, r"Pipeline is applying"),
            MLJBase.pipeline_preprocess(TestPipelines, exs...))
 
 
@@ -466,6 +464,7 @@ p.constant_classifier = ConstantRegressor()
 @test_logs((:error, r"^Problem"),
            (:info, r"^Running type"),
            (:warn, r"The scitype of"),
+           (:info, r"It seems"),
            (:error, r"Problem"),
            @test_throws Exception fit!(mach, verbosity=-1))
 

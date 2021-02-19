@@ -13,42 +13,22 @@ const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
 
 is_measure_type(::Any) = false
 
-const MEASURE_TRAITS =
-    [:name, :instances, :human_name, :target_scitype, :supports_weights,
-     :prediction_type, :orientation,
-     :reports_each_observation, :aggregation, :is_feature_dependent, :docstring,
-     :distribution_type, :supports_class_weights]
+# The following traits, with fallbacks defined in
+# StatisticalTraits.jl, make sense for some or all measures:
 
-# already defined in model_traits.jl:
-# name              - fallback for non-MLJType is string(coretype(M))
-#                                                      where M is arg
-# target_scitype    - fallback value = Unknown
-# supports_weights  - fallback value = false
-# prediction_type   - fallback value = :unknown (also: :deterministic,
-#                                           :probabilistic, :interval)
-# docstring         - fallback value is value of `name` trait.
-
-# specfic to measures:
-orientation(::Type) = :loss  # other options are :score, :other
-reports_each_observation(::Type) = false
-aggregation(::Type) = Mean()  # other option is Sum() or callable object
-is_feature_dependent(::Type) = false
-human_name(M::Type) = snakecase(name(M), delim=' ')
-instances(::Type) = String[]
-
-# specific to `Finite` measures:
-supports_class_weights(::Type) = false
-
-# specific to probabilistic measures:
-distribution_type(::Type) = missing
-
-# extend to instances:
-for trait in [:orientation, :reports_each_observation, :aggregation,
-              :is_feature_dependent, :supports_class_weights,
-              :distribution_type]
-    eval(:($trait(m) = $trait(typeof(m))))
-end
-
+const MEASURE_TRAITS = [:name,
+                        :instances,
+                        :human_name,
+                        :target_scitype,
+                        :supports_weights,
+                        :supports_class_weights,
+                        :prediction_type,
+                        :orientation,
+                        :reports_each_observation,
+                        :aggregation,
+                        :is_feature_dependent,
+                        :docstring,
+                        :distribution_type]
 
 ## FOR BUILT-IN MEASURES (subtyping Measure)
 
@@ -80,18 +60,12 @@ MLJScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 ## AGGREGATION
 
-abstract type AggregationMode end
-
-struct Sum <: AggregationMode end
 (::Sum)(v) = sum(v)
 (::Sum)(v::LittleDict) = sum(values(v))
 
-struct Mean <: AggregationMode end
 (::Mean)(v) = mean(v)
 (::Mean)(v::LittleDict) = mean(values(v))
 
-# for rms and it's cousins:
-struct RootMeanSquare <: AggregationMode end
 (::RootMeanSquare)(v) = sqrt(mean(v.^2))
 
 aggregate(v, measure) = aggregation(measure)(v)

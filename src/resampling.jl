@@ -75,7 +75,7 @@ struct Holdout <: ResamplingStrategy
     end
 end
 
-# Keyword Constructor
+# Keyword Constructor:
 Holdout(; fraction_train::Float64=0.7, shuffle=nothing, rng=nothing) =
     Holdout(fraction_train, shuffle_and_rng(shuffle, rng)...)
 
@@ -649,14 +649,15 @@ function evaluate!(mach::Machine{<:Supervised};
 end
 
 """
-    evaluate(model, data...; kw_options...)
+    evaluate(model, data...; cache=true, kw_options...)
 
-Equivalent to `evaluate!(machine(model, data...); wk_options...)`.
-See the machine version `evaluate!` for the complete list of options.
+Equivalent to `evaluate!(machine(model, data..., cache=cache);
+wk_options...)`.  See the machine version `evaluate!` for the complete
+list of options.
 
 """
-evaluate(model::Supervised, args...; kwargs...) =
-    evaluate!(machine(model, args...); kwargs...)
+evaluate(model::Supervised, args...; cache=true, kwargs...) =
+    evaluate!(machine(model, args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by
@@ -723,6 +724,9 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
+
+_caches_data(::Machine{M, C}) where {M, C} = C # determines if an instantiated machine caches data
+    
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
@@ -752,9 +756,12 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
             end
         end
         clean!(mach.model)
-        #One tmach for each task:
-        machines = [mach, [machine(mach.model, mach.args...) for
-                           _ in 2:length(partitions)]...]
+        #One tmach for each task:       
+        machines = vcat(mach, [
+           machine(mach.model, mach.args...; cache = _caches_data(mach)) 
+           for _ in 2:length(partitions)
+ 	])
+
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
                 results[i] = mapreduce(vcat, parts) do k
@@ -784,6 +791,10 @@ const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
+# helper:
+_feature_dependencies_exist(measures) =
+    !all(m->!(is_feature_dependent(m)), measures)
+
 # Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
@@ -803,10 +814,17 @@ function evaluate!(mach::Machine, resampling, weights,
 
     nmeasures = length(measures)
 
+    feature_dependencies_exist = _feature_dependencies_exist(measures)
+
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
-        Xtest = selectrows(X, test)
+        yhat = operation(mach, rows=test) # for "back-end" sampling
+        if feature_dependencies_exist
+            Xtest = selectrows(X, test)
+        else
+            Xtest = nothing
+        end
         ytest = selectrows(y, test)
         if weights === nothing
             if class_weights === nothing 
@@ -815,10 +833,8 @@ function evaluate!(mach::Machine, resampling, weights,
                 wtest = class_weights
             end
         else
-            wtest = weights[test]
-        end
-        yhat = operation(mach, Xtest)
-
+        wtest = weights[test]
+    end
         measurements =  [value(m, yhat, Xtest, ytest, wtest)
                          for m in measures]
         fp = fitted_params(mach)
@@ -962,6 +978,7 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     acceleration::AbstractResource
     check_measure::Bool
     repeats::Int
+    cache::Bool
 end
 
 MLJBase.is_wrapper(::Type{<:Resampler}) = true
@@ -987,12 +1004,26 @@ function MLJBase.clean!(resampler::Resampler)
     return warning
 end
 
-function Resampler(; model=nothing, resampling=CV(), measure=nothing, 
-            weights=nothing, class_weights=nothing, operation=predict,
-            acceleration=default_resource(), check_measure=true, repeats=1)
+function Resampler(; model=nothing,
+                   resampling=CV(),
+                   measure=nothing,
+                   weights=nothing,
+                   class_weights=nothing,
+                   operation=predict,
+                   acceleration=default_resource(),
+                   check_measure=true,
+                   repeats=1,
+                   cache=true)
 
-    resampler = Resampler(model, resampling, measure, weights, class_weights,
-                          operation, acceleration, check_measure, repeats)
+    resampler = Resampler(model,
+                          resampling,
+                          measure,
+                          weights,
+                          class_weights,
+                          operation,
+                          acceleration,
+                          check_measure,
+                          repeats, cache)
     message = MLJBase.clean!(resampler)
     isempty(message) || @warn message
 
@@ -1002,7 +1033,7 @@ end
 
 function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
 
-    mach = machine(resampler.model, args...)
+    mach = machine(resampler.model, args...; cache=resampler.cache)
 
     measures =
         _process_weights_measures(resampler.weights,
@@ -1049,7 +1080,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     if reusable
         mach = old_mach
     else
-        mach = machine(resampler.model, args...)
+        mach = machine(resampler.model, args...; cache=resampler.cache)
         cache = (mach, deepcopy(resampler.resampling))
     end
 

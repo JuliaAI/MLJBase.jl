@@ -1,4 +1,4 @@
-module MLJBase 
+module MLJBase
 
 # ===================================================================
 # IMPORTS
@@ -9,9 +9,17 @@ import Base.+, Base.*
 # Scitype
 import MLJScientificTypes.ScientificTypes: TRAIT_FUNCTION_GIVEN_NAME
 using MLJScientificTypes
-using MLJModelInterface
+
+# Traits for models and measures (which are being overloaded):
+using StatisticalTraits
+for trait in StatisticalTraits.TRAITS
+    eval(:(import StatisticalTraits.$trait))
+end
+import Base.instances # considered a trait for measures
+import StatisticalTraits.snakecase
 
 # Interface
+using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict,
     predict_mode, predict_mean, predict_median, predict_joint,
@@ -68,6 +76,13 @@ import LossFunctions: DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss,
 # ambiguities between the raw constructor (MLJBase.UnivariateFinite)
 # and the general method (MLJModelInterface.UnivariateFinite)
 
+# traits for measures and models:
+using StatisticalTraits
+for trait in StatisticalTraits.TRAITS
+    eval(:(export $trait))
+end
+export implemented_methods # defined here and not in StatisticalTraits
+
 # MLJ model hierarchy
 export MLJType, Model, Supervised, Unsupervised,
     Probabilistic, JointProbabilistic, Deterministic, Interval, Static,
@@ -91,18 +106,6 @@ export fit, update, update_data, transform, inverse_transform,
     predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!
 
-# model/measure matching:
-export Checker, matching
-
-# model traits
-export input_scitype, output_scitype, target_scitype,
-    is_pure_julia, package_name, package_license,
-    load_path, package_uuid, package_url,
-    is_wrapper, supports_weights, supports_online,
-    docstring, name, is_supervised,
-    prediction_type, implemented_methods, hyperparameters,
-    hyperparameter_types, hyperparameter_ranges
-
 # data operations
 export matrix, int, classes, decoder, table,
     nrows, selectrows, selectcols, select
@@ -119,7 +122,7 @@ export coerce, coerce!, autotype, schema, info
 
 export DeterministicComposite,
     ProbabilisticComposite,
-    UnsupervisedComposite, @load
+    UnsupervisedComposite
 
 # computational_resources.jl:
 export default_resource
@@ -143,9 +146,6 @@ export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 # univariate_finite/
 export average, UnivariateFiniteArray, UnivariateFiniteVector
 
-# info_dict.jl:
-export info_dict
-
 # datasets.jl:
 export load_boston, load_ames, load_iris,
        load_reduced_ames, load_crabs, load_smarket,
@@ -165,7 +165,7 @@ export make_blobs, make_moons, make_circles, make_regression
 export machines, sources, @from_network, @pipeline,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
-    rebind!, nodes, freeze!, thaw!, models, Node, AbstractNode,
+    rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
     DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
 
@@ -187,11 +187,8 @@ export OpenML
 # measures/registry.jl:
 export measures, metadata_measure
 
-# measure/measures.jl:
-export orientation, reports_each_observation,
-    is_feature_dependent, aggregation,
-    aggregate, default_measure, value,
-    supports_class_weights, prediction_type, human_name
+# measure/measures.jl (excluding traits):
+export aggregate, default_measure, value
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
@@ -317,16 +314,12 @@ const FI  = MLJModelInterface.FullInterface
 default_resource()    = DEFAULT_RESOURCE[]
 default_resource(res) = (DEFAULT_RESOURCE[] = res)
 
-# stub for @load (extended by MLJModels)
-macro load end
-
 # ===================================================================
 # Includes
 
 include("init.jl")
 include("utilities.jl")
 include("show.jl")
-include("info_dict.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 
@@ -361,7 +354,6 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
-include("matching.jl")
 include("measures/measures.jl")
 include("measures/measure_search.jl")
 
