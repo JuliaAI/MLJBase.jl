@@ -504,12 +504,12 @@ any weights `w` bound to `mach` (as in `mach = machine(model, X,
 y, w)`). To pass these to the performance evaluation measures you must
 explictly specify `weights=w` in the `evaluate!` call.
 
-Additionally, optional `class_weights` dictionary may be passed 
-for measures that support class weights 
+Additionally, optional `class_weights` dictionary may be passed
+for measures that support class weights
 (`MLJ.supports_class_weights(measure) == true`), which is
 ignored by those that don't. These weights are not to be confused with
 any weights `class_w` bound to `mach` (as in `mach = machine(model, X,
-y, class_w)`). To pass these to the performance evaluation measures you 
+y, class_w)`). To pass these to the performance evaluation measures you
 must explictly specify `class_weights=w` in the `evaluate!` call.
 
 User-defined measures are supported; see the manual for details.
@@ -724,9 +724,9 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
+# determines if an instantiated machine caches data:
+_caches_data(::Machine{M, C}) where {M, C} = C
 
-_caches_data(::Machine{M, C}) where {M, C} = C # determines if an instantiated machine caches data
-    
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
@@ -756,11 +756,11 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
             end
         end
         clean!(mach.model)
-        #One tmach for each task:       
+        #One tmach for each task:
         machines = vcat(mach, [
-           machine(mach.model, mach.args...; cache = _caches_data(mach)) 
+           machine(mach.model, mach.args...; cache = _caches_data(mach))
            for _ in 2:length(partitions)
- 	])
+        ])
 
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
@@ -827,7 +827,7 @@ function evaluate!(mach::Machine, resampling, weights,
         end
         ytest = selectrows(y, test)
         if weights === nothing
-            if class_weights === nothing 
+            if class_weights === nothing
                 wtest = nothing
             else
                 wtest = class_weights
@@ -962,8 +962,8 @@ that support weights for evaluation. These weights are not to be
 confused with any weights bound to a `Resampler` instance in a
 machine, used for training the wrapped `model` when supported.
 
-The sample `class_weights` are passed to the specified performance 
-measures that support per-class weights for evaluation. These weights 
+The sample `class_weights` are passed to the specified performance
+measures that support per-class weights for evaluation. These weights
 are not to be confused with any weights bound to a `Resampler` instance
 in a machine, used for training the wrapped `model` when supported.
 
@@ -981,14 +981,14 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     cache::Bool
 end
 
-MLJBase.is_wrapper(::Type{<:Resampler}) = true
-MLJBase.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
+StatisticalTraits.is_wrapper(::Type{<:Resampler}) = true
+StatisticalTraits.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_weights(M)
-supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
+StatisticalTraits.supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_class_weights(M)
-MLJBase.is_pure_julia(::Type{<:Resampler}) = true
+StatisticalTraits.is_pure_julia(::Type{<:Resampler}) = true
 
-function MLJBase.clean!(resampler::Resampler)
+function MLJModelInterface.clean!(resampler::Resampler)
     warning = ""
     if resampler.measure === nothing && resampler.model !== nothing
         measure = default_measure(resampler.model)
@@ -1024,14 +1024,14 @@ function Resampler(; model=nothing,
                           acceleration,
                           check_measure,
                           repeats, cache)
-    message = MLJBase.clean!(resampler)
+    message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
 
     return resampler
 
 end
 
-function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
+function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...; cache=resampler.cache)
 
@@ -1067,7 +1067,7 @@ end
 # in special case of non-shuffled, non-repeated holdout, we can reuse
 # the underlying model's machine, provided the training_fraction has
 # not changed:
-function MLJBase.update(resampler::Resampler{Holdout},
+function MLJModelInterface.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
     old_mach, old_resampling = cache
@@ -1113,13 +1113,13 @@ function MLJBase.update(resampler::Resampler{Holdout},
 
 end
 
-MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    MLJBase.input_scitype(M)
-MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    MLJBase.target_scitype(M)
-MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
+StatisticalTraits.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    StatisticalTraits.input_scitype(M)
+StatisticalTraits.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    StatisticalTraits.target_scitype(M)
+StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
 
-MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
+StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 
