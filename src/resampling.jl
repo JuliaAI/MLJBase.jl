@@ -339,8 +339,9 @@ end
 function actual_rows(rows, N, verbosity)
     unspecified_rows = (rows === nothing)
     _rows = unspecified_rows ? (1:N) : rows
-    unspecified_rows ||
+    if !unspecified_rows && verbosity > 0
         @info "Creating subsamples from a subset of all rows. "
+    end
     return _rows
 end
 
