@@ -134,9 +134,9 @@ function Base.Broadcast.broadcasted(
     f() = zeros(P, size(u)) #default caller function
 
     return Base.Broadcast.Broadcasted(
-    	identity,
-    	(get(f, u.prob_given_ref, int(cv)),)
-    	)
+        identity,
+        (get(f, u.prob_given_ref, int(cv)),)
+        )
 end
 
 # pdf.(u, v)
@@ -176,41 +176,41 @@ end
 # logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N})
 # logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V)
 for typ in (:CategoricalValue,
-	    :(AbstractArray{<:CategoricalValue{V,R},N}),
-	    :V,
-	    :(AbstractArray{V,N}))
+            :(AbstractArray{<:CategoricalValue{V,R},N}),
+            :V,
+            :(AbstractArray{V,N}))
    if typ == :CategoricalValue || typ == :V
-    	eval(quote
-    	function Base.Broadcast.broadcasted(
-	    		        ::typeof(logpdf),
- 	    	     	        u::UniFinArr{S,V,R,P,N},
-	    	     		c::$typ) where {S,V,R,P,N}
+        eval(quote
+        function Base.Broadcast.broadcasted(
+                                ::typeof(logpdf),
+                                u::UniFinArr{S,V,R,P,N},
+                                c::$typ) where {S,V,R,P,N}
 
-    	    # Start with the pdf array
-    	    # take advantage of loop fusion
-    	    result = log.(pdf.(u, c))
- 	    return result
-    	end
-    	end)
+            # Start with the pdf array
+            # take advantage of loop fusion
+            result = log.(pdf.(u, c))
+            return result
+        end
+        end)
 
   else
-  	eval(quote
-    	function Base.Broadcast.broadcasted(
-	    		        ::typeof(logpdf),
- 	    	     	        u::UniFinArr{S,V,R,P,N},
-	    	     		c::$typ) where {S,V,R,P,N}
+        eval(quote
+        function Base.Broadcast.broadcasted(
+                                ::typeof(logpdf),
+                                u::UniFinArr{S,V,R,P,N},
+                                c::$typ) where {S,V,R,P,N}
 
-    	    # Start with the pdf array
-    	    result = pdf.(u, c)
+            # Start with the pdf array
+            result = pdf.(u, c)
 
-	    # Take the log of each entry in-place
-  	    @simd for j in eachindex(result)
-  	    	@inbounds result[j] = log(result[j])
-	    end
+            # Take the log of each entry in-place
+            @simd for j in eachindex(result)
+                @inbounds result[j] = log(result[j])
+            end
 
- 	    return result
-    	end
-    	end)
+            return result
+        end
+        end)
   end
 
 end

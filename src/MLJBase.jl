@@ -36,6 +36,7 @@ import PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
+import CategoricalArrays.DataAPI.unwrap
 import InvertedIndices: Not
 import JLSO
 import Dates

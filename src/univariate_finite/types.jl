@@ -178,7 +178,8 @@ function MMI.UnivariateFinite(::FI, d::AbstractDict{V,<:Prob};
         c in raw_support
     end
 
-    prob_given_class = LittleDict([c=>d[get(c)] for c in support])
+    prob_given_class =
+        LittleDict([c=>d[CategoricalArrays.DataAPI.unwrap(c)] for c in support])
 
     return UnivariateFinite(FI(), prob_given_class)
 end
@@ -186,8 +187,8 @@ end
 
 ## CONSTRUCTORS - FROM ARRAYS
 
-# example: _get(A, 4) = A[:, :, 4] if A has 3 dims:
-_get(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
+# example: _get_on_last(A, 4) = A[:, :, 4] if A has 3 dims:
+_get_on_last(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
 
 # 1. Univariate Finite from a vector of classes or raw labels and
 # array of probs; first, a dispatcher:
@@ -237,7 +238,7 @@ function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
             LittleDict{CategoricalValue{V,R}, AbstractArray{P,N}}()
     end
     for i in eachindex(support)
-        prob_given_class[support[i]] = _get(_probs, i)
+        prob_given_class[support[i]] = _get_on_last(_probs, i)
     end
 
     # calls dictionary constructor above:
