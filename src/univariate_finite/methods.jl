@@ -3,7 +3,7 @@
 const UnivariateFiniteUnion =
     Union{UnivariateFinite, UnivariateFiniteArray}
 
-# NOT EXPORTED!!!!
+# ABOVE NOT EXPORTED!!!!
 
 """
     classes(d::UnivariateFinite)
@@ -22,19 +22,20 @@ MMI.classes(d::UnivariateFiniteUnion) = d.decoder.classes
     levels(d::UnivariateFinite)
 
 A list of the raw levels in the common pool of classes used to
-construct `d`, equal to `get.(classes(d))`.
+construct `d`, equal to
+`CategoricalArrays.DataAPI.unwrap.(classes(d))`.
 
     v = categorical(["yes", "maybe", "no", "yes"])
     d = UnivariateFinite(v[1:2], [0.3, 0.7])
     levels(d) # Array{String, 1}["maybe", "no", "yes"]
 
 """
-levels(d::UnivariateFinite)  = get.(classes(d))
+levels(d::UnivariateFinite)  = CategoricalArrays.DataAPI.unwrap.(classes(d))
 
 function Distributions.params(d::UnivariateFinite)
     raw = raw_support(d) # reflects order of pool at instantiation of d
-    pairs = tuple([get(d.decoder(r))=>d.prob_given_ref[r] for r in raw]...)
-    levs = get.(classes(d))
+    pairs = tuple([unwrap.(d.decoder(r))=>d.prob_given_ref[r] for r in raw]...)
+    levs = unwrap.(classes(d))
     return (levels=levs, probs=pairs)
 end
 
@@ -106,7 +107,7 @@ show_prefix(u::UnivariateFiniteArray) = join(size(u),'x')
 
 # function Base.show(io::IO, m::MIME"text/plain",
 #                    u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P}
-#     support = get.(Dist.support(u))
+#     support = unwrap.(Dist.support(u))
 #     print(io, show_prefix(u), " UnivariateFiniteArray{$S,$V,$R,$P,1}")
 #     if !isempty(u)
 #         println(io, ":")
