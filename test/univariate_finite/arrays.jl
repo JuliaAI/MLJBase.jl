@@ -103,7 +103,7 @@ u = UnivariateFinite(all_classes, P, augment=true) #uni_fin_arr
     @test isequal(logpdf(u, ["yes", "no"]), log.(hcat(P, 1 .- P)))
     @test pdf(u, reverse(all_classes)) == hcat(P, 1 .- P)
     @test isequal(logpdf(u, reverse(all_classes)), log.(hcat(P, 1 .- P)))
-    
+
     # test pdf(::Array{UnivariateFinite, 1}, labels) and
     # logpdf(::Array{UnivariateFinite, labels)
     @test pdf([u...], ["yes", "no"]) == hcat(P, 1 .- P)
@@ -129,11 +129,11 @@ end
 @testset "broadcasting: pdf.(uni_fin_arr, array_same_shape) and logpdf.(uni_fin_arr, array_same_shape)" begin
     v = rand(classes(u), n)
     @test broadcast(pdf, u, v) == [pdf(u[i], v[i]) for i in 1:length(u)]
-    @test isequal(broadcast(logpdf, u, v), 
+    @test isequal(broadcast(logpdf, u, v),
         [logpdf(u[i], v[i]) for i in 1:length(u)])
-    @test broadcast(pdf, u, get.(v)) ==
+    @test broadcast(pdf, u, MLJBase.unwrap.(v)) ==
         [pdf(u[i], v[i]) for i in 1:length(u)]
-    @test isequal(broadcast(logpdf, u, get.(v)), 
+    @test isequal(broadcast(logpdf, u, MLJBase.unwrap.(v)),
         [logpdf(u[i], v[i]) for i in 1:length(u)])
 end
 

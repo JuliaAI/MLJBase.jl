@@ -165,7 +165,7 @@ end
 # inverse transforming a categorical value:
 function MLJBase.inverse_transform(
     transformer::UnivariateDiscretizer, result, e::CategoricalValue)
-    k = get(e)
+    k = MLJBase.unwrap(e)
     return inverse_transform(transformer, result, k)
 end
 
