@@ -1088,20 +1088,21 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
-    fitresult = evaluate!(mach,
-                          resampler.resampling,
-                          resampler.weights,
-                          resampler.class_weights,
-                          nothing,
-                          verbosity - 1,
-                          resampler.repeats,
-                          measures,
-                          resampler.operation,
-                          _acceleration,
-                          false)
+    e = evaluate!(mach,
+                  resampler.resampling,
+                  resampler.weights,
+                  resampler.class_weights,
+                  nothing,
+                  verbosity - 1,
+                  resampler.repeats,
+                  measures,
+                  resampler.operation,
+                  _acceleration,
+                  false)
 
-    cache = (mach, deepcopy(resampler.resampling))
-    report = NamedTuple()
+    fitresult = (machine=mach, evaluation=e)
+    cache = deepcopy(resampler.resampling)
+    report =(evaluation = e, )
 
     return fitresult, cache, report
 
@@ -1113,7 +1114,8 @@ end
 function MLJModelInterface.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
-    old_mach, old_resampling = cache
+    old_resampling = cache
+    old_mach = fitresult.machine
 
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
@@ -1139,19 +1141,20 @@ function MLJModelInterface.update(resampler::Resampler{Holdout},
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     mach.model = resampler.model
-    fitresult = evaluate!(mach,
-                          resampler.resampling,
-                          resampler.weights,
-                          resampler.class_weights,
-                          nothing,
-                          verbosity - 1,
-                          resampler.repeats,
-                          measures,
-                          resampler.operation,
-                          _acceleration,
-                          false)
+    e = evaluate!(mach,
+                  resampler.resampling,
+                  resampler.weights,
+                  resampler.class_weights,
+                  nothing,
+                  verbosity - 1,
+                  resampler.repeats,
+                  measures,
+                  resampler.operation,
+                  _acceleration,
+                  false)
 
-    report = NamedTuple()
+    report = (evaluation = e, )
+    fitresult = (machine=mach, evaluation=e)
 
     return fitresult, cache, report
 
@@ -1165,7 +1168,7 @@ StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
 
 StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
-evaluate(resampler::Resampler, fitresult) = fitresult
+evaluate(resampler::Resampler, fitresult) = fitresult.evaluation
 
 function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)
