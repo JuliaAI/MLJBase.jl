@@ -995,9 +995,14 @@ Given a machine `mach = machine(resampler, args...)` one obtains a
 performance evaluation of the specified `model`, performed according
 to the prescribed `resampling` strategy and other parameters, using
 data `args...`, by calling `fit!(mach)` followed by
-`evaluate(mach)`. The advantage over using `evaluate(model, X, y)` is
-that the latter call always calls `fit` on the `model` but
-`fit!(mach)` only calls `update` after the first call.
+`evaluate(mach)`.
+
+The resampler internally binds `model` to the supplied data `args` in
+a machine (called `mach_train` below) on which `evaluate!` is called
+with all the options passed to the `Resampler` constructor. The
+advantage over using `evaluate(model, args...)` directly is that, for
+`Holdout` resampling, calling `fit!(mach)` only triggers a cold
+restart of `mach_train` if necessary.
 
 The sample `weights` are passed to the specified performance measures
 that support weights for evaluation. These weights are not to be
@@ -1088,20 +1093,21 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
-    fitresult = evaluate!(mach,
-                          resampler.resampling,
-                          resampler.weights,
-                          resampler.class_weights,
-                          nothing,
-                          verbosity - 1,
-                          resampler.repeats,
-                          measures,
-                          resampler.operation,
-                          _acceleration,
-                          false)
+    e = evaluate!(mach,
+                  resampler.resampling,
+                  resampler.weights,
+                  resampler.class_weights,
+                  nothing,
+                  verbosity - 1,
+                  resampler.repeats,
+                  measures,
+                  resampler.operation,
+                  _acceleration,
+                  false)
 
-    cache = (mach, deepcopy(resampler.resampling))
-    report = NamedTuple()
+    fitresult = (machine=mach, evaluation=e)
+    cache = deepcopy(resampler.resampling)
+    report =(evaluation = e, )
 
     return fitresult, cache, report
 
@@ -1113,7 +1119,8 @@ end
 function MLJModelInterface.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
-    old_mach, old_resampling = cache
+    old_resampling = cache
+    old_mach = fitresult.machine
 
     reusable = !resampler.resampling.shuffle &&
         resampler.repeats == 1 &&
@@ -1139,19 +1146,20 @@ function MLJModelInterface.update(resampler::Resampler{Holdout},
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     mach.model = resampler.model
-    fitresult = evaluate!(mach,
-                          resampler.resampling,
-                          resampler.weights,
-                          resampler.class_weights,
-                          nothing,
-                          verbosity - 1,
-                          resampler.repeats,
-                          measures,
-                          resampler.operation,
-                          _acceleration,
-                          false)
+    e = evaluate!(mach,
+                  resampler.resampling,
+                  resampler.weights,
+                  resampler.class_weights,
+                  nothing,
+                  verbosity - 1,
+                  resampler.repeats,
+                  measures,
+                  resampler.operation,
+                  _acceleration,
+                  false)
 
-    report = NamedTuple()
+    report = (evaluation = e, )
+    fitresult = (machine=mach, evaluation=e)
 
     return fitresult, cache, report
 
@@ -1165,7 +1173,7 @@ StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
 
 StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
-evaluate(resampler::Resampler, fitresult) = fitresult
+evaluate(resampler::Resampler, fitresult) = fitresult.evaluation
 
 function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)

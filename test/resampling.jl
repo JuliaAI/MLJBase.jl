@@ -402,7 +402,6 @@ end
     @test MLJBase.package_name(Resampler) == "MLJBase"
     @test MLJBase.is_wrapper(Resampler)
     rnd = randn(rng,5)
-    @test evaluate(resampler, rnd) === rnd
 end
 
 struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
