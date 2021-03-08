@@ -816,7 +816,20 @@ const TrainTestPairs = AbstractVector{<:TrainTestPair}
 _feature_dependencies_exist(measures) =
     !all(m->!(is_feature_dependent(m)), measures)
 
-# Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
+# helper:
+function measure_specific_weights(measure, weights, class_weights, test)
+    supports_weights(measure) && supports_class_weights(measure) &&
+        error("Encountered a measure that simultaneously supports "*
+              "(per-sample) weights and class weights. ")
+    if supports_weights(measure)
+        weights === nothing && return nothing
+        return weights[test]
+    end
+    supports_class_weights(measure) && return class_weights
+    return nothing
+end
+
+# Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
                    measures, operation, acceleration, force)
@@ -847,17 +860,15 @@ function evaluate!(mach::Machine, resampling, weights,
             Xtest = nothing
         end
         ytest = selectrows(y, test)
-        if weights === nothing
-            if class_weights === nothing
-                wtest = nothing
-            else
-                wtest = class_weights
-            end
-        else
-        wtest = weights[test]
-    end
-        measurements =  [value(m, yhat, Xtest, ytest, wtest)
-                         for m in measures]
+
+        measurements =  map(measures) do m
+            wtest = measure_specific_weights(m,
+                                             weights,
+                                             class_weights,
+                                             test)
+            value(m, yhat, Xtest, ytest, wtest)
+        end
+
         fp = fitted_params(mach)
         r = report(mach)
         return (measurements, fp, r)
