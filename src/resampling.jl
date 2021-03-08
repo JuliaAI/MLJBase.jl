@@ -408,16 +408,37 @@ function _actual_measures(measures, mach)
 
 end
 
+const ERR_WEIGHTS_REAL =
+    ArgumentError("`weights` must be a `Real` vector. ")
+const ERR_WEIGHTS_LENGTH =
+    DimensionMismatch("`weights` and target "*
+                      "have different lengths. ")
+const ERR_WEIGHTS_DICT =
+    ArgumentError("`class_weights` must be a "*
+                  "dictionary with `Real` values. ")
+const ERR_WEIGHTS_CLASSES =
+    DimensionMismatch("The keys of `class_weights` "*
+                      "are not the same as the levels of the "*
+                      "target, y`. Do `levels(y)` to check levels. ")
+
 function _check_weights(weights, nrows)
     weights isa AbstractVector{<:Real} ||
-        throw(ArgumentError("`weights` must be a `Real` vector."))
+        throw(ERR_WEIGHTS_REAL)
     length(weights) == nrows ||
-        throw(DimensionMismatch("`weights` and target "*
-                                "have different lengths. "))
+        throw(ERR_WEIGHTS_LENGTH)
+    return true
+end
+
+function _check_class_weights(weights, levels)
+    weights isa AbstractDict{<:Any,<:Real} ||
+        throw(ERR_WEIGHTS_DICT)
+    Set(levels) == Set(keys(weights)) ||
+        throw(ERR_WEIGHTS_CLASSES)
     return true
 end
 
 function _process_weights_measures(weights,
+                                   class_weights,
                                    measures,
                                    mach,
                                    operation,
@@ -426,15 +447,34 @@ function _process_weights_measures(weights,
 
      _measures = _actual_measures(measures, mach)
 
-    if check_measure || !(weights isa Nothing)
+    if check_measure || !(weights isa Nothing) || !(class_weights isa Nothing)
         y = mach.args[2]()
     end
 
     check_measure && _check_measures(_measures, mach.model, y, operation)
+
     weights isa Nothing || _check_weights(weights, nrows(y))
+
+    class_weights isa Nothing ||
+        _check_class_weights(class_weights, levels(y))
 
     return _measures
 
+end
+
+function _warn_about_unsupported(trait, str, measures, weights, verbosity)
+    if verbosity >= 0 && weights !== nothing
+        unsupported = filter(measures) do m
+            !trait(m)
+        end
+        if !isempty(unsupported)
+            unsupported_as_string = string(unsupported[1])
+            unsupported_as_string *=
+                reduce(*, [string(", ", m) for m in unsupported[2:end]])
+                @warn "$str weights ignored in evaluations of the following"*
+            " measures, as unsupported: \n$unsupported_as_string "
+        end
+    end
 end
 
 function _process_accel_settings(accel::CPUThreads)
@@ -467,6 +507,7 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
               measure=nothing,
               rows=nothing,
               weights=nothing,
+              class_weights=nothing,
               operation=predict,
               repeats=1,
               acceleration=default_resource(),
@@ -500,9 +541,17 @@ restrict the data used in evaluation by specifying `rows`.
 An optional `weights` vector may be passed for measures that support
 sample weights (`MLJ.supports_weights(measure) == true`), which is
 ignored by those that don't. These weights are not to be confused with
-any any weights `w` bound to `mach` (as in `mach = machine(model, X,
+any weights `w` bound to `mach` (as in `mach = machine(model, X,
 y, w)`). To pass these to the performance evaluation measures you must
 explictly specify `weights=w` in the `evaluate!` call.
+
+Additionally, optional `class_weights` dictionary may be passed
+for measures that support class weights
+(`MLJ.supports_class_weights(measure) == true`), which is
+ignored by those that don't. These weights are not to be confused with
+any weights `class_w` bound to `mach` (as in `mach = machine(model, X,
+y, class_w)`). To pass these to the performance evaluation measures you
+must explictly specify `class_weights=w` in the `evaluate!` call.
 
 User-defined measures are supported; see the manual for details.
 
@@ -525,8 +574,13 @@ untouched.
 - `rows` - vector of observation indices from which both train and
   test folds are constructed (default is all observations)
 
-- `weights` - per-sample weights for measures (not to be confused with
-  weights used in training)
+- `weights` - per-sample weights for measures that support them (not
+  to be confused with weights used in training)
+
+- `class_weights` - dictionary of per-class weights for use with
+  measures that support these, in classification problems (not to be
+  confused with per-sample `weights` or with class weights used in
+  training)
 
 - `operation` - `predict`, `predict_mean`, `predict_mode` or
   `predict_median`; `predict` is the default but cannot be used with a
@@ -579,6 +633,7 @@ function evaluate!(mach::Machine{<:Supervised};
                    measures=nothing,
                    measure=measures,
                    weights=nothing,
+                   class_weights=nothing,
                    operation=predict,
                    acceleration=default_resource(),
                    rows=nothing,
@@ -605,29 +660,22 @@ function evaluate!(mach::Machine{<:Supervised};
     end
 
     _measures = _process_weights_measures(weights,
+                                          class_weights,
                                           measure,
                                           mach,
                                           operation,
                                           verbosity,
                                           check_measure)
 
-    if verbosity >= 0 && weights !== nothing
-        unsupported = filter(_measures) do m
-            !supports_weights(m)
-        end
-        if !isempty(unsupported)
-            unsupported_as_string = string(unsupported[1])
-            unsupported_as_string *=
-                reduce(*, [string(", ", m) for m in unsupported[2:end]])
-                @warn "Sample weights ignored in evaluations of the following"*
-            " measures, as unsupported: \n$unsupported_as_string "
-        end
-    end
+    _warn_about_unsupported(supports_weights,
+                            "Sample", _measures, weights, verbosity)
+    _warn_about_unsupported(supports_class_weights,
+                            "Class", _measures, class_weights, verbosity)
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluate!(mach, resampling, weights, rows, verbosity, repeats,
-                   _measures, operation, _acceleration, force)
+    evaluate!(mach, resampling, weights, class_weights, rows, verbosity,
+              repeats, _measures, operation, _acceleration, force)
 
 end
 
@@ -707,9 +755,9 @@ end
 
 @static if VERSION >= v"1.3.0-DEV.573"
 
+# determines if an instantiated machine caches data:
+_caches_data(::Machine{M, C}) where {M, C} = C
 
-_caches_data(::Machine{M, C}) where {M, C} = C # determines if an instantiated machine caches data
-    
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     nthreads = Threads.nthreads()
@@ -739,11 +787,11 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
             end
         end
         clean!(mach.model)
-        #One tmach for each task:       
+        #One tmach for each task:
         machines = vcat(mach, [
-           machine(mach.model, mach.args...; cache = _caches_data(mach)) 
+           machine(mach.model, mach.args...; cache = _caches_data(mach))
            for _ in 2:length(partitions)
- 	])
+        ])
 
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
@@ -778,9 +826,22 @@ const TrainTestPairs = AbstractVector{<:TrainTestPair}
 _feature_dependencies_exist(measures) =
     !all(m->!(is_feature_dependent(m)), measures)
 
-# Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
+# helper:
+function measure_specific_weights(measure, weights, class_weights, test)
+    supports_weights(measure) && supports_class_weights(measure) &&
+        error("Encountered a measure that simultaneously supports "*
+              "(per-sample) weights and class weights. ")
+    if supports_weights(measure)
+        weights === nothing && return nothing
+        return weights[test]
+    end
+    supports_class_weights(measure) && return class_weights
+    return nothing
+end
+
+# Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
-                   rows, verbosity, repeats,
+                   class_weights, rows, verbosity, repeats,
                    measures, operation, acceleration, force)
 
     # Note: `rows` and `repeats` are ignored here
@@ -809,13 +870,15 @@ function evaluate!(mach::Machine, resampling, weights,
             Xtest = nothing
         end
         ytest = selectrows(y, test)
-        if weights === nothing
-            wtest = nothing
-        else
-        wtest = weights[test]
-    end
-        measurements =  [value(m, yhat, Xtest, ytest, wtest)
-                         for m in measures]
+
+        measurements =  map(measures) do m
+            wtest = measure_specific_weights(m,
+                                             weights,
+                                             class_weights,
+                                             test)
+            value(m, yhat, Xtest, ytest, wtest)
+        end
+
         fp = fitted_params(mach)
         r = report(mach)
         return (measurements, fp, r)
@@ -888,7 +951,7 @@ end
 # Evaluation when `resampling` is a ResamplingStrategy
 
 function evaluate!(mach::Machine, resampling::ResamplingStrategy,
-                   weights, rows, verbosity, repeats, args...)
+                   weights, class_weights, rows, verbosity, repeats, args...)
 
     train_args = Tuple(a() for a in mach.args)
     y = train_args[2]
@@ -902,6 +965,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
     return evaluate!(mach,
                      repeated_train_test_pairs,
                      weights,
+                     class_weights,
                      nothing,
                      verbosity,
                      repeats,
@@ -917,6 +981,7 @@ end
                           resampling=CV(),
                           measure=nothing,
                           weights=nothing,
+                          class_weights=nothing
                           operation=predict,
                           repeats = 1,
                           acceleration=default_resource(),
@@ -939,12 +1004,18 @@ that support weights for evaluation. These weights are not to be
 confused with any weights bound to a `Resampler` instance in a
 machine, used for training the wrapped `model` when supported.
 
+The sample `class_weights` are passed to the specified performance
+measures that support per-class weights for evaluation. These weights
+are not to be confused with any weights bound to a `Resampler` instance
+in a machine, used for training the wrapped `model` when supported.
+
 """
 mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     model::M
     resampling::S # resampling strategy
     measure
     weights::Union{Nothing,AbstractVector{<:Real}}
+    class_weights::Union{Nothing, AbstractDict{<:Any, <:Real}}
     operation
     acceleration::AbstractResource
     check_measure::Bool
@@ -952,12 +1023,14 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     cache::Bool
 end
 
-MLJBase.is_wrapper(::Type{<:Resampler}) = true
-MLJBase.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
+StatisticalTraits.is_wrapper(::Type{<:Resampler}) = true
+StatisticalTraits.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
     supports_weights(M)
-MLJBase.is_pure_julia(::Type{<:Resampler}) = true
+StatisticalTraits.supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
+    supports_class_weights(M)
+StatisticalTraits.is_pure_julia(::Type{<:Resampler}) = true
 
-function MLJBase.clean!(resampler::Resampler)
+function MLJModelInterface.clean!(resampler::Resampler)
     warning = ""
     if resampler.measure === nothing && resampler.model !== nothing
         measure = default_measure(resampler.model)
@@ -977,27 +1050,36 @@ function Resampler(; model=nothing,
                    resampling=CV(),
                    measure=nothing,
                    weights=nothing,
+                   class_weights=nothing,
                    operation=predict,
                    acceleration=default_resource(),
                    check_measure=true,
                    repeats=1,
                    cache=true)
 
-    resampler = Resampler(model, resampling, measure, weights, operation,
-                          acceleration, check_measure, repeats, cache)
-    message = MLJBase.clean!(resampler)
+    resampler = Resampler(model,
+                          resampling,
+                          measure,
+                          weights,
+                          class_weights,
+                          operation,
+                          acceleration,
+                          check_measure,
+                          repeats, cache)
+    message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
 
     return resampler
 
 end
 
-function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
+function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...; cache=resampler.cache)
 
     measures =
         _process_weights_measures(resampler.weights,
+                                  resampler.class_weights,
                                   resampler.measure,
                                   mach,
                                   resampler.operation,
@@ -1009,6 +1091,7 @@ function MLJBase.fit(resampler::Resampler, verbosity::Int, args...)
     fitresult = evaluate!(mach,
                           resampler.resampling,
                           resampler.weights,
+                          resampler.class_weights,
                           nothing,
                           verbosity - 1,
                           resampler.repeats,
@@ -1027,7 +1110,7 @@ end
 # in special case of non-shuffled, non-repeated holdout, we can reuse
 # the underlying model's machine, provided the training_fraction has
 # not changed:
-function MLJBase.update(resampler::Resampler{Holdout},
+function MLJModelInterface.update(resampler::Resampler{Holdout},
                         verbosity::Int, fitresult, cache, args...)
 
     old_mach, old_resampling = cache
@@ -1046,6 +1129,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
 
     measures =
         _process_weights_measures(resampler.weights,
+                                  resampler.class_weights,
                                   resampler.measure,
                                   mach,
                                   resampler.operation,
@@ -1058,6 +1142,7 @@ function MLJBase.update(resampler::Resampler{Holdout},
     fitresult = evaluate!(mach,
                           resampler.resampling,
                           resampler.weights,
+                          resampler.class_weights,
                           nothing,
                           verbosity - 1,
                           resampler.repeats,
@@ -1072,13 +1157,13 @@ function MLJBase.update(resampler::Resampler{Holdout},
 
 end
 
-MLJBase.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    MLJBase.input_scitype(M)
-MLJBase.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    MLJBase.target_scitype(M)
-MLJBase.package_name(::Type{<:Resampler}) = "MLJBase"
+StatisticalTraits.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    StatisticalTraits.input_scitype(M)
+StatisticalTraits.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
+    StatisticalTraits.target_scitype(M)
+StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
 
-MLJBase.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
+StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 evaluate(resampler::Resampler, fitresult) = fitresult
 
