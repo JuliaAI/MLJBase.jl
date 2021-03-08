@@ -4,6 +4,7 @@ using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
+using Tables: table
 
 @everywhere begin
     using .Models
@@ -115,9 +116,20 @@ end
 end
 
 @testset "check weights" begin
-    @test_throws ArgumentError MLJBase._check_weights([:junk, :junk], 2)
-    @test_throws DimensionMismatch MLJBase._check_weights([0.5, 0.5], 3)
+    @test_throws(MLJBase.ERR_WEIGHTS_REAL,
+                 MLJBase._check_weights([:junk, :junk], 2))
+    @test_throws(MLJBase.ERR_WEIGHTS_LENGTH,
+                 MLJBase._check_weights([0.5, 0.5], 3))
     @test MLJBase._check_weights([0.5, 0.5], 2)
+end
+
+@testset "check class weights" begin
+    w = Dict('a'=> 0.2, 'b'=>0.8)
+    @test_throws(MLJBase.ERR_WEIGHTS_DICT,
+                 MLJBase._check_class_weights([0.1, 0.4], ['a', 'b']))
+    @test_throws(MLJBase.ERR_WEIGHTS_CLASSES,
+                 MLJBase._check_class_weights(w, ['a', 'c']))
+    @test MLJBase._check_class_weights(w, ['b', 'a'])
 end
 
 @testset_accelerated "folds specified" accel begin
@@ -346,11 +358,28 @@ end
     @test e ≈ mean([efold1, efold2])
 end
 
+@testset_accelerated "class weights in evaluation" accel begin
+    x = [1,2,3,4,5,6,7]
+    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
+    model = Models.DeterministicConstantClassifier()
+    mach = machine(model, X, y)
+    cv=CV(nfolds = 2)
+    class_w = Dict(1=>1, 2=>2, 3=>3)
+    e = evaluate!(mach, resampling=cv, measure=MLJBase.MulticlassFScore(return_type=Vector),
+                  class_weights=class_w, verbosity=verb,
+                  acceleration=accel).measurement[1]
+    @test round(e, digits=3) ≈ 0.217
+
+    # if class weights in `evaluate!` isn't specified:
+    e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
+                  verbosity=verb, acceleration=accel).measurement[1]
+    @test e ≈ 0.15
+end
+
 @testset_accelerated "resampler as machine" accel begin
     N = 50
     X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
     y = X.x1 -2X.x2 + 0.05*rand(rng,N)
-
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
     resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae)
@@ -450,6 +479,7 @@ end
     X = (x = rand(rng,3N), );
     y = categorical(rand(rng,"abcd", 3N));
     w = rand(rng,3N);
+    class_w = Dict(zip(levels(y), rand(length(levels(y)))));
     rows = StatsBase.sample(1:3N, 2N, replace=false);
     Xsmall = selectrows(X, rows);
     ysmall = selectrows(y, rows);
@@ -488,7 +518,7 @@ end
         resampling_machine = machine(resampler, X, y, w, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1 = evaluate(resampling_machine).measurement[1]
-        mach = machine(model, X, y, w, cache=!cache)
+        mach = machine(model, X, y, w, cache=cache)
         e2 = evaluate!(mach, resampling=CV();
                        measure=misclassification_rate,
                        operation=predict_mode,
@@ -506,7 +536,7 @@ end
         resampling_machine = machine(resampler, X, y, w, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1   = evaluate(resampling_machine).measurement[1]
-        mach = machine(model, X, y, w, cache=!cache)
+        mach = machine(model, X, y, w, cache=cache)
         e2   = evaluate!(mach, resampling=CV();
                          measure=misclassification_rate,
                          operation=predict_mode,
@@ -516,6 +546,47 @@ end
         @test e1 ≈ e2
 
     end
+
+    x = [1,2,3,4,5,6,7]
+    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
+    model = Models.DeterministicConstantClassifier()
+    class_w = Dict(zip(levels(y), rand(length(levels(y)))))
+
+    for cache in [true, false]
+
+        #resampler as a machine with class weights specified
+        cweval = Dict(zip(levels(y), rand(length(levels(y)))));
+        resampler = Resampler(model=model, resampling=CV();
+                              measure=MulticlassFScore(return_type=Vector),
+                              class_weights=cweval, acceleration=accel)
+        resampling_machine = machine(resampler, X, y, cache=false)
+        fit!(resampling_machine, verbosity=verb)
+        e1   = evaluate(resampling_machine).measurement[1]
+        mach = machine(model, X, y, cache=cache)
+        e2   = evaluate!(mach, resampling=CV();
+                         measure=MulticlassFScore(return_type=Vector),
+                         class_weights=cweval,
+                         acceleration=accel, verbosity=verb).measurement[1]
+
+        @test e1 ≈ e2
+
+    end
+
+    @testset "warnings about measures not supporting weights" begin
+        model = ConstantClassifier()
+        X = (x = [1, 2, 3, 4],)
+        y = categorical(["a", "b", "b", "b"])
+        class_weights = Dict("a"=>0.4, "b"=>0.6)
+        @test_logs((:warn, r"Sample weights"),
+                   evaluate(model, X, y,
+                            resampling=Holdout(fraction_train=0.5),
+                            measure=auc, weights=ones(4)))
+        @test_logs((:warn, r"Class weights"),
+                   evaluate(model, X, y,
+                            resampling=Holdout(fraction_train=0.5),
+                            measure=auc, class_weights=class_weights))
+    end
+
 end
 
 #end
