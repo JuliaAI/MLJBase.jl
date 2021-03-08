@@ -995,9 +995,14 @@ Given a machine `mach = machine(resampler, args...)` one obtains a
 performance evaluation of the specified `model`, performed according
 to the prescribed `resampling` strategy and other parameters, using
 data `args...`, by calling `fit!(mach)` followed by
-`evaluate(mach)`. The advantage over using `evaluate(model, X, y)` is
-that the latter call always calls `fit` on the `model` but
-`fit!(mach)` only calls `update` after the first call.
+`evaluate(mach)`.
+
+The resampler internally binds `model` to the supplied data `args` in
+a machine (called `mach_train` below) on which `evaluate!` is called
+with all the options passed to the `Resampler` constructor. The
+advantage over using `evaluate(model, args...)` directly is that, for
+`Holdout` resampling, calling `fit!(mach)` only triggers a cold
+restart of `mach_train` if necessary.
 
 The sample `weights` are passed to the specified performance measures
 that support weights for evaluation. These weights are not to be
