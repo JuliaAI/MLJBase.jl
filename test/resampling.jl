@@ -116,9 +116,20 @@ end
 end
 
 @testset "check weights" begin
-    @test_throws ArgumentError MLJBase._check_weights([:junk, :junk], 2)
-    @test_throws DimensionMismatch MLJBase._check_weights([0.5, 0.5], 3)
+    @test_throws(MLJBase.ERR_WEIGHTS_REAL,
+                 MLJBase._check_weights([:junk, :junk], 2))
+    @test_throws(MLJBase.ERR_WEIGHTS_LENGTH,
+                 MLJBase._check_weights([0.5, 0.5], 3))
     @test MLJBase._check_weights([0.5, 0.5], 2)
+end
+
+@testset "check class weights" begin
+    w = Dict('a'=> 0.2, 'b'=>0.8)
+    @test_throws(MLJBase.ERR_WEIGHTS_DICT,
+                 MLJBase._check_class_weights([0.1, 0.4], ['a', 'b']))
+    @test_throws(MLJBase.ERR_WEIGHTS_CLASSES,
+                 MLJBase._check_class_weights(w, ['a', 'c']))
+    @test MLJBase._check_class_weights(w, ['b', 'a'])
 end
 
 @testset_accelerated "folds specified" accel begin
@@ -559,6 +570,21 @@ end
 
         @test e1 ≈ e2
 
+    end
+
+    @testset "warnings about measures not supporting weights" begin
+        model = ConstantClassifier()
+        X = (x = [1, 2, 3, 4],)
+        y = categorical(["a", "b", "b", "b"])
+        class_weights = Dict("a"=>0.4, "b"=>0.6)
+        @test_logs((:warn, r"Sample weights"),
+                   evaluate(model, X, y,
+                            resampling=Holdout(fraction_train=0.5),
+                            measure=auc, weights=ones(4)))
+        @test_logs((:warn, r"Class weights"),
+                   evaluate(model, X, y,
+                            resampling=Holdout(fraction_train=0.5),
+                            measure=auc, class_weights=class_weights))
     end
 
 end

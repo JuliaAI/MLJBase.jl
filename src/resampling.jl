@@ -407,16 +407,37 @@ function _actual_measures(measures, mach)
 
 end
 
+const ERR_WEIGHTS_REAL =
+    ArgumentError("`weights` must be a `Real` vector. ")
+const ERR_WEIGHTS_LENGTH =
+    DimensionMismatch("`weights` and target "*
+                      "have different lengths. ")
+const ERR_WEIGHTS_DICT =
+    ArgumentError("`class_weights` must be a "*
+                  "dictionary with `Real` values. ")
+const ERR_WEIGHTS_CLASSES =
+    DimensionMismatch("The keys of `class_weights` "*
+                      "are not the same as the levels of the "*
+                      "target, y`. Do `levels(y)` to check levels. ")
+
 function _check_weights(weights, nrows)
     weights isa AbstractVector{<:Real} ||
-        throw(ArgumentError("`weights` must be a `Real` vector."))
+        throw(ERR_WEIGHTS_REAL)
     length(weights) == nrows ||
-        throw(DimensionMismatch("`weights` and target "*
-                                "have different lengths. "))
+        throw(ERR_WEIGHTS_LENGTH)
+    return true
+end
+
+function _check_class_weights(weights, levels)
+    weights isa AbstractDict{<:Any,<:Real} ||
+        throw(ERR_WEIGHTS_DICT)
+    Set(levels) == Set(keys(weights)) ||
+        throw(ERR_WEIGHTS_CLASSES)
     return true
 end
 
 function _process_weights_measures(weights,
+                                   class_weights,
                                    measures,
                                    mach,
                                    operation,
@@ -425,15 +446,34 @@ function _process_weights_measures(weights,
 
      _measures = _actual_measures(measures, mach)
 
-    if check_measure || !(weights isa Nothing)
+    if check_measure || !(weights isa Nothing) || !(class_weights isa Nothing)
         y = mach.args[2]()
     end
 
     check_measure && _check_measures(_measures, mach.model, y, operation)
+
     weights isa Nothing || _check_weights(weights, nrows(y))
+
+    class_weights isa Nothing ||
+        _check_class_weights(class_weights, levels(y))
 
     return _measures
 
+end
+
+function _warn_about_unsupported(trait, str, measures, weights, verbosity)
+    if verbosity >= 0 && weights !== nothing
+        unsupported = filter(measures) do m
+            !trait(m)
+        end
+        if !isempty(unsupported)
+            unsupported_as_string = string(unsupported[1])
+            unsupported_as_string *=
+                reduce(*, [string(", ", m) for m in unsupported[2:end]])
+                @warn "$str weights ignored in evaluations of the following"*
+            " measures, as unsupported: \n$unsupported_as_string "
+        end
+    end
 end
 
 function _process_accel_settings(accel::CPUThreads)
@@ -533,11 +573,13 @@ untouched.
 - `rows` - vector of observation indices from which both train and
   test folds are constructed (default is all observations)
 
-- `weights` - per-sample weights for measures (not to be confused with
-  weights used in training)
+- `weights` - per-sample weights for measures that support them (not
+  to be confused with weights used in training)
 
-- `class_weights` - per-class weights for measures. (relevant for multiclass
-  observations)
+- `class_weights` - dictionary of per-class weights for use with
+  measures that support these, in classification problems (not to be
+  confused with per-sample `weights` or with class weights used in
+  training)
 
 - `operation` - `predict`, `predict_mean`, `predict_mode` or
   `predict_median`; `predict` is the default but cannot be used with a
@@ -617,29 +659,17 @@ function evaluate!(mach::Machine{<:Supervised};
     end
 
     _measures = _process_weights_measures(weights,
+                                          class_weights,
                                           measure,
                                           mach,
                                           operation,
                                           verbosity,
                                           check_measure)
 
-    if verbosity >= 0 && weights !== nothing
-        unsupported = filter(_measures) do m
-            !supports_weights(m)
-        end
-        if !isempty(unsupported)
-            unsupported_as_string = string(unsupported[1])
-            unsupported_as_string *=
-                reduce(*, [string(", ", m) for m in unsupported[2:end]])
-                @warn "Sample weights ignored in evaluations of the following"*
-            " measures, as unsupported: \n$unsupported_as_string "
-        end
-    end
-
-    if verbosity >= 0 && class_weights !== nothing
-        supports_class_weights(measure) || @warn "`class_weights` is " *
-        "ignored as the specified measure does not support it."
-    end
+    _warn_about_unsupported(supports_weights,
+                            "Sample", _measures, weights, verbosity)
+    _warn_about_unsupported(supports_class_weights,
+                            "Class", _measures, class_weights, verbosity)
 
     _acceleration= _process_accel_settings(acceleration)
 
@@ -795,7 +825,20 @@ const TrainTestPairs = AbstractVector{<:TrainTestPair}
 _feature_dependencies_exist(measures) =
     !all(m->!(is_feature_dependent(m)), measures)
 
-# Evaluation when resampling is a TrainTestPairs (CORE EVALUATOR):
+# helper:
+function measure_specific_weights(measure, weights, class_weights, test)
+    supports_weights(measure) && supports_class_weights(measure) &&
+        error("Encountered a measure that simultaneously supports "*
+              "(per-sample) weights and class weights. ")
+    if supports_weights(measure)
+        weights === nothing && return nothing
+        return weights[test]
+    end
+    supports_class_weights(measure) && return class_weights
+    return nothing
+end
+
+# Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
                    measures, operation, acceleration, force)
@@ -826,17 +869,15 @@ function evaluate!(mach::Machine, resampling, weights,
             Xtest = nothing
         end
         ytest = selectrows(y, test)
-        if weights === nothing
-            if class_weights === nothing
-                wtest = nothing
-            else
-                wtest = class_weights
-            end
-        else
-        wtest = weights[test]
-    end
-        measurements =  [value(m, yhat, Xtest, ytest, wtest)
-                         for m in measures]
+
+        measurements =  map(measures) do m
+            wtest = measure_specific_weights(m,
+                                             weights,
+                                             class_weights,
+                                             test)
+            value(m, yhat, Xtest, ytest, wtest)
+        end
+
         fp = fitted_params(mach)
         r = report(mach)
         return (measurements, fp, r)
@@ -1037,6 +1078,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     measures =
         _process_weights_measures(resampler.weights,
+                                  resampler.class_weights,
                                   resampler.measure,
                                   mach,
                                   resampler.operation,
@@ -1086,6 +1128,7 @@ function MLJModelInterface.update(resampler::Resampler{Holdout},
 
     measures =
         _process_weights_measures(resampler.weights,
+                                  resampler.class_weights,
                                   resampler.measure,
                                   mach,
                                   resampler.operation,
