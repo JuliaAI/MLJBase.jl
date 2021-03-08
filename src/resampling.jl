@@ -407,23 +407,32 @@ function _actual_measures(measures, mach)
 
 end
 
+const ERR_WEIGHTS_REAL =
+    ArgumentError("`weights` must be a `Real` vector. ")
+const ERR_WEIGHTS_LENGTH =
+    DimensionMismatch("`weights` and target "*
+                      "have different lengths. ")
+const ERR_WEIGHTS_DICT =
+    ArgumentError("`class_weights` must be a "*
+                  "dictionary with `Real` values. ")
+const ERR_WEIGHTS_CLASSES =
+    DimensionMismatch("The keys of `class_weights` "*
+                      "are not the same as the levels of the "*
+                      "target, y`. Do `levels(y)` to check levels. ")
+
 function _check_weights(weights, nrows)
     weights isa AbstractVector{<:Real} ||
-        throw(ArgumentError("`weights` must be a `Real` vector. "))
+        throw(ERR_WEIGHTS_REAL)
     length(weights) == nrows ||
-        throw(DimensionMismatch("`weights` and target "*
-                                "have different lengths. "))
+        throw(ERR_WEIGHTS_LENGTH)
     return true
 end
 
 function _check_class_weights(weights, levels)
     weights isa AbstractDict{<:Any,<:Real} ||
-        throw(ArgumentError("`class_weights` must be a "*
-                            "dictionary with `Real` values. "))
+        throw(ERR_WEIGHTS_DICT)
     Set(levels) == Set(keys(weights)) ||
-        throw(DimensionMismatch("The keys of `class_weights` "*
-                                "are not the same as the levels of the "*
-                                "target, y`. Do `levels(y)` to check levels. "))
+        throw(ERR_WEIGHTS_CLASSES)
     return true
 end
 
