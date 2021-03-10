@@ -661,7 +661,7 @@ available. Otherwise, returns `nothing`.
 """
 
 training_losses(mach::Machine) =
-    training_losses(mach.model, mach.fitresult, mach.cache, mach.report)
+    training_losses(mach.model, mach.report)
 
 
 
