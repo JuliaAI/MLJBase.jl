@@ -105,7 +105,8 @@ function check(model::Supervised, args... ; full=false)
          nowarns=false)
 
     # checks on dimension matching:
-    nrows(X()) == nrows(y()) ||
+
+    scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
         throw(DimensionMismatch("Differing number of observations "*
                                 "in input and target. "))
 
