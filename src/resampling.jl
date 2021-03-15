@@ -1173,8 +1173,9 @@ StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
 
 StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
-evaluate(resampler::Resampler, fitresult) = fitresult.evaluation
+fitted_params(::Resampler, fitresult) = fitresult
 
+evaluate(resampler::Resampler, fitresult) = fitresult.evaluation
 function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)
         return evaluate(machine.model, machine.fitresult)
@@ -1182,3 +1183,4 @@ function evaluate(machine::Machine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
+

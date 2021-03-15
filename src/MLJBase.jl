@@ -25,7 +25,7 @@ import MLJModelInterface: fit, update, update_data, transform,
     predict_mode, predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
-    params
+    params, training_losses
 
 # Macros
 using Parameters
@@ -105,7 +105,7 @@ export @mlj_model, metadata_pkg, metadata_model
 export fit, update, update_data, transform, inverse_transform,
     fitted_params, predict,
     predict_mode, predict_mean, predict_median, predict_joint,
-    evaluate, clean!
+    evaluate, clean!, training_losses
 
 # data operations
 export matrix, int, classes, decoder, table,
