@@ -652,6 +652,19 @@ reports keyed on those machines.
 """
 report(mach::Machine) = mach.report
 
+"""
+    training_losses(mach::Machine)
+
+Return a list of training losses, for models that make these
+available. Otherwise, returns `nothing`.
+
+"""
+
+training_losses(mach::Machine) =
+    training_losses(mach.model, mach.report)
+
+
+
 
 ## SERIALIZATION
 

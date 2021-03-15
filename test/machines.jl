@@ -26,6 +26,8 @@ t = machine(tree, X, y)
 t.model.max_depth = 1
 @test_logs (:info, r"Updating") fit!(t)
 
+@test training_losses(t) === nothing
+
 predict(t, selectrows(X,test));
 @test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
 
