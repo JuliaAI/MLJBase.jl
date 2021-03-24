@@ -38,7 +38,6 @@ using OrderedCollections
 using CategoricalArrays
 import CategoricalArrays.DataAPI.unwrap
 import InvertedIndices: Not
-import JLSO
 import Dates
 
 # Distributed computing
@@ -177,9 +176,6 @@ export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV,
        evaluate!, Resampler, PerformanceEvaluation
-
-# openml.jl:
-export OpenML
 
 # -------------------------------------------------------------------
 # exports from MLJBase specific to Measure (these may go in their
@@ -357,7 +353,5 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
-
-include("openml.jl")
 
 end # module

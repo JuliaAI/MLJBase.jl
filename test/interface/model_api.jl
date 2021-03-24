@@ -6,7 +6,6 @@ import MLJModelInterface
 using ..Models
 using Distributions
 using StableRNGs
-using JLSO
 
 rng = StableRNG(661)
 
