@@ -17,7 +17,9 @@ repository provides core functionality for MLJ, including:
   [MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
 
 - definition of **machines** and their associated methods, such as
-  `fit!` and `predict`/`transform`
+  `fit!` and `predict`/`transform`. Serialization of machines,
+  however, now lives in
+  [MLJSerialization](https://github.com/JuliaAI/MLJSerialization.jl).
 
 - MLJ's **model composition** interface, including **learning
   networks** and **pipelines**
@@ -44,8 +46,6 @@ repository provides core functionality for MLJ, including:
   [LossFunctions.jl](https://github.com/JuliaML/LossFunctions.jl)
   library, user-defined measures, as well as about forty natively
   defined measures.
-
-- integration with [OpenML](https://www.openml.org)
 
 
 Previously MLJBase provided the model interface for integrating third
