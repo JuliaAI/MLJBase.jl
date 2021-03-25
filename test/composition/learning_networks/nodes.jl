@@ -72,15 +72,6 @@ end
 
     @test_mach_sequence fit!(yhat) [(:skip, knn1),]
     pred = yhat();
-
-    # test serialization of Machine:
-    io = IOBuffer()
-    MLJBase.save(io, knn1)
-    seekstart(io)
-    mach = machine(io, Xtrain, ytrain)
-    seekstart(io)
-    mach = machine(io)
-    @test predict(mach, Xtrain) ≈ pred
 end
 
 @testset "network #2" begin
