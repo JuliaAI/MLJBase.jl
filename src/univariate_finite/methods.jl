@@ -140,7 +140,7 @@ function Base.isapprox(d1::UnivariateFiniteArray,
     for c in support1
         c in support2 || return false
         isapprox(pdf.(d1, c), pdf.(d2, c); kwargs...) ||
-            return false 
+            return false
     end
     return true
 end
@@ -268,10 +268,11 @@ end
 """
     _cumulative(d::UnivariateFinite)
 
-Return the cumulative probability vector `[0, ..., 1]` for the
-distribution `d`, using only classes in the support of `d`, ordered
-according to the categorical elements used at instantiation of
-`d`. Used only to implement random sampling from `d`.
+Return the cumulative probability vector `C` for the distribution `d`,
+using only classes in the support of `d`, ordered according to the
+categorical elements used at instantiation of `d`. Used only to
+implement random sampling from `d`. We have `C[1] == 0` and `C[end] ==
+1`, assuming the probabilities have been normalized.
 
 """
 function _cumulative(d::UnivariateFinite{S,V,R,P}) where {S,V,R,P<:Real}
@@ -281,8 +282,7 @@ function _cumulative(d::UnivariateFinite{S,V,R,P}) where {S,V,R,P<:Real}
     K = length(p)
     p_cumulative = Array{P}(undef, K + 1)
     p_cumulative[1] = zero(P)
-    p_cumulative[K + 1] = one(P)
-    for i in 2:K
+    for i in 2:K + 1
         p_cumulative[i] = p_cumulative[i-1] + p[i-1]
     end
     return p_cumulative
@@ -292,13 +292,12 @@ end
 _rand(rng, p_cumulative, R)
 
 Randomly sample the distribution with discrete support `R(1):R(n)`
-which has cumulative probability vector `p_cumulative=[0, ..., 1]` (of
-length `n+1`). Does not check the first and last elements of
-`p_cumulative` but does not use them either.
+which has cumulative probability vector `p_cumulative` (see
+[`_cummulative`](@ref)).
 
 """
 function _rand(rng, p_cumulative, R)
-    real_sample = rand(rng)
+    real_sample = rand(rng)*p_cumulative[end]
     K = R(length(p_cumulative))
     index = K
     for i in R(2):R(K)
