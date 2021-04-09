@@ -64,15 +64,13 @@ CategoricalArrays.isordered(u::UnivariateFiniteArray) = isordered(classes(u))
 
 ## DISPLAY
 
+_round_prob(p) = p
+_round_prob(p::Union{Float32,Float64}) = round(p, sigdigits=3)
+
 function Base.show(stream::IO, d::UnivariateFinite)
     pairs = Distributions.params(d).probs
-    x1, p1 = pairs[1]
-    str = "UnivariateFinite{$(d.scitype)}($x1=>$(round(p1, sigdigits=3))"
-    for pair in pairs[2:end]
-        str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
-    end
-    str *= ")"
-    print(stream, str)
+    arg_str = join(["$(pr[1])=>$(_round_prob(pr[2]))" for pr in pairs], ", ")
+    print(stream, "UnivariateFinite{$(d.scitype)}($arg_str)")
 end
 
 show_prefix(u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P} =
