@@ -194,7 +194,7 @@ _get_on_last(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i
 function MMI.UnivariateFinite(
     ::FI,
     support::AbstractVector,
-    probs::Union{AbstractArray,Real};
+    probs;
     kwargs...)
 
     if support isa AbstractArray{<:CategoricalValue}
