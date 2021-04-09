@@ -187,7 +187,8 @@ end
 ## CONSTRUCTORS - FROM ARRAYS
 
 # example: _get_on_last(A, 4) = A[:, :, 4] if A has 3 dims:
-_get_on_last(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
+_get_on_last(probs::AbstractArray{<:Any,N}, i) where N =
+    probs[fill(:,N-1)..., i]
 
 # 1. Univariate Finite from a vector of classes or raw labels and
 # array of probs; first, a dispatcher:
@@ -214,13 +215,12 @@ function MMI.UnivariateFinite(
                              kwargs...)
 end
 
-# The core method, ultimately called by 1.0, 1.1, 1.2, 1.3 below, or
-# directly from the dispatcher 1. above
+# The core method, ultimately called by 1.0, 1.1, 1.2, 1.3 below.
 function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
                            probs::AbstractArray{P},
                            N;
                            augment=false,
-                           kwargs...) where {V,R,P<:Real}
+                           kwargs...) where {V,R,P}
 
     unique(support) == support ||
         error("Non-unique vector of classes specified")
@@ -245,15 +245,15 @@ function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
 end
 
 # 1.0 support does not consist of categorical elements:
-function _UnivariateFinite(support::AbstractVector{L},
-                           probs::AbstractArray{P},
+function _UnivariateFinite(support,
+                           probs::AbstractArray,
                            N;
                            augment=false,
                            pool=nothing,
-                           ordered=false) where {L,P<:Real}
+                           ordered=false)
 
-    # If we got here, then L<:CategoricalValue is not true, ie L is a
-    # raw label type
+    # If we got here, then the vector `support` is not
+    # `AbstractVector{<:CategoricalValue}`
 
     if pool === nothing || ismissing(pool)
         if pool === nothing
@@ -314,13 +314,13 @@ _UnivariateFinite(::Val{true},
 # 1.3 corner case, probs a scalar:
 _UnivariateFinite(::Val{true},
                   support::AbstractVector,
-                  probs::Real;
+                  probs;
                   kwargs...) =
                       UnivariateFinite(support, [probs,]; kwargs...)[1]
 
 # 2. probablity only; unspecified support:
 function MMI.UnivariateFinite(::FI,
-                              probs::AbstractArray{<:Real,N};
+                              probs::AbstractArray{<:Any,N};
                               pool=nothing,
                               augment=false,
                               kwargs...) where N
