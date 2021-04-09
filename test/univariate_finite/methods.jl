@@ -133,9 +133,9 @@ end
     @test pdf(d, 'q') ≈ 0.2
     @test_logs((:warn, r"No "),
                UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1]))
-    @test_throws(MethodError,
-                 UnivariateFinite(['f', 'q', 's'],  ["junk", 0.2, 0.1],
-                                  pool=missing))
+    # @test_throws(MethodError,
+    #              UnivariateFinite(['f', 'q', 's'],  ["junk", 0.2, 0.1],
+    #                               pool=missing))
     d = UnivariateFinite(['f', 'q', 's'],  [0.7, 0.2, 0.1], pool=missing)
     @test pdf(d, 'f') ≈ 0.7
     @test pdf(d, 's') ≈ 0.1

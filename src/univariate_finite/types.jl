@@ -34,9 +34,11 @@ UnivariateFinite(a...; kwargs...) = MMI.UnivariateFinite(a...; kwargs...)
 
 ## CHECKS AND ERROR MESSAGES
 
-const Prob{P} = Union{P, AbstractArray{P}} where P
+# checks that scalar probabilities lie in [0, 1] and checks that
+# vector probabilities sum to one have now been dropped, except where
+# `augment=true` is specified.
 
-prob_error = ArgumentError("Probabilities must have `Real` type. ")
+const Prob{P} = Union{P, AbstractArray{P}} where P
 
 _err_01() = throw(DomainError("Probabilities must be in [0,1]."))
 _err_sum_1() = throw(DomainError(
@@ -123,8 +125,8 @@ function MMI.UnivariateFinite(
     # this constructor ignores kwargs
 
     probs = values(prob_given_class) |> collect
-    _check_probs_01.(probs)
-    _check_probs_sum(probs)
+#    _check_probs_01.(probs)
+#    _check_probs_sum(probs)
 
     # retrieve decoder and classes from element
     class1         = first(keys(prob_given_class))
@@ -133,20 +135,20 @@ function MMI.UnivariateFinite(
 
     # `LittleDict`s preserve order of keys, which we need for rand():
 
-    support  = keys(prob_given_class) |> collect |> sort
+    _support  = keys(prob_given_class) |> collect |> sort
 
-    issubset(support, parent_classes) ||
+    issubset(_support, parent_classes) ||
         error("Categorical elements are not from the same pool. ")
 
     pairs = [int(c) => prob_given_class[c]
-                for c in support]
+                for c in _support]
 
     probs1 = first(values(prob_given_class))
     S = scitype(class1)
-    if !(probs1 isa AbstractArray)
-        return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
-    else
+    if  probs1 isa AbstractArray
         return UnivariateFiniteArray(S, parent_decoder, LittleDict(pairs...))
+    else
+        return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
     end
 end
 
