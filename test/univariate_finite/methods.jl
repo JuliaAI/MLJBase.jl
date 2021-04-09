@@ -14,7 +14,7 @@ V = categorical(collect("asqfasqffqsaaaa"))
 a, s, q, f = v[1], v[2], v[3], v[4]
 A, S, Q, F = V[1], V[2], V[3], V[4]
 
-@testset "UnivariateFinite constructor" begin
+@testset "set 1" begin
 
     # ordered (OrderedFactor)
     dict = Dict(s=>0.1, q=> 0.2, f=> 0.7)
@@ -53,12 +53,21 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     @test samples == [rand(rng, d) for i in 1:N]
 
     N = 10000
-    samples = rand(rng, d, N);
+    samples = rand(StableRNG(123), d, N);
     @test Set(samples) == Set(support(d))
     freq = Distributions.countmap(samples)
     @test isapprox(freq[f]/N, 0.7, atol=0.05)
     @test isapprox(freq[s]/N, 0.1, atol=0.05)
     @test isapprox(freq[q]/N, 0.2, atol=0.05)
+
+    # test unnormalized case gives same answer:
+    dd = UnivariateFinite(support(d), [70, 20, 10])
+    samples = rand(StableRNG(123), dd, N);
+    @test Set(samples) == Set(support(d))
+    ffreq = Distributions.countmap(samples)
+    @test isapprox(freq[f]/N, ffreq[f]/N)
+    @test isapprox(freq[s]/N, ffreq[s]/N)
+    @test isapprox(freq[q]/N, ffreq[q]/N)
 
     #
     # unordered (Multiclass):
