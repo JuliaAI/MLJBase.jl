@@ -7,11 +7,10 @@ const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 # V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
 # P - raw probability type
 # S - scitype of samples
-# L - raw type of labels, eg `Symbol` or `String`
 
 # Note that the keys of `prob_given_ref` need not exhaust all the
 # refs of all classes but will be ordered (LittleDicts preserve order)
-struct UnivariateFinite{S,V,R,P<:Real} <: UnivariateFiniteSuper
+struct UnivariateFinite{S,V,R,P} <: UnivariateFiniteSuper
     scitype::Type{S}
     decoder::CategoricalDecoder{V,R}
     prob_given_ref::LittleDict{R,P,Vector{R}, Vector{P}}
@@ -35,7 +34,7 @@ UnivariateFinite(a...; kwargs...) = MMI.UnivariateFinite(a...; kwargs...)
 
 ## CHECKS AND ERROR MESSAGES
 
-const Prob{P} = Union{P, AbstractArray{P}} where P <: Real
+const Prob{P} = Union{P, AbstractArray{P}} where P
 
 prob_error = ArgumentError("Probabilities must have `Real` type. ")
 
@@ -65,7 +64,7 @@ function _check_pool(pool)
 end
 _check_probs_01(probs) =
     all(0 .<= probs .<= 1) || _err_01()
-_check_probs_sum(probs::Vector{<:Prob{P}}) where P<:Real =
+_check_probs_sum(probs::Vector{<:Prob{P}}) where P =
     all(x -> x≈one(P), sum(probs)) || _err_sum_1()
 _check_probs(probs) = (_check_probs_01(probs); _check_probs_sum(probs))
 _check_augmentable(support, probs) = _check_probs_01(probs) &&
@@ -144,7 +143,7 @@ function MMI.UnivariateFinite(
 
     probs1 = first(values(prob_given_class))
     S = scitype(class1)
-    if probs1 isa Real
+    if !(probs1 isa AbstractArray)
         return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
     else
         return UnivariateFiniteArray(S, parent_decoder, LittleDict(pairs...))
