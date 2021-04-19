@@ -64,15 +64,13 @@ CategoricalArrays.isordered(u::UnivariateFiniteArray) = isordered(classes(u))
 
 ## DISPLAY
 
+_round_prob(p) = p
+_round_prob(p::Union{Float32,Float64}) = round(p, sigdigits=3)
+
 function Base.show(stream::IO, d::UnivariateFinite)
     pairs = Distributions.params(d).probs
-    x1, p1 = pairs[1]
-    str = "UnivariateFinite{$(d.scitype)}($x1=>$(round(p1, sigdigits=3))"
-    for pair in pairs[2:end]
-        str *= ", $(pair[1])=>$(round(pair[2], sigdigits=3))"
-    end
-    str *= ")"
-    print(stream, str)
+    arg_str = join(["$(pr[1])=>$(_round_prob(pr[2]))" for pr in pairs], ", ")
+    print(stream, "UnivariateFinite{$(d.scitype)}($arg_str)")
 end
 
 show_prefix(u::UnivariateFiniteArray{S,V,R,P,1}) where {S,V,R,P} =
@@ -142,7 +140,7 @@ function Base.isapprox(d1::UnivariateFiniteArray,
     for c in support1
         c in support2 || return false
         isapprox(pdf.(d1, c), pdf.(d2, c); kwargs...) ||
-            return false 
+            return false
     end
     return true
 end
@@ -270,10 +268,11 @@ end
 """
     _cumulative(d::UnivariateFinite)
 
-Return the cumulative probability vector `[0, ..., 1]` for the
-distribution `d`, using only classes in the support of `d`, ordered
-according to the categorical elements used at instantiation of
-`d`. Used only to implement random sampling from `d`.
+Return the cumulative probability vector `C` for the distribution `d`,
+using only classes in the support of `d`, ordered according to the
+categorical elements used at instantiation of `d`. Used only to
+implement random sampling from `d`. We have `C[1] == 0` and `C[end] ==
+1`, assuming the probabilities have been normalized.
 
 """
 function _cumulative(d::UnivariateFinite{S,V,R,P}) where {S,V,R,P<:Real}
@@ -283,8 +282,7 @@ function _cumulative(d::UnivariateFinite{S,V,R,P}) where {S,V,R,P<:Real}
     K = length(p)
     p_cumulative = Array{P}(undef, K + 1)
     p_cumulative[1] = zero(P)
-    p_cumulative[K + 1] = one(P)
-    for i in 2:K
+    for i in 2:K + 1
         p_cumulative[i] = p_cumulative[i-1] + p[i-1]
     end
     return p_cumulative
@@ -294,13 +292,12 @@ end
 _rand(rng, p_cumulative, R)
 
 Randomly sample the distribution with discrete support `R(1):R(n)`
-which has cumulative probability vector `p_cumulative=[0, ..., 1]` (of
-length `n+1`). Does not check the first and last elements of
-`p_cumulative` but does not use them either.
+which has cumulative probability vector `p_cumulative` (see
+[`_cummulative`](@ref)).
 
 """
 function _rand(rng, p_cumulative, R)
-    real_sample = rand(rng)
+    real_sample = rand(rng)*p_cumulative[end]
     K = R(length(p_cumulative))
     index = K
     for i in R(2):R(K)

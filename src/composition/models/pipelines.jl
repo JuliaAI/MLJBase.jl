@@ -128,7 +128,7 @@ not_unsupervised_alert(v) =
 pipe_argument_error(v) =
     pipe_alert("Encountered `$v` where a "*
                "model instance, model type, function, "*
-               "or key-word assignement was expected. ")
+               "or key-word assignment was expected. ")
 
 function super_type(prediction_type::Symbol)
     if prediction_type == :deterministic
