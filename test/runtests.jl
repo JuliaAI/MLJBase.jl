@@ -106,6 +106,3 @@ end
     @test include("hyperparam/one_dimensional_range_methods.jl")
 end
 
-# @testset "openml" begin
-#     @test include("openml.jl")
-# end

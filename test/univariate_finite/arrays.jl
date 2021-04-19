@@ -17,14 +17,14 @@ c   = 3
     probs  = rand(rng, n)
     supp = ["class1", "class2"]
 
-    @test_throws DomainError UnivariateFinite(supp, probs, pool=missing)
+    # @test_throws DomainError UnivariateFinite(supp, probs, pool=missing)
     u = UnivariateFinite(supp, probs, pool=missing, augment=true)
     @test length(u) == n
     @test size(u) == (n,)
     @test pdf.(u, "class2") ≈ probs
 
     # autosupport:
-    @test_throws DomainError UnivariateFinite(probs, pool=missing)
+    # @test_throws DomainError UnivariateFinite(probs, pool=missing)
     u = UnivariateFinite(probs, pool=missing, augment=true)
     @test length(u) == n
     @test size(u) == (n,)

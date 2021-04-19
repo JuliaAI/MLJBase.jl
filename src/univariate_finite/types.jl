@@ -7,11 +7,10 @@ const UnivariateFiniteSuper = Dist.Distribution{Dist.Univariate,NonEuclidean}
 # V - type of class labels (eg, Char in `categorical(['a', 'b'])`)
 # P - raw probability type
 # S - scitype of samples
-# L - raw type of labels, eg `Symbol` or `String`
 
 # Note that the keys of `prob_given_ref` need not exhaust all the
 # refs of all classes but will be ordered (LittleDicts preserve order)
-struct UnivariateFinite{S,V,R,P<:Real} <: UnivariateFiniteSuper
+struct UnivariateFinite{S,V,R,P} <: UnivariateFiniteSuper
     scitype::Type{S}
     decoder::CategoricalDecoder{V,R}
     prob_given_ref::LittleDict{R,P,Vector{R}, Vector{P}}
@@ -35,9 +34,11 @@ UnivariateFinite(a...; kwargs...) = MMI.UnivariateFinite(a...; kwargs...)
 
 ## CHECKS AND ERROR MESSAGES
 
-const Prob{P} = Union{P, AbstractArray{P}} where P <: Real
+# checks that scalar probabilities lie in [0, 1] and checks that
+# vector probabilities sum to one have now been dropped, except where
+# `augment=true` is specified.
 
-prob_error = ArgumentError("Probabilities must have `Real` type. ")
+const Prob{P} = Union{P, AbstractArray{P}} where P
 
 _err_01() = throw(DomainError("Probabilities must be in [0,1]."))
 _err_sum_1() = throw(DomainError(
@@ -65,7 +66,7 @@ function _check_pool(pool)
 end
 _check_probs_01(probs) =
     all(0 .<= probs .<= 1) || _err_01()
-_check_probs_sum(probs::Vector{<:Prob{P}}) where P<:Real =
+_check_probs_sum(probs::Vector{<:Prob{P}}) where P =
     all(x -> x≈one(P), sum(probs)) || _err_sum_1()
 _check_probs(probs) = (_check_probs_01(probs); _check_probs_sum(probs))
 _check_augmentable(support, probs) = _check_probs_01(probs) &&
@@ -124,8 +125,8 @@ function MMI.UnivariateFinite(
     # this constructor ignores kwargs
 
     probs = values(prob_given_class) |> collect
-    _check_probs_01.(probs)
-    _check_probs_sum(probs)
+#    _check_probs_01.(probs)
+#    _check_probs_sum(probs)
 
     # retrieve decoder and classes from element
     class1         = first(keys(prob_given_class))
@@ -134,20 +135,20 @@ function MMI.UnivariateFinite(
 
     # `LittleDict`s preserve order of keys, which we need for rand():
 
-    support  = keys(prob_given_class) |> collect |> sort
+    _support  = keys(prob_given_class) |> collect |> sort
 
-    issubset(support, parent_classes) ||
+    issubset(_support, parent_classes) ||
         error("Categorical elements are not from the same pool. ")
 
     pairs = [int(c) => prob_given_class[c]
-                for c in support]
+                for c in _support]
 
     probs1 = first(values(prob_given_class))
     S = scitype(class1)
-    if probs1 isa Real
-        return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
-    else
+    if  probs1 isa AbstractArray
         return UnivariateFiniteArray(S, parent_decoder, LittleDict(pairs...))
+    else
+        return UnivariateFinite(S, parent_decoder, LittleDict(pairs...))
     end
 end
 
@@ -188,14 +189,15 @@ end
 ## CONSTRUCTORS - FROM ARRAYS
 
 # example: _get_on_last(A, 4) = A[:, :, 4] if A has 3 dims:
-_get_on_last(probs::AbstractArray{<:Any,N}, i) where N = probs[fill(:,N-1)..., i]
+_get_on_last(probs::AbstractArray{<:Any,N}, i) where N =
+    probs[fill(:,N-1)..., i]
 
 # 1. Univariate Finite from a vector of classes or raw labels and
 # array of probs; first, a dispatcher:
 function MMI.UnivariateFinite(
     ::FI,
     support::AbstractVector,
-    probs::Union{AbstractArray,Real};
+    probs;
     kwargs...)
 
     if support isa AbstractArray{<:CategoricalValue}
@@ -215,13 +217,12 @@ function MMI.UnivariateFinite(
                              kwargs...)
 end
 
-# The core method, ultimately called by 1.0, 1.1, 1.2, 1.3 below, or
-# directly from the dispatcher 1. above
+# The core method, ultimately called by 1.0, 1.1, 1.2, 1.3 below.
 function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
                            probs::AbstractArray{P},
                            N;
                            augment=false,
-                           kwargs...) where {V,R,P<:Real}
+                           kwargs...) where {V,R,P}
 
     unique(support) == support ||
         error("Non-unique vector of classes specified")
@@ -246,15 +247,15 @@ function _UnivariateFinite(support::AbstractVector{CategoricalValue{V,R}},
 end
 
 # 1.0 support does not consist of categorical elements:
-function _UnivariateFinite(support::AbstractVector{L},
-                           probs::AbstractArray{P},
+function _UnivariateFinite(support,
+                           probs::AbstractArray,
                            N;
                            augment=false,
                            pool=nothing,
-                           ordered=false) where {L,P<:Real}
+                           ordered=false)
 
-    # If we got here, then L<:CategoricalValue is not true, ie L is a
-    # raw label type
+    # If we got here, then the vector `support` is not
+    # `AbstractVector{<:CategoricalValue}`
 
     if pool === nothing || ismissing(pool)
         if pool === nothing
@@ -315,13 +316,13 @@ _UnivariateFinite(::Val{true},
 # 1.3 corner case, probs a scalar:
 _UnivariateFinite(::Val{true},
                   support::AbstractVector,
-                  probs::Real;
+                  probs;
                   kwargs...) =
                       UnivariateFinite(support, [probs,]; kwargs...)[1]
 
 # 2. probablity only; unspecified support:
 function MMI.UnivariateFinite(::FI,
-                              probs::AbstractArray{<:Real,N};
+                              probs::AbstractArray{<:Any,N};
                               pool=nothing,
                               augment=false,
                               kwargs...) where N
