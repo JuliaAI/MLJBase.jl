@@ -215,15 +215,17 @@ function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
     if showtypes
         types = schema(X).types |> collect
         scitypes = schema(X).scitypes |> collect
-        header = hcat(names, types, scitypes) |> permutedims
+        header = (names, types, scitypes)
     else
-        header  = names
+        header  = (names, )
     end
     show_color = MLJBase.SHOW_COLOR
     color_off()
     try
         PrettyTables.pretty_table(io, MLJBase.matrix(X),
-                                  header; alignment=alignment, kwargs...)
+                                  header=header;
+                                  alignment=alignment,
+                                  kwargs...)
     catch
         println("Trouble displaying table.")
     end
