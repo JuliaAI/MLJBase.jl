@@ -17,10 +17,9 @@ MMI.int(::FI, x) = throw(
 MMI.int(::FI, x::Missing)       = missing
 MMI.int(::FI, x::AbstractArray) = int.(x)
 
-# first line is no good because it promotes type to higher ineger type:
+# first line is no good because it promotes type to larger integer type:
 # MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
-MMI.int(::FI, x::CategoricalValue{<:Any,R}) where R =
-    R(CategoricalArrays.levelcode(x))
+MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.refcode(x)
 
 # ------------------------------------------------------------------------
 # classes
