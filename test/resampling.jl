@@ -321,7 +321,10 @@ end
     @test pairs != pairs_random
 
     # wrong target type throws error:
-    @test_throws Exception MLJBase.train_test_pairs(scv, rows, get.(y))
+    @test_throws(Exception,
+                 MLJBase.train_test_pairs(scv,
+                                          rows,
+                                          CategoricalArrays.unwrap.(y)))
 
     # check class distribution is preserved in a larger randomized example:
     N = 30
