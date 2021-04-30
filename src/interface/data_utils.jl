@@ -19,7 +19,8 @@ MMI.int(::FI, x::AbstractArray) = int.(x)
 
 # first line is no good because it promotes type to higher ineger type:
 # MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
-MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.level(x)
+MMI.int(::FI, x::CategoricalValue{<:Any,R}) where R =
+    R(CategoricalArrays.levelcode(x))
 
 # ------------------------------------------------------------------------
 # classes
