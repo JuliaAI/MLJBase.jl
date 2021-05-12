@@ -157,13 +157,16 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
-# identify which fields of `model` have, as values, a model in the
+# Identify which fields of `model` have, as values, a model in the
 # learning network wrapped by `mach`, and check that no two such
-# fields have have identical values (#377):
-function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
+# fields have have identical values (#377). Return the field name
+# associated with each model in the network (in the order appearing in
+# `models(glb(mach))`) using `nothing` when the model is not
+# associated with any field.
+function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
     signature = mach.fitresult
-    network_model_ids = objectid.(models(glb(mach)))
+    network_model_ids = objectid.(MLJBase.models(glb(mach)))
 
     names = fieldnames(M)
 
@@ -172,18 +175,16 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
     # identify location of fields whose values are models in the
     # learning network, and build name_given_id:
-    mask = map(names) do name
+    for name in names
         id = objectid(getproperty(model, name))
-        is_network_model_field = id in network_model_ids
-        if is_network_model_field
+        if id in network_model_ids
             if haskey(name_given_id, id)
                 push!(name_given_id[id], name)
             else
                 name_given_id[id] = [name,]
             end
         end
-        return is_network_model_field
-    end  |> collect
+    end 
 
     # perform #377 check:
     no_duplicates = all(values(name_given_id)) do name
@@ -206,7 +207,13 @@ function fields_in_network(model::M, mach::Machine{<:Surrogate}) where M<:Model
             "separately or use `deepcopy`. "))
     end
 
-    return names[mask]
+    return map(network_model_ids) do id
+        if id in keys(name_given_id)
+            return name_given_id[id] |> first
+        else
+            return nothing
+        end
+    end
 
 end
 
@@ -274,7 +281,7 @@ function return!(mach::Machine{<:Surrogate},
                  model::Union{Model,Nothing},
                  verbosity)
 
-    network_model_fields = fields_in_network(model, mach)
+    _network_model_names = network_model_names(model, mach)
 
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
 
@@ -288,7 +295,7 @@ function return!(mach::Machine{<:Surrogate},
 
     cache = (sources = sources,
              data=data,
-             network_model_fields=network_model_fields,
+             network_model_names=_network_model_names,
              old_model=old_model)
 
     return mach.fitresult, cache, mach.report
@@ -313,7 +320,7 @@ function (mach::Machine{<:Surrogate})()
 
     return!(mach, nothing, nothing)
 end
-fields_in_network(model::Nothing, mach::Machine{<:Surrogate}) =
+network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
 
 
