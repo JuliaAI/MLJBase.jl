@@ -476,6 +476,79 @@ mach = machine(NoTraining()) |> fit!
 @test transform(mach, X) == 2*X.age
 
 
+## TESTINGS A STACK AND IN PARTICULAR FITTED_PARAMS
+
+folds(data, nfolds) =
+    partition(1:nrows(data), (1/nfolds for i in 1:(nfolds-1))...);
+
+model1 = RidgeRegressor()
+model2 = KNNRegressor(K=1)
+judge = KNNRegressor(K=1)
+
+X = source()
+y = source()
+
+folds(X::AbstractNode, nfolds) = node(XX->folds(XX, nfolds), X)
+MLJBase.restrict(X::AbstractNode, f::AbstractNode, i) =
+    node((XX, ff) -> restrict(XX, ff, i), X, f);
+MLJBase.corestrict(X::AbstractNode, f::AbstractNode, i) =
+    node((XX, ff) -> corestrict(XX, ff, i), X, f);
+
+f = folds(X, 3)
+
+m11 = machine(model1, corestrict(X, f, 1), corestrict(y, f, 1))
+m12 = machine(model1, corestrict(X, f, 2), corestrict(y, f, 2))
+m13 = machine(model1, corestrict(X, f, 3), corestrict(y, f, 3))
+
+y11 = predict(m11, restrict(X, f, 1));
+y12 = predict(m12, restrict(X, f, 2));
+y13 = predict(m13, restrict(X, f, 3));
+
+m21 = machine(model2, corestrict(X, f, 1), corestrict(y, f, 1))
+m22 = machine(model2, corestrict(X, f, 2), corestrict(y, f, 2))
+m23 = machine(model2, corestrict(X, f, 3), corestrict(y, f, 3))
+
+y21 = predict(m21, restrict(X, f, 1));
+y22 = predict(m22, restrict(X, f, 2));
+y23 = predict(m23, restrict(X, f, 3));
+
+y1_oos = vcat(y11, y12, y13);
+y2_oos = vcat(y21, y22, y23);
+
+X_oos = MLJBase.table(hcat(y1_oos, y2_oos))
+
+m_judge = machine(judge, X_oos, y)
+
+m1 = machine(model1, X, y)
+m2 = machine(model2, X, y)
+
+y1 = predict(m1, X);
+y2 = predict(m2, X);
+
+X_judge = MLJBase.table(hcat(y1, y2))
+yhat = predict(m_judge, X_judge)
+
+@from_network machine(Deterministic(), X, y; predict=yhat) begin
+    mutable struct MyStack
+        regressor1=model1
+        regressor2=model2
+        judge=judge
+    end
+end
+
+my_stack = MyStack()
+X, y = make_regression(18, 2)
+mach = machine(my_stack, X, y)
+fit!(mach, verbosity=0)
+
+fp = fitted_params(mach)
+@test keys(fp.judge) == (:tree,)
+@test length(fp.regressor1) == 4
+@test length(fp.regressor2) == 4
+@test keys(fp.regressor1[1]) == (:coefficients, :intercept)
+@test keys(fp.regressor2[1]) == (:tree,)
+
+
 ## ISSUE #377
 
 target_stand = Standardizer()
@@ -512,5 +585,6 @@ mach = machine(model, X, y)
                         fit!(mach, verbosity=-1)))
 
 end
+
 
 true

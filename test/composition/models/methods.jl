@@ -18,44 +18,47 @@ mutable struct Rubbish <: DeterministicComposite
 end
 
 knn = KNNRegressor()
-model = Rubbish(knn, Standardizer(), 42)
+model = Rubbish(knn, OneHotEncoder(), 42)
 X, y = make_regression(10, 2)
 
 @testset "logic for composite model update - fallback()" begin
     Xs = source(X)
     ys = source(y)
-    mach1 = machine(model.model_in_network, Xs, ys)
-    yhat = predict(mach1, Xs)
+    mach0 = machine(Standardizer(), Xs)
+    W = transform(mach0, Xs)
+    mach1 = machine(model.model_in_network, W, ys)
+    yhat = predict(mach1, W)
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    _, cache, _ = return!(mach, model, 1)
+    fitresult, cache, _ = return!(mach, model, 1)
+    @test cache.network_model_names == [:model_in_network, nothing]
     old_model = cache.old_model
-    network_model_fields = cache.network_model_fields
+    network_model_names = cache.network_model_names
     glb_node = MLJBase.glb(mach)
-    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test !MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # don't fallback if mutating field for a network model:
     model.model_in_network.K = 24
-    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test !MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # do fallback if replacing field for a network model:
     model.model_in_network = KNNRegressor()
-    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # return to original state:
     model.model_in_network = knn
-    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test !MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # do fallback if a non-network field changes:
     model.model_not_in_network.features = [:x1,]
-    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # return to original state:
-    model.model_not_in_network = Standardizer()
-    @test !MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    model.model_not_in_network = OneHotEncoder()
+    @test !MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
     # do fallback if any non-model changes:
     model.some_other_variable = 123412
-    @test MLJBase.fallback(model, old_model, network_model_fields, glb_node)
+    @test MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
 end
 

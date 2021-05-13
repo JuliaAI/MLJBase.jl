@@ -35,12 +35,12 @@ function update(model::M,
     # underlying learning network machine. For this it is necessary to
     # temporarily "de-anonymize" the source nodes.
 
-    network_model_fields = cache.network_model_fields
+    network_model_names = cache.network_model_names
     old_model = cache.old_model
 
     glb_node = glb(values(fitresult)...) # greatest lower bound
 
-    if fallback(model, old_model, network_model_fields, glb_node)
+    if fallback(model, old_model, network_model_names, glb_node)
         return fit(model, verbosity, args...)
     end
 
@@ -60,7 +60,7 @@ function update(model::M,
     # record current model state:
     cache = (sources=cache.sources,
              data=cache.data,
-             network_model_fields=cache.network_model_fields,
+             network_model_names=cache.network_model_names,
              old_model = deepcopy(model))
 
     return fitresult, cache, report(glb_node)
@@ -68,14 +68,20 @@ function update(model::M,
 end
 
 # helper for preceding method (where logic is explained):
-function fallback(model::M, old_model, network_model_fields, glb_node) where M
-    network_model_ids = objectid.(models(glb_node))
+function fallback(model::M, old_model, network_model_names, glb_node) where M
+    # check the fields corresponding to models:
+    network_models = MLJBase.models(glb_node)
+    for j in eachindex(network_models)
+        name = network_model_names[j]
+        name === nothing ||
+            objectid(network_models[j])===objectid(getproperty(model, name)) ||
+            return true
+    end
+    # check any other fields:
     for name in fieldnames(M)
-        value = getproperty(model, name)
-        if name in network_model_fields
-            objectid(value) in network_model_ids || return true
-        else
+        if !(name in network_model_names)
             old_value = getproperty(old_model, name)
+            value = getproperty(model, name)
             value == old_value || return true
         end
     end

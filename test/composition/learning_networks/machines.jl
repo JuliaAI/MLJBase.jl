@@ -190,7 +190,7 @@ end
     mach = machine(Unsupervised(), Xs; transform=X2)
     @test_logs((:error, r"The fields"),
                @test_throws(ArgumentError,
-                            MLJBase.fields_in_network(model, mach)))
+                            MLJBase.network_model_names(model, mach)))
 end
 
 end
