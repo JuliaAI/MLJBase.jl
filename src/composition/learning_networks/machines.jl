@@ -184,7 +184,7 @@ function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Mode
                 name_given_id[id] = [name,]
             end
         end
-    end 
+    end
 
     # perform #377 check:
     no_duplicates = all(values(name_given_id)) do name

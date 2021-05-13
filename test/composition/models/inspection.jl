@@ -12,41 +12,6 @@ using Statistics
 X = (x1=rand(3), x2=rand(3), x3=rand(3))
 y = float.([1, 2, 3])
 
-@testset "tuple_keyed_on_model_names" begin
-
-    model1 = KNNRegressor(K=1)
-    model2 = KNNRegressor(K=2)
-    model3 = KNNRegressor(K=3)
-    model4 = KNNRegressor(K=4)
-
-    _models = deepcopy.((model4, model3, model1))
-
-    a1 = machine(model1, X, y)
-    a2 = machine(model1, X, y)
-    b = machine(model2, X, y)
-    c = machine(model3, X, y)
-    d = machine(model4, X, y)
-
-    fit!.([a1, a2, b, c, d])
-
-    # mutating the models should not effect the result:
-    model1.K=0
-    model2.K=0
-    model3.K=0
-    model4.K=0
-
-    item_given_machine =
-        LittleDict(a1=>"a1", a2=>"a2", b=>"b", c=>"c", d=>"d")
-
-    _names = (:knn4, :knn3, :knn1)
-
-    nt = MLJBase.tuple_keyed_on_model_names(item_given_machine,
-                                            _models,
-                                            _names)
-
-    @test nt == (knn4="d", knn3="c", knn1=["a1", "a2"])
-end
-
 mutable struct Bar <: DeterministicComposite
     scale::Float64
     rgs
@@ -78,12 +43,6 @@ model = Bar(scale, rgs, input_stand, target_stand)
 mach = machine(model, X, y)
 fit!(mach)
 
-@testset "models_and_names(::Machine{<:Composite})" begin
-    _models, _names = MLJBase.models_and_names(mach)
-    @test _models == (rgs, input_stand, target_stand)
-    @test _names == (:rgs, :input_stand, :target_stand)
-end
-
 @testset "user-friendly inspection of reports and fitted params" begin
 
     # mutating the models should not effect result:
@@ -103,6 +62,39 @@ end
         [mean(X.x1), std(X.x1)]
     @test fp.target_stand.fitresult |> collect ≈
         [mean(0.97*y), std(0.97*y)]  # scale = 0.97 at fit! call
+end
+
+
+mutable struct Mixer <: DeterministicComposite
+    model1
+    model2
+    misc::Int
+end
+
+@testset "#549" begin
+
+    function MLJBase.fit(model::Mixer, verbosity, X, y)
+        Xs = source(X)
+        ys = source(y)
+
+        mach1 = machine(model.model1, Xs, ys)
+        mach2 = machine(model.model2, Xs, ys)
+
+        yhat1 = predict(mach1, Xs)
+        yhat2 = predict(mach2, Xs)
+
+        yhat = 0.5*yhat1 + 0.5*yhat2
+
+        learning_mach = machine(Deterministic(), Xs, ys, predict=yhat)
+        return!(learning_mach, model, verbosity)
+    end
+
+    model = Mixer(KNNRegressor(), KNNRegressor(), 42)
+    mach = machine(model, make_regression(10, 3)...) |> fit!
+    fp = fitted_params(mach)
+    @test !(fp.model1 isa Vector)
+    @test !(fp.model2 isa Vector)
+
 end
 
 end
