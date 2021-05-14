@@ -577,7 +577,7 @@ end
 X, y = make_regression(20, 2);
 model = CompositeA(stand=stand, target=stand)
 mach = machine(model, X, y)
-@test_logs((:error, r"The fields"),
+@test_logs((:error, r"The hyper"),
            (:error, r"Problem"),
            (:info, r"Running"),
            (:info, r"Type checks okay"),
