@@ -300,64 +300,69 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     @test predict(mach, X) == fill(levs[1], 10)
 end
 
-# `names` is a tuple of `Symbol`s, one for each `model` in `models`:
-mutable struct Averager{names} <: DeterministicComposite
+
+## COMPOSITE WITH COMPONENT MODELS STORED IN NTUPLE
+
+# `modelnames` is a tuple of `Symbol`s, one for each `model` in `models`:
+mutable struct Averager{modelnames} <: DeterministicComposite
     models::NTuple{<:Any,Deterministic}
     weights::Vector{Float64}
+    Averager(modelnames, models, weights) =
+        new{modelnames}(models, weights)
+end
+
+# special kw constructor, allowing one to specify the property names
+# to be attributed to each component model (see below):
+function Averager(; weights=Float64[], named_models...)
+        nt = NamedTuple(named_models)
+    modelnames = keys(nt)
+    models = values(nt)
+    return Averager(modelnames, models, weights)
+end
+
+# for example:
+averager = Averager(weights=[1, 1],
+                    model1=KNNRegressor(K=3),
+                    model2=RidgeRegressor())
+
+# so we can do `averager.model1` and `averager.model2`:
+Base.propertynames(::Averager{modelnames}) where modelnames =
+        tuple(:weights, modelnames...)
+function Base.getproperty(averager::Averager{modelnames},
+                          name::Symbol) where modelnames
+    name === :weights && return getfield(averager, :weights)
+    models = getfield(averager, :models)
+    for j in eachindex(modelnames)
+        name === modelnames[j] && return models[j]
+    end
+    error("type Averager has no field $name")
+end
+
+# overload multiplication of a node by a matrix:
+import Base.*
+*(preds::Node, weights) = node(p->p*weights, preds)
+
+# learning network wrapped in a fit method:
+function MLJBase.fit(averager::Averager{modelnames},
+                     verbosity,
+                     X,
+                     y) where modelnames
+
+    Xs = source(X)
+    ys = source(y)
+
+    weights = averager.weights
+
+    machines = [machine(getproperty(averager, name), Xs, ys) for
+                name in modelnames]
+    predictions = hcat([predict(mach, Xs) for mach in machines]...)
+    yhat = (1/sum(weights))*(predictions*weights)
+
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    return!(mach, averager, verbosity)
 end
 
 @testset "composite with component models stored in ntuple" begin
-
-    # kw constructor:
-    function Averager(; weights=Float64[], named_models...)
-        nt = NamedTuple(named_models)
-        names = keys(nt)
-        models = values(nt)
-        return Averager{names}(models, weights)
-    end
-
-    # an instance:
-    averager = Averager(weights=[1, 1],
-                 model1=KNNRegressor(K=3),
-                 model2=RidgeRegressor())
-
-    # so we can do `averager.model1` and `averager.model2`:
-    Base.propertynames(::Averager{names}) where names =
-        tuple(:weights, names...)
-    function Base.getproperty(averager::Averager{names},
-                              name::Symbol) where names
-        name === :weights && return getfield(averager, :weights)
-        models = getfield(averager, :models)
-        for j in eachindex(names)
-            name === names[j] && return models[j]
-        end
-        error("type Averager has no field $name")
-    end
-
-    # overload multiplication of a node by a matrix:
-    import Base.*
-    *(preds::Node, weights) = node(p->p*weights, preds)
-
-    # learning network wrapped in a fit method:
-    function MLJBase.fit(averager::Averager{names},
-                         verbosity,
-                         X,
-                         y) where names
-
-        Xs = source(X)
-        ys = source(y)
-
-        weights = averager.weights
-
-        machines = [machine(getproperty(averager, name), Xs, ys) for
-                    name in names]
-        predictions = hcat([predict(mach, Xs) for mach in machines]...)
-        yhat = (1/sum(weights))*(predictions*weights)
-
-        mach = machine(Deterministic(), Xs, ys; predict=yhat)
-        return!(mach, averager, verbosity)
-    end
-
     X, y = make_regression(10, 3);
     mach = machine(averager, X, y)
     fit!(mach, verbosity=0)
