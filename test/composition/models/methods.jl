@@ -372,6 +372,7 @@ end
     r = report(mach)
     @test r.model1 == NamedTuple()
     @test r.model2 == NamedTuple()
+    range(averager, :(model1.K), lower=2, upper=3)
 end
 
 
