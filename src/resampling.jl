@@ -646,7 +646,7 @@ function evaluate!(mach::Machine{<:Supervised};
     # weights and measures, and dispatches a strategy-specific
     # `evaluate!`
 
-    repeats > 0 || error("Need n > 0. ")
+    repeats > 0 || error("Need repeats > 0. ")
 
     if resampling isa TrainTestPairs
         if rows !== nothing

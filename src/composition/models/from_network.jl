@@ -1,18 +1,17 @@
 ## EXPORTING LEARNING NETWORKS AS MODELS WITH @from_network
 
-
 # closure to generate the fit methods for exported composite. Here `mach`
 function fit_method(mach, models...)
 
     signature = mach.fitresult
     mach_args = mach.args
 
-    function _fit(model::M, verbosity::Integer, args...) where M
+    function _fit(model, verbosity::Integer, args...)
         length(args) > length(mach_args) &&
             throw(ArgumentError("$M does not support more than "*
                                 "$(length(mach_args)) training arguments"))
         replacement_models = [getproperty(model, fld)
-                              for fld in fieldnames(M)]
+                              for fld in propertynames(model)]
         model_replacements = [models[j] => replacement_models[j]
                               for j in eachindex(models)]
         source_replacements = [mach_args[i] => source(args[i])

@@ -23,11 +23,11 @@ function update(model::M,
     # This method falls back to `fit` to force rebuilding the
     # underlying learning network if, since the last fit:
     #
-    # (i) Any field associated with a model in the learning network
+    # (i) Any hyper-parameter associated with a model in the learning network
     #     has been replaced with a new model instance (and not merely
     #     mutated), OR
 
-    # (ii) Any OTHER field has changed it's value (in the sense
+    # (ii) Any OTHER hyper-parameter has changed it's value (in the sense
     # of `==`).
 
     # Otherwise, a "smart" fit is carried out by calling `fit!` on a
@@ -69,7 +69,7 @@ end
 
 # helper for preceding method (where logic is explained):
 function fallback(model::M, old_model, network_model_names, glb_node) where M
-    # check the fields corresponding to models:
+    # check the hyper-parameters corresponding to models:
     network_models = MLJBase.models(glb_node)
     for j in eachindex(network_models)
         name = network_model_names[j]
@@ -77,8 +77,8 @@ function fallback(model::M, old_model, network_model_names, glb_node) where M
             objectid(network_models[j])===objectid(getproperty(model, name)) ||
             return true
     end
-    # check any other fields:
-    for name in fieldnames(M)
+    # check any other hyper-parameter:
+    for name in propertynames(model)
         if !(name in network_model_names)
             old_value = getproperty(old_model, name)
             value = getproperty(model, name)
@@ -95,13 +95,13 @@ function update(model::Composite,
                 cache,
                 args...)
 
-    # If any `model` field has been replaced (and not just mutated)
-    # then we actually need to fit rather than update (which will
-    # force build of a new learning network). If `model` has been
+    # If any `model` hyper-parameter has been replaced (and not just
+    # mutated) then we actually need to fit rather than update (which
+    # will force build of a new learning network). If `model` has been
     # created using a learning network export macro, the test used
     # below is perfect. In any other case it is at least conservative:
     network_model_ids = objectid.(models(yhat))
-    fields = [getproperty(model, name) for name in fieldnames(typeof(model))]
+    fields = [getproperty(model, name) for name in propertynames(model)]
     submodels    = filter(f->f isa Model, fields)
     submodel_ids = objectid.(submodels)
     if !issubset(submodel_ids, network_model_ids)
