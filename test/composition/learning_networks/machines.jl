@@ -188,7 +188,7 @@ end
     X2 = transform(mach2, X1)
 
     mach = machine(Unsupervised(), Xs; transform=X2)
-    @test_logs((:error, r"The fields"),
+    @test_logs((:error, r"The hyper"),
                @test_throws(ArgumentError,
                             MLJBase.network_model_names(model, mach)))
 end

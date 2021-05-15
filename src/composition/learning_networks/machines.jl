@@ -157,23 +157,24 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
-# Identify which fields of `model` have, as values, a model in the
+# Identify which properties of `model` have, as values, a model in the
 # learning network wrapped by `mach`, and check that no two such
-# fields have have identical values (#377). Return the field name
+# properties have have identical values (#377). Return the property name
 # associated with each model in the network (in the order appearing in
 # `models(glb(mach))`) using `nothing` when the model is not
-# associated with any field.
-function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Model
+# associated with any property.
+function network_model_names(model::M,
+                             mach::Machine{<:Surrogate}) where M<:Model
 
     signature = mach.fitresult
     network_model_ids = objectid.(MLJBase.models(glb(mach)))
 
-    names = fieldnames(M)
+    names = propertynames(model)
 
     # intialize dict to detect duplicity a la #377:
     name_given_id = Dict{UInt64,Vector{Symbol}}()
 
-    # identify location of fields whose values are models in the
+    # identify location of properties whose values are models in the
     # learning network, and build name_given_id:
     for name in names
         id = objectid(getproperty(model, name))
@@ -193,16 +194,18 @@ function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Mode
     if !no_duplicates
         for (id, name) in name_given_id
             if length(name) > 1
-                @error "The fields $name of $model have identical model "*
+                @error "The hyperparameters $name of "*
+                    "$model have identical model "*
                 "instances as values. "
             end
         end
         throw(ArgumentError(
-            "Two distinct fields of a composite model that are both "*
+        "Two distinct hyper-parameters of a "*
+            "composite model that are both "*
             "associated with models in the underlying learning "*
-            "network (eg, any two fields of a `@pipeline` model) "*
+            "network (eg, any two components of a `@pipeline` model) "*
             "cannot have identical values, although they can be `==` "*
-            "(corresponding nested fields are `==`). "*
+            "(corresponding nested properties are `==`). "*
             "Consider constructing instances "*
             "separately or use `deepcopy`. "))
     end
@@ -231,10 +234,11 @@ composite models using `@pipeline` or `@from_network`.
 For usage, see the example given below. Specificlly, the call does the
 following:
 
-- Determines which fields of `model` point to model instances in the
-  learning network wrapped by `mach`, for recording in an object
-  called `cache`, for passing onto the MLJ logic that handles smart
-  updating (namely, an `MLJBase.update` fallback for composite models).
+- Determines which hyper-parameters of `model` point to model
+  instances in the learning network wrapped by `mach`, for recording
+  in an object called `cache`, for passing onto the MLJ logic that
+  handles smart updating (namely, an `MLJBase.update` fallback for
+  composite models).
 
 - Calls `fit!(mach, verbosity=verbosity)`.
 
@@ -290,7 +294,7 @@ function return!(mach::Machine{<:Surrogate},
     data = Tuple(s.data for s in sources)
     [MLJBase.rebind!(s, nothing) for s in sources]
 
-    # record the field values
+    # record the current hyper-parameter values:
     old_model = deepcopy(model)
 
     cache = (sources = sources,
@@ -310,7 +314,7 @@ function (mach::Machine{<:Surrogate})()
                  "`mach()`, is "*
                  "deprecated and could lead "*
                  "to unexpected behaviour for `Composite` models "*
-                 "with fields that are not models. "*
+                 "with hyper-parameters that are not models. "*
                  "Instead of `fit!(mach, verbosity=verbosity); return mach()` "*
                  "use `return!(mach, model, verbosity)`, "*
                  "where `model` is the `Model` instance appearing in your "*
