@@ -1,14 +1,48 @@
 
+###########################################
+################ Structure ################ 
+###########################################
+
 
 """
 
 Implements the generalized Stack algorithm introduced by Wolpert in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231
 """
-mutable struct Stack <: DeterministicComposite
-   library::AbstractArray
+mutable struct Stack{modelnames} <: DeterministicComposite
+   models::NTuple{<:Any, Supervised}
    metalearner::Supervised
    cv_strategy 
+   Stack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
 end
+
+
+function Stack(metalearner;cv_strategy=CV(), named_models...)
+    nt = NamedTuple(named_models)
+    modelnames = keys(nt)
+    models = values(nt)
+    return Stack(modelnames, models, metalearner, cv_strategy)
+end
+
+
+Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
+
+
+function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
+    name === :metalearner && return getfield(stack, :metalearner)
+    name === :cv_strategy && return getfield(stack, :cv_strategy)
+    name === :models && return getfield(stack, :models)
+    models = getfield(stack, :models)
+    for j in eachindex(modelnames)
+        name === modelnames[j] && return models[j]
+    end
+    error("type Stack has no field $name")
+end
+
+
+
+###########################################
+################# Methods ################# 
+###########################################
 
 
 function getfolds(y::AbstractNode, m::Model, n::Int)
@@ -56,7 +90,7 @@ function fit(m::Stack, verbosity::Int, X, y)
         ytest = testrows(y, folds, nfold)
 
         Zfold = []
-        for model in m.library
+        for model in m.models
             mach = machine(model, Xtrain, ytrain)
             ypred = expected_value(predict(mach, Xtest))
             push!(Zfold, ypred)
@@ -74,7 +108,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     metamach = machine(m.metalearner, Zval, yval)
 
     Zpred = []
-    for model in m.library
+    for model in m.models
         mach = machine(model, X, y)
         push!(Zpred, expected_value(predict(mach, X)))
     end
