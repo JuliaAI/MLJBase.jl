@@ -363,11 +363,10 @@ function _check_measure(measure, model, y, operation)
     if model isa Probabilistic
         if operation == predict
             if prediction_type(measure) != :probabilistic
-                suggestion = ""
-                if target_scitype(measure) <: Finite
+                if target_scitype(measure) <: AbstractVector{<:Finite}
                     suggestion = "\nPerhaps you want to set operation="*
                     "predict_mode. "
-                elseif target_scitype(measure) <: Continuous
+                elseif target_scitype(measure) <: AbstractVector{<:Continuous}
                     suggestion = "\nPerhaps you want to set operation="*
                     "predict_mean or operation=predict_median. "
                 else
