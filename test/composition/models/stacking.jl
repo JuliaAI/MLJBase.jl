@@ -60,27 +60,4 @@ end
 
 end
 
-
-# @testset "Stack on Binary target" begin
-#     models = (constant=DeterministicConstantClassifier(),
-#                 decisiontree=DecisionTreeClassifier(), 
-#                 # foobar_lambda=FooBarRegressor(), 
-#                 foobar=KNNClassifier())
-
-#     stack = Stack(DecisionTreeClassifier();
-#                     cv_strategy=CV(;nfolds=3),
-#                     models...)
-
-#     X, y = make_circles(500)
-
-#     model = DecisionTreeClassifier()
-#     mach = machine(model, X, y)
-#     fit!(mach)
-#     ypred = predict(mach)
-#     # Check the Stack is performing better than any of its submodels
-#     results = model_evaluation((stack=stack, models...), measure=log_loss)
-#     @test argmin(results) == 1
-    
-# end
-
 end
