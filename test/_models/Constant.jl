@@ -2,7 +2,8 @@
 
 export ConstantClassifier, ConstantRegressor,
        DeterministicConstantClassifier,
-       ProbabilisticConstantClassifer
+       ProbabilisticConstantClassifer,
+       DeterministicConstantRegressor
 
 import Distributions
 
