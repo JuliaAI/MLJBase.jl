@@ -2,17 +2,18 @@ module TestStacking
 
 using Test
 using MLJBase
-include("test/_models/models.jl")
 using ..Models
+using Random
 
 
 rng = Random.seed!(1234)
 
-function model_evaluation(models::NamedTuple; measure=rmse)
+
+function model_evaluation(models::NamedTuple, X, y; measure=rmse)
     results = []
     for model in models
         mach = machine(model, X, y)
-        ev = evaluate!(mach;resampling=CV(;nfolds=3), measure=measure, check_measure=false)
+        ev = evaluate!(mach; resampling=CV(;nfolds=3), measure=measure)
         push!(results, ev.measurement[1])
     end
     results
@@ -29,37 +30,57 @@ end
                     cv_strategy=CV(;nfolds=3),
                     models...)
 
-    X, y = make_regression(500, 5)
+    # Testing attribute access of the stack
+    @test propertynames(stack) == (:cv_strategy, :metalearner, :models, :constant, 
+                                    :decisiontree, :ridge_lambda, :ridge)
 
-    mach = machine(stack, X, y)
+    @test stack.decisiontree isa DecisionTreeRegressor
 
-    fit!(mach)
+    # Testing performance
+
     # The dataset is a simple regression model with intercept
     # No model in the stack can recover the true model on its own 
     # Indeed, FooBarRegressor has no intercept 
     # By combining models, the stack can generalize better than any submodel
-    results = model_evaluation((stack=stack, models...))
+    X, y = make_regression(500, 5)
+    mach = machine(stack, X, y)
+    results = model_evaluation((stack=stack, models...), X, y)
     @test argmin(results) == 1
-    
+
+    # Testing fitted_params results are easily accessible for each
+    # submodel. They are in order of the cross validation procedure.
+    # Here 3-folds then 3 machines + the final fit
+    fit!(mach)
+    fp = fitted_params(mach)
+    @test nrows(getfield(fp, :constant)) == 4
+    @test nrows(getfield(fp, :decisiontree)) == 4
+    @test nrows(getfield(fp, :ridge)) == 4
+    @test nrows(getfield(fp, :ridge_lambda)) == 4
+
+
 end
 
 
-@testset "Stack on Binary target" begin
-    models = (constant=DeterministicConstantClassifier(),
-                decisiontree=DecisionTreeClassifier(), 
-                # foobar_lambda=FooBarRegressor(), 
-                foobar=KNNClassifier())
+# @testset "Stack on Binary target" begin
+#     models = (constant=DeterministicConstantClassifier(),
+#                 decisiontree=DecisionTreeClassifier(), 
+#                 # foobar_lambda=FooBarRegressor(), 
+#                 foobar=KNNClassifier())
 
-    stack = Stack(DecisionTreeClassifier();
-                    cv_strategy=CV(;nfolds=3),
-                    models...)
+#     stack = Stack(DecisionTreeClassifier();
+#                     cv_strategy=CV(;nfolds=3),
+#                     models...)
 
-    X, y = make_circles(500)
+#     X, y = make_circles(500)
 
-    # Check the Stack is performing better than any of its submodels
-    results = model_evaluation((stack=stack, models...), measure=log_loss)
-    @test argmin(results) == 1
+#     model = DecisionTreeClassifier()
+#     mach = machine(model, X, y)
+#     fit!(mach)
+#     ypred = predict(mach)
+#     # Check the Stack is performing better than any of its submodels
+#     results = model_evaluation((stack=stack, models...), measure=log_loss)
+#     @test argmin(results) == 1
     
-end
+# end
 
 end

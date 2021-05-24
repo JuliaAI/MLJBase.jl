@@ -130,11 +130,11 @@ function MLJBase.predict(model::DecisionTreeClassifier
 
     y_probabilities =
         DecisionTree.apply_tree_proba(tree, Xmatrix, integers_seen)
+    
+    smoothed_prob = hcat([smooth(y_probabilities[i,:], model.pdf_smoothing)
+                                for i in 1:size(y_probabilities, 1)]...)
 
-    return [MLJBase.UnivariateFinite(classes_seen,
-                                     smooth(y_probabilities[i,:],
-                                            model.pdf_smoothing))
-            for i in 1:size(y_probabilities, 1)]
+    return MLJBase.UnivariateFinite(classes_seen, transpose(smoothed_prob))
 end
 
 
