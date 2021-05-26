@@ -29,6 +29,8 @@ end
     stack = Stack(FooBarRegressor();
                     cv_strategy=CV(;nfolds=3),
                     models...)
+    
+    X, y = make_regression(500, 5)
 
     # Testing attribute access of the stack
     @test propertynames(stack) == (:cv_strategy, :metalearner, :models, :constant, 
@@ -42,14 +44,14 @@ end
     # No model in the stack can recover the true model on its own 
     # Indeed, FooBarRegressor has no intercept 
     # By combining models, the stack can generalize better than any submodel
-    X, y = make_regression(500, 5)
-    mach = machine(stack, X, y)
+    
     results = model_evaluation((stack=stack, models...), X, y)
     @test argmin(results) == 1
 
     # Testing fitted_params results are easily accessible for each
     # submodel. They are in order of the cross validation procedure.
     # Here 3-folds then 3 machines + the final fit
+    mach = machine(stack, X, y)
     fit!(mach)
     fp = fitted_params(mach)
     @test nrows(getfield(fp, :constant)) == 4
@@ -61,3 +63,5 @@ end
 end
 
 end
+
+true
