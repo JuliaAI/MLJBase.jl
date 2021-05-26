@@ -1001,11 +1001,14 @@ data `args...`, by calling `fit!(mach)` followed by
 
 On subsequent calls to `fit!(mach)` new train/test pairs of row
 indices are only regenerated if `resampling`, `repeats` or `cache`
-fields of `resampler` have changed (even in the case of RNG-dependent
-`resampling` strategy). If there is single train/test pair, then
-warm-restart behavior of the wrapped model `resampler.model` will
-extend to warm-restart behaviour of the wrapper `resampler`, with
-respect to mutations of the wrapped model.
+fields of `resampler` have changed. The evolution of an RNG field of
+`resampler` does *not* constitute a change (`==` for `MLJType` objects
+is not sensitive to such changes; see [`is_same_except'](@ref)). 
+
+If there is single train/test pair, then warm-restart behavior of the
+wrapped model `resampler.model` will extend to warm-restart behaviour
+of the wrapper `resampler`, with respect to mutations of the wrapped
+model.
 
 The sample `weights` are passed to the specified performance measures
 that support weights for evaluation. These weights are not to be
