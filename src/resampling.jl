@@ -1166,11 +1166,6 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
                                   verbosity,
                                   resampler.check_measure)
 
-    weights, measures =
-        _process_weights_measures(resampler.weights, resampler.measure,
-                                  mach, resampler.operation,
-                                  verbosity, resampler.check_measure)
-
     _acceleration = _process_accel_settings(resampler.acceleration)
 
     e = evaluate!(mach,
