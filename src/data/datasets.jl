@@ -235,6 +235,13 @@ macro load_iris()
     end
 end
 
+"""Load a well-known sunspot dataset (single table with one column)."""
+macro load_sunspot()
+    quote
+        load_sunspot()
+    end
+end
+
 """Load a well-known crab classification dataset with nominal features."""
 macro load_crabs()
     quote

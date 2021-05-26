@@ -149,7 +149,7 @@ export average, UnivariateFiniteArray, UnivariateFiniteVector
 # datasets.jl:
 export load_boston, load_ames, load_iris, load_sunspot,
        load_reduced_ames, load_crabs, load_smarket,
-       @load_boston, @load_ames, @load_iris, 
+       @load_boston, @load_ames, @load_iris, @load_sunspot,
        @load_reduced_ames, @load_crabs, @load_smarket
 
 # sources.jl:
