@@ -1,5 +1,17 @@
 ## MACHINE TYPE
 
+struct NotTrainedError{M} <: Exception
+    mach::M
+    operation::Symbol
+end
+
+Base.showerror(io::IO, e::NotTrainedError) =
+    print(io, "$(e.mach) has not been trained. "*
+          "Call `fit!` on the machine, or, "*
+          "if you meant to create a "*
+          "learning network `Node`, "*
+          "use the syntax `node($(e.operation), mach::Machine)`. ")
+
 caches_data_by_default(::Type{<:Model}) = true
 caches_data_by_default(m::M) where M<:Model = caches_data_by_default(M)
 
@@ -605,11 +617,11 @@ fitted parameters keyed on those machines.
 ```
 
 """
-function fitted_params(machine::Machine)
-    if isdefined(machine, :fitresult)
-        return fitted_params(machine.model, machine.fitresult)
+function fitted_params(mach::Machine)
+    if isdefined(mach, :fitresult)
+        return fitted_params(mach.model, mach.fitresult)
     else
-        throw(error("$machine has not been trained."))
+        throw(NotTrainedError(mach, :fitted_params))
     end
 end
 
@@ -650,7 +662,14 @@ reports keyed on those machines.
 ```
 
 """
-report(mach::Machine) = mach.report
+function report(mach::Machine)
+    if isdefined(mach, :report)
+        return mach.report
+    else
+        throw(NotTrainedError(mach, :report))
+    end
+end
+
 
 """
     training_losses(mach::Machine)
@@ -660,5 +679,10 @@ available. Otherwise, returns `nothing`.
 
 """
 
-training_losses(mach::Machine) =
-    training_losses(mach.model, mach.report)
+function training_losses(mach::Machine)
+    if isdefined(mach, :report)
+        return training_losses(mach.model, mach.report)
+    else
+        throw(NotTrainedError(mach, :training_losses))
+    end
+end

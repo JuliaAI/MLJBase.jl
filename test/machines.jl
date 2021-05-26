@@ -19,6 +19,9 @@ train, test = partition(eachindex(y), 0.7);
 tree = DecisionTreeRegressor(max_depth=5)
 
 t = machine(tree, X, y)
+@test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
+@test_throws MLJBase.NotTrainedError(t, :report) report(t)
+@test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
 @test_logs (:info, r"Training") fit!(t)
 @test_logs (:info, r"Training") fit!(t, rows=train)
 @test_logs (:info, r"Not retraining") fit!(t, rows=train)
@@ -240,6 +243,7 @@ end
                fit!(mach, rows=1:2, verbosity=0))
 
 end
+
 
 end # module
 
