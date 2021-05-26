@@ -98,7 +98,7 @@ iterator(r::NominalRange, n::Integer) =
     collect(r.values[1:min(n, length(r.values))])
 iterator(r::NominalRange) = collect(r.values)
 
-# nominal range, top level dispatch
+# numeric range, top level dispatch
 
 function iterator(r::NumericRange{T,<:Bounded},
                   n::Int) where {T<:Real}

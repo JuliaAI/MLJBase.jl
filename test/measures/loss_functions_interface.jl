@@ -1,4 +1,11 @@
-seed!(1234)
+rng = StableRNG(614)
+
+# convert a Binary vector into vector of +1 or -1 values
+# (for testing only):
+pm1(y) = Int8(2) .* (Int8.(MLJBase.int(y))) .- Int8(3)
+
+const MARGIN_LOSSES = MLJBase.MARGIN_LOSSES
+const DISTANCE_LOSSES = MLJBase.DISTANCE_LOSSES
 
 @testset "LossFunctions.jl - binary" begin
     y = categorical(["yes", "yes", "no", "yes"])
@@ -9,46 +16,54 @@ seed!(1234)
     X = nothing
     w = [1, 2, 3, 4]
 
-    @test MLJBase.value(ZeroOneLoss(), yhat, X, y, nothing) ≈ [1, 1, 1, 0]
-    @test MLJBase.value(ZeroOneLoss(), yhat, X, y, w) ≈ [1, 2, 3, 0] ./10 .* 4
+    @test MLJBase.value(MLJBase.ZeroOneLoss(), yhat, X, y, nothing) ≈
+        [1, 1, 1, 0]
+    @test MLJBase.value(MLJBase.zero_one_loss, yhat, X, y, w) ≈
+        [1, 2, 3, 0] ./10 .* 4
 
     N = 10
-    y = categorical(rand(["yes", "no"], N), ordered=true)
+    y = categorical(rand(rng, ["yes", "no"], N), ordered=true)
     levels!(y, ["no", "yes"])
     no, yes = MLJBase.classes(y[1])
-    @test MLJBase.pm1([yes, no]) in [[+1, -1], [-1, +1]]
-    ym = MLJBase.pm1(y) # observations for raw LossFunctions measure
-    p_vec = rand(N) # probabilities of yes
-    yhat  = map(p_vec) do p
-        MLJBase.UnivariateFinite([yes, no], [p, 1 - p])
-    end
+    @test pm1([yes, no]) in [[+1, -1], [-1, +1]]
+    ym = pm1(y) # observations for raw LossFunctions measure
+    p_vec = rand(N)
+    yhat = MLJBase.UnivariateFinite([no, yes], p_vec, augment=true)
     yhatm = MLJBase._scale.(p_vec) # predictions for raw LossFunctions measure
-    w = rand(N)
+    w = rand(rng, N)
     X = nothing
 
-    for m in [ZeroOneLoss(), L1HingeLoss(), L2HingeLoss(), LogitMarginLoss(),
-              ModifiedHuberLoss(), PerceptronLoss(), SmoothedL1HingeLoss(0.9),
-              L2MarginLoss(), ExpLoss(), SigmoidLoss(), DWDMarginLoss(0.9)]
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈ LossFunctions.value(m, yhatm, ym)
+    for M_ex in MARGIN_LOSSES
+        m = eval(:(MLJBase.$M_ex()))
+        @test MLJBase.value(m, yhat, X, y, nothing) ≈
+            LossFunctions.value(m, yhatm, ym) ≈
+            m(yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-                LossFunctions.value(m, yhatm, ym, AggMode.WeightedMean(w))
+            LossFunctions.value(m, yhatm, ym,
+                                LossFunctions.AggMode.WeightedMean(w)) ≈
+                                    mean(m(yhat, y, w))
     end
 end
 
 @testset "LossFunctions.jl - continuous" begin
     # losses for continuous targets:
     N    = 10
-    y    = randn(N)
-    yhat = randn(N)
+    y    = randn(rng, N)
+    yhat = randn(rng, N)
     X    = nothing
-    w    = rand(N)
+    w    = rand(rng, N)
 
-    for m in [LPDistLoss(0.5), L1DistLoss(), L2DistLoss(),
-              HuberLoss(0.9), EpsilonInsLoss(0.9), L1EpsilonInsLoss(0.9),
-              L2EpsilonInsLoss(0.9), LogitDistLoss(), QuantileLoss(0.7)]
-
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈ LossFunctions.value(m, yhat, y)
+    for M_ex in DISTANCE_LOSSES
+        m = eval(:(MLJBase.$M_ex()))
+        m_ex = MLJBase.snakecase(M_ex)
+        @test m == eval(:(MLJBase.$m_ex))
+        @test MLJBase.value(m, yhat, X, y, nothing) ≈
+            LossFunctions.value(m, yhat, y) ≈
+            m(yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-                LossFunctions.value(m, yhat, y, AggMode.WeightedMean(w))
+            LossFunctions.value(m, yhat, y,
+                                LossFunctions.AggMode.WeightedMean(w)) ≈
+                                    mean(m(yhat ,y, w))
     end
 end
+

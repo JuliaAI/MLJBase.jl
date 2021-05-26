@@ -1,6 +1,13 @@
 using Distributed
 addprocs()
 
+using MLJBase
+if !MLJBase.TESTING
+    error("To test MLJBase, the environment variable "*
+          "`TEST_MLJBASE` must be set to `\"true\"`\n"*
+          "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"")
+end
+
 @info "nprocs() = $(nprocs())"
 @static if VERSION >= v"1.3.0-DEV.573"
     import .Threads
@@ -16,6 +23,7 @@ end
     using CategoricalArrays
     using Logging
     using ComputationalResources
+    using StableRNGs
 end
 
 function include_everywhere(filepath)
@@ -36,19 +44,22 @@ include_everywhere("_models/models.jl")
 print("\r                                           \r")
 
 @testset "misc" begin
-    @test include("utilities.jl")
-    @test include("distributions.jl")
-    @test include("parameter_inspection.jl")
-    @test include("info_dict.jl")
-    @test include("static.jl")
+   @test include("utilities.jl")
+   @test include("static.jl")
 end
 
 @testset "interface" begin
-    @test include("interface/interface.jl")
+     @test include("interface/interface.jl")
+end
+
+@testset "univariate finite" begin
+     @test include("univariate_finite/methods.jl")
+     @test include("univariate_finite/arrays.jl")
 end
 
 @testset "measures" begin
     @test include("measures/measures.jl")
+    @test include("measures/measure_search.jl")
 end
 
 @testset "resampling" begin
@@ -61,14 +72,29 @@ end
     @test include("data/datasets_synthetic.jl")
 end
 
-@testset "machines+composition" begin
-    @test include("machines.jl")
-    @test include("composition/composites.jl")
-    @test include("composition/pipelines.jl")
-    @test include("composition/pipeline_static.jl")
-    @test include("composition/networks.jl")
+@testset "sources" begin
+    @test include("sources.jl")
+end
 
-    VERSION ≥ v"1.3.0-" && @test include("composition/arrows.jl")
+@testset "machines" begin
+    @test include("machines.jl")
+end
+
+@testset "composition - learning_networks" begin
+    @test include("composition/learning_networks/nodes.jl")
+    @test include("composition/learning_networks/inspection.jl")
+    @test include("composition/learning_networks/machines.jl")
+    VERSION ≥ v"1.3.0-" &&
+        @test include("composition/learning_networks/arrows.jl")
+end
+
+@testset "composition - models" begin
+    @test include("composition/models/methods.jl")
+    @test include("composition/models/from_network.jl")
+    @test include("composition/models/inspection.jl")
+    @test include("composition/models/pipelines.jl")
+    @test include("composition/models/_wrapped_function.jl")
+    @test include("composition/models/static_transformers.jl")
 end
 
 @testset "operations.jl" begin
@@ -80,6 +106,3 @@ end
     @test include("hyperparam/one_dimensional_range_methods.jl")
 end
 
-@testset "openml" begin
-    @test include("openml.jl")
-end

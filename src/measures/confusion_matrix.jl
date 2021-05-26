@@ -1,36 +1,41 @@
+## CONFUSION MATRIX OBJECT
+
 """
-    ConfusionMatrix{C}
+    ConfusionMatrixObject{C}
 
 Confusion matrix with `C ≥ 2` classes. Rows correspond to predicted values
 and columns to the ground truth.
 """
-struct ConfusionMatrix{C}
+struct ConfusionMatrixObject{C}
     mat::Matrix
     labels::Vector{String}
 end
 
 """
-    ConfusionMatrix(m, labels)
+    ConfusionMatrixObject(m, labels)
 
 Instantiates a confusion matrix out of a square integer matrix `m`.
 Rows are the predicted class, columns the ground truth. See also the
 [wikipedia article](https://en.wikipedia.org/wiki/Confusion_matrix).
 
 """
-function ConfusionMatrix(m::Matrix{Int}, labels::Vector{String})
+function ConfusionMatrixObject(m::Matrix{Int}, labels::Vector{String})
     s = size(m)
     s[1] == s[2] || throw(ArgumentError("Expected a square matrix."))
     s[1] > 1 || throw(ArgumentError("Expected a matrix of size ≥ 2x2."))
     length(labels) == s[1] ||
         throw(ArgumentError("As many labels as classes must be provided."))
-    ConfusionMatrix{s[1]}(m, labels)
+    ConfusionMatrixObject{s[1]}(m, labels)
 end
 
 # allow to access cm[i,j] but not set (it's immutable)
-Base.getindex(cm::ConfusionMatrix, inds...) = getindex(cm.mat, inds...)
+Base.getindex(cm::ConfusionMatrixObject, inds...) = getindex(cm.mat, inds...)
 
 """
-    confusion_matrix(ŷ, y; rev=false)
+    _confmat(ŷ, y; rev=false)
+
+A private method. General users should use `confmat` or other instance
+of the measure type [`ConfusionMatrix`](@ref).
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements
 and the actual `y`. Rows are the predicted class, columns the ground truth.
@@ -58,10 +63,10 @@ The `confusion_matrix` is a measure (although neither a score nor a
 loss) and so may be specified as such in calls to `evaluate`,
 `evaluate!`, although not in `TunedModel`s.  In this case, however,
 there no way to specify an ordering different from `levels(y)`, where
-`y` is the target. 
+`y` is the target.
 
 """
-function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue};
+function _confmat(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue};
                           rev::Union{Nothing,Bool}=nothing,
                           perm::Union{Nothing,Vector{<:Integer}}=nothing,
                           warn::Bool=true)
@@ -73,9 +78,15 @@ function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValu
         throw(ArgumentError("Keyword `rev` can only be used in binary case."))
     end
     if perm !== nothing && !isempty(perm)
-        length(perm) == nc || throw(ArgumentError("`perm` must be of length matching the number of classes."))
-        Set(perm) == Set(collect(1:nc)) || throw(ArgumentError("`perm` must specify a valid permutation of the classes."))
+        length(perm) == nc ||
+            throw(ArgumentError("`perm` must be of length matching the "*
+                                "number of classes."))
+        Set(perm) == Set(collect(1:nc)) ||
+            throw(ArgumentError("`perm` must specify a valid permutation of "*
+                                "`[1, 2, ..., c]`, where `c` is "*
+                                "number of classes."))
     end
+
     # warning
     if rev === nothing && perm === nothing
         if warn &&
@@ -91,7 +102,7 @@ function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValu
         end
         rev  = false
         perm = Int[]
-    elseif rev !== nothing
+    elseif rev !== nothing && nc == 2
         # rev takes precedence in binary case
         if rev
             perm = [2, 1]
@@ -106,7 +117,7 @@ function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValu
         @inbounds for i in eachindex(y)
             cmat[int(ŷ[i]), int(y[i])] += 1
         end
-        return ConfusionMatrix(cmat, string.(levels_))
+        return ConfusionMatrixObject(cmat, string.(levels_))
     end
 
     # With permutation
@@ -115,18 +126,16 @@ function confusion_matrix(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValu
     @inbounds for i in eachindex(y)
         cmat[iperm[int(ŷ[i])], iperm[int(y[i])]] += 1
     end
-    return ConfusionMatrix(cmat, string.(levels_[perm]))
+    return ConfusionMatrixObject(cmat, string.(levels_[perm]))
 end
 
-# synonym
-confmat = confusion_matrix
 
 # Machinery to display the confusion matrix in a non-confusing way
 # (provided the REPL is wide enough)
 
 splitw(w::Int) = (sp1 = div(w, 2); sp2 = w - sp1; (sp1, sp2))
 
-function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}
+function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrixObject{C}
                    ) where C
     width    = displaysize(stream)[2]
     cw       = 13
@@ -183,30 +192,51 @@ function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrix{C}
 end
 
 
-## MAKE CONFUSION MATRIX A MEASURE
+## CONFUSION MATRIX AS MEASURE
 
-const Confusion = typeof(confusion_matrix)
+struct ConfusionMatrix <: Measure
+    perm::Union{Nothing,Vector{<:Integer}}
+end
 
-is_measure(::Confusion) = true
-is_measure_type(::Type{Confusion}) = true
+ConfusionMatrix(; perm=nothing) = ConfusionMatrix(perm)
 
-MLJModelInterface.name(::Type{Confusion}) = "confusion_matrix"
-MLJModelInterface.target_scitype(::Type{Confusion}) =
+is_measure(::ConfusionMatrix) = true
+is_measure_type(::Type{ConfusionMatrix}) = true
+human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
+target_scitype(::Type{ConfusionMatrix}) =
     AbstractVector{<:Finite}
-MLJModelInterface.supports_weights(::Type{Confusion}) = false
-MLJModelInterface.prediction_type(::Type{Confusion}) = :deterministic
-MLJModelInterface.docstring(::Type{Confusion}) =
-    "confusion matrix; aliases: confusion_matrix, confmat. "
-orientation(::Type{Confusion}) = :other
-reports_each_observation(::Type{Confusion}) = false
-is_feature_dependent(::Type{Confusion}) = false
-aggregation(::Type{Confusion}) = Sum()
+supports_weights(::Type{ConfusionMatrix}) = false
+prediction_type(::Type{ConfusionMatrix}) = :deterministic
+instances(::Type{<:ConfusionMatrix}) = ["confusion_matrix", "confmat"]
+orientation(::Type{ConfusionMatrix}) = :other
+reports_each_observation(::Type{ConfusionMatrix}) = false
+is_feature_dependent(::Type{ConfusionMatrix}) = false
+aggregation(::Type{ConfusionMatrix}) = Sum()
 
-# aggregation:
-Base.round(m::MLJBase.ConfusionMatrix; kws...) = m
-function Base.:+(m1::ConfusionMatrix, m2::ConfusionMatrix)
+@create_aliases ConfusionMatrix
+
+@create_docs(ConfusionMatrix,
+body=
+"""
+If `r` is the return value, then the raw confusion matrix is `r.mat`,
+whose rows correspond to predictions, and columns to ground truth.
+The ordering follows that of `levels(y)`.
+
+Use `ConfusionMatrix(perm=[2, 1])` to reverse the class order for binary
+data. For more than two classes, specify an appropriate permutation, as in
+`ConfusionMatrix(perm=[2, 3, 1])`.
+""",
+scitype=DOC_ORDERED_FACTOR_BINARY)
+
+# calling behaviour:
+(m::ConfusionMatrix)(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue}) =
+    _confmat(ŷ, y, perm=m.perm)
+
+# overloading addition to make aggregation work:
+Base.round(m::MLJBase.ConfusionMatrixObject; kws...) = m
+function Base.:+(m1::ConfusionMatrixObject, m2::ConfusionMatrixObject)
     if m1.labels != m2.labels
         throw(ArgumentError("Confusion matrix labels must agree"))
     end
-    ConfusionMatrix(m1.mat + m2.mat, m1.labels)
+    ConfusionMatrixObject(m1.mat + m2.mat, m1.labels)
 end

@@ -17,14 +17,14 @@ MMI.int(::FI, x) = throw(
 MMI.int(::FI, x::Missing)       = missing
 MMI.int(::FI, x::AbstractArray) = int.(x)
 
-# first line is no good because it promotes type to higher ineger type:
+# first line is no good because it promotes type to larger integer type:
 # MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
-MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.level(x)
+MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.refcode(x)
 
 # ------------------------------------------------------------------------
 # classes
 
-MMI.classes(::FI, p::CategoricalPool) = categorical(p.valindex)
+MMI.classes(::FI, p::CategoricalPool) = [p[i] for i in 1:length(p)]
 MMI.classes(::FI, x::CategoricalValue) = classes(CategoricalArrays.pool(x))
 MMI.classes(::FI, v::CategoricalArray) = classes(CategoricalArrays.pool(v))
 
@@ -36,22 +36,21 @@ MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
 # ------------------------------------------------------------------------
 # decoder
 
-struct CategoricalDecoder{T,R}
-    classes::CategoricalVector{T,R}
+struct CategoricalDecoder{V,R}
+    classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
 end
 
-MMI.decoder(::FI, x::CategoricalValue) =
-    CategoricalDecoder(classes(x))
-MMI.decoder(::FI, v::CategoricalArray) = decoder(first(v))
+MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
 
-(d::CategoricalDecoder{T,R})(i::Integer) where {T,R} =
-    CategoricalValue{T,R}(d.classes[i])
+(d::CategoricalDecoder{V,R})(i::Integer) where {V,R} =
+    CategoricalValue{V,R}(d.classes[i])
 (d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
 
 # ------------------------------------------------------------------------
 # table
 
 function MMI.table(::FI, cols::NamedTuple; prototype=NamedTuple())
+
     Tables.istable(prototype) || error("`prototype` is not a table. ")
     if !Tables.istable(cols)
         tuple_of_vectors = tuple((collect(v) for v in values(cols))...)
@@ -122,4 +121,9 @@ project(t::NamedTuple, i::Integer) = project(t, [i,])
 # utils for selectrows
 typename(X)    = split(string(supertype(typeof(X)).name), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
+
+# ----------------------------------------------------------------
+# univariate finite
+
+# see src/univariate_finite/
 

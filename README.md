@@ -1,11 +1,11 @@
-## MLJBase
+## MLJBase  
 
 Repository for developers that provides core functionality for the
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) machine
 learning framework.
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
-[![Build Status](https://travis-ci.com/alan-turing-institute/MLJBase.jl.svg?branch=master)](https://travis-ci.com/alan-turing-institute/MLJBase.jl)
+[![Build Status](https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg)](https://github.com/alan-turing-institute/MLJBase.jl/actions)
 [![Coverage](http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master)](http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
 
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
@@ -17,13 +17,15 @@ repository provides core functionality for MLJ, including:
   [MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
 
 - definition of **machines** and their associated methods, such as
-  `fit!` and `predict`/`transform`
+  `fit!` and `predict`/`transform`. Serialization of machines,
+  however, now lives in
+  [MLJSerialization](https://github.com/JuliaAI/MLJSerialization.jl).
 
 - MLJ's **model composition** interface, including **learning
   networks** and **pipelines**
 
 - basic utilities for **manipulating data**
-
+  
 - an extension to
   [Distributions.jl](https://github.com/JuliaStats/Distributions.jl)
   called `UnivariateFinite` for randomly sampling *labeled*
@@ -42,10 +44,8 @@ repository provides core functionality for MLJ, including:
   for **performance measures** (losses and scores), enabling the
   integration of the
   [LossFunctions.jl](https://github.com/JuliaML/LossFunctions.jl)
-  library, user-defined measures, as well as about two dozen natively
+  library, user-defined measures, as well as about forty natively
   defined measures.
-
-- integration with [OpenML](https://www.openml.org)
 
 
 Previously MLJBase provided the model interface for integrating third

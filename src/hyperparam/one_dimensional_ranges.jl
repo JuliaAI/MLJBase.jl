@@ -44,14 +44,7 @@ end
     r = range(model, :hyper; values=nothing)
 
 Define a one-dimensional `NominalRange` object for a field `hyper` of
-`model`. Note that `r` is not directly iterable but `iterator(r)`
-is. 
-
-By default, the behaviour of range methods depends on the type of the value of the
-hyperparameter `:hyper` at `model` during range construction. 
-
-To override this behaviour (for instance if `model` is not available) specify a type
-in place of `model` so the behaviour depends on the value of the specified type.
+`model`. Note that `r` is not directly iterable but `iterator(r)` is.
 
 A nested hyperparameter is specified using dot notation. For example,
 `:(atom.max_depth)` specifies the `max_depth` hyperparameter of
@@ -60,12 +53,21 @@ the submodel `model.atom`.
     r = range(model, :hyper; upper=nothing, lower=nothing,
               scale=nothing, values=nothing)
 
-Assuming `values` is not specified, defines a one-dimensional
+Assuming `values` is not specified, define a one-dimensional
 `NumericRange` object for a `Real` field `hyper` of `model`.  Note
 that `r` is not directly iteratable but `iterator(r, n)`is an iterator
 of length `n`. To generate random elements from `r`, instead apply
 `rand` methods to `sampler(r)`. The supported scales are `:linear`,`
 :log`, `:logminus`, `:log10`, `:log2`, or a callable object.
+
+Note that `r` is not directly iterable, but `iterator(r, n)` is, for
+given resolution (length) `n`.
+
+By default, the behaviour of the constructed object depends on the
+type of the value of the hyperparameter `:hyper` at `model` *at the
+time of construction.* To override this behaviour (for instance if
+`model` is not available) specify a type in place of `model` so the
+behaviour is determined by the value of the specified type.
 
 A nested hyperparameter is specified using dot notation (see above).
 
@@ -84,6 +86,11 @@ See also: [`iterator`](@ref), [`sampler`](@ref)
 function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
                     values=nothing, lower=nothing, upper=nothing,
                     origin=nothing, unit=nothing, scale::D=nothing) where D
+    all(==(nothing), [values, lower, upper, origin, unit]) &&
+        throw(ArgumentError("You must specify at least one of these: "*
+                            "values=..., lower=..., upper=..., origin=..., "*
+                            "unit=..."))
+
     if model isa Model
         value = recursive_getproperty(model, field)
         T = typeof(value)
@@ -160,20 +167,25 @@ nominal_range(T, field, values) = throw(ArgumentError(
      * "as `$(T)()`" : "") ))
 
 nominal_range(T, field, ::Nothing) = throw(ArgumentError(
-    "You must specify values=... for a nominal parameter."  ))
+"The inferred hyper-parameter type is $T, which is nominal. "*
+"If this is true, you must specify values=... "*
+"If this is false, specify the correct type as "*
+"first argument of `range`, as in "*
+"the example, "*
+"`range(Int, :dummy, lower=1, upper=10)`. "  ))
 
-function nominal_range(::Type{T}, field, values::AbstractVector{T}) where T
+function nominal_range(::Type{T}, field, values::AbstractVector{<:T}) where T
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
 
 #specific def for T<:AbstractFloat(Allows conversion btw AbstractFloats and Signed types)
-function nominal_range(::Type{T}, field, 
+function nominal_range(::Type{T}, field,
         values::AbstractVector{<:Union{AbstractFloat,Signed}}) where T<: AbstractFloat
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
 
 #specific def for T<:Signed (Allows conversion btw Signed types)
-function nominal_range(::Type{T}, field, 
+function nominal_range(::Type{T}, field,
                values::AbstractVector{<:Signed}) where T<: Signed
     return NominalRange{T,length(values)}(field, Tuple(values))
 end

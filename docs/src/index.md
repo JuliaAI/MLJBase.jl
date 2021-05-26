@@ -1,8 +1,16 @@
 # MLJBase.jl
 
-[MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
-framework for combining and tuning machine learning models. This
-repository provides core functionality for MLJ, including:
+[MLJ](https://alan-turing-institute.github.io/MLJ.jl/dev/) (Machine
+Learning in Julia) is a toolbox written in Julia providing a common
+interface and meta-algorithms for selecting, tuning, evaluating,
+composing and comparing machine learning models written in Julia and
+other languages.
+
+MLJ is released under the MIT licensed and sponsored by the [Alan
+Turing Institute](https://www.turing.ac.uk/).
+
+This repository, MLJBase, provides core functionality for MLJ,
+including:
 
 - completing the functionality for methods defined "minimally" in
   MLJ's light-weight model interface
@@ -21,7 +29,10 @@ repository provides core functionality for MLJ, including:
   called `UnivariateFinite` for randomly sampling *labeled*
   categorical data
 
-- a [small interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1) for **resampling strategies** and implementations, including `CV()`, `StratifiedCV` and `Holdout`
+- a [small
+  interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1)
+  for **resampling strategies** and implementations, including `CV()`,
+  `StratifiedCV` and `Holdout`
 
 - methods for **performance evaluation**, based on those resampling strategies
 
@@ -34,7 +45,7 @@ repository provides core functionality for MLJ, including:
   for **performance measures** (losses and scores), enabling the
   integration of the
   [LossFunctions.jl](https://github.com/JuliaML/LossFunctions.jl)
-  library, user-defined measures, as well as about two dozen natively
+  library, user-defined measures, as well as many natively
   defined measures.
 
 - integration with [OpenML](https://www.openml.org)
@@ -42,6 +53,6 @@ repository provides core functionality for MLJ, including:
 
 Previously MLJBase provided the model interface for integrating third
 party machine learning models into MLJ. That role has now shifted to
-the light-weight
+the lightweight
 [MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
 package.

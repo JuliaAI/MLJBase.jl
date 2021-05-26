@@ -1,96 +1,134 @@
 # We wish to extend operations to identically named methods dispatched
-# on `Machine`s and `NodalMachine`s. For example, we have from the model API
+# on `Machine`s. For example, we have from the model API
 #
 # `predict(model::M, fitresult, X) where M<:Supervised`
 #
-# but want also want
+# but want also want to define
 #
-# `predict(machine::Machine, X)` where `X` is data
-#
-# and "networks.jl" requires us to define
-#
-# `predict(machine::NodalMachine, X)` where `X` is data
+# 1. `predict(machine::Machine, X)` where `X` is concrete data
 #
 # and we would like the syntactic sugar (for `X` a node):
 #
-# `predict(machine::NodalMachine, X::Node)=node(predict, machine, X)`
+# 2. `predict(machine::Machine, X::Node) = node(predict, machine, X)`
 #
-# (If an operation has zero arguments, we cannot achieve the last
-# desire because of ambiguity with the preceding one.)
+# Finally, for a `model` that is `ProbabilisticComposite`,
+# `DetermisiticComposite`, or `UnsupervisedComposite`, we want
+#
+# 3. `predict(model, fitresult, X) = fitresult.predict(X)`
+#
+# which makes sense because `fitresult` in those cases is a named
+# tuple keyed on supported operations and with nodes as values.
 
 ## TODO: need to add checks on the arguments of
-## predict(::AbstractMachine, ) and transform(::AbstractMachine, )
+## predict(::Machine, ) and transform(::Machine, )
 
-for operation in (:predict, :predict_mean, :predict_mode, :predict_median,
-                  :transform, :inverse_transform)
-    ex = quote
-        function $(operation)(machine::AbstractMachine{M}, args...) where M
-            if isdefined(machine, :fitresult) || M <: Static
-                return $(operation)(machine.model, machine.fitresult, args...)
-            else
-                error("$machine has not been trained.")
+const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
+                    :predict_joint, :transform, :inverse_transform)
+
+_err_rows_not_allowed() =
+    throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
+                        "`mach.model isa Static` is not allowed, as no data "*
+                        "is bound to `mach` in this case. Specify a explicit "*
+                        "data or node, as in `transform(mach, X)`, or "*
+                        "`transform(mach, X1, X2, ...)`. "))
+_err_serialized(operation) =
+    throw(ArgumentError("Calling $operation on a "*
+                        "deserialized machine with no data "*
+                        "bound to it. "))
+
+# 0. operations on machine, given rows=...:
+
+for operation in OPERATIONS
+
+    if operation != :inverse_transform
+
+        ex = quote
+            function $(operation)(mach::Machine{<:Model,false}; rows=:)
+                # catch deserialized machine with no data:
+                isempty(mach.args) && _err_serialized($operation)
+                return ($operation)(mach, mach.args[1](rows=rows))
+            end
+            function $(operation)(mach::Machine{<:Model,true}; rows=:)
+                # catch deserialized machine with no data:
+                isempty(mach.args) && _err_serialized($operation)
+                model = mach.model
+                return ($operation)(model,
+                                    mach.fitresult,
+                                    selectrows(model, rows, mach.data[1])...)
             end
         end
-        function $(operation)(machine::Machine; rows=:)
-            isempty(machine.args) &&
-                throw(ArgumentError("Attempt to accesss non-existent data "*
-                                    "bound to a machine, "*
-                                    "probably because machine was "*
-                                    "deserialized. Specify data `X` "*
-                                    "with `$($operation)(mach, X)`. "))
-            return $(operation)(machine, selectrows(machine.args[1], rows))
+        eval(ex)
+
+    end
+end
+
+# special case of Static models (no training arguments):
+transform(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
+
+inverse_transform(mach::Machine; rows=:) =
+            throw(ArgumentError("`inverse_transform()(mach)` and "*
+                                "`inverse_transform(mach, rows=...)` are "*
+                                "not supported. Data or nodes "*
+                                "must be explictly specified, "*
+                                "as in `inverse_transform(mach, X)`. "))
+
+_symbol(f) = Base.Core.Typeof(f).name.mt.name
+
+for operation in OPERATIONS
+
+    ex = quote
+        # 1. operations on machines, given *concrete* data:
+        function $operation(mach::Machine, Xraw)
+            if mach.state > 0
+                return $(operation)(mach.model,
+                                    mach.fitresult,
+                                    reformat(mach.model, Xraw)...)
+            else
+                error("$mach has not been trained.")
+            end
         end
-        function $(operation)(machine::NodalMachine, args::AbstractNode...)
-            length(args) > 0 ||
-                throw(ArgumentError("`args` in `$($operation)(mach, args...)`"*
-                                    " cannot be empty if `mach` is a "*
-                                    "`NodalMachine`. "))
-            return node($(operation), machine, args...)
+
+        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
+            isdefined(mach, :fitresult) || (mach.fitresult = nothing)
+            return $(operation)(mach.model, mach.fitresult,
+                                    Xraw, Xraw_more...)
         end
+
+        # 2. operations on machines, given *dynamic* data (nodes):
+        $operation(mach::Machine, X::AbstractNode) =
+            node($(operation), mach, X)
+
+        $operation(mach::Machine{<:Static},
+                   X::AbstractNode,
+                   Xmore::AbstractNode...) =
+                       node($(operation), mach, X, Xmore...)
     end
     eval(ex)
 end
 
-# the zero argument special cases:
-"""
-    fitted_params(mach)
 
-Return the learned parameters for a machine `mach` that has been
-`fit!`, for example the coefficients in a linear model.
+## SURROGATE AND COMPOSITE MODELS
 
-This is a named tuple and human-readable if possible.
-
-If `mach` is a machine for a composite model, then the returned value
-has keys `machines` and `fitted_params_given_machine`, whose
-corresponding values are a vector of (nodal) machines appearing in the
-underlying learning network, and a dictionary of reports keyed on
-those machines.
-
-```julia
-using MLJ
-X, y = @load_crabs;
-pipe = @pipeline MyPipe(
-    std = Standardizer(),
-    clf = @load LinearBinaryClassifier pkg=GLM
-)
-mach = machine(MyPipe(), X, y) |> fit!
-fp = fitted_params(mach)
-machs = fp.machines
-2-element Array{Any,1}:
- NodalMachine{LinearBinaryClassifier{LogitLink}} @ 1…57
- NodalMachine{Standardizer} @ 7…33
-
-fp.fitted_params_given_machine[machs[1]]
-(coef = [121.05433477939319, 1.5863921128182814,
-         61.0770377473622, -233.42699281787324, 72.74253591435117],
- intercept = 10.384459260848505,)
-```
-
-"""
-function fitted_params(machine::AbstractMachine)
-    if isdefined(machine, :fitresult)
-        return fitted_params(machine.model, machine.fitresult)
-    else
-        throw(error("$machine has not been trained."))
+for operation in [:predict, :predict_joint, :transform, :inverse_transform]
+    ex = quote
+        $operation(model::Union{Composite,Surrogate}, fitresult,X) =
+            fitresult.$operation(X)
     end
+    eval(ex)
+end
+
+for (operation, fallback) in [(:predict_mode, :mode),
+                              (:predict_mean, :mean),
+                              (:predict_median, :median)]
+    ex = quote
+        function $(operation)(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
+                              fitresult,
+                              Xnew)
+            if haskey(fitresult, $(QuoteNode(operation)))
+                return fitresult.$(operation)(Xnew)
+            end
+            return $(fallback).(predict(m, fitresult, Xnew))
+        end
+    end
+    eval(ex)
 end

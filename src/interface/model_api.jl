@@ -5,8 +5,8 @@ const BadMeanTypes   = Union{AbstractArray{<:Finite},Table(Finite)}
 const BadMedianTypes = Union{AbstractArray{<:Finite},Table(Finite)}
 
 # mode:
-predict_mode(m::Probabilistic, fitres, Xnew) =
-    predict_mode(m, fitres, Xnew, Val(target_scitype(m)))
+predict_mode(m::Probabilistic, fitresult, Xnew) =
+    predict_mode(m, fitresult, Xnew, Val(target_scitype(m)))
 predict_mode(m, fitresult, Xnew, ::Any) =
     mode.(predict(m, fitresult, Xnew))
 predict_mode(m, fitresult, Xnew, ::Val{<:BadModeTypes}) =
@@ -33,16 +33,19 @@ predict_median(m, fitresult, Xnew, ::Val{<:BadMedianTypes}) =
 
 # not in MLJModelInterface as methodswith requires InteractiveUtils
 MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
-    getfield.(methodswith(M), :name)
+    getfield.(methodswith(M), :name) |> unique
 
 # serialization fallbacks:
-# Here `file` can be `String` or `IO` (eg, `file=IOBuffer()`).
-MLJModelInterface.save(file, model, fitresult, report; kwargs...) =
-    JLSO.save(file,
-              :model => model,
-              :fitresult => fitresult,
-              :report => report; kwargs...)
-function MLJModelInterface.restore(file; kwargs...)
-    dict = JLSO.load(file)
-    return dict[:model], dict[:fitresult], dict[:report]
+MLJModelInterface.save(filename, model, fitresult; kwargs...) = fitresult
+MLJModelInterface.restore(filename, model, serializable_fitresult) =
+                          serializable_fitresult
+
+# to suppress inclusion of abstract types in the model registry.
+for T in (:Supervised, :Unsupervised,
+          :Interval, :Static, :Deterministic, :Probabilistic)
+    ex = quote
+        MLJModelInterface.is_wrapper(::Type{$T}) = true
+    end
+    eval(ex)
 end
+

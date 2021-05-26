@@ -7,76 +7,6 @@ function finaltypes(T::Type)
     end
 end
 
-
-# NOTE: deprecated, see @mlj_model
-"""
-
-    @set_defaults ModelType(args...)
-    @set_defaults ModelType args
-
-Create a keyword constructor for any type `ModelType<:MLJBase.Model`,
-using as default values those listed in `args`. These must include a
-value for every field, and in the order appearing in
-`fieldnames(ModelType)`.
-
-The constructor does not call `MLJBase.clean!(model)` on the
-instantiated object `model`. This method is for internal use only (by
-`@from_network macro`) as it is depreciated by `@mlj_model` macro. 
-
-### Example
-
-   mutable struct Foo
-      x::Int
-      y
-   end
-
-   @set_defaults Foo(1,2)
-
-   julia> Foo()
-   Foo(1, 2)
-
-   julia> Foo(x=1, y="house")
-   Foo(1, "house")
-
-   @set_defaults Foo [4, 5]
-
-   julia> Foo()
-   Foo(4, 5)
-
-"""
-macro set_defaults(ex)
-    T_ex = ex.args[1]
-    value_exs = ex.args[2:end]
-    values = [__module__.eval(ex) for ex in value_exs]
-    set_defaults_(__module__, T_ex, values)
-    return nothing
-end
-
-macro set_defaults(T_ex, values_ex)
-    values =__module__.eval(values_ex)
-    set_defaults_(__module__, T_ex, values)
-    return nothing
-end
-
-function set_defaults_(mod, T_ex, values)
-    T = mod.eval(T_ex)
-    fields = fieldnames(T)
-    isempty(fields) && return nothing
-    length(fields) == length(values) ||
-        error("Provide the same number of default values as fields. ")
-
-    equality_pair_exs = [Expr(:kw, fields[i], values[i]) for i in
-                         eachindex(values)]
-
-    program = quote
-        $T_ex(; $(equality_pair_exs...)) =
-            $T_ex($(fields...))
-    end
-    mod.eval(program)
-
-    return nothing
-end
-
 """
     flat_values(t::NamedTuple)
 
@@ -111,7 +41,7 @@ function reduce_nested_field(ex)
     tail = ex.args[2]
     tail isa QuoteNode || throw(ArgumentError)
     field = tail.value
-    field isa Symbol || throw(ArgmentError)
+    field isa Symbol || throw(ArgumentError)
     subex = ex.args[1]
     return (subex, field)
 end
@@ -214,15 +144,17 @@ function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
     if showtypes
         types = schema(X).types |> collect
         scitypes = schema(X).scitypes |> collect
-        header = hcat(names, types, scitypes) |> permutedims
+        header = (names, types, scitypes)
     else
-        header  = names
+        header  = (names, )
     end
     show_color = MLJBase.SHOW_COLOR
     color_off()
     try
         PrettyTables.pretty_table(io, MLJBase.matrix(X),
-                                  header; alignment=alignment, kwargs...)
+                                  header=header;
+                                  alignment=alignment,
+                                  kwargs...)
     catch
         println("Trouble displaying table.")
     end
@@ -298,7 +230,8 @@ end
 
 """
     chunks(range, n)
-split a given range into `n` subranges of approximately equal length.
+
+Split an `AbstractRange`  into `n` subranges of approximately equal length.
 
 ### Example
 ```julia
@@ -306,6 +239,8 @@ julia> collect(chunks(1:5, 2))
 2-element Array{UnitRange{Int64},1}:
  1:3
  4:5
+
+**Private method**
 
 ```
 """
@@ -336,3 +271,20 @@ function Base.iterate(itr::Chunks{<:AbstractRange}, state=(1,itr.rem))
 end
 
 
+"""
+    available_name(modl::Module, name::Symbol)
+
+Function to replace, if necessary, a given `name` with a modified one
+that ensures it is not the name of any existing object in the global
+scope of `modl`. Modifications are created with numerical suffixes.
+
+"""
+function available_name(modl, name)
+    new_name = name
+    i = 1
+    while isdefined(modl, Symbol(new_name))
+        i += 1
+        new_name = string(name, i) |> Symbol
+    end
+    return new_name
+end

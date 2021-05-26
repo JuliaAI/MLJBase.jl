@@ -5,10 +5,13 @@ istransparent(::MLJType) = true
     params(m::MLJType)
 
 Recursively convert any transparent object `m` into a named tuple,
-keyed on the fields of `m`. An object is *transparent* if
+keyed on the property names of `m`. An object is *transparent* if
 `MLJBase.istransparent(m) == true`. The named tuple is possibly nested
-because `params` is recursively applied to the field values, which
+because `params` is recursively applied to the property values, which
 themselves might be transparent.
+
+For most `MLJType` objects, properties are synonymous with fields, but
+this is not a hard requirement.
 
 Most objects of type `MLJType` are transparent.
 
@@ -24,10 +27,7 @@ Most objects of type `MLJType` are transparent.
 params(m) = params(m, Val(istransparent(m)))
 params(m, ::Val{false}) = m
 function params(m, ::Val{true})
-    fields = fieldnames(typeof(m))
-    NamedTuple{fields}(Tuple([params(getfield(m, field)) for field in fields]))
+    fields = propertynames(m)
+    NamedTuple{fields}(Tuple([params(getproperty(m, field))
+                              for field in fields]))
 end
-
-
-
-

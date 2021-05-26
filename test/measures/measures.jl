@@ -3,9 +3,10 @@ module TestMeasures
 using MLJBase, Test
 import Distributions
 using CategoricalArrays
-import Random.seed!
 using Statistics
-using LossFunctions
+import LossFunctions
+using StableRNGs
+using OrderedCollections: LittleDict
 
 @testset "aggregation" begin
     v = rand(5)
@@ -15,6 +16,8 @@ using LossFunctions
     λ = rand()
     @test aggregate(λ, rms) === λ
     @test aggregate(aggregate(v, l2), l2) == aggregate(v, l2)
+    m = LittleDict([0, 1, 2, 3, 4], v)
+    @test aggregate(m, MTPR()) == mean(v)
 end
 
 @testset "metadata" begin
@@ -34,8 +37,7 @@ end
     @test reports_each_observation(auc) == false
     @test is_feature_dependent(auc) == false
 
-    @test MLJBase.distribution_type(BrierScore{UnivariateFinite}) ==
-        MLJBase.UnivariateFinite
+    @test MLJBase.distribution_type(BrierScore) == MLJBase.UnivariateFinite
 end
 
 mutable struct DRegressor <: Deterministic end

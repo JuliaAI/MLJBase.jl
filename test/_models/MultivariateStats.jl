@@ -5,7 +5,6 @@ import MLJBase: @mlj_model, metadata_model, metadata_pkg
 # using Distances
 using LinearAlgebra
 using Tables
-using ScientificTypes
 using MLJScientificTypes
 
 import MultivariateStats

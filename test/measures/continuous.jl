@@ -1,4 +1,4 @@
-seed!(1234)
+rng = StableRNG(666899)
 
 @testset "built-in regressor measures" begin
     y    = [1, 2, 3, 4]
@@ -12,6 +12,7 @@ seed!(1234)
     @test isapprox(mean(l1(yhat, y, w)), mae(yhat, y, w))
     @test isapprox(mean(l2(yhat, y)), 5)
     @test isapprox(mean(l2(yhat, y, w)), rms(yhat, y, w)^2)
+    @test isapprox(mean(log_cosh(yhat, y)), 1.3715546675)
 
     yhat = y .+ 1
     @test isapprox(rmsl(yhat, y),
@@ -22,12 +23,11 @@ seed!(1234)
     @test isapprox(mape(yhat, y), (1/1 + 1/2 + 1/3 + 1/4)/4)
 end
 
-
 @testset "MLJBase.value" begin
-    yhat = rand(5)
-    X = (weight=rand(5), x1 = rand(5))
-    y = rand(5)
-    w = rand(5)
+    yhat = randn(rng,5)
+    X = (weight=randn(rng,5), x1 = randn(rng,5))
+    y = randn(rng,5)
+    w = randn(rng,5)
 
     @test MLJBase.value(mae, yhat, nothing, y, nothing) ≈ mae(yhat, y)
     @test MLJBase.value(mae, yhat, nothing, y, w) ≈ mae(yhat, y, w)

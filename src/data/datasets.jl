@@ -167,7 +167,7 @@ comma separated file with a header.
 function load_dataset(fname::String, coercions::Tuple)
     fpath = joinpath(DATA_DIR, fname)
     data_raw, data_header = readdlm(fpath, ',', header=true)
-    data_table = Tables.table(data_raw; header=Symbol.(vec(data_header)))
+    data_table = MLJBase.table(data_raw; names=Symbol.(vec(data_header)))
     return coerce(data_table, coercions...; tight=true)
 end
 

@@ -1,4 +1,4 @@
-## SPLITTING DATA SETS
+# SPLITTING DATA SETS
 
 # Helper function for partitioning in the non-stratified case
 function _partition(rows, fractions, ::Nothing)
@@ -127,7 +127,11 @@ end
 
 """
 
-    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk; wrap_singles=false)
+    t1, t2, ...., tk = unnpack(table, f1, f2, ... fk;
+                               wrap_singles=false,
+                               shuffle=false,
+                               rng::Union{AbstractRNG,Int,Nothing}=nothing)
+
 
 
 Split any Tables.jl compatible `table` into smaller tables (or
@@ -144,10 +148,15 @@ semicolon):
 
     unpack(table, t...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
 
+If `shuffle=true` then the rows of `table` are first shuffled, using
+the global RNG, unless `rng` is specified; if `rng` is an integer, it
+specifies the seed of an automatically generated Mersenne twister. If
+`rng` is specified then `shuffle=true` is implicit.
+
 ### Example
 
 ```
-julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=[:A, :B])
+julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
 julia> Z, XY = unpack(table, ==(:z), !=(:w);
                :x=>Continuous, :y=>Multiclass)
 julia> XY
@@ -293,38 +302,37 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
-const message1 = "Attempting to transform a level not in pool of specified "*
-   "categorical element. "
+_err_missing_class(c) =  throw(DomainError(
+    "Value $c not pool"))
+
 
 function transform_(pool, x)
     ismissing(x) && return missing
-    _classes = classes(pool)
-    x in _classes || error(message1)
-    ref = pool.invindex[x]
-    return _classes[ref]
+    x in levels(pool) || _err_missing_class(x)
+    return pool[get(pool, x)]
 end
 
-"""
+transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
 
-    transform(e::Union{CategoricalElement,CategoricalArray},  X)
+"""
+    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
 
 Transform the specified object `X` into a categorical version, using
 the pool contained in `e`. Here `X` is a raw value (an element of
 `levels(e)`) or an `AbstractArray` of such values.
 
 ```julia
-v = categorical([:x, :y, :y, :x, :x])
-julia> transform(v, :x)
-CategoricalValue{Symbol,UInt32} :x
+v = categorical(["x", "y", "y", "x", "x"])
+julia> transform(v, "x")
+CategoricalValue{String,UInt32} "x"
 
-julia> transform(v[1], [:x :x; missing :y])
+julia> transform(v[1], ["x" "x"; missing "y"])
 2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
- :x       :x
- missing  :y
+ "x"       "x"
+ missing   "y"
 
 """
-transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
-
 MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
                             arg) = transform_(CategoricalArrays.pool(e), arg)
-
+MLJModelInterface.transform(e::CategoricalPool, arg) =
+    transform_(e, arg)
