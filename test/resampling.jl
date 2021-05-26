@@ -385,16 +385,17 @@ end
     y = X.x1 -2X.x2 + 0.05*rand(rng,N)
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
-    resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae)
+    resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae,
+                          acceleration=accel)
     resampling_machine = machine(resampler, X, y)
     @test_logs((:info, r"^Training"), fit!(resampling_machine))
     e1=evaluate(resampling_machine).measurement[1]
     mach = machine(ridge_model, X, y)
     @test e1 ≈  evaluate!(mach, resampling=holdout,
                           measure=mae, verbosity=verb,
-                          acceleration=accel).measurement[1]
+                          acceleration=CPU1()).measurement[1]
     ridge_model.lambda=1.0
-    fit!(resampling_machine, verbosity=2)
+    fit!(resampling_machine, verbosity=3)
     e2=evaluate(resampling_machine).measurement[1]
     @test e1 != e2
     resampler.weights = rand(rng,N)
@@ -404,7 +405,37 @@ end
 
     @test MLJBase.package_name(Resampler) == "MLJBase"
     @test MLJBase.is_wrapper(Resampler)
-    rnd = randn(rng,5)
+
+    # when only `model` changes, the folds shouldn't change, even in
+    # shuffled case:
+    cv = CV(rng=StableRNGs.StableRNG(123))
+    resampler=Resampler(model=ridge_model,
+                        resampling=cv,
+                        repeats=3,
+                        measure=mae, acceleration=accel)
+    mach = machine(resampler, X, y)
+    fit!(mach, verbosity=verb)
+    ev1 = evaluate(mach)
+    rows1 = ev1.train_test_rows
+    resampler.model.lambda *= 0.5
+    fit!(mach, verbosity=verb)
+    ev2 = evaluate(mach)
+    @test rows1 == ev2.train_test_rows
+    resampler.model.lambda *= 2
+    fit!(mach, verbosity=verb)
+    @test ev1.measurement[1] ≈ evaluate(mach).measurement[1]
+
+    # but if `resampling` or `repeats`, then new
+    # folds should be generated:
+    resampler.resampling = CV(rng=cv.rng, nfolds=2)
+    fit!(mach, verbosity=verb)
+    rows2 = evaluate(mach).train_test_rows
+    @test length(rows2) == 2 * resampler.repeats
+    @test rows2 != rows1
+    resampler.repeats += 1
+    fit!(mach, verbosity=verb)
+    rows3 = evaluate(mach).train_test_rows
+    @test length(rows3) == 2 * resampler.repeats
 end
 
 struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
