@@ -999,21 +999,13 @@ to the prescribed `resampling` strategy and other parameters, using
 data `args...`, by calling `fit!(mach)` followed by
 `evaluate(mach)`.
 
-The resampler internally binds `model` to the supplied data `args` in
-a machine (called `mach_train` below) on which `evaluate!` is called
-with all the options passed to the `Resampler` constructor. The
-advantage over using `evaluate(model, args...)` directly is:
-
-(i) New train/test folds are not regenerated on subsequent `fit!(mach)`
-calls unless `model` has changed, even when `shuffle` is `true` in
-the chosen resampling strategy; and
-
-(ii) If there is only one train/test pair (for example `resampling =
-Holdout` and `repeats = 1`) then re-evaluation of the model triggered
-by subsequent calls to `fit!(mach)` will not trigger a cold restart of
-`train_mach`, unless `resampling` or `repeats` has changed. This is
-desirable in applicationis to `TunedModel` and crucial for applicatons
-to `IteratedModel`.
+On subsequent calls to `fit!(mach)` new train/test pairs of row
+indices are only regenerated if `resampling`, `repeats` or `cache`
+fields of `resampler` have changed (even in the case of RNG-dependent
+`resampling` strategy). If there is single train/test pair, then
+warm-restart behavior of the wrapped model `resampler.model` will
+extend to warm-restart behaviour of the wrapper `resampler`, with
+respect to mutations of the wrapped model.
 
 The sample `weights` are passed to the specified performance measures
 that support weights for evaluation. These weights are not to be
@@ -1190,4 +1182,3 @@ function evaluate(machine::Machine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-
