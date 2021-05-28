@@ -81,13 +81,13 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
 end
 
 """
-    partition(rows::AbstractVector{Int}, fractions...;
+    partition(X::Union{AbstractVector,AbstractMatrix}, fractions...;
               shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
 
-Splits the vector `rows` into a tuple of vectors whose lengths are
-given by the corresponding `fractions` of `length(rows)` where valid
-fractions are in (0,1) and sum up to less than 1. The last
-fraction is not provided, as it is inferred from the preceding
+Splits the vector or matrix `X` into a tuple of vectors or matrices whose
+numbers of rows are given by the corresponding `fractions` of
+`length(nrows(X))`, where valid fractions are in (0,1) and sum up to less than
+1. The last fraction is not provided, as it is inferred from the preceding
 ones. So, for example,
 
     julia> partition(1:1000, 0.8)
@@ -95,6 +95,9 @@ ones. So, for example,
 
     julia> partition(1:1000, 0.2, 0.7)
     ([1,...,200], [201,...,900], [901,...,1000])
+
+    julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
+    ([1 6], [2 7; 3 8], [4 9; 5 10])
 
 ## Keywords
 
@@ -104,7 +107,9 @@ ones. So, for example,
 * `stratify=nothing`:       if a vector is specified, the partition will match the stratification
                             of the given vector. In that case, `shuffle` cannot be `false`.
 """
-function partition(rows::AbstractVector{Int}, fractions::Real...;
+partition
+
+function partition(rows::AbstractVector, fractions::Real...;
                    shuffle::Union{Nothing,Bool}=nothing, rng=Random.GLOBAL_RNG,
                    stratify::Union{Nothing,AbstractVector}=nothing)
     # if rows is a unitrange, collect it
@@ -124,6 +129,10 @@ function partition(rows::AbstractVector{Int}, fractions::Real...;
     return _partition(rows, collect(fractions), stratify)
 end
 
+# Generic method for all matrices.  Partition its rows and apply `selectrows` to
+# each partition.
+partition(X::AbstractMatrix, fractions...; kwargs...) =
+    tuple((selectrows(X, p) for p in partition(1:nrows(X), fractions...; kwargs...))...)
 
 """
 

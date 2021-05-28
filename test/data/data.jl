@@ -37,6 +37,12 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
 
+    # Matrix
+    X = collect(reshape(1:10, 5, 2))
+    @test partition(X, 0.2, 0.4) == ([1 6], [2 7; 3 8], [4 9; 5 10])
+    rng = StableRNG(42)
+    @test partition(X, 0.2, 0.4; shuffle=true, rng=rng) == ([5 10], [3 8; 4 9], [1 6; 2 7])
+
     # with stratification
     y = ones(Int, 1000)
     y[end-100:end] .= 0; # 90%
