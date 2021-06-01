@@ -111,7 +111,16 @@ end
 
 end
 
+@testset "Stack constructor valid argument checks" begin
+    # metalearner should have target_scitype:
+    # Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}}
+    @test_throws ArgumentError stack(Standardizer(); 
+                        constant=ConstantClassifier())
 
+    # models should have the same target scitype as the metalearner
+    @test_throws ArgumentError stack(ConstantClassifier(); 
+                        constant=KNNRegressor())
+end
 
 end
 
