@@ -2,6 +2,7 @@ module TestStacking
 
 using Test
 using MLJBase
+using MLJModelInterface
 using ..Models
 using Random
 
@@ -60,6 +61,8 @@ end
 
     @test mystack.decisiontree isa DecisionTreeRegressor
 
+    @test target_scitype(mystack) == target_scitype(FooBarRegressor())
+
     # Testing fitted_params results are easily accessible for each
     # submodel. They are in order of the cross validation procedure.
     # Here 3-folds then 3 machines + the final fit
@@ -82,9 +85,12 @@ end
                     ridge=FooBarRegressor(;lambda=0))
 
         # The type of the stack is determined by the type of the metalearner
-        mystack = stack(ConstantRegressor(;distribution_type=Distributions.Cauchy);
+        metalearner = ConstantRegressor(;distribution_type=Distributions.Cauchy)
+        mystack = stack(metalearner;
                     cv_strategy=CV(;nfolds=3),
                     models...)
+
+        @test target_scitype(mystack) == target_scitype(metalearner)
 
         mach = machine(mystack, X, y)
         fit!(mach)
@@ -105,6 +111,7 @@ end
                     cv_strategy=CV(;nfolds=3),
                     models...)
     
+    @test target_scitype(mystack) == target_scitype(DecisionTreeClassifier())
     mach = machine(mystack, X, y)
     fit!(mach)
     @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}

@@ -1,28 +1,37 @@
-
-###########################################
-################ Structure ################ 
-###########################################
+############################################
+################ Structures ################ 
+############################################
 
 # The type hierarchy is not very satisfying as it is as I have to 
 # define almost the same struct twice for DeterministicStack and ProbabilisticStack
 # The problem is that I can't subtype Composite to define the abstract Stack
 
-mutable struct DeterministicStack{modelnames} <: DeterministicComposite
+mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: DeterministicComposite
    models::NTuple{<:Any, Supervised}
    metalearner::Deterministic
    cv_strategy::Union{CV, StratifiedCV} 
-   DeterministicStack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
+   function DeterministicStack(modelnames, models, metalearner, cv_strategy)
+        target_scitype = MMI.target_scitype(metalearner)
+        input_scitype = Unknown
+        return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
+   end
 end
 
-mutable struct ProbabilisticStack{modelnames} <: ProbabilisticComposite
+mutable struct ProbabilisticStack{modelnames, input_scitype, target_scitype} <: ProbabilisticComposite
     models::NTuple{<:Any, Supervised}
     metalearner::Probabilistic
     cv_strategy::Union{CV, StratifiedCV} 
-    ProbabilisticStack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
+    function ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
+        target_scitype = MMI.target_scitype(metalearner)
+        input_scitype = Unknown
+        return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
+    end
  end
 
 
-const Stack{modelnames} = Union{DeterministicStack{modelnames}, ProbabilisticStack{modelnames}}
+const Stack{modelnames, input_scitype, target_scitype} = 
+    Union{DeterministicStack{modelnames, input_scitype, target_scitype}, 
+            ProbabilisticStack{modelnames, input_scitype, target_scitype}}
 
 """
 
@@ -59,10 +68,10 @@ function stack(metalearner; cv_strategy=CV(), named_models...)
 end
 
 
-Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
+Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
 
 
-function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
+function Base.getproperty(stack::Stack{modelnames, <:Any, <:Any}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
     name === :cv_strategy && return getfield(stack, :cv_strategy)
     name === :models && return getfield(stack, :models)
@@ -72,6 +81,14 @@ function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnam
     end
     error("type Stack has no field $name")
 end
+
+
+MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where 
+    {modelnames, input_scitype, target_scitype} = target_scitype
+
+
+MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where 
+    {modelnames, input_scitype, target_scitype} = input_scitype
 
 
 
