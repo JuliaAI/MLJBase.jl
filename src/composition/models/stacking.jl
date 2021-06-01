@@ -28,6 +28,13 @@ function stack(metalearner; cv_strategy=CV(), named_models...)
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = values(nt)
+
+    for model in models 
+        target_scitype(model) == target_scitype(metalearner) ||
+            error("target_scitype of $model should be the same as the metalearner's, 
+                    ie $(target_scitype(metalearner))")
+    end
+
     if metalearner isa Deterministic
         return DeterministicStack(modelnames, models, metalearner, cv_strategy)
     elseif metalearner isa Probabilistic
@@ -84,7 +91,7 @@ end
 #############################################################
 
 pre_judge_transform(ŷ, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) = 
-    node(ŷ->pdf(ŷ, levels(ŷ)), ŷ)
+    node(ŷ->pdf.(ŷ, levels.(ŷ)), ŷ)
 
 pre_judge_transform(ŷ, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) = 
     node(ŷ->mean.(ŷ), ŷ)

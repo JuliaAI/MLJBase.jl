@@ -92,9 +92,24 @@ end
 
     end
 
-
 end
 
+@testset "Testing ProbabilisticStack on Finite target" begin
+    X, y = make_blobs()
+
+    models = (constant=ConstantClassifier(),
+                decisiontree=DecisionTreeClassifier(), 
+                knn=KNNClassifier())
+
+    mystack = stack(DecisionTreeClassifier();
+                    cv_strategy=CV(;nfolds=3),
+                    models...)
+    
+    mach = machine(mystack, X, y)
+    fit!(mach)
+    @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
+
+end
 
 
 
