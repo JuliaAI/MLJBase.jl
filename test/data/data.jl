@@ -37,6 +37,23 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     @test collect(train) == collect(1:90)
     @test collect(test) == collect(91:100)
 
+    # Matrix
+    X = collect(reshape(1:10, 5, 2))
+    @test partition(X, 0.2, 0.4) == ([1 6], [2 7; 3 8], [4 9; 5 10])
+    rng = StableRNG(42)
+    @test partition(X, 0.2, 0.4; shuffle=true, rng=rng) == ([5 10], [3 8; 4 9], [1 6; 2 7])
+
+    # Table
+    rows = Tables.rows((a=collect(1:5), b=collect(6:10)))
+    @test partition(rows, 0.6, 0.2) ==
+        ((a = [1, 2, 3], b = [6, 7, 8]), (a = [4], b = [9]), (a = [5], b = [10]))
+    rng = StableRNG(123)
+    @test partition(rows, 0.6, 0.2; shuffle=true, rng=rng) ==
+        ((a = [3, 1, 5], b = [8, 6, 10]), (a = [2], b = [7]), (a = [4], b = [9]))
+
+    # Not a vector/matrix/table
+    @test_throws ArgumentError partition(1)
+
     # with stratification
     y = ones(Int, 1000)
     y[end-100:end] .= 0; # 90%
