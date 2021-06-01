@@ -81,14 +81,17 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
 end
 
 """
-    partition(X::Union{AbstractVector,AbstractMatrix}, fractions...;
+    partition(X, fractions...;
               shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
 
 Splits the vector or matrix `X` into a tuple of vectors or matrices whose
 numbers of rows are given by the corresponding `fractions` of
 `length(nrows(X))`, where valid fractions are in (0,1) and sum up to less than
-1. The last fraction is not provided, as it is inferred from the preceding
-ones. So, for example,
+1. The last fraction is not provided, as it is inferred from the preceding ones.
+`X` can also be any object which implements the `Tables.jl` interface according
+to `Tables.istable`.
+
+So, for example,
 
     julia> partition(1:1000, 0.8)
     ([1,...,800], [801,...,1000])
@@ -107,7 +110,16 @@ ones. So, for example,
 * `stratify=nothing`:       if a vector is specified, the partition will match the stratification
                             of the given vector. In that case, `shuffle` cannot be `false`.
 """
-partition
+function partition(X, fractions...; kwargs...)
+    if X isa AbstractMatrix || Tables.istable(X)
+        # Generic method for all matrices and tables.  Partition its rows and
+        # apply `selectrows` to each partition.
+        return tuple((selectrows(X, p) for p in partition(1:nrows(X), fractions...; kwargs...))...)
+    else
+        throw(ArgumentError("Function `partition` only supports AbstractVector, " *
+                            "AbstractMatrix or containers implementing the Tables interface."))
+    end
+end
 
 function partition(rows::AbstractVector, fractions::Real...;
                    shuffle::Union{Nothing,Bool}=nothing, rng=Random.GLOBAL_RNG,
@@ -128,11 +140,6 @@ function partition(rows::AbstractVector, fractions::Real...;
     shuffle !== nothing && shuffle && shuffle!(rng, rows)
     return _partition(rows, collect(fractions), stratify)
 end
-
-# Generic method for all matrices.  Partition its rows and apply `selectrows` to
-# each partition.
-partition(X::AbstractMatrix, fractions...; kwargs...) =
-    tuple((selectrows(X, p) for p in partition(1:nrows(X), fractions...; kwargs...))...)
 
 """
 
