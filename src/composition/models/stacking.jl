@@ -6,13 +6,33 @@
 # define almost the same struct twice for DeterministicStack and ProbabilisticStack
 # The problem is that I can't subtype Composite to define the abstract Stack
 
+function is_glb(potential_glb, models)
+    for model in models
+        if !(potential_glb <: input_scitype(model))
+            return false
+        end
+    end
+    return true
+end
+
+function glb(models)
+    for model in models
+        potential_glb = input_scitype(model)
+        if is_glb(potential_glb, models)
+            return potential_glb
+        end
+    end
+    return Unknown
+end
+
+
 mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: DeterministicComposite
    models::NTuple{<:Any, Supervised}
    metalearner::Deterministic
    cv_strategy::Union{CV, StratifiedCV} 
    function DeterministicStack(modelnames, models, metalearner, cv_strategy)
         target_scitype = MMI.target_scitype(metalearner)
-        input_scitype = Unknown
+        input_scitype = glb(models)
         return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
    end
 end
@@ -23,7 +43,7 @@ mutable struct ProbabilisticStack{modelnames, input_scitype, target_scitype} <: 
     cv_strategy::Union{CV, StratifiedCV} 
     function ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
         target_scitype = MMI.target_scitype(metalearner)
-        input_scitype = Unknown
+        input_scitype = glb(models)
         return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
     end
  end

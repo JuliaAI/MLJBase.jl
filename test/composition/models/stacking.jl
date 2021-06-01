@@ -60,8 +60,9 @@ end
                                     :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
-
+    
     @test target_scitype(mystack) == target_scitype(FooBarRegressor())
+    @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
     # Testing fitted_params results are easily accessible for each
     # submodel. They are in order of the cross validation procedure.
@@ -91,6 +92,7 @@ end
                     models...)
 
         @test target_scitype(mystack) == target_scitype(metalearner)
+        @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
         mach = machine(mystack, X, y)
         fit!(mach)
@@ -111,7 +113,12 @@ end
                     cv_strategy=CV(;nfolds=3),
                     models...)
     
+    
+    # Check input and target scitypes
     @test target_scitype(mystack) == target_scitype(DecisionTreeClassifier())
+    # Here the greatest lower bound is the scitype of the knn
+    @test input_scitype(mystack) == input_scitype(KNNClassifier())
+
     mach = machine(mystack, X, y)
     fit!(mach)
     @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
