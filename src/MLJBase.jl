@@ -339,7 +339,6 @@ include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
-include("composition/models/stacking.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
@@ -354,5 +353,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
+
+include("composition/models/stacking.jl")
 
 end # module

@@ -1,8 +1,6 @@
-
 ###########################################
 ################ Structure ################ 
 ###########################################
-
 
 """
 
@@ -16,7 +14,7 @@ mutable struct Stack{modelnames} <: DeterministicComposite
 end
 
 
-function Stack(metalearner;cv_strategy=CV(), named_models...)
+function Stack(metalearner; cv_strategy=CV(), named_models...)
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = values(nt)
@@ -45,13 +43,13 @@ end
 ###########################################
 
 
-function getfolds(y::AbstractNode, m::Model, n::Int)
-    if m.cv_strategy isa StratifiedCV
-        folds = node(YY->MLJBase.train_test_pairs(m.cv_strategy, 1:n, YY), y)
-    else
-        folds = source(MLJBase.train_test_pairs(m.cv_strategy, 1:n))
-    end
-    folds
+function getfolds(y::AbstractNode, cv::CV, n::Int)
+    folds = source(train_test_pairs(cv, 1:n))
+end
+
+
+function getfolds(y::AbstractNode, cv::StratifiedCV, n::Int)
+    node(YY->train_test_pairs(cv, 1:n, YY), y)
 end
 
 
@@ -65,10 +63,19 @@ function testrows(X::AbstractNode, folds::AbstractNode, nfold)
 end
 
 
-function expected_value(X::AbstractNode)
-    node(XX->hasproperty(XX, :prob_given_ref) ? XX.prob_given_ref[2] : XX, X)
-end
+#############################################################
+################# Pre-judge transformations ################# 
+#############################################################
 
+pre_judge_transform(ŷ, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) = 
+    node(ŷ->pdf(ŷ, levels(ŷ)), ŷ)
+
+pre_judge_transform(ŷ, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) = 
+    node(ŷ->mean.(ŷ), ŷ)
+
+pre_judge_transform(ŷ, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) = 
+    node(ŷ->ŷ, ŷ)
+    
 
 """
     fit(m::Stack, verbosity::Int, X, y)
@@ -82,7 +89,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zval = []
     yval = []
 
-    folds = getfolds(y, m, n)
+    folds = getfolds(y, m.cv_strategy, n)
     for nfold in 1:m.cv_strategy.nfolds
         Xtrain = trainrows(X, folds, nfold)
         ytrain = trainrows(y, folds, nfold)
@@ -92,7 +99,11 @@ function fit(m::Stack, verbosity::Int, X, y)
         Zfold = []
         for model in m.models
             mach = machine(model, Xtrain, ytrain)
-            ypred = expected_value(predict(mach, Xtest))
+            ypred = predict(mach, Xtest)
+            # Dispatch the computation of the expected mean based on 
+            # the model type and target_scytype
+            println(ypred)
+            ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
             push!(Zfold, ypred)
         end
 
@@ -110,12 +121,15 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zpred = []
     for model in m.models
         mach = machine(model, X, y)
-        push!(Zpred, expected_value(predict(mach, X)))
+        ypred = predict(mach, X)
+        println(ypred)
+        ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
+        push!(Zpred, ypred)
     end
 
     Zpred = MLJBase.table(hcat(Zpred...))
 
-    ŷ = expected_value(predict(metamach, Zpred))
+    ŷ = predict(metamach, Zpred)
 
     mach = machine(Deterministic(), X, y; predict=ŷ)
 
