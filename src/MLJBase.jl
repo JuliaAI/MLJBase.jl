@@ -162,7 +162,7 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, @from_network, @pipeline, Stack,
+export machines, sources, @from_network, @pipeline, stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, Node, AbstractNode,

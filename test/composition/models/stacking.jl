@@ -5,6 +5,8 @@ using MLJBase
 using ..Models
 using Random
 
+import Distributions
+
 
 rng = Random.seed!(1234)
 
@@ -20,10 +22,10 @@ function model_evaluation(models::NamedTuple, X, y; measure=rmse)
 end
 
 
-@testset "Testing DeterministicStack on Continuous target" begin
+@testset "Testing Stack on Continuous target" begin
     X, y = make_regression(500, 5)
 
-    @testset "Testing Performance" begin
+    @testset "Testing Deterministic Stack" begin
     # Testing performance
 
     # The dataset is a simple regression model with intercept
@@ -36,14 +38,12 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    stack = Stack(FooBarRegressor();
-                    cv_strategy=CV(;nfolds=3),
-                    models...)
+    mystack = stack(FooBarRegressor();
+        cv_strategy=CV(;nfolds=3),
+        models...)
     
-    results = model_evaluation((stack=stack, models...), X, y)
+    results = model_evaluation((stack=mystack, models...), X, y)
     @test argmin(results) == 1
-
-    end
 
     # Mixing ProbabilisticModels amd Deterministic models as members of the stack
     models = (constant=ConstantRegressor(),
@@ -51,19 +51,19 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    stack = Stack(FooBarRegressor();
+    mystack = stack(FooBarRegressor();
                     cv_strategy=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(stack) == (:cv_strategy, :metalearner, :models, :constant, 
+    @test propertynames(mystack) == (:cv_strategy, :metalearner, :models, :constant, 
                                     :decisiontree, :ridge_lambda, :ridge)
 
-    @test stack.decisiontree isa DecisionTreeRegressor
+    @test mystack.decisiontree isa DecisionTreeRegressor
 
     # Testing fitted_params results are easily accessible for each
     # submodel. They are in order of the cross validation procedure.
     # Here 3-folds then 3 machines + the final fit
-    mach = machine(stack, X, y)
+    mach = machine(mystack, X, y)
     fit!(mach)
     fp = fitted_params(mach)
     @test nrows(getfield(fp, :constant)) == 4
@@ -71,7 +71,31 @@ end
     @test nrows(getfield(fp, :ridge)) == 4
     @test nrows(getfield(fp, :ridge_lambda)) == 4
 
+    # Testing prediction is Deterministic
+    @test predict(mach) isa Vector{Float64}
+    end
+
+    @testset "Testing ProbabilisticStack" begin
+        models = (constant=ConstantRegressor(),
+                    decisiontree=DecisionTreeRegressor(), 
+                    ridge_lambda=FooBarRegressor(;lambda=0.1), 
+                    ridge=FooBarRegressor(;lambda=0))
+
+        # The type of the stack is determined by the type of the metalearner
+        mystack = stack(ConstantRegressor(;distribution_type=Distributions.Cauchy);
+                    cv_strategy=CV(;nfolds=3),
+                    models...)
+
+        mach = machine(mystack, X, y)
+        fit!(mach)
+        @test predict(mach) isa Vector{Distributions.Cauchy{Float64}}
+
+    end
+
+
 end
+
+
 
 
 end

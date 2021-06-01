@@ -1,24 +1,40 @@
+
 ###########################################
 ################ Structure ################ 
 ###########################################
+
+mutable struct DeterministicStack{modelnames} <: DeterministicComposite
+   models::NTuple{<:Any, Supervised}
+   metalearner::Deterministic
+   cv_strategy::Union{CV, StratifiedCV} 
+   DeterministicStack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
+end
+
+mutable struct ProbabilisticStack{modelnames} <: ProbabilisticComposite
+    models::NTuple{<:Any, Supervised}
+    metalearner::Probabilistic
+    cv_strategy::Union{CV, StratifiedCV} 
+    ProbabilisticStack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
+ end
+
+
+const Stack{modelnames} = Union{DeterministicStack{modelnames}, ProbabilisticStack{modelnames}}
 
 """
 
 Implements the generalized Stack algorithm introduced by Wolpert in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231
 """
-mutable struct Stack{modelnames} <: DeterministicComposite
-   models::NTuple{<:Any, Supervised}
-   metalearner::Supervised
-   cv_strategy 
-   Stack(modelnames, models, metalearner, cv_strategy) = new{modelnames}(models, metalearner, cv_strategy)
-end
-
-
-function Stack(metalearner; cv_strategy=CV(), named_models...)
+function stack(metalearner; cv_strategy=CV(), named_models...)
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = values(nt)
-    return Stack(modelnames, models, metalearner, cv_strategy)
+    if metalearner isa Deterministic
+        return DeterministicStack(modelnames, models, metalearner, cv_strategy)
+    elseif metalearner isa Probabilistic
+        return ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
+    else
+        error("The metalearner should be a subtype of $(Union{Deterministic, Probabilistic})")
+    end
 end
 
 
@@ -131,7 +147,7 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     ŷ = predict(metamach, Zpred)
 
-    mach = machine(Deterministic(), X, y; predict=ŷ)
+    mach = machine(supertype(supertype(typeof(m)))(), X, y; predict=ŷ)
 
     return!(mach, m, verbosity)
 
