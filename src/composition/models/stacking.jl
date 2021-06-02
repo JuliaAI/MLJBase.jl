@@ -88,6 +88,15 @@ function stack(metalearner; cv_strategy=CV(), named_models...)
 end
 
 
+# function MMI.clean!(model::Stack)
+#     warning = ""
+#     if model.lambda < 0
+#         warning *= "Need lambda ≥ 0. Resetting lambda=0. "
+#         model.lambda = 0
+#     end
+#     return warning
+# end
+
 Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
 
 
@@ -144,9 +153,7 @@ pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<
     node(ŷ->mean.(ŷ), ŷ)
 
 pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) = 
-    node(ŷ->ŷ, ŷ)
-    
-
+    ŷ
 
 #######################################
 ################# Fit ################# 
