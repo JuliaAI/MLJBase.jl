@@ -56,6 +56,19 @@ Implements the generalized Stack algorithm introduced by Wolpert
 in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and 
 generalized by Van der Laan et al in https://biostats.bepress.com/ucbbiostat/paper222/.
 
+Instead of using your favorite model, use them all! The Stack is a metalearning algorithm 
+covered by theoretical guarantees. 
+
+The stack in a nutshell:
+
+- The data is split in training/validation sets 
+- Each model in the library is trained on each training set and outputs predictions on the validation sets
+- The metalearner is subsequently trained on those predictions and finds the best combination of the models
+in the library.
+- Each model is then retrained on the full data 
+- "Stacking" those models and the metalearner results in an end to end fully trained model
+
+You are not exempt from evaluating the stack.
 
 We currently provide two different stack types the `DeterministicStack` and the `ProbabilisticStack`.
 The type of which is automatically chosen by the constructor based on the provided metalearner.
@@ -66,25 +79,40 @@ The type of which is automatically chosen by the constructor based on the provid
 - `cv_strategy::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
 - `named_models`: The models that will be part of the library
 
-# Example
+# Examples
 
-Let's build a simple DeterministicStack.
+Let's build a simple DeterministicStack for a continuous target, we show that:  
+
+    - It composes easily with pipelines in the library.
+    - Some members of the library may very well be `Probabilistic` models even though the stack 
+    is `Deterministic`, the expected value will be taken.
 
 ```julia
-using MLJBase
-using EvoTrees
+using MLJ
+using MLJDecisionTreeInterface
 using MLJLinearModels
+using NearestNeighborModels
+using EvoTrees
+using MLJXGBoostInterface
 
 X, y = make_regression(500, 5)
 
+std_lr = @pipeline Standardizer() LinearRegressor()
+library = (constant=ConstantRegressor(),
+            tree_2=DecisionTreeRegressor(max_depth=2), 
+            tree_3=DecisionTreeRegressor(max_depth=3),
+            evo=EvoTreeRegressor(),
+            knn=KNNRegressor(),
+            xgb=XGBoostRegressor(),
+            std_lr=std_lr)
+
 stack = Stack(;metalearner=LinearRegressor(),
                 cv_strategy=CV(),
-                evo_2=EvoTreeRegressor(max_depth=2), 
-                evo_3=EvoTreeRegressor(max_depth=3),
-                lr=LinearRegressor())
+                library...)
 
 mach = machine(stack, X, y)
-evaluate!(mach; resampling=CV(), measure=rmse)
+evaluate!(mach; resampling=Holdout(), measure=rmse)
+
 ```
 
 """
