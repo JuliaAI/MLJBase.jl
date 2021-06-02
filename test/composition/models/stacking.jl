@@ -13,10 +13,11 @@ rng = Random.seed!(1234)
 
 
 function model_evaluation(models::NamedTuple, X, y; measure=rmse)
+    cv = CV(;nfolds=3)
     results = []
     for model in models
         mach = machine(model, X, y)
-        ev = evaluate!(mach; resampling=CV(;nfolds=3), measure=measure, check_measure=false)
+        ev = evaluate!(mach; resampling=cv, measure=measure, check_measure=false)
         push!(results, ev.measurement[1])
     end
     results
@@ -33,13 +34,14 @@ end
     # No model in the stack can recover the true model on its own 
     # Indeed, FooBarRegressor has no intercept 
     # By combining models, the stack can generalize better than any submodel
+    # And optimize the rmse
 
     models = (constant=DeterministicConstantRegressor(),
                 decisiontree=DecisionTreeRegressor(), 
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    mystack = stack(;metalearner=FooBarRegressor(),
+    mystack = Stack(;metalearner=FooBarRegressor(),
                     cv_strategy=CV(;nfolds=3),
                     models...)
     
@@ -52,7 +54,7 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    mystack = stack(;metalearner=FooBarRegressor(),
+    mystack = Stack(;metalearner=FooBarRegressor(),
                     cv_strategy=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
@@ -87,7 +89,7 @@ end
 
         # The type of the stack is determined by the type of the metalearner
         metalearner = ConstantRegressor(;distribution_type=Distributions.Cauchy)
-        mystack = stack(;metalearner=metalearner,
+        mystack = Stack(;metalearner=metalearner,
                     cv_strategy=CV(;nfolds=3),
                     models...)
 
@@ -109,8 +111,8 @@ end
                 decisiontree=DecisionTreeClassifier(), 
                 knn=KNNClassifier())
 
-    mystack = stack(;metalearner=DecisionTreeClassifier(),
-                    cv_strategy=CV(;nfolds=3),
+    mystack = Stack(;metalearner=DecisionTreeClassifier(),
+                    cv_strategy=StratifiedCV(;nfolds=3),
                     models...)
     
     
@@ -128,14 +130,10 @@ end
 @testset "Stack constructor valid argument checks" begin
     # metalearner should have target_scitype:
     # Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}}
-    @test_throws ArgumentError stack(;metalearner=Standardizer(),
+    @test_throws ArgumentError Stack(;metalearner=Standardizer(),
                         constant=ConstantClassifier())
 
-    # models should have the same target scitype as the metalearner
-    @test_throws ArgumentError stack(;metalearner=ConstantClassifier(),
-                        constant=KNNRegressor())
-
-    @test_throws ArgumentError stack(;constant=KNNRegressor())
+    @test_throws ArgumentError Stack(;constant=KNNRegressor())
 end
 
 end

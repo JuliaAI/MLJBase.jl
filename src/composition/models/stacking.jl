@@ -50,10 +50,45 @@ const Stack{modelnames, input_scitype, target_scitype} =
             ProbabilisticStack{modelnames, input_scitype, target_scitype}}
 
 """
+    Stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
 
-Implements the generalized Stack algorithm introduced by Wolpert in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231
+Implements the generalized Stack algorithm introduced by Wolpert 
+in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and 
+generalized by Van der Laan et al in https://biostats.bepress.com/ucbbiostat/paper222/.
+
+
+We currently provide two different stack types the `DeterministicStack` and the `ProbabilisticStack`.
+The type of which is automatically chosen by the constructor based on the provided metalearner.
+
+# Arguments
+- `metalearner::Model`: The model that will optimize the desired criterion based on its internals. 
+                        For instance, a LinearRegression model will optimize the squared error.
+- `cv_strategy::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
+- `named_models`: The models that will be part of the library
+
+# Example
+
+Let's build a simple DeterministicStack.
+
+```julia
+using MLJBase
+using EvoTrees
+using MLJLinearModels
+
+X, y = make_regression(500, 5)
+
+stack = Stack(;metalearner=LinearRegressor(),
+                cv_strategy=CV(),
+                evo_2=EvoTreeRegressor(max_depth=2), 
+                evo_3=EvoTreeRegressor(max_depth=3),
+                lr=LinearRegressor())
+
+mach = machine(stack, X, y)
+evaluate!(mach; resampling=CV(), measure=rmse)
+```
+
 """
-function stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
+function Stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
     metalearner === nothing && throw(ArgumentError("metalearner argument should be overrided"))
 
     nt = NamedTuple(named_models)
@@ -75,20 +110,13 @@ end
 
 
 function MMI.clean!(stack::Stack)
-    # We only carry checks and don't try to modify the arguments here
+    # We only carry checks and don't try to correct the arguments here
     message = ""
-    # I think this suffices to ensure adequation between models and the metalearner
-    # to the best of the constructor's knowledge (unknown data)
-    # as I'm not considering deterministic classifiers for now
+
     target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
         throw(ArgumentError("The metalearner should have target_scitype: 
                 $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
 
-    for model in stack.models 
-        target_scitype(model) == target_scitype(stack.metalearner) ||
-            throw(ArgumentError("target_scitype of $model should be the same as the metalearner's, 
-                    ie $(target_scitype(stack.metalearner))"))
-    end
     return message
 end
 
