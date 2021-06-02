@@ -39,9 +39,9 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    mystack = stack(FooBarRegressor();
-        cv_strategy=CV(;nfolds=3),
-        models...)
+    mystack = stack(;metalearner=FooBarRegressor(),
+                    cv_strategy=CV(;nfolds=3),
+                    models...)
     
     results = model_evaluation((stack=mystack, models...), X, y)
     @test argmin(results) == 1
@@ -52,7 +52,7 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1), 
                 ridge=FooBarRegressor(;lambda=0))
 
-    mystack = stack(FooBarRegressor();
+    mystack = stack(;metalearner=FooBarRegressor(),
                     cv_strategy=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
@@ -87,7 +87,7 @@ end
 
         # The type of the stack is determined by the type of the metalearner
         metalearner = ConstantRegressor(;distribution_type=Distributions.Cauchy)
-        mystack = stack(metalearner;
+        mystack = stack(;metalearner=metalearner,
                     cv_strategy=CV(;nfolds=3),
                     models...)
 
@@ -109,7 +109,7 @@ end
                 decisiontree=DecisionTreeClassifier(), 
                 knn=KNNClassifier())
 
-    mystack = stack(DecisionTreeClassifier();
+    mystack = stack(;metalearner=DecisionTreeClassifier(),
                     cv_strategy=CV(;nfolds=3),
                     models...)
     
@@ -128,12 +128,14 @@ end
 @testset "Stack constructor valid argument checks" begin
     # metalearner should have target_scitype:
     # Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}}
-    @test_throws ArgumentError stack(Standardizer(); 
+    @test_throws ArgumentError stack(;metalearner=Standardizer(),
                         constant=ConstantClassifier())
 
     # models should have the same target scitype as the metalearner
-    @test_throws ArgumentError stack(ConstantClassifier(); 
+    @test_throws ArgumentError stack(;metalearner=ConstantClassifier(),
                         constant=KNNRegressor())
+
+    @test_throws ArgumentError stack(;constant=KNNRegressor())
 end
 
 end

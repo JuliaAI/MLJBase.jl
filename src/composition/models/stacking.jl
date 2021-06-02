@@ -57,7 +57,9 @@ const Stack{modelnames, input_scitype, target_scitype} =
 
 Implements the generalized Stack algorithm introduced by Wolpert in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231
 """
-function stack(metalearner; cv_strategy=CV(), named_models...)
+function stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
+    metalearner === nothing && throw(ArgumentError("metalearner argument should be overrided"))
+
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = values(nt)
