@@ -83,9 +83,11 @@ The type of which is automatically chosen by the constructor based on the provid
 
 Let's build a simple DeterministicStack for a continuous target, we show that:  
 
-    - It composes easily with pipelines in the library.
-    - Some members of the library may very well be `Probabilistic` models even though the stack 
-    is `Deterministic`, the expected value will be taken.
+- It composes easily with pipelines in the library.
+- Some members of the library may very well be `Probabilistic` models even though the stack 
+is `Deterministic`, the expected value will be taken.
+- Rather than running a hyperparameter search, you can integrate each model in the stack
+
 
 ```julia
 using MLJ
