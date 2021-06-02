@@ -2,10 +2,6 @@
 ################ Structures ################ 
 ############################################
 
-# The type hierarchy is not very satisfying as it is as I have to 
-# define almost the same struct twice for DeterministicStack and ProbabilisticStack
-# The problem is that I can't subtype Composite to define the abstract Stack
-
 function is_glb(potential_glb, models)
     for model in models
         if !(potential_glb <: input_scitype(model))
@@ -63,9 +59,6 @@ function stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = values(nt)
-
-    # input_scitype(metalearner) <: Table{<:Continuous} || 
-    #     error("The metalearner should have input_scitype<:Table(Continuous)")
 
     # I think this suffices to ensure adequation between models and the metalearner
     # to the best of the constructor's knowledge (unknown data)
