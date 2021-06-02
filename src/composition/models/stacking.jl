@@ -60,37 +60,38 @@ function stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
     modelnames = keys(nt)
     models = values(nt)
 
-    # I think this suffices to ensure adequation between models and the metalearner
-    # to the best of the constructor's knowledge (unknown data)
-    # as I'm not considering deterministic classifiers for now
-    target_scitype(metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
-        throw(ArgumentError("The metalearner should have target_scitype: 
-                $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
-
-    for model in models 
-        target_scitype(model) == target_scitype(metalearner) ||
-            throw(ArgumentError("target_scitype of $model should be the same as the metalearner's, 
-                    ie $(target_scitype(metalearner))"))
-    end
-
     if metalearner isa Deterministic
-        return DeterministicStack(modelnames, models, metalearner, cv_strategy)
+        stack =  DeterministicStack(modelnames, models, metalearner, cv_strategy)
     elseif metalearner isa Probabilistic
-        return ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
+        stack = ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
     else
-        error("The metalearner should be a subtype of $(Union{Deterministic, Probabilistic})")
+        throw(ArgumentError("The metalearner should be a subtype 
+                    of $(Union{Deterministic, Probabilistic})"))
     end
+    MMI.clean!(stack)
+
+    return stack
 end
 
 
-# function MMI.clean!(model::Stack)
-#     warning = ""
-#     if model.lambda < 0
-#         warning *= "Need lambda ≥ 0. Resetting lambda=0. "
-#         model.lambda = 0
-#     end
-#     return warning
-# end
+function MMI.clean!(stack::Stack)
+    # We only carry checks and don't try to modify the arguments here
+    message = ""
+    # I think this suffices to ensure adequation between models and the metalearner
+    # to the best of the constructor's knowledge (unknown data)
+    # as I'm not considering deterministic classifiers for now
+    target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
+        throw(ArgumentError("The metalearner should have target_scitype: 
+                $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
+
+    for model in stack.models 
+        target_scitype(model) == target_scitype(stack.metalearner) ||
+            throw(ArgumentError("target_scitype of $model should be the same as the metalearner's, 
+                    ie $(target_scitype(stack.metalearner))"))
+    end
+    return message
+end
+
 
 Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
 
