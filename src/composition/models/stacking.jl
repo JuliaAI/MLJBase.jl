@@ -119,7 +119,8 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 
 """
 function Stack(;metalearner=nothing, resampling=CV(), named_models...)
-    metalearner === nothing && throw(ArgumentError("metalearner argument should be overrided"))
+    metalearner === nothing && 
+        throw(ArgumentError("metalearner=$metalearner argument should be overrided"))
 
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
@@ -133,8 +134,9 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
         throw(ArgumentError("The metalearner should be a subtype 
                     of $(Union{Deterministic, Probabilistic})"))
     end
-    MMI.clean!(stack)
-
+    message = MMI.clean!(stack)
+    isempty(message) || @warn message
+    
     return stack
 end
 
