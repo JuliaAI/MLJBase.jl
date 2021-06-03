@@ -8,9 +8,7 @@ using Random
 
 import Distributions
 
-
-rng = Random.seed!(1234)
-
+rng = 1
 
 function model_evaluation(models::NamedTuple, X, y; measure=rmse)
     cv = CV(;nfolds=3)
@@ -25,7 +23,7 @@ end
 
 
 @testset "Testing Stack on Continuous target" begin
-    X, y = make_regression(500, 5)
+    X, y = make_regression(500, 5; rng=rng)
 
     @testset "Testing Deterministic Stack" begin
     # Testing performance
@@ -42,7 +40,7 @@ end
                 ridge=FooBarRegressor(;lambda=0))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
-                    cv_strategy=CV(;nfolds=3),
+                    resampling=CV(;nfolds=3),
                     models...)
     
     results = model_evaluation((stack=mystack, models...), X, y)
@@ -55,10 +53,10 @@ end
                 ridge=FooBarRegressor(;lambda=0))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
-                    cv_strategy=CV(;nfolds=3),
+                    resampling=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(mystack) == (:cv_strategy, :metalearner, :models, :constant, 
+    @test propertynames(mystack) == (:resampling, :metalearner, :models, :constant, 
                                     :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
@@ -90,7 +88,7 @@ end
         # The type of the stack is determined by the type of the metalearner
         metalearner = ConstantRegressor(;distribution_type=Distributions.Cauchy)
         mystack = Stack(;metalearner=metalearner,
-                    cv_strategy=CV(;nfolds=3),
+                    resampling=CV(;nfolds=3),
                     models...)
 
         @test target_scitype(mystack) == target_scitype(metalearner)
@@ -105,14 +103,14 @@ end
 end
 
 @testset "Testing ProbabilisticStack on Finite target" begin
-    X, y = make_blobs()
+    X, y = make_blobs(;rng=rng)
 
     models = (constant=ConstantClassifier(),
                 decisiontree=DecisionTreeClassifier(), 
                 knn=KNNClassifier())
 
     mystack = Stack(;metalearner=DecisionTreeClassifier(),
-                    cv_strategy=StratifiedCV(;nfolds=3),
+                    resampling=StratifiedCV(;nfolds=3),
                     models...)
     
     

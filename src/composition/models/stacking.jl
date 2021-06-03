@@ -25,22 +25,22 @@ end
 mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: DeterministicComposite
    models::NTuple{<:Any, Supervised}
    metalearner::Deterministic
-   cv_strategy::Union{CV, StratifiedCV} 
-   function DeterministicStack(modelnames, models, metalearner, cv_strategy)
+   resampling
+   function DeterministicStack(modelnames, models, metalearner, resampling)
         target_scitype = MMI.target_scitype(metalearner)
         input_scitype = glb(models)
-        return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
+        return new{modelnames, input_scitype, target_scitype}(models, metalearner, resampling)
    end
 end
 
 mutable struct ProbabilisticStack{modelnames, input_scitype, target_scitype} <: ProbabilisticComposite
     models::NTuple{<:Any, Supervised}
     metalearner::Probabilistic
-    cv_strategy::Union{CV, StratifiedCV} 
-    function ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
+    resampling
+    function ProbabilisticStack(modelnames, models, metalearner, resampling)
         target_scitype = MMI.target_scitype(metalearner)
         input_scitype = glb(models)
-        return new{modelnames, input_scitype, target_scitype}(models, metalearner, cv_strategy)
+        return new{modelnames, input_scitype, target_scitype}(models, metalearner, resampling)
     end
  end
 
@@ -50,7 +50,7 @@ const Stack{modelnames, input_scitype, target_scitype} =
             ProbabilisticStack{modelnames, input_scitype, target_scitype}}
 
 """
-    Stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
+    Stack(;metalearner=nothing, resampling=CV(), named_models...)
 
 Implements the generalized Stack algorithm introduced by Wolpert 
 in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and 
@@ -76,7 +76,7 @@ The type of which is automatically chosen by the constructor based on the provid
 # Arguments
 - `metalearner::Model`: The model that will optimize the desired criterion based on its internals. 
                         For instance, a LinearRegression model will optimize the squared error.
-- `cv_strategy::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
+- `resampling::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
 - `named_models`: The models that will be part of the library
 
 # Examples
@@ -109,7 +109,7 @@ library = (constant=ConstantRegressor(),
             std_lr=std_lr)
 
 stack = Stack(;metalearner=LinearRegressor(),
-                cv_strategy=CV(),
+                resampling=CV(),
                 library...)
 
 mach = machine(stack, X, y)
@@ -118,7 +118,7 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 ```
 
 """
-function Stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
+function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     metalearner === nothing && throw(ArgumentError("metalearner argument should be overrided"))
 
     nt = NamedTuple(named_models)
@@ -126,9 +126,9 @@ function Stack(;metalearner=nothing, cv_strategy=CV(), named_models...)
     models = values(nt)
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, cv_strategy)
+        stack =  DeterministicStack(modelnames, models, metalearner, resampling)
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, cv_strategy)
+        stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
     else
         throw(ArgumentError("The metalearner should be a subtype 
                     of $(Union{Deterministic, Probabilistic})"))
@@ -151,12 +151,12 @@ function MMI.clean!(stack::Stack)
 end
 
 
-Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:cv_strategy, :metalearner, :models, modelnames...)
+Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:resampling, :metalearner, :models, modelnames...)
 
 
 function Base.getproperty(stack::Stack{modelnames, <:Any, <:Any}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
-    name === :cv_strategy && return getfield(stack, :cv_strategy)
+    name === :resampling && return getfield(stack, :resampling)
     name === :models && return getfield(stack, :models)
     models = getfield(stack, :models)
     for j in eachindex(modelnames)
@@ -224,9 +224,9 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zval = []
     yval = []
 
-    folds = getfolds(y, m.cv_strategy, n)
+    folds = getfolds(y, m.resampling, n)
     # Loop over the cross validation folds to build a training set for the metalearner.
-    for nfold in 1:m.cv_strategy.nfolds
+    for nfold in 1:m.resampling.nfolds
         Xtrain = trainrows(X, folds, nfold)
         ytrain = trainrows(y, folds, nfold)
         Xtest = testrows(X, folds, nfold)
