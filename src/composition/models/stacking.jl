@@ -23,7 +23,7 @@ end
 
 
 mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: DeterministicComposite
-   models::NTuple{<:Any, Supervised}
+   models::Vector{Supervised}
    metalearner::Deterministic
    resampling
    function DeterministicStack(modelnames, models, metalearner, resampling)
@@ -34,7 +34,7 @@ mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: 
 end
 
 mutable struct ProbabilisticStack{modelnames, input_scitype, target_scitype} <: ProbabilisticComposite
-    models::NTuple{<:Any, Supervised}
+    models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
     function ProbabilisticStack(modelnames, models, metalearner, resampling)
@@ -124,7 +124,7 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
 
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
-    models = values(nt)
+    models = collect(nt)
 
     if metalearner isa Deterministic
         stack =  DeterministicStack(modelnames, models, metalearner, resampling)
@@ -136,7 +136,7 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     end
     message = MMI.clean!(stack)
     isempty(message) || @warn message
-    
+
     return stack
 end
 
@@ -163,7 +163,16 @@ function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnam
     for j in eachindex(modelnames)
         name === modelnames[j] && return models[j]
     end
-    error("type Stack has no field $name")
+    error("type Stack has no property $name")
+end
+
+
+function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where modelnames
+    _name === :metalearner && return setfield!(stack, :metalearner, val)
+    _name === :resampling && return setfield!(stack, :resampling, val)
+    idx = findfirst(==(_name), modelnames)
+    idx isa Nothing || return getfield(stack, :models)[idx] = val
+    error("type Stack has no property $name")
 end
 
 

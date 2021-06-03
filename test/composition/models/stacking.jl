@@ -136,6 +136,30 @@ end
     @test_throws ArgumentError Stack(;constant=KNNRegressor())
 end
 
+
+@testset "Misc" begin 
+    # Test setproperty! behaviour
+    models = (constant=DeterministicConstantRegressor(),
+                decisiontree=DecisionTreeRegressor(), 
+                ridge_lambda=FooBarRegressor(;lambda=0.1))
+
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    models...)
+    @test mystack.ridge_lambda.lambda == 0.1
+    @test mystack.metalearner isa FooBarRegressor
+    @test mystack.resampling isa CV
+    
+    mystack.ridge_lambda = FooBarRegressor(;lambda=0.2)
+    @test mystack.ridge_lambda.lambda == 0.2
+
+    mystack.metalearner = DecisionTreeRegressor()
+    @test mystack.metalearner isa DecisionTreeRegressor
+
+    mystack.resampling = StratifiedCV()
+    @test mystack.resampling isa StratifiedCV
+
 end
 
+end
 true
