@@ -151,13 +151,12 @@ function MMI.clean!(stack::Stack)
 end
 
 
-Base.propertynames(::Stack{modelnames, <:Any, <:Any}) where modelnames = tuple(:resampling, :metalearner, :models, modelnames...)
+Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:resampling, :metalearner, modelnames...)
 
 
-function Base.getproperty(stack::Stack{modelnames, <:Any, <:Any}, name::Symbol) where modelnames
+function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
     name === :resampling && return getfield(stack, :resampling)
-    name === :models && return getfield(stack, :models)
     models = getfield(stack, :models)
     for j in eachindex(modelnames)
         name === modelnames[j] && return models[j]
@@ -235,7 +234,7 @@ function fit(m::Stack, verbosity::Int, X, y)
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
         Zfold = []
-        for model in m.models
+        for model in getfield(m, :models)
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
             # Dispatch the computation of the expected mean based on 
@@ -257,7 +256,7 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     # Each model is retrained on the original full training set
     Zpred = []
-    for model in m.models
+    for model in getfield(m, :models)
         mach = machine(model, X, y)
         ypred = predict(mach, X)
         ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
