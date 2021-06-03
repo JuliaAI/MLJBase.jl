@@ -5,10 +5,12 @@ using MLJBase
 using MLJModelInterface
 using ..Models
 using Random
+using StableRNGs
 
 import Distributions
 
-rng = 1
+rng = StableRNGs.StableRNG(1234)
+
 
 function model_evaluation(models::NamedTuple, X, y; measure=rmse)
     cv = CV(;nfolds=3)
@@ -103,7 +105,7 @@ end
 end
 
 @testset "Testing ProbabilisticStack on Finite target" begin
-    X, y = make_blobs(;rng=rng)
+    X, y = make_blobs(;rng=rng, shuffle=false)
 
     models = (constant=ConstantClassifier(),
                 decisiontree=DecisionTreeClassifier(), 
