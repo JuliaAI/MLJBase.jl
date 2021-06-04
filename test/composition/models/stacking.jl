@@ -17,7 +17,7 @@ function model_evaluation(models::NamedTuple, X, y; measure=rmse)
     results = []
     for model in models
         mach = machine(model, X, y)
-        ev = evaluate!(mach; resampling=cv, measure=measure, check_measure=false)
+        ev = evaluate!(mach; resampling=cv, verbosity=0, measure=measure, check_measure=false)
         push!(results, ev.measurement[1])
     end
     results
@@ -70,7 +70,7 @@ end
     # submodel. They are in order of the cross validation procedure.
     # Here 3-folds then 3 machines + the final fit
     mach = machine(mystack, X, y)
-    fit!(mach)
+    fit!(mach, verbosity=0)
     fp = fitted_params(mach)
     @test nrows(getfield(fp, :constant)) == 4
     @test nrows(getfield(fp, :decisiontree)) == 4
@@ -97,7 +97,7 @@ end
         @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
         mach = machine(mystack, X, y)
-        fit!(mach)
+        fit!(mach, verbosity=0)
         @test predict(mach) isa Vector{Distributions.Cauchy{Float64}}
 
     end
@@ -122,7 +122,7 @@ end
     @test input_scitype(mystack) == input_scitype(KNNClassifier())
 
     mach = machine(mystack, X, y)
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
 
 end
@@ -158,6 +158,14 @@ end
 
     mystack.resampling = StratifiedCV()
     @test mystack.resampling isa StratifiedCV
+
+    # Currently this will pass
+    modelnames = (:resampling, :metalearner)
+    models = [DeterministicConstantRegressor(), FooBarRegressor(;lambda=0)]
+    metalearner = DeterministicConstantRegressor()
+    resampling = CV()
+
+    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling)
 
 end
 

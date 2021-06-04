@@ -83,7 +83,6 @@ The type of which is automatically chosen by the constructor based on the provid
 
 Let's build a simple DeterministicStack for a continuous target, we show that:  
 
-- It composes easily with pipelines in the library.
 - Some members of the library may very well be `Probabilistic` models even though the stack 
 is `Deterministic`, the expected value will be taken.
 - Rather than running a hyperparameter search, you can integrate each model in the stack
@@ -91,26 +90,23 @@ is `Deterministic`, the expected value will be taken.
 
 ```julia
 using MLJ
-using MLJDecisionTreeInterface
-using MLJLinearModels
-using NearestNeighborModels
-using EvoTrees
-using MLJXGBoostInterface
+
+DecisionTreeRegressor = @load DecisionTreeRegressor pkg=DecisionTree
+EvoTreeRegressor = @load EvoTreeRegressor
+XGBoostRegressor = @load XGBoostRegressor
+KNNRegressor = @load KNNRegressor pkg=NearestNeighborModels
+LinearRegressor = @load LinearRegressor pkg=MLJLinearModels
 
 X, y = make_regression(500, 5)
 
-std_lr = @pipeline Standardizer() LinearRegressor()
-library = (constant=ConstantRegressor(),
-            tree_2=DecisionTreeRegressor(max_depth=2), 
-            tree_3=DecisionTreeRegressor(max_depth=3),
-            evo=EvoTreeRegressor(),
-            knn=KNNRegressor(),
-            xgb=XGBoostRegressor(),
-            std_lr=std_lr)
-
 stack = Stack(;metalearner=LinearRegressor(),
                 resampling=CV(),
-                library...)
+                constant=ConstantRegressor(),
+                tree_2=DecisionTreeRegressor(max_depth=2), 
+                tree_3=DecisionTreeRegressor(max_depth=3),
+                evo=EvoTreeRegressor(),
+                knn=KNNRegressor(),
+                xgb=XGBoostRegressor())
 
 mach = machine(stack, X, y)
 evaluate!(mach; resampling=Holdout(), measure=rmse)
@@ -120,7 +116,7 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 """
 function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     metalearner === nothing && 
-        throw(ArgumentError("metalearner=$metalearner argument should be overrided"))
+        throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
@@ -211,7 +207,7 @@ end
 
 
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) = 
-    node(ŷ->pdf.(ŷ, levels.(ŷ)), ŷ)
+    node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) = 
     node(ŷ->mean.(ŷ), ŷ)
