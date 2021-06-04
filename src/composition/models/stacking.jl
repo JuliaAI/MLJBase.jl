@@ -187,7 +187,7 @@ MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) wh
 
 
 function getfolds(y::AbstractNode, cv::CV, n::Int)
-    folds = source(train_test_pairs(cv, 1:n))
+    source(train_test_pairs(cv, 1:n))
 end
 
 
@@ -224,19 +224,19 @@ pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<
 function fit(m::Stack, verbosity::Int, X, y)
     n = nrows(y)
 
-    X = source(X)
-    y = source(y)
+    Xs = source(X)
+    ys = source(y)
 
     Zval = []
     yval = []
 
-    folds = getfolds(y, m.resampling, n)
+    folds = getfolds(ys, m.resampling, n)
     # Loop over the cross validation folds to build a training set for the metalearner.
     for nfold in 1:m.resampling.nfolds
-        Xtrain = trainrows(X, folds, nfold)
-        ytrain = trainrows(y, folds, nfold)
-        Xtest = testrows(X, folds, nfold)
-        ytest = testrows(y, folds, nfold)
+        Xtrain = trainrows(Xs, folds, nfold)
+        ytrain = trainrows(ys, folds, nfold)
+        Xtest = testrows(Xs, folds, nfold)
+        ytest = testrows(ys, folds, nfold)
         
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
@@ -264,8 +264,8 @@ function fit(m::Stack, verbosity::Int, X, y)
     # Each model is retrained on the original full training set
     Zpred = []
     for model in getfield(m, :models)
-        mach = machine(model, X, y)
-        ypred = predict(mach, X)
+        mach = machine(model, Xs, ys)
+        ypred = predict(mach, Xs)
         ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
         push!(Zpred, ypred)
     end
@@ -274,7 +274,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     ŷ = predict(metamach, Zpred)
 
     # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), X, y; predict=ŷ)
+    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ)
 
     return!(mach, m, verbosity)
 
