@@ -186,26 +186,19 @@ MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) wh
 ###########################################################
 
 
-function getfolds(y::AbstractNode, cv::CV, n::Int)
+getfolds(y::AbstractNode, cv::CV, n::Int) = 
     source(train_test_pairs(cv, 1:n))
-end
 
-
-function getfolds(y::AbstractNode, cv::StratifiedCV, n::Int)
+getfolds(y::AbstractNode, cv::StratifiedCV, n::Int) =
     node(YY->train_test_pairs(cv, 1:n, YY), y)
-end
 
-
-function trainrows(X::AbstractNode, folds::AbstractNode, nfold)
+trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][1]), X, folds)
-end
 
-
-function testrows(X::AbstractNode, folds::AbstractNode, nfold)
+testrows(X::AbstractNode, folds::AbstractNode, nfold) = 
     node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
-end
 
-
+    
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) = 
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
@@ -214,6 +207,7 @@ pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<
 
 pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) = 
     ŷ
+
 
 function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
