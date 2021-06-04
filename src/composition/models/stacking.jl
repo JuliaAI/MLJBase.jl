@@ -215,22 +215,9 @@ pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<
 pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) = 
     ŷ
 
-#######################################
-################# Fit ################# 
-#######################################
-"""
-    fit(m::Stack, verbosity::Int, X, y)
-"""
-function fit(m::Stack, verbosity::Int, X, y)
-    n = nrows(y)
-
-    Xs = source(X)
-    ys = source(y)
-
+function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
     yval = []
-
-    folds = getfolds(ys, m.resampling, n)
     # Loop over the cross validation folds to build a training set for the metalearner.
     for nfold in 1:m.resampling.nfolds
         Xtrain = trainrows(Xs, folds, nfold)
@@ -258,6 +245,25 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     Zval = MLJBase.table(vcat(Zval...))
     yval = vcat(yval...)
+
+    Zval, yval
+end
+
+#######################################
+################# Fit ################# 
+#######################################
+"""
+    fit(m::Stack, verbosity::Int, X, y)
+"""
+function fit(m::Stack, verbosity::Int, X, y)
+    n = nrows(y)
+
+    Xs = source(X)
+    ys = source(y)
+
+    folds = getfolds(ys, m.resampling, n)
+    
+    Zval, yval = oos_set(m, folds, Xs, ys)
 
     metamach = machine(m.metalearner, Zval, yval)
 
