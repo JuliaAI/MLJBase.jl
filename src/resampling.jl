@@ -302,7 +302,8 @@ const PerformanceEvaluation = NamedTuple{(:measure,
                                           :per_fold,
                                           :per_observation,
                                           :fitted_params_per_fold,
-                                          :report_per_fold)}
+                                          :report_per_fold,
+                                          :train_test_rows)}
 
 # pretty printing:
 round3(x) = x
@@ -323,6 +324,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "_.per_observation = $(_short(e.per_observation))")
     println(io, "_.fitted_params_per_fold = [ … ]")
     println(io, "_.report_per_fold = [ … ]")
+    println(io, "_.train_test_rows = [ … ]")
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)
@@ -363,11 +365,10 @@ function _check_measure(measure, model, y, operation)
     if model isa Probabilistic
         if operation == predict
             if prediction_type(measure) != :probabilistic
-                suggestion = ""
-                if target_scitype(measure) <: Finite
+                if target_scitype(measure) <: AbstractVector{<:Finite}
                     suggestion = "\nPerhaps you want to set operation="*
                     "predict_mode. "
-                elseif target_scitype(measure) <: Continuous
+                elseif target_scitype(measure) <: AbstractVector{<:Continuous}
                     suggestion = "\nPerhaps you want to set operation="*
                     "predict_mean or operation=predict_median. "
                 else
@@ -655,7 +656,7 @@ function evaluate!(mach::Machine{<:Supervised};
         end
         if repeats != 1 && verbosity > 0
             @warn "repeats > 1 not supported unless "*
-            "`resampling<:ResamplingStrategy. "
+            "`resampling <: ResamplingStrategy. "
         end
     end
 
@@ -941,7 +942,8 @@ function evaluate!(mach::Machine, resampling, weights,
            per_fold               = per_fold,
            per_observation        = per_observation,
            fitted_params_per_fold = fitted_params_per_fold |> collect,
-           report_per_fold        = report_per_fold |> collect)
+           report_per_fold        = report_per_fold |> collect,
+           train_test_rows       = resampling)
 
     return ret
 
@@ -988,8 +990,8 @@ end
                           check_measure=true)
 
 Resampling model wrapper, used internally by the `fit` method of
-`TunedModel` instances. See [`evaluate!](@ref) for options. Not
-intended for general use.
+`TunedModel` instances and `IteratedModel` instances. See
+[`evaluate!](@ref) for options. Not intended for general use.
 
 Given a machine `mach = machine(resampler, args...)` one obtains a
 performance evaluation of the specified `model`, performed according
@@ -997,12 +999,16 @@ to the prescribed `resampling` strategy and other parameters, using
 data `args...`, by calling `fit!(mach)` followed by
 `evaluate(mach)`.
 
-The resampler internally binds `model` to the supplied data `args` in
-a machine (called `mach_train` below) on which `evaluate!` is called
-with all the options passed to the `Resampler` constructor. The
-advantage over using `evaluate(model, args...)` directly is that, for
-`Holdout` resampling, calling `fit!(mach)` only triggers a cold
-restart of `mach_train` if necessary.
+On subsequent calls to `fit!(mach)` new train/test pairs of row
+indices are only regenerated if `resampling`, `repeats` or `cache`
+fields of `resampler` have changed. The evolution of an RNG field of
+`resampler` does *not* constitute a change (`==` for `MLJType` objects
+is not sensitive to such changes; see [`is_same_except'](@ref)). 
+
+If there is single train/test pair, then warm-restart behavior of the
+wrapped model `resampler.model` will extend to warm-restart behaviour
+of the wrapper `resampler`, with respect to mutations of the wrapped
+model.
 
 The sample `weights` are passed to the specified performance measures
 that support weights for evaluation. These weights are not to be
@@ -1082,7 +1088,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...; cache=resampler.cache)
 
-    measures =
+    _measures =
         _process_weights_measures(resampler.weights,
                                   resampler.class_weights,
                                   resampler.measure,
@@ -1100,54 +1106,47 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
                   nothing,
                   verbosity - 1,
                   resampler.repeats,
-                  measures,
+                  _measures,
                   resampler.operation,
                   _acceleration,
                   false)
 
-    fitresult = (machine=mach, evaluation=e)
-    cache = deepcopy(resampler.resampling)
+    fitresult = (machine = mach, evaluation = e)
+    cache = (resampler = deepcopy(resampler),
+             acceleration = _acceleration)
     report =(evaluation = e, )
 
     return fitresult, cache, report
 
 end
 
-# in special case of non-shuffled, non-repeated holdout, we can reuse
-# the underlying model's machine, provided the training_fraction has
-# not changed:
-function MLJModelInterface.update(resampler::Resampler{Holdout},
-                        verbosity::Int, fitresult, cache, args...)
+function MLJModelInterface.update(resampler::Resampler,
+                                  verbosity::Int,
+                                  fitresult,
+                                  cache,
+                                  args...)
 
-    old_resampling = cache
-    old_mach = fitresult.machine
+    old_resampler, acceleration = cache
 
-    reusable = !resampler.resampling.shuffle &&
-        resampler.repeats == 1 &&
-        old_resampling.fraction_train ==
-        resampler.resampling.fraction_train
-
-    if reusable
-        mach = old_mach
-    else
-        mach = machine(resampler.model, args...; cache=resampler.cache)
-        cache = (mach, deepcopy(resampler.resampling))
+    # if we need to generate new train/test pairs, or data caching
+    # option has changed, then fit from scratch:
+    if resampler.resampling != old_resampler.resampling ||
+        resampler.repeats != old_resampler.repeats ||
+        resampler.cache != old_resampler.cache
+        return MLJModelInterface.fit(resampler, verbosity, args...)
     end
 
-    measures =
-        _process_weights_measures(resampler.weights,
-                                  resampler.class_weights,
-                                  resampler.measure,
-                                  mach,
-                                  resampler.operation,
-                                  verbosity,
-                                  resampler.check_measure)
+    mach, e = fitresult
+    train_test_rows = e.train_test_rows
 
-    _acceleration = _process_accel_settings(resampler.acceleration)
+    measures = e.measure
 
+    # update the model:
     mach.model = resampler.model
+
+    # re-evaluate:
     e = evaluate!(mach,
-                  resampler.resampling,
+                  train_test_rows,
                   resampler.weights,
                   resampler.class_weights,
                   nothing,
@@ -1155,15 +1154,18 @@ function MLJModelInterface.update(resampler::Resampler{Holdout},
                   resampler.repeats,
                   measures,
                   resampler.operation,
-                  _acceleration,
+                  acceleration,
                   false)
 
     report = (evaluation = e, )
     fitresult = (machine=mach, evaluation=e)
+    cache = (resampler = deepcopy(resampler),
+             acceleration = acceleration)
 
     return fitresult, cache, report
 
 end
+
 
 StatisticalTraits.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
     StatisticalTraits.input_scitype(M)
@@ -1183,4 +1185,3 @@ function evaluate(machine::Machine{<:Resampler})
         throw(error("$machine has not been trained."))
     end
 end
-
