@@ -159,13 +159,34 @@ end
     mystack.resampling = StratifiedCV()
     @test mystack.resampling isa StratifiedCV
 
-    # Currently this will pass
+end
+
+@testset "Looking back at the errors" begin
+    # using inner constructor accepts :resampling and :metalearner
+    # as modelnames
     modelnames = (:resampling, :metalearner)
     models = [DeterministicConstantRegressor(), FooBarRegressor(;lambda=0)]
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
 
     MLJBase.DeterministicStack(modelnames, models, metalearner, resampling)
+
+    # Potential bug?
+    x = Float64[1, 1, 2, 2, 3, 3]
+    X = (x = x,)
+    y = coerce(['a', 'b', 'b', 'c', 'a', 'a'], Multiclass)
+
+    model1 = KNNClassifier(K=2)
+    model2 = ConstantClassifier()
+    judge = KNNClassifier(K=3)
+
+    stack = Stack(metalearner=judge,
+        model1=model1,
+        model2=model2,
+        resampling=CV(nfolds=3))
+
+    mach = machine(stack, X, y)
+    fit!(mach)
 
 end
 
