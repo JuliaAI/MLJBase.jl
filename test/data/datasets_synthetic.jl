@@ -1,6 +1,5 @@
 module TestDatasetsSynthetic
 
-using Core: Argument
 using Test
 using MLJBase
 using Random
