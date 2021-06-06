@@ -41,6 +41,14 @@ p4 = range(dummy_model, :K, lower=1, upper=3, scale=x->2x)
 
 [p4, p4]
 
+# Starting from julia v"1.7.0-DEV.1233", the default RNG has changed
+# create a function giving julia version dependent default RNG with seed.
+@static if VERSION >= v"1.7.0-DEV.1230"
+    _default_rng(seed) = (rng = TaskLocalRNG(); Random.seed!(rng, seed))
+else
+    _default_rng(seed) = MersenneTwister(seed)
+end
+
 @testset "scale transformations" begin
     @test transform(MLJBase.Scale, scale(:log), ℯ) == 1
     @test inverse_transform(MLJBase.Scale, scale(:log), 1) == float(ℯ)
@@ -179,7 +187,7 @@ end
         @test all(x >= 0.2 for x in v)
         @test abs(minimum(v)/0.2 - 1) <= 0.01
 
-        rng = Random.MersenneTwister(1);
+        rng = _default_rng(1);
         @test rand(rng, s, 1000) == v
 
         q = quantile(v, 0.0:0.1:1.0)
@@ -190,23 +198,22 @@ end
     end
 
     @testset "sampler using callable scale" begin
-
         r = range(Int, :dummy, lower=1, upper=2, scale=x->10^x)
         s = sampler(r, Dist.Uniform)
         Random.seed!(123)
-        v = rand(s, 100)
+        v = rand(s, 10000)
         @test issubset(v, 10:100)
-        rng = MersenneTwister(123)
-        @test rand(rng, s, 100) == v
+        rng = _default_rng(123)
+        @test rand(rng, s, 10000) == v
 
         r = range(Float64, :dummy, lower=1, upper=2, scale=x->10^x)
         s = sampler(r, Dist.Uniform)
         Random.seed!(1)
-        v = rand(s, 1000)
+        v = rand(s, 10000)
         @test abs(minimum(v) - 10) < 0.02
         @test abs(maximum(v) - 100) < 0.02
-        rng = MersenneTwister(1)
-        @test rand(rng, s, 1000) == v
+        rng = _default_rng(1)
+        @test rand(rng, s, 10000) == v
 
     end
 
