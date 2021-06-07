@@ -224,5 +224,82 @@ end
     
 end
 
+@testset "An integration test for stacked classification" begin
+
+    # We train a stack by hand and compare with the canned version
+    # `Stack(...)`. There are two base learners, with 3-fold
+    # cross-validation used to construct the out-of-sample base model
+    # predictions. 
+
+    probs(y) = pdf(y, levels(first(y)))
+
+    # data:
+    N = 200
+    X = (x = rand(rng, 3N), )
+    y = coerce(rand("abc", 3N), Multiclass)
+
+    # row splits:
+    test1 = 1:N
+    test2 = (N + 1):2N
+    test3 = (2N + 1):3N
+    train1 = (N + 1):3N
+    train2 = vcat(1:N, (2N + 1):3N)
+    train3 = 1:2N
+
+    # base `model1`:
+    model1 = KNNClassifier(K=2)
+    mach1 = machine(model1, X, y)
+    fit!(mach1, rows=train1, verbosity=0)
+    y11 = predict(mach1, rows=test1) |> probs
+    mach1 = machine(model1, X, y)
+    fit!(mach1, rows=train2, verbosity=0)
+    y12 = predict(mach1, rows=test2) |> probs
+    mach1 = machine(model1, X, y)
+    fit!(mach1, rows=train3, verbosity=0)
+    y13 = predict(mach1, rows=test3) |> probs
+    y1_oos = vcat(y11, y12, y13)
+    mach1_full = machine(model1, X, y)
+    fit!(mach1_full, verbosity=0)
+    y1 = predict(mach1_full, X) |> probs
+
+    # base `model2`:
+    model2 = DecisionTreeClassifier()
+    mach2 = machine(model2, X, y)
+    fit!(mach2, rows=train1, verbosity=0)
+    y21 = predict(mach2, rows=test1) |> probs
+    mach2 = machine(model2, X, y)
+    fit!(mach2, rows=train2, verbosity=0)
+    y22 = predict(mach2, rows=test2) |> probs
+    mach2 = machine(model2, X, y)
+    fit!(mach2, rows=train3, verbosity=0)
+    y23 = predict(mach2, rows=test3) |> probs
+    y2_oos = vcat(y21, y22, y23)
+    mach2_full = machine(model2, X, y)
+    fit!(mach2_full, verbosity=0)
+    y2 = predict(mach2_full, X) |> probs
+
+    # metalearner (`judge`):
+    X_oos = MLJBase.table(hcat(y1_oos, y2_oos))
+    judge = KNNClassifier(K=3)
+    m_judge = machine(judge, X_oos, y)
+    fit!(m_judge, verbosity=0)
+    X_judge = MLJBase.table(hcat(y1, y2))
+    yhat_matrix = predict(m_judge, X_judge) |> probs
+
+    # alternatively, use stack:
+    stack = Stack(metalearner=judge,
+                model1=model1,
+                model2=model2,
+                resampling=CV(nfolds=3))
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+    yhat_matrix_stack = predict(mach, X) |> probs
+
+    # compare:
+    @test yhat_matrix_stack ≈ yhat_matrix
+    
 end
+
+end
+
 true
