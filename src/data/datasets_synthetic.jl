@@ -3,7 +3,7 @@ const EXTRA_KW_MAKE = """
 * `eltype=Float64`: machine type of points (any subtype of
    `AbstractFloat`).
 
-* `rng=nothing`: any `AbstractRNG` object, or integer to seed a
+* `rng=Random.GLOBAL_RNG`: any `AbstractRNG` object, or integer to seed a
   `MersenneTwister` (for reproducibility).
 
 * `as_table=true`: whether to return the points as a table (true)
@@ -82,7 +82,7 @@ function make_blobs(n::Integer=100,
                     center_box::Pair{<:Real,<:Real}=(-10.0 => 10.0),
                     as_table::Bool=true,
                     eltype::Type{<:AbstractFloat}=Float64,
-                    rng=nothing)
+                    rng=Random.GLOBAL_RNG)
 
     # check arguments make sense
     if n < 1 || p < 1
@@ -94,13 +94,7 @@ function make_blobs(n::Integer=100,
             "Domain for the centers improperly defined expected a pair " *
             "`a => b` with `a < b`."))
     end
-
-    if rng === nothing
-        rng = Random.GLOBAL_RNG
-    elseif rng isa Integer
-        rng = Random.MersenneTwister(rng)
-    end
-
+    rng = init_rng(rng)
     if centers isa Matrix
         if size(centers, 2) != p
             throw(ArgumentError(
@@ -129,16 +123,16 @@ function make_blobs(n::Integer=100,
     end
 
     # split points equally among centers
-    ni, r    = divrem(n, n_centers)
-    ns       = fill(ni, n_centers)
+    ni, r = divrem(n, n_centers)
+    ns = fill(ni, n_centers)
     ns[end] += r
 
     # vector of memberships
     y = vcat((fill(i, ni) for (i, ni) in enumerate(ns))...)
 
     # Pre-generate random points then modify for each center
-    X    = randn(rng, n, p)
-    nss  = [1, cumsum(ns)...]
+    X = randn(rng, n, p)
+    nss = [1, cumsum(ns)...]
     # ranges of rows for each center
     rows = [nss[i]:nss[i+1] for i in 1:n_centers]
     @inbounds for c in 1:n_centers
@@ -189,7 +183,7 @@ function make_circles(n::Integer=100;
                       factor::Real=0.8,
                       as_table::Bool=true,
                       eltype::Type{<:AbstractFloat}=Float64,
-                      rng=nothing)
+                      rng=Random.GLOBAL_RNG)
 
     # check arguments make sense
     if n < 1
@@ -204,13 +198,8 @@ function make_circles(n::Integer=100;
         throw(ArgumentError(
             "Factor argument must be strictly between 0 and 1."))
     end
-
-        if rng === nothing
-                rng = Random.GLOBAL_RNG
-        elseif rng isa Integer
-                rng = Random.MersenneTwister(rng)
-        end
-
+    
+    rng = init_rng(rng)
     # Generate points on a 2D circle
     θs = runif_ab(rng, n, 1, 0, 2pi)
 
@@ -271,7 +260,7 @@ function make_moons(n::Int=150;
                     yshift::Real=0.3,
                     as_table::Bool=true,
                     eltype::Type{<:AbstractFloat}=Float64,
-                    rng=nothing)
+                    rng=Random.GLOBAL_RNG)
 
     # check arguments make sense
     if n < 1
@@ -283,12 +272,7 @@ function make_moons(n::Int=150;
             "Noise argument cannot be negative."))
     end
 
-        if rng === nothing
-                rng = Random.GLOBAL_RNG
-        elseif rng isa Integer
-                rng = Random.MersenneTwister(rng)
-        end
-
+    rng = init_rng(rng)
     n1 = div(n, 2)
     n2 = n - n1
 
@@ -407,7 +391,7 @@ function make_regression(n::Int=100,
                          binary::Bool=false,
                          as_table::Bool=true,
                          eltype::Type{<:AbstractFloat}=Float64,
-                         rng=nothing)
+                         rng=Random.GLOBAL_RNG)
 
     # check arguments make sense
     if n < 1 || p < 1
@@ -427,12 +411,7 @@ function make_regression(n::Int=100,
             "Outliers argument must be in [0, 1]."))
     end
 
-    if rng === nothing
-        rng = Random.GLOBAL_RNG
-    elseif rng isa Integer
-        rng = Random.MersenneTwister(rng)
-    end
-
+    rng = init_rng(rng)
     X = augment_X(randn(rng, n, p), intercept)
     θ = randn(rng, p + Int(intercept))
     sparse > 0 && sparsify!(rng, θ, sparse)
