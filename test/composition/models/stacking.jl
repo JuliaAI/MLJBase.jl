@@ -172,6 +172,23 @@ end
     resampling = CV()
 
     MLJBase.DeterministicStack(modelnames, models, metalearner, resampling)
+
+    # Test input_target_scitypes with non matching target_scitypes
+    models = [KNNRegressor()]
+    metalearner = KNNClassifier()
+    inp_scitype, tg_scitype = MLJBase.input_target_scitypes(models, metalearner)
+    @test tg_scitype == Unknown
+    @test inp_scitype == Table{<:AbstractVector{<:Continuous}}
+
+    # Test input_target_scitypes with non matching target_scitypes
+    models = [ConstantClassifier(), DecisionTreeClassifier()]
+    metalearner = KNNClassifier()
+    inp_scitype, tg_scitype = MLJBase.input_target_scitypes(models, metalearner)
+    @test tg_scitype == AbstractVector{<:Finite}
+    @test inp_scitype == Table{<:Union{AbstractVector{<:Continuous}, 
+                                       AbstractVector{<:Count},
+                                       AbstractVector{<:OrderedFactor}}}
+
 end
 
 @testset  "function oos_set" begin
@@ -234,7 +251,7 @@ end
     probs(y) = pdf(y, levels(first(y)))
 
     # data:
-    N = 200
+    N = 2000
     X = (x = rand(rng, 3N), )
     y = coerce(rand("abc", 3N), Multiclass)
 

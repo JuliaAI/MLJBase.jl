@@ -2,52 +2,55 @@
 ################ Structures ################ 
 ############################################
 
-function is_glb(potential_glb, models)
-    for model in models
-        if !(potential_glb <: input_scitype(model))
-            return false
-        end
-    end
-    return true
-end
 
-function glb(models)
-    for model in models
-        potential_glb = input_scitype(model)
-        if is_glb(potential_glb, models)
-            return potential_glb
-        end
+function glb(types...)
+    # If a lower bound is in the models then it is greatest
+    # else we just return Unknown for now
+    for type in types
+        all(type <: t_ for t_ in types) && return type
     end
     return Unknown
 end
 
 
-mutable struct DeterministicStack{modelnames, input_scitype, target_scitype} <: DeterministicComposite
+function input_target_scitypes(models, metalearner)
+    # The target scitype is defined as the greatest lower bound of the 
+    # metalearner and the base models in the library
+    all_tg_scitypes = [target_scitype(metalearner), 
+                        [target_scitype(m) for m in models]...]
+    tg_scitype = glb(all_tg_scitypes...)
+    # The input scitype is defined as the greatest lower bound of the 
+    # base models in the library
+    inp_scitype = glb([input_scitype(m) for m in models]...)
+
+    return inp_scitype, tg_scitype
+end
+
+
+mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: DeterministicComposite
    models::Vector{Supervised}
    metalearner::Deterministic
    resampling
    function DeterministicStack(modelnames, models, metalearner, resampling)
-        target_scitype = MMI.target_scitype(metalearner)
-        input_scitype = glb(models)
-        return new{modelnames, input_scitype, target_scitype}(models, metalearner, resampling)
+        inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
    end
 end
 
-mutable struct ProbabilisticStack{modelnames, input_scitype, target_scitype} <: ProbabilisticComposite
+mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: ProbabilisticComposite
     models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
     function ProbabilisticStack(modelnames, models, metalearner, resampling)
-        target_scitype = MMI.target_scitype(metalearner)
-        input_scitype = glb(models)
-        return new{modelnames, input_scitype, target_scitype}(models, metalearner, resampling)
+        inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
     end
  end
 
 
-const Stack{modelnames, input_scitype, target_scitype} = 
-    Union{DeterministicStack{modelnames, input_scitype, target_scitype}, 
-            ProbabilisticStack{modelnames, input_scitype, target_scitype}}
+const Stack{modelnames, inp_scitype, tg_scitype} = 
+    Union{DeterministicStack{modelnames, inp_scitype, tg_scitype}, 
+            ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
     Stack(;metalearner=nothing, resampling=CV(), named_models...)
