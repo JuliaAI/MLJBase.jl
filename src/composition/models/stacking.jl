@@ -16,9 +16,8 @@ end
 function input_target_scitypes(models, metalearner)
     # The target scitype is defined as the greatest lower bound of the 
     # metalearner and the base models in the library
-    all_tg_scitypes = [target_scitype(metalearner), 
-                        [target_scitype(m) for m in models]...]
-    tg_scitype = glb(all_tg_scitypes...)
+    all_tg_scitypes = [target_scitype(m) for m in models]
+    tg_scitype = glb(target_scitype(metalearner), all_tg_scitypes...)
     # The input scitype is defined as the greatest lower bound of the 
     # base models in the library
     inp_scitype = glb([input_scitype(m) for m in models]...)
