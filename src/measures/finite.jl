@@ -354,7 +354,7 @@ function (::MCC)(cm::ConfusionMatrixObject{C}) where C
         b = sum(cm[:, setdiff(1:C, k)])
         den2 += a * b
     end
-    mcc = num / sqrt(den1 * den2)
+    mcc = num / sqrt(float(den1) * float(den2))
 
     isnan(mcc) && return 0
     return mcc
