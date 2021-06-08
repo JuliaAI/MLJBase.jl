@@ -189,6 +189,14 @@ end
                                        AbstractVector{<:Count},
                                        AbstractVector{<:OrderedFactor}}}
 
+    # Changing a model to a non compatible target scitype
+    initial_stack = Stack(;metalearner=FooBarRegressor(),
+                            resampling=CV(;nfolds=3),
+                            constant = DeterministicConstantRegressor(),
+                            fb=FooBarRegressor())
+    initial_stack.constant = ConstantClassifier()
+    @test_throws DomainError clean!(initial_stack)
+
 end
 
 @testset  "function oos_set" begin
@@ -251,7 +259,7 @@ end
     probs(y) = pdf(y, levels(first(y)))
 
     # data:
-    N = 2000
+    N = 200
     X = (x = rand(rng, 3N), )
     y = coerce(rand("abc", 3N), Multiclass)
 

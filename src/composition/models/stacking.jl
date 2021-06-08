@@ -4,7 +4,7 @@
 
 
 function glb(types...)
-    # If a lower bound is in the models then it is greatest
+    # If a lower bound is in the types then it is greatest
     # else we just return Unknown for now
     for type in types
         all(type <: t_ for t_ in types) && return type
@@ -133,8 +133,15 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
         throw(ArgumentError("The metalearner should be a subtype 
                     of $(Union{Deterministic, Probabilistic})"))
     end
+    # Issuing clean! statement
     message = MMI.clean!(stack)
     isempty(message) || @warn message
+
+    # Warning is either input_scitype/target_scitype is 
+    # Unknown at construction time
+    params = typeof(stack).parameters
+    params[end-1] == Unknown && @warn "Could not infer input_scitype of the stack"
+    params[end] == Unknown && @warn "Could not infer target_scitype of the stack"
 
     return stack
 end
@@ -143,7 +150,18 @@ end
 function MMI.clean!(stack::Stack)
     # We only carry checks and don't try to correct the arguments here
     message = ""
-
+    # Checking target_scitype and input_scitype have not been changed from the original stack
+    params = typeof(stack).parameters
+    inp_scitype, tg_scitype = input_target_scitypes(getfield(stack, :models), stack.metalearner)
+    inp_scitype == params[end-1] || 
+            throw(DomainError(inp_scitype, "The newly inferred input_scitype of the stack doesn't 
+            match its original one. You have probably changed one of the model or the metalearner 
+            to a non compatible type."))
+    tg_scitype == params[end] || 
+            throw(DomainError(tg_scitype, "The newly inferred target_scitype of the stack doesn't 
+            match its original one. You have probably changed one of the model or the metalearner 
+            to a non compatible type."))
+    # Checking the target scitype is consistent with either Probabilistic/Deterministic Stack
     target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
         throw(ArgumentError("The metalearner should have target_scitype: 
                 $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
@@ -183,6 +201,12 @@ MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) wh
     {modelnames, input_scitype, target_scitype} = input_scitype
 
 
+MLJBase.load_path(::Type{<:ProbabilisticStack}) = "MLJBase.ProbabilisticStack"
+MLJBase.load_path(::Type{<:DeterministicStack}) = "MLJBase.DeterministicStack"
+MLJBase.package_name(::Type{<:Stack}) = "MLJBase"
+MLJBase.package_uuid(::Type{<:Stack}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
+MLJBase.package_url(::Type{<:Stack}) = "https://github.com/alan-turing-institute/MLJBase.jl"
+MLJBase.package_license(::Type{<:Stack}) = "MIT"
 
 ###########################################################
 ################# Node operations Methods ################# 
