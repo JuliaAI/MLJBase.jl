@@ -136,7 +136,7 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     message = MMI.clean!(stack)
     isempty(message) || @warn message
 
-    # Warning is either input_scitype/target_scitype is 
+    # Warning if either input_scitype/target_scitype is 
     # Unknown at construction time
     params = typeof(stack).parameters
     params[end-1] == Unknown && @warn "Could not infer input_scitype of the stack"
@@ -146,19 +146,18 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
 end
 
 
-function MMI.clean!(stack::Stack)
+function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {modelnames,inp_scitype,tg_scitype}
     # We only carry checks and don't try to correct the arguments here
     message = ""
     # Checking target_scitype and input_scitype have not been changed from the original stack
-    params = typeof(stack).parameters
-    inp_scitype, tg_scitype = input_target_scitypes(getfield(stack, :models), stack.metalearner)
-    inp_scitype == params[end-1] || 
+    glb_inp_scitype, glb_tg_scitype = input_target_scitypes(getfield(stack, :models), stack.metalearner)
+    glb_inp_scitype == inp_scitype || 
             throw(DomainError(inp_scitype, "The newly inferred input_scitype of the stack doesn't 
-            match its original one. You have probably changed one of the model or the metalearner 
+            match its original one. You have probably changed one of the base model or the metalearner 
             to a non compatible type."))
-    tg_scitype == params[end] || 
+    glb_tg_scitype == tg_scitype || 
             throw(DomainError(tg_scitype, "The newly inferred target_scitype of the stack doesn't 
-            match its original one. You have probably changed one of the model or the metalearner 
+            match its original one. You have probably changed one of the base model or the metalearner 
             to a non compatible type."))
     # Checking the target scitype is consistent with either Probabilistic/Deterministic Stack
     target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
