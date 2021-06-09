@@ -1,5 +1,5 @@
 ############################################
-################ Structures ################ 
+################ Structures ################
 ############################################
 
 
@@ -14,11 +14,11 @@ end
 
 
 function input_target_scitypes(models, metalearner)
-    # The target scitype is defined as the greatest lower bound of the 
+    # The target scitype is defined as the greatest lower bound of the
     # metalearner and the base models in the library
     all_tg_scitypes = [target_scitype(m) for m in models]
     tg_scitype = glb(target_scitype(metalearner), all_tg_scitypes...)
-    # The input scitype is defined as the greatest lower bound of the 
+    # The input scitype is defined as the greatest lower bound of the
     # base models in the library
     inp_scitype = glb([input_scitype(m) for m in models]...)
 
@@ -47,27 +47,27 @@ mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: Probab
  end
 
 
-const Stack{modelnames, inp_scitype, tg_scitype} = 
-    Union{DeterministicStack{modelnames, inp_scitype, tg_scitype}, 
+const Stack{modelnames, inp_scitype, tg_scitype} =
+    Union{DeterministicStack{modelnames, inp_scitype, tg_scitype},
             ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
     Stack(;metalearner=nothing, resampling=CV(), named_models...)
 
-Implements the generalized Stack algorithm introduced by Wolpert 
-in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and 
+Implements the generalized Stack algorithm introduced by Wolpert
+in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and
 generalized by Van der Laan et al in https://biostats.bepress.com/ucbbiostat/paper222/.
 
-Instead of using your favorite model, use them all! The Stack is a metalearning algorithm 
-covered by theoretical guarantees. 
+Instead of using your favorite model, use them all! The Stack is a metalearning algorithm
+covered by theoretical guarantees.
 
 The stack in a nutshell:
 
-- The data is split in training/validation sets 
+- The data is split in training/validation sets
 - Each model in the library is trained on each training set and outputs predictions on the validation sets
 - The metalearner is subsequently trained on those predictions and finds the best combination of the models
 in the library.
-- Each model is then retrained on the full data 
+- Each model is then retrained on the full data
 - "Stacking" those models and the metalearner results in an end to end fully trained model
 
 You are not exempt from evaluating the stack.
@@ -76,16 +76,16 @@ We currently provide two different stack types the `DeterministicStack` and the 
 The type of which is automatically chosen by the constructor based on the provided metalearner.
 
 # Arguments
-- `metalearner::Model`: The model that will optimize the desired criterion based on its internals. 
+- `metalearner::Model`: The model that will optimize the desired criterion based on its internals.
                         For instance, a LinearRegression model will optimize the squared error.
 - `resampling::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
 - `named_models`: The models that will be part of the library
 
 # Examples
 
-Let's build a simple DeterministicStack for a continuous target, we show that:  
+Let's build a simple DeterministicStack for a continuous target, we show that:
 
-- Some members of the library may very well be `Probabilistic` models even though the stack 
+- Some members of the library may very well be `Probabilistic` models even though the stack
 is `Deterministic`, the expected value will be taken.
 - Rather than running a hyperparameter search, you can integrate each model in the stack
 
@@ -104,7 +104,7 @@ X, y = make_regression(500, 5)
 stack = Stack(;metalearner=LinearRegressor(),
                 resampling=CV(),
                 constant=ConstantRegressor(),
-                tree_2=DecisionTreeRegressor(max_depth=2), 
+                tree_2=DecisionTreeRegressor(max_depth=2),
                 tree_3=DecisionTreeRegressor(max_depth=3),
                 evo=EvoTreeRegressor(),
                 knn=KNNRegressor(),
@@ -117,7 +117,7 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 
 """
 function Stack(;metalearner=nothing, resampling=CV(), named_models...)
-    metalearner === nothing && 
+    metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
     nt = NamedTuple(named_models)
@@ -129,14 +129,14 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     elseif metalearner isa Probabilistic
         stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
     else
-        throw(ArgumentError("The metalearner should be a subtype 
+        throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))
     end
     # Issuing clean! statement
     message = MMI.clean!(stack)
     isempty(message) || @warn message
 
-    # Warning if either input_scitype/target_scitype is 
+    # Warning if either input_scitype/target_scitype is
     # Unknown at construction time
     params = typeof(stack).parameters
     params[end-1] == Unknown && @warn "Could not infer input_scitype of the stack"
@@ -151,17 +151,17 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {mo
     message = ""
     # Checking target_scitype and input_scitype have not been changed from the original stack
     glb_inp_scitype, glb_tg_scitype = input_target_scitypes(getfield(stack, :models), stack.metalearner)
-    glb_inp_scitype == inp_scitype || 
-            throw(DomainError(inp_scitype, "The newly inferred input_scitype of the stack doesn't 
-            match its original one. You have probably changed one of the base model or the metalearner 
+    glb_inp_scitype == inp_scitype ||
+            throw(DomainError(inp_scitype, "The newly inferred input_scitype of the stack doesn't
+            match its original one. You have probably changed one of the base models or the metalearner
             to a non compatible type."))
-    glb_tg_scitype == tg_scitype || 
-            throw(DomainError(tg_scitype, "The newly inferred target_scitype of the stack doesn't 
-            match its original one. You have probably changed one of the base model or the metalearner 
+    glb_tg_scitype == tg_scitype ||
+            throw(DomainError(tg_scitype, "The newly inferred target_scitype of the stack doesn't
+            match its original one. You have probably changed one of the base model or the metalearner
             to a non compatible type."))
     # Checking the target scitype is consistent with either Probabilistic/Deterministic Stack
     target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
-        throw(ArgumentError("The metalearner should have target_scitype: 
+        throw(ArgumentError("The metalearner should have target_scitype:
                 $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
 
     return message
@@ -191,11 +191,11 @@ function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where m
 end
 
 
-MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where 
+MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where
     {modelnames, input_scitype, target_scitype} = target_scitype
 
 
-MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where 
+MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where
     {modelnames, input_scitype, target_scitype} = input_scitype
 
 
@@ -207,11 +207,11 @@ MLJBase.package_url(::Type{<:Stack}) = "https://github.com/alan-turing-institute
 MLJBase.package_license(::Type{<:Stack}) = "MIT"
 
 ###########################################################
-################# Node operations Methods ################# 
+################# Node operations Methods #################
 ###########################################################
 
 
-getfolds(y::AbstractNode, cv::CV, n::Int) = 
+getfolds(y::AbstractNode, cv::CV, n::Int) =
     source(train_test_pairs(cv, 1:n))
 
 getfolds(y::AbstractNode, cv::StratifiedCV, n::Int) =
@@ -220,17 +220,17 @@ getfolds(y::AbstractNode, cv::StratifiedCV, n::Int) =
 trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][1]), X, folds)
 
-testrows(X::AbstractNode, folds::AbstractNode, nfold) = 
+testrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
 
-    
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) = 
+
+pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) = 
+pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) =
     node(ŷ->mean.(ŷ), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) = 
+pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) =
     ŷ
 
 
@@ -243,21 +243,21 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
         ytrain = trainrows(ys, folds, nfold)
         Xtest = testrows(Xs, folds, nfold)
         ytest = testrows(ys, folds, nfold)
-        
+
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
         Zfold = []
         for model in getfield(m, :models)
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
-            # Dispatch the computation of the expected mean based on 
+            # Dispatch the computation of the expected mean based on
             # the model type and target_scytype
             ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
             push!(Zfold, ypred)
         end
 
         Zfold = hcat(Zfold...)
-        
+
         push!(Zval, Zfold)
         push!(yval, ytest)
     end
@@ -269,7 +269,7 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
 end
 
 #######################################
-################# Fit ################# 
+################# Fit #################
 #######################################
 """
     fit(m::Stack, verbosity::Int, X, y)
@@ -281,7 +281,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     ys = source(y)
 
     folds = getfolds(ys, m.resampling, n)
-    
+
     Zval, yval = oos_set(m, folds, Xs, ys)
 
     metamach = machine(m.metalearner, Zval, yval)
@@ -304,4 +304,3 @@ function fit(m::Stack, verbosity::Int, X, y)
     return!(mach, m, verbosity)
 
 end
-
