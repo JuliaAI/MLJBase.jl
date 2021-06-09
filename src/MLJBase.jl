@@ -162,7 +162,7 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, @from_network, @pipeline,
+export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
@@ -353,5 +353,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
+
+include("composition/models/stacking.jl")
 
 end # module
