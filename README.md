@@ -6,8 +6,8 @@ learning framework.
 
 | Branch   | Julia | Build  | Coverage |
 | -------- | ----- | ------ | -------- |
-| `master` | v1    | [![Continuous Integration (CPU)][gha-img-master]][gha-url] | [![Code Coverage][codecov-img-master]][codecov-url] |
-| `dev`    | v1    | [![Continuous Integration (CPU)][gha-img-dev]][gha-url]    | [![Code Coverage][codecov-img-dev]][codecov-url] |
+| `master` | v1    | [![Continuous Integration (CPU)][gha-img-master]][gha-url] | [![Code Coverage][codecov-img-master]][codecov-url-master] |
+| `dev`    | v1    | [![Continuous Integration (CPU)][gha-img-dev]][gha-url]    | [![Code Coverage][codecov-img-dev]][codecov-url-dev] |
 
 [gha-img-master]: https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg?branch=master "Continuous Integration (CPU)"
 [gha-img-dev]: https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg?branch=dev "Continuous Integration (CPU)"
@@ -15,7 +15,8 @@ learning framework.
 
 [codecov-img-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master "Code Coverage"
 [codecov-img-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=dev "Code Coverage"
-[codecov-url]: https://github.com/alan-turing-institute/MLJBase.jl/actions/workflows/ci.yml
+[codecov-url-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
+[codecov-url-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=dev)
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
 
