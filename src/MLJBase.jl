@@ -49,7 +49,6 @@ import .Threads
 
 # Operations & extensions
 import LossFunctions
-import LossFunctions: DistanceLoss, MarginLoss, SupervisedLoss
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
@@ -59,12 +58,6 @@ const Dist = Distributions
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
-
-# external loss functions:
-import LossFunctions: DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss,
-    L2MarginLoss, LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss,
-    SigmoidLoss, SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
-    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss, QuantileLoss
 
 
 # ===================================================================
@@ -162,7 +155,7 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, @from_network, @pipeline,
+export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
@@ -272,12 +265,43 @@ export dwd_margin_loss, exp_loss, l1_hinge_loss, l2_hinge_loss, l2_margin_loss,
     quantile_loss
 
 # ------------------------------------------------------------------------
-# re-export from LossFunctions:
-export DWDMarginLoss, ExpLoss, L1HingeLoss, L2HingeLoss, L2MarginLoss,
-    LogitMarginLoss, ModifiedHuberLoss, PerceptronLoss, SigmoidLoss,
-    SmoothedL1HingeLoss, ZeroOneLoss, HuberLoss, L1EpsilonInsLoss,
-    L2EpsilonInsLoss, LPDistLoss, LogitDistLoss, PeriodicLoss,
-    QuantileLoss
+# re-export from LossFunctions.jl:
+const MARGIN_LOSSES = [
+    :DWDMarginLoss,
+    :ExpLoss,
+    :L1HingeLoss,
+    :L2HingeLoss,
+    :L2MarginLoss,
+    :LogitMarginLoss,
+    :ModifiedHuberLoss,
+    :PerceptronLoss,
+    :SigmoidLoss,
+    :SmoothedL1HingeLoss,
+    :ZeroOneLoss
+]
+const DISTANCE_LOSSES = [
+    :HuberLoss,
+    :L1EpsilonInsLoss,
+    :L2EpsilonInsLoss,
+    :LPDistLoss,
+    :LogitDistLoss,
+    :PeriodicLoss,
+    :QuantileLoss
+]
+const WITH_PARAMETERS = [
+    :DWDMarginLoss,
+    :SmoothedL1HingeLoss,
+    :HuberLoss,
+    :L1EpsilonInsLoss,
+    :L2EpsilonInsLoss,
+    :LPDistLoss,
+    :QuantileLoss,
+]
+const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
+
+for Loss in LOSS_FUNCTIONS
+    eval(:(export $Loss))
+end
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
@@ -353,5 +377,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
+
+include("composition/models/stacking.jl")
 
 end # module

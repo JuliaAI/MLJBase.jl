@@ -17,7 +17,7 @@ macro create_aliases(M_ex)
         end)
 end
 
-function detailed_doc_string(M; body="", footer="", scitype="")
+function detailed_doc_string(M; typename="", body="", footer="", scitype="")
 
     _instances = _decorate(instances(M))
     human_name = MLJBase.human_name(M)
@@ -25,10 +25,15 @@ function detailed_doc_string(M; body="", footer="", scitype="")
         scitype = target_scitype(M) |> string
     end
 
-    ret =  "    $M\n\n"
+    if isempty(typename)
+        ret = "    $M\n\n"
+    else
+        ret = "    MLJBase.$typename\n\n"
+    end
+
     ret *= "A measure type for $(human_name)"
     isempty(_instances) ||
-        (ret  *= ", which includes the instance(s), "*
+        (ret  *= ", which includes the instance(s): "*
          "$_instances")
     ret *= ".\n\n"
     ret *= "    $(name(M))()(ŷ, y)\n"
@@ -60,20 +65,22 @@ end
 
 _err_create_docs() = error(
     "@create_docs syntax error. Usage: \n"*
-    "@create_docs(MeasureType, body=..., scitype=..., footer=...")
+    "@create_docs(MeasureType, typename=..., body=..., scitype=..., footer=...")
 macro create_docs(M_ex, exs...)
     M_ex isa Symbol || _err_create_docs()
+    t = ""
     b = ""
     s = ""
     f = ""
     for ex in exs
         ex.head == :(=) || _err_create_docs()
-        ex.args[1] == :body &&            (b = ex.args[2])
-        ex.args[1] == :scitype && (s = ex.args[2])
-        ex.args[1] == :footer &&          (f = ex.args[2])
+        ex.args[1] == :typename && (t = ex.args[2])
+        ex.args[1] == :body &&     (b = ex.args[2])
+        ex.args[1] == :scitype &&  (s = ex.args[2])
+        ex.args[1] == :footer &&   (f = ex.args[2])
     end
     esc(quote
-        "$(detailed_doc_string($M_ex, body=$b, scitype=$s, footer=$f))"
+        "$(detailed_doc_string($M_ex, typename=$t, body=$b, scitype=$s, footer=$f))"
         function $M_ex end
         end)
 end

@@ -123,19 +123,41 @@ function _permute_rows(obj::AbstractVecOrMat, perm::Vector{Int})
 end
 
 """
-shuffle_rows(X, Y, ...; rng=)
+shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng::AbstractRNG = Random.GLOBAL_RNG)
 
-Return a shuffled view of a vector or  matrix `X` (or set of such) using a
-random permutation (which can be seeded specifying `rng`).
+Return shuffled vectors or matrices using a random permutation of `X` and `Y`. An optional random 
+number generator can be specified using the `rng` argument.
 """
-function shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng=nothing)
+function shuffle_rows(
+    X::AbstractVecOrMat, Y::AbstractVecOrMat;
+    rng::AbstractRNG=Random.GLOBAL_RNG
+)
     check_dimensions(X, Y)
-    rng === nothing || Random.seed!(rng)
-    perm = randperm(size(X, 1))
+    perm_length = size(X, 1)
+    perm = randperm(rng, perm_length)
     return _permute_rows(X, perm), _permute_rows(Y, perm)
 end
 
+"""
+init_rng(rng)
 
+Create an `AbstractRNG` from `rng`. If `rng` is a non-negative `Integer`, it returns a
+`MersenneTwister` random number generator seeded with `rng`; If `rng` is 
+an `AbstractRNG` object it returns `rng`, otherwise it throws an error.
+""" 
+function init_rng(rng)
+    if (rng isa Integer && rng > 0)
+        return Random.MersenneTwister(rng)
+    elseif !(rng isa AbstractRNG)
+        throw(
+            ArgumentError(
+                "`rng` must either be a non-negative `Integer`, "*
+                "or an `AbstractRNG` object."
+            )
+        )
+    end
+    return rng
+end
 ## FOR PRETTY PRINTING
 
 # of coloumns:

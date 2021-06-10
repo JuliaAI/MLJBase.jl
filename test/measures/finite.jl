@@ -84,6 +84,10 @@ end
     # invariance with respect to permutation ?
     cm = MLJBase._confmat(ŷ, y, perm=[3, 1, 2, 4])
     @test mcc(cm) ≈ sk_mcc
+
+    # Issue #381
+    cm = MLJBase.ConfusionMatrixObject([29488 13017; 12790 29753], ["0.0", "1.0"])
+    @test mcc(cm) ≈ 0.39312321239417797
 end
 
 @testset "AUC" begin

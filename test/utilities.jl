@@ -62,18 +62,27 @@ end
     @test MLJBase.check_dimensions(x, y) === nothing
     @test MLJBase.check_dimensions(z, x) === nothing
     @test MLJBase.check_dimensions(y, z) === nothing
-    @test_throws DimensionMismatch MLJBase.check_dimensions(x, randn(4))
+    @test_throws DimensionMismatch MLJBase.check_dimensions(x, randn(rng, 4))
 
     x = 1:5 |> collect
     y = 1:5 |> collect
-    rng = 555
-    Random.seed!(rng)
-    perm = Random.randperm(5)
-    @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm])
-    y = randn(5,5)
-    @test MLJBase.shuffle_rows(x, y; rng=rng) == (x[perm], y[perm,:])
-    @test MLJBase.shuffle_rows(z, y; rng=rng) == (z[perm,:], y[perm,:])
-    @test MLJBase.shuffle_rows(x, x; rng=rng) == (x[perm], x[perm])
+    
+    # In the following tests it is crucial to recreate a new `RNG` each time.
+    perm = Random.randperm(StableRNG(11900), 5)
+    @test MLJBase.shuffle_rows(x, y; rng=StableRNG(11900)) == (x[perm], y[perm])
+    y = randn(StableRNG(11900), 5, 5)
+    @test MLJBase.shuffle_rows(x, y; rng=StableRNG(11900)) == (x[perm], y[perm, :])
+    @test MLJBase.shuffle_rows(z, y; rng=StableRNG(11900)) == (z[perm,:], y[perm, :])
+    @test MLJBase.shuffle_rows(x, x; rng=StableRNG(11900)) == (x[perm], x[perm])
+end
+
+@testset "init_rng" begin
+    rng = 129
+    @test MLJBase.init_rng(rng) == Random.MersenneTwister(rng)
+    rng = StableRNG(129)
+    @test MLJBase.init_rng(rng) == rng
+    rng = -20
+    @test_throws ArgumentError MLJBase.init_rng(rng)
 end
 
 @testset "unwind" begin

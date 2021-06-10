@@ -134,7 +134,7 @@ function MLJBase.predict(m::KNNClassifier, (tree, y, w), Xmatrix)
         probas ./= sum(probas)
         preds[i] = MLJBase.UnivariateFinite(classes, probas)
     end
-    return preds
+    return [preds...]
 end
 
 function MLJBase.predict(m::KNNRegressor, (tree, y, w), Xmatrix)
