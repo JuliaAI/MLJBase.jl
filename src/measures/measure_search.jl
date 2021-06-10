@@ -1,10 +1,10 @@
-const LOCAL_MEASURE_TYPES = subtypes(MLJBase.Measure)
+const LOCAL_MEASURE_TYPES = filter(x->x != SupervisedLoss,
+                                   subtypes(MLJBase.Measure))
 
-const LOSSFUNCTIONS_MEASURE_TYPES =
-    vcat(subtypes(LossFunctions.MarginLoss),
-         subtypes(LossFunctions.DistanceLoss))
+const LOSS_FUNCTIONS_MEASURE_TYPES =
+    [eval(:($Loss)) for Loss in LOSS_FUNCTIONS]
 
-const MEASURE_TYPES = vcat(LOCAL_MEASURE_TYPES, LOSSFUNCTIONS_MEASURE_TYPES)
+const MEASURE_TYPES = vcat(LOCAL_MEASURE_TYPES, LOSS_FUNCTIONS_MEASURE_TYPES)
 
 const MeasureProxy = NamedTuple{Tuple(MEASURE_TRAITS)}
 
