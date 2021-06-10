@@ -958,7 +958,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
     train_args = Tuple(a() for a in mach.args)
     y = train_args[2]
 
-    _rows = actual_rows(rows, length(y), verbosity)
+    _rows = actual_rows(rows, nrows(y), verbosity)
 
     repeated_train_test_pairs =
         vcat([train_test_pairs(resampling, _rows, train_args...)
