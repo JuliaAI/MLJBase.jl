@@ -115,7 +115,7 @@ MMI.target_scitype(::Type{<:DistanceLoss}) = Union{Vec{Continuous},Vec{Count}}
 
 function value(measure::DistanceLoss, yhat, X, y, ::Nothing,
                 ::Val{false}, ::Val{true})
-    return LossFunctions.value(getfield(measure, :loss), yhat, y)
+    return LossFunctions.value(getfield(measure, :loss), y, yhat)
 end
 
 function value(measure::DistanceLoss, yhat, X, y, w,
@@ -137,7 +137,7 @@ function value(measure::MarginLoss, yhat, X, y, ::Nothing,
     check_pools(yhat, y)
     probs_of_observed = broadcast(pdf, yhat, y)
     return (LossFunctions.value).(getfield(measure, :loss),
-                                  _scale.(probs_of_observed), 1)
+                                  1, _scale.(probs_of_observed))
 end
 
 function value(measure::MarginLoss, yhat, X, y, w,

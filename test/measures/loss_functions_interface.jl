@@ -36,10 +36,10 @@ const DISTANCE_LOSSES = MLJBase.DISTANCE_LOSSES
     for M_ex in MARGIN_LOSSES
         m = eval(:(MLJBase.$M_ex()))
         @test MLJBase.value(m, yhat, X, y, nothing) ≈
-            LossFunctions.value(getfield(m, :loss), yhatm, ym) ≈
+            LossFunctions.value(getfield(m, :loss), ym, yhatm) ≈
             m(yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-            LossFunctions.value(getfield(m, :loss), yhatm, ym,
+            LossFunctions.value(getfield(m, :loss), ym, yhatm,
                                 LossFunctions.AggMode.WeightedMean(w)) ≈
                                     mean(m(yhat, y, w))
     end
@@ -58,10 +58,10 @@ end
         m_ex = MLJBase.snakecase(M_ex)
         @test m == eval(:(MLJBase.$m_ex))
         @test MLJBase.value(m, yhat, X, y, nothing) ≈
-            LossFunctions.value(getfield(m, :loss), yhat, y) ≈
+            LossFunctions.value(getfield(m, :loss), y, yhat) ≈
             m(yhat, y)
         @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-            LossFunctions.value(getfield(m, :loss), yhat, y,
+            LossFunctions.value(getfield(m, :loss), y, yhat,
                                 LossFunctions.AggMode.WeightedMean(w)) ≈
                                     mean(m(yhat ,y, w))
     end
