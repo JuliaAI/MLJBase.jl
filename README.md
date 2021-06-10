@@ -15,8 +15,8 @@ learning framework.
 
 [codecov-img-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master "Code Coverage"
 [codecov-img-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=dev "Code Coverage"
-[codecov-url-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master)
-[codecov-url-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=dev)
+[codecov-url-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master
+[codecov-url-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=dev
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
 
