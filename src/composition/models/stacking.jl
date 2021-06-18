@@ -73,11 +73,12 @@ When training a machine bound to such an instance:
   so-called out-of-sample prediction for each model.
 
 - The adjudicating model, `metalearner`, is subsequently trained on
-  the out-of-sample predictions to learn the best combination of the
-  models in the library.
+  the out-of-sample predictions to learn the best combination of base
+  model predictions.
 
-- Each model is retrained on all supplied data for purposes of passing
-  on new production data onto the adjudicator for making new predictions
+- Each base model is retrained on all supplied data for purposes of
+  passing on new production data onto the adjudicator for making new
+  predictions
 
 ### Arguments
 
