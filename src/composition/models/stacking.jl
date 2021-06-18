@@ -67,10 +67,10 @@ When training a machine bound to such an instance:
 - The data is split into training/validation sets according to the
   specified `resampling` strategy.
 
-- Each base model instance `[model1, model2, ...]` is trained on each
-  training subset and outputs predictions on the corresponding
-  validation sets. The multi-fold predictions are spliced together
-  into a so-called out-of-sample prediction for each model.
+- Each base model `model1`, `model2`, ... is trained on each training
+  subset and outputs predictions on the corresponding validation
+  sets. The multi-fold predictions are spliced together into a
+  so-called out-of-sample prediction for each model.
 
 - The adjudicating model, `metalearner`, is subsequently trained on
   the out-of-sample predictions to learn the best combination of the
