@@ -55,12 +55,12 @@ const Stack{modelnames, inp_scitype, tg_scitype} =
     Stack(;metalearner=nothing, resampling=CV(), name1=model1, name2=model2, ...)
 
 Implements the two-layer generalized stack algorithm introduced by
-Wolpert in
-https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231
-and generalized by Van der Laan et al in
-https://biostats.bepress.com/ucbbiostat/paper222/. Returns an instance
-of type `ProbablisiticStack` or `DeterministicStack`, depending on the
-prediction type of `metalearner`.
+[Wolpert
+(1992)](https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231)
+and generalized by [Van der Laan et al
+(2007)](https://biostats.bepress.com/ucbbiostat/paper222/). Returns an
+instance of type `ProbablisiticStack` or `DeterministicStack`,
+depending on the prediction type of `metalearner`.
 
 When training a machine bound to such an instance:
 
