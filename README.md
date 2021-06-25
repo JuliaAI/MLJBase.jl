@@ -9,16 +9,16 @@ learning framework.
 | `master` | v1    | [![Continuous Integration (CPU)][gha-img-master]][gha-url] | [![Code Coverage][codecov-img-master]][codecov-url-master] |
 | `dev`    | v1    | [![Continuous Integration (CPU)][gha-img-dev]][gha-url]    | [![Code Coverage][codecov-img-dev]][codecov-url-dev] |
 
-[gha-img-master]: https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg?branch=master "Continuous Integration (CPU)"
-[gha-img-dev]: https://github.com/alan-turing-institute/MLJBase.jl/workflows/CI/badge.svg?branch=dev "Continuous Integration (CPU)"
-[gha-url]: https://github.com/alan-turing-institute/MLJBase.jl/actions/workflows/ci.yml
+[gha-img-master]: https://github.com/JuliaAI/MLJBase.jl/workflows/CI/badge.svg?branch=master "Continuous Integration (CPU)"
+[gha-img-dev]: https://github.com/JuliaAI/MLJBase.jl/workflows/CI/badge.svg?branch=dev "Continuous Integration (CPU)"
+[gha-url]: https://github.com/JuliaAI/MLJBase.jl/actions/workflows/ci.yml
 
-[codecov-img-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=master "Code Coverage"
-[codecov-img-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl/coverage.svg?branch=dev "Code Coverage"
-[codecov-url-master]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=master
-[codecov-url-dev]: http://codecov.io/github/alan-turing-institute/MLJBase.jl?branch=dev
+[codecov-img-master]: https://codecov.io/gh/JuliaAI/MLJBase.jl/branch/master/graphs/badge.svg?branch=master "Code Coverage"
+[codecov-img-dev]: https://codecov.io/gh/JuliaAI/MLJBase.jl/branch/dev/graphs/badge.svg?branch=dev "Code Coverage"
+[codecov-url-master]: https://codecov.io/github/JuliaAI/MLJBase.jl?branch=master
+[codecov-url-dev]: https://codecov.io/github/JuliaAI/MLJBase.jl?branch=dev
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://alan-turing-institute.github.io/MLJBase.jl/stable)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaai.github.io/MLJBase.jl/stable/)
 
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
 framework for combining and tuning machine learning models. This
@@ -26,7 +26,7 @@ repository provides core functionality for MLJ, including:
 
 - completing the functionality for methods defined "minimally" in
   MLJ's light-weight model interface
-  [MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
+  [MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl)
 
 - definition of **machines** and their associated methods, such as
   `fit!` and `predict`/`transform`. Serialization of machines,
@@ -49,7 +49,7 @@ repository provides core functionality for MLJ, including:
 
 - **one-dimensional hyperparameter range types**, constructors and
   associated methods, for use with
-  [MLJTuning](https://github.com/alan-turing-institute/MLJTuning.jl)
+  [MLJTuning](https://github.com/JuliaAI/MLJTuning.jl)
 
 - a [small
   interface](https://alan-turing-institute.github.io/MLJ.jl/dev/performance_measures/#Traits-and-custom-measures-1)
@@ -63,5 +63,5 @@ repository provides core functionality for MLJ, including:
 Previously MLJBase provided the model interface for integrating third
 party machine learning models into MLJ. That role has now shifted to
 the light-weight
-[MLJModelInterface](https://github.com/alan-turing-institute/MLJModelInterface.jl)
+[MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl)
 package.
