@@ -70,6 +70,7 @@ end
 
 @testset "train test pairs" begin
     cv = CV(nfolds=5)
+
     pairs = MLJBase.train_test_pairs(cv, 1:24)
     @test pairs == [
         (6:24, 1:5),
@@ -78,6 +79,9 @@ end
         ([1:15..., 21:24...], 16:20),
         (1:20, 21:24)
     ]
+
+    # Not enough data for the number of folds.
+    @test_throws ArgumentError MLJBase.train_test_pairs(cv, 1:4)
 end
 
 @testset "checking measure/model compatibility" begin
@@ -292,9 +296,12 @@ end
     ]
 
     @test_logs(
-        (:warn, "TimeSeriesCV is being applied to `rows` not in sequence."),
+        (:warn, "TimeSeriesCV is being applied to `rows` not in sequence. "),
         MLJBase.train_test_pairs(tscv, reverse(1:10))
     )
+
+    # Not enough data for the number of folds.
+    @test_throws ArgumentError MLJBase.train_test_pairs(TimeSeriesCV(10), 1:8)
 end
 
 @testset "stratified_cv" begin
@@ -344,7 +351,7 @@ end
     @test pairs != pairs_random
 
     # wrong target type throws error:
-    @test_throws(Exception,
+    @test_throws(ArgumentError,
                  MLJBase.train_test_pairs(scv,
                                           rows,
                                           CategoricalArrays.unwrap.(y)))

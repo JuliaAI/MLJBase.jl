@@ -124,7 +124,7 @@ struct CV <: ResamplingStrategy
     shuffle::Bool
     rng::Union{Int,AbstractRNG}
     function CV(nfolds, shuffle, rng)
-        nfolds > 1 || error("Must have nfolds > 1. ")
+        nfolds > 1 || throw(ArgumentError("Must have nfolds > 1. "))
         return new(nfolds, shuffle, rng)
     end
 end
@@ -143,8 +143,13 @@ function train_test_pairs(cv::CV, rows)
     end
 
     n, r = divrem(n_obs, n_folds)
-    n > 0 || error("Inusufficient data for $n_folds-fold cross-validation.\n"*
-                   "Try reducing nfolds. ")
+
+    if n < 1
+        throw(ArgumentError(
+            """Inusufficient data for $n_folds-fold cross-validation.
+            Try reducing nfolds. """
+        ))
+    end
 
     m = n + 1 # number of observations in first r folds
 
@@ -187,49 +192,50 @@ for k in 2:(nfold).
 # Examples
 
 ```julia-repl
-julia> tscv = TimeSeriesCV(nfolds=3)
-julia> MLJBase.train_test_pairs(tscv, collect(1:2:15))
-3-element Array{Tuple{Array{Int64,1},Array{Int64,1}},1}:
- ([1, 3], [5, 7])
- ([1, 3, 5, 7], [9, 11])
- ([1, 3, 5, 7, 9, 11], [13, 15])
+julia> MLJBase.train_test_pairs(TimeSeriesCV(nfolds=3), 1:10)
+3-element Vector{Tuple{UnitRange{Int64}, UnitRange{Int64}}}:
+ (1:4, 5:6)
+ (1:6, 7:8)
+ (1:8, 9:10)
 ```
 """
 struct TimeSeriesCV <: ResamplingStrategy
-     nfolds::Int
-     function TimeSeriesCV(nfolds)
-         nfolds > 1 || error("Must have nfolds > 1. ")
-         return new(nfolds)
-     end
- end
- # Constructor with keywords
- TimeSeriesCV(;nfolds::Int=4) =
-       TimeSeriesCV(nfolds)
-
- function train_test_pairs(tscv::TimeSeriesCV, rows)
-     if rows != sort(rows)
-         @warn("TimeSeriesCV being applied to `rows` not in sequence. ")
-     end
-     n_obs = length(rows)
-     nfolds = tscv.nfolds
-     # number of observations per fold
-     k = floor(Int, n_obs/nfolds)
-     k > 0 || error("Inusufficient data for $nfolds-fold cross-validation.\n"*
-                    "Try reducing nfolds. ")
-     # define the (trainrows, testrows) pairs:
-     firsts = 1:k:((nfolds)*k + 1) # itr of first `test` rows index
-     seconds = k:k:((nfolds)*k)
-     ret = map(2:nfolds+1) do k
-         f = firsts[k]
-         if  k == nfolds + 1
-             s = n_obs
-         else
-             s = seconds[k]
-         end
-         return (rows[1:f-1], # trainrows
-                 rows[f:s])   # testrows
+    nfolds::Int
+    function TimeSeriesCV(nfolds)
+        nfolds > 0 || throw(ArgumentError("Must have nfolds > 0. "))
+        return new(nfolds)
     end
-    return ret
+end
+
+# Constructor with keywords
+TimeSeriesCV(; nfolds::Int=4) = TimeSeriesCV(nfolds)
+
+function train_test_pairs(tscv::TimeSeriesCV, rows)
+    if rows != sort(rows)
+        @warn "TimeSeriesCV is being applied to `rows` not in sequence. "
+    end
+
+    n_obs = length(rows)
+    n_folds = tscv.nfolds
+
+    m, r = divrem(n_obs, n_folds + 1)
+
+    if m < 1
+        throw(ArgumentError(
+            "Inusufficient data for $n_folds-fold " *
+            "time-series cross-validation.\n" *
+            "Try reducing nfolds. "
+        ))
+    end
+
+    test_folds = Iterators.partition( m+r+1 : n_obs , m)
+
+    return map(test_folds) do test_indices
+        train_indices = 1 : first(test_indices)-1
+        train_rows = rows[train_indices]
+        test_rows = rows[test_indices]
+        (train_rows, test_rows)
+    end
 end
 
 # ----------------------------------------------------------------
@@ -275,7 +281,7 @@ struct StratifiedCV <: ResamplingStrategy
     shuffle::Bool
     rng::Union{Int,AbstractRNG}
     function StratifiedCV(nfolds, shuffle, rng)
-        nfolds > 1 || error("Must have nfolds > 1. ")
+        nfolds > 1 || throw(ArgumentError("Must have nfolds > 1. "))
         return new(nfolds, shuffle, rng)
     end
 end
@@ -319,9 +325,12 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
-    st <: AbstractArray{<:Finite} ||
-        error("Supplied target has scitpye $st but stratified "*
-              "cross-validation applies only to classification problems. ")
+    if !(st <: AbstractArray{<:Finite})
+        throw(ArgumentError(
+            "Supplied target has scitpye $st but stratified " *
+            "cross-validation applies only to classification problems. "
+        ))
+    end
 
     if stratified_cv.shuffle
         rows=shuffle!(stratified_cv.rng, collect(rows))
@@ -1072,7 +1081,7 @@ On subsequent calls to `fit!(mach)` new train/test pairs of row
 indices are only regenerated if `resampling`, `repeats` or `cache`
 fields of `resampler` have changed. The evolution of an RNG field of
 `resampler` does *not* constitute a change (`==` for `MLJType` objects
-is not sensitive to such changes; see [`is_same_except'](@ref)). 
+is not sensitive to such changes; see [`is_same_except'](@ref)).
 
 If there is single train/test pair, then warm-restart behavior of the
 wrapped model `resampler.model` will extend to warm-restart behaviour
