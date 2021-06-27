@@ -52,42 +52,59 @@ const Stack{modelnames, inp_scitype, tg_scitype} =
             ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
-    Stack(;metalearner=nothing, resampling=CV(), named_models...)
+    Stack(;metalearner=nothing, resampling=CV(), name1=model1, name2=model2, ...)
 
-Implements the generalized Stack algorithm introduced by Wolpert
-in https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231 and
-generalized by Van der Laan et al in https://biostats.bepress.com/ucbbiostat/paper222/.
+Implements the two-layer generalized stack algorithm introduced by
+[Wolpert
+(1992)](https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231)
+and generalized by [Van der Laan et al
+(2007)](https://biostats.bepress.com/ucbbiostat/paper222/). Returns an
+instance of type `ProbablisiticStack` or `DeterministicStack`,
+depending on the prediction type of `metalearner`.
 
-Instead of using your favorite model, use them all! The Stack is a metalearning algorithm
-covered by theoretical guarantees.
+When training a machine bound to such an instance:
 
-The stack in a nutshell:
+- The data is split into training/validation sets according to the
+  specified `resampling` strategy.
 
-- The data is split in training/validation sets
-- Each model in the library is trained on each training set and outputs predictions on the validation sets
-- The metalearner is subsequently trained on those predictions and finds the best combination of the models
-in the library.
-- Each model is then retrained on the full data
-- "Stacking" those models and the metalearner results in an end to end fully trained model
+- Each base model `model1`, `model2`, ... is trained on each training
+  subset and outputs predictions on the corresponding validation
+  sets. The multi-fold predictions are spliced together into a
+  so-called out-of-sample prediction for each model.
 
-You are not exempt from evaluating the stack.
+- The adjudicating model, `metalearner`, is subsequently trained on
+  the out-of-sample predictions to learn the best combination of base
+  model predictions.
 
-We currently provide two different stack types the `DeterministicStack` and the `ProbabilisticStack`.
-The type of which is automatically chosen by the constructor based on the provided metalearner.
+- Each base model is retrained on all supplied data for purposes of
+  passing on new production data onto the adjudicator for making new
+  predictions
 
-# Arguments
-- `metalearner::Model`: The model that will optimize the desired criterion based on its internals.
-                        For instance, a LinearRegression model will optimize the squared error.
-- `resampling::Union{CV, StratifiedCV}`: The resampling strategy used to train the metalearner.
-- `named_models`: The models that will be part of the library
+### Arguments
 
-# Examples
+- `metalearner::Supervised`: The model that will optimize the desired
+  criterion based on its internals.  For instance, a LinearRegression
+  model will optimize the squared error.
 
-Let's build a simple DeterministicStack for a continuous target, we show that:
+- `resampling::Union{CV, StratifiedCV}`: The resampling strategy used
+  to prepare out-of-sample predictions of the base learners
 
-- Some members of the library may very well be `Probabilistic` models even though the stack
-is `Deterministic`, the expected value will be taken.
-- Rather than running a hyperparameter search, you can integrate each model in the stack
+- `name1=model1, name2=model2, ...`: the `Supervised` model instances
+  to be used as base learners.  The provided names become properties
+  of the instance created to allow hyper-parameter access
+
+
+### Example
+
+The following code defines a `DeterministicStack` instance for
+learning a `Continuous` target, and demonstrates that:
+
+- Base models can be `Probabilistic` models even if the stack
+  itself is `Deterministic` (`predict_mean` is applied in such cases).
+
+- As an alternative to hyperparameter optimization, one can stack
+  multiple copies of given model, mutating the hyper-parameter used in
+  each copy.
 
 
 ```julia
