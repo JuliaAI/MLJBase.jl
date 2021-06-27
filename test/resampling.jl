@@ -282,7 +282,7 @@ end
     tscv = TimeSeriesCV(; nfolds=3)
 
     pairs = MLJBase.train_test_pairs(tscv, 1:10)
-    @test pairs = [
+    @test pairs == [
         (1:4, [5, 6]),
         (1:6, [7, 8]),
         (1:8, [9, 10])
