@@ -14,7 +14,7 @@ makedocs(;
         "OpenML" => "openml.md",
         "Utilities" => "utilities.md"
     ],
-    repo="https://github.com/alan-turing-institute/MLJBase.jl/blob/{commit}{path}#L{line}",
+    repo="https://github.com/JuliaAI/MLJBase.jl/blob/{commit}{path}#L{line}",
     sitename="MLJBase.jl"
 )
 
