@@ -3,7 +3,7 @@ export DecisionTreeClassifier, DecisionTreeRegressor
 import MLJBase
 import MLJBase: @mlj_model, metadata_pkg, metadata_model
 
-using MLJScientificTypes
+using ScientificTypes
 
 using CategoricalArrays
 

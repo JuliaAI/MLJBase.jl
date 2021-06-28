@@ -51,11 +51,11 @@ end
 show_as_constructed(::Type{<:Measure}) = true
 
 # info (see also src/init.jl):
-function MLJScientificTypes.info(M, ::Val{:measure_type})
+function ScientificTypes.info(M, ::Val{:measure_type})
     values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
-MLJScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
+ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
 ## AGGREGATION

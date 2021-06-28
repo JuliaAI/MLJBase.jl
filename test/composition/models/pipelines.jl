@@ -4,7 +4,7 @@ using MLJBase
 using ..Models
 using Test
 using Statistics
-using MLJScientificTypes
+using ScientificTypes
 using StableRNGs
 
 rng = StableRNG(698790187)
