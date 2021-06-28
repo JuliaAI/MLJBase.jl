@@ -5,7 +5,7 @@ using Test
 import TypedTables
 using CategoricalArrays
 import Tables
-using MLJScientificTypes
+using ScientificTypes
 
 using Random
 using StableRNGs
