@@ -48,8 +48,6 @@ including:
   library, user-defined measures, as well as many natively
   defined measures.
 
-- integration with [OpenML](https://www.openml.org)
-
 
 Previously MLJBase provided the model interface for integrating third
 party machine learning models into MLJ. That role has now shifted to
