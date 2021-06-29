@@ -204,7 +204,7 @@ julia> MLJBase.train_test_pairs(TimeSeriesCV(nfolds=3), 1:10)
 
 julia> model = (@load RidgeRegressor pkg=MultivariateStats verbosity=0)();
 
-julia> data = @load_sunspot;
+julia> data = @load_sunspots;
 
 julia> X = (lag1 = data.sunspot_number[2:end-1],
             lag2 = data.sunspot_number[1:end-2]);
