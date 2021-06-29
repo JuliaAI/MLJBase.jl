@@ -232,9 +232,7 @@ function train_test_pairs(tscv::TimeSeriesCV, rows)
 
     return map(test_folds) do test_indices
         train_indices = 1 : first(test_indices)-1
-        train_rows = rows[train_indices]
-        test_rows = rows[test_indices]
-        (train_rows, test_rows)
+        rows[train_indices], rows[test_indices]
     end
 end
 
