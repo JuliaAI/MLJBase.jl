@@ -198,7 +198,7 @@ function load_smarket()
     return merge(data1, (Year=Dates.Date.(data1.Year),))
 end
 
-"""Load a well-known sunspots time series (table with one column).
+"""Load a well-known sunspot time series (table with one column).
 [https://www.sws.bom.gov.au/Educational/2/3/6]](https://www.sws.bom.gov.au/Educational/2/3/6)
 """
 load_sunspot()     = load_dataset("sunspot.csv", COERCE_SUNSPOT)
@@ -235,7 +235,7 @@ macro load_iris()
     end
 end
 
-"""Load a well-known sunspot timeseries (single table with one column)."""
+"""Load a well-known sunspot time series (single table with one column)."""
 macro load_sunspot()
     quote
         load_sunspot()
