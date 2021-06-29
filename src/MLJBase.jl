@@ -140,9 +140,9 @@ export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # datasets.jl:
-export load_boston, load_ames, load_iris,
+export load_boston, load_ames, load_iris, load_sunspots,
        load_reduced_ames, load_crabs, load_smarket,
-       @load_boston, @load_ames, @load_iris,
+       @load_boston, @load_ames, @load_iris, @load_sunspots,
        @load_reduced_ames, @load_crabs, @load_smarket
 
 # sources.jl:
@@ -167,7 +167,7 @@ export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 
 
 # resampling.jl:
-export ResamplingStrategy, Holdout, CV, StratifiedCV,
+export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
        evaluate!, Resampler, PerformanceEvaluation
 
 # -------------------------------------------------------------------
