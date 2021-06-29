@@ -154,7 +154,7 @@ const COERCE_SMARKET = (
     :Today=>Continuous,
     :Direction=>Multiclass{2})
 
-const COERCE_SUNSPOT = (
+const COERCE_SUNSPOTS = (
     (:sunspot_number=>Continuous),)
 
 """
@@ -201,7 +201,7 @@ end
 """Load a well-known sunspot time series (table with one column).
 [https://www.sws.bom.gov.au/Educational/2/3/6]](https://www.sws.bom.gov.au/Educational/2/3/6)
 """
-load_sunspot()     = load_dataset("sunspot.csv", COERCE_SUNSPOT)
+load_sunspots() = load_dataset("sunspots.csv", COERCE_SUNSPOTS)
 
 """Load a well-known public regression dataset with `Continuous` features."""
 macro load_boston()
@@ -236,9 +236,9 @@ macro load_iris()
 end
 
 """Load a well-known sunspot time series (single table with one column)."""
-macro load_sunspot()
+macro load_sunspots()
     quote
-        load_sunspot()
+        load_sunspots()
     end
 end
 

@@ -147,9 +147,9 @@ export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # datasets.jl:
-export load_boston, load_ames, load_iris, load_sunspot,
+export load_boston, load_ames, load_iris, load_sunspots,
        load_reduced_ames, load_crabs, load_smarket,
-       @load_boston, @load_ames, @load_iris, @load_sunspot,
+       @load_boston, @load_ames, @load_iris, @load_sunspots,
        @load_reduced_ames, @load_crabs, @load_smarket
 
 # sources.jl:
