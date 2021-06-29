@@ -124,7 +124,7 @@ struct CV <: ResamplingStrategy
     shuffle::Bool
     rng::Union{Int,AbstractRNG}
     function CV(nfolds, shuffle, rng)
-        nfolds > 1 || error("Must have nfolds > 1. ")
+        nfolds > 1 || throw(ArgumentError("Must have nfolds > 1. "))
         return new(nfolds, shuffle, rng)
     end
 end
@@ -143,8 +143,13 @@ function train_test_pairs(cv::CV, rows)
     end
 
     n, r = divrem(n_obs, n_folds)
-    n > 0 || error("Inusufficient data for $n_folds-fold cross-validation.\n"*
-                   "Try reducing nfolds. ")
+
+    if n < 1
+        throw(ArgumentError(
+            """Inusufficient data for $n_folds-fold cross-validation.
+            Try reducing nfolds. """
+        ))
+    end
 
     m = n + 1 # number of observations in first r folds
 
@@ -164,6 +169,98 @@ function train_test_pairs(cv::CV, rows)
     end
 end
 
+
+# ----------------------------------------------------------------
+# Cross-validation (TimeSeriesCV)
+"""
+tscv = TimeSeriesCV(; nfolds=4)
+
+Cross-validation resampling strategy, for use in `evaluate!`,
+`evaluate` and tuning, when observations are chronological and not
+expected to be independent.
+
+train_test_pairs(tscv, rows)
+
+Returns an `nfolds`-length iterator of `(train, test)` pairs of
+vectors (row indices), where each `train` and `test` is a sub-vector
+of `rows`. The rows are partitioned sequentially into `nfolds + 1`
+approximately equal length partitions, where the first partition is the first
+train set, and the second partition is the first test set. The second
+train set consists of the first two partitions, and the second test set
+consists of the third partition, and so on for each fold.
+
+The first partition (which is the first train set) has length `n + r`,
+where `n, r = divrem(length(rows), nfolds + 1)`, and the remaining partitions
+(all of the test folds) have length `n`.
+
+# Examples
+
+```julia-repl
+julia> MLJBase.train_test_pairs(TimeSeriesCV(nfolds=3), 1:10)
+3-element Vector{Tuple{UnitRange{Int64}, UnitRange{Int64}}}:
+ (1:4, 5:6)
+ (1:6, 7:8)
+ (1:8, 9:10)
+
+julia> model = (@load RidgeRegressor pkg=MultivariateStats verbosity=0)();
+
+julia> data = @load_sunspots;
+
+julia> X = (lag1 = data.sunspot_number[2:end-1],
+            lag2 = data.sunspot_number[1:end-2]);
+
+julia> y = data.sunspot_number[3:end];
+
+julia> tscv = TimeSeriesCV(nfolds=3);
+
+julia> evaluate(model, X, y, resampling=tscv, measure=rmse, verbosity=0)
+┌───────────────────────────┬───────────────┬────────────────────┐
+│ _.measure                 │ _.measurement │ _.per_fold         │
+├───────────────────────────┼───────────────┼────────────────────┤
+│ RootMeanSquaredError @753 │ 21.7          │ [25.4, 16.3, 22.4] │
+└───────────────────────────┴───────────────┴────────────────────┘
+_.per_observation = [missing]
+_.fitted_params_per_fold = [ … ]
+_.report_per_fold = [ … ]
+_.train_test_rows = [ … ]
+```
+"""
+struct TimeSeriesCV <: ResamplingStrategy
+    nfolds::Int
+    function TimeSeriesCV(nfolds)
+        nfolds > 0 || throw(ArgumentError("Must have nfolds > 0. "))
+        return new(nfolds)
+    end
+end
+
+# Constructor with keywords
+TimeSeriesCV(; nfolds::Int=4) = TimeSeriesCV(nfolds)
+
+function train_test_pairs(tscv::TimeSeriesCV, rows)
+    if rows != sort(rows)
+        @warn "TimeSeriesCV is being applied to `rows` not in sequence. "
+    end
+
+    n_obs = length(rows)
+    n_folds = tscv.nfolds
+
+    m, r = divrem(n_obs, n_folds + 1)
+
+    if m < 1
+        throw(ArgumentError(
+            "Inusufficient data for $n_folds-fold " *
+            "time-series cross-validation.\n" *
+            "Try reducing nfolds. "
+        ))
+    end
+
+    test_folds = Iterators.partition( m+r+1 : n_obs , m)
+
+    return map(test_folds) do test_indices
+        train_indices = 1 : first(test_indices)-1
+        rows[train_indices], rows[test_indices]
+    end
+end
 
 # ----------------------------------------------------------------
 # Cross-validation (stratified; for `Finite` targets)
@@ -208,7 +305,7 @@ struct StratifiedCV <: ResamplingStrategy
     shuffle::Bool
     rng::Union{Int,AbstractRNG}
     function StratifiedCV(nfolds, shuffle, rng)
-        nfolds > 1 || error("Must have nfolds > 1. ")
+        nfolds > 1 || throw(ArgumentError("Must have nfolds > 1. "))
         return new(nfolds, shuffle, rng)
     end
 end
@@ -252,9 +349,12 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
-    st <: AbstractArray{<:Finite} ||
-        error("Supplied target has scitpye $st but stratified "*
-              "cross-validation applies only to classification problems. ")
+    if !(st <: AbstractArray{<:Finite})
+        throw(ArgumentError(
+            "Supplied target has scitpye $st but stratified " *
+            "cross-validation applies only to classification problems. "
+        ))
+    end
 
     if stratified_cv.shuffle
         rows=shuffle!(stratified_cv.rng, collect(rows))
@@ -647,7 +747,7 @@ function evaluate!(mach::Machine{<:Supervised};
     # weights and measures, and dispatches a strategy-specific
     # `evaluate!`
 
-    repeats > 0 || error("Need repeats > 0. ")
+    repeats > 0 || error("Need `repeats > 0`. ")
 
     if resampling isa TrainTestPairs
         if rows !== nothing
@@ -701,6 +801,7 @@ evaluate(model::Supervised, args...; cache=true, kwargs...) =
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
     p = Progress(nfolds,
+
                  dt = 0,
                  desc = "Evaluating over $nfolds folds: ",
                  barglyphs = BarGlyphs("[=> ]"),
@@ -717,6 +818,7 @@ function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
     end
 
     return zip(ret...) |> collect
+
 end
 
 function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
@@ -1003,7 +1105,7 @@ On subsequent calls to `fit!(mach)` new train/test pairs of row
 indices are only regenerated if `resampling`, `repeats` or `cache`
 fields of `resampler` have changed. The evolution of an RNG field of
 `resampler` does *not* constitute a change (`==` for `MLJType` objects
-is not sensitive to such changes; see [`is_same_except'](@ref)). 
+is not sensitive to such changes; see [`is_same_except'](@ref)).
 
 If there is single train/test pair, then warm-restart behavior of the
 wrapped model `resampler.model` will extend to warm-restart behaviour

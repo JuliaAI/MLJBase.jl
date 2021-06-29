@@ -154,6 +154,9 @@ const COERCE_SMARKET = (
     :Today=>Continuous,
     :Direction=>Multiclass{2})
 
+const COERCE_SUNSPOTS = (
+    (:sunspot_number=>Continuous),)
+
 """
 load_dataset(fpath, coercions)
 
@@ -195,6 +198,10 @@ function load_smarket()
     return merge(data1, (Year=Dates.Date.(data1.Year),))
 end
 
+"""Load a well-known sunspot time series (table with one column).
+[https://www.sws.bom.gov.au/Educational/2/3/6]](https://www.sws.bom.gov.au/Educational/2/3/6)
+"""
+load_sunspots() = load_dataset("sunspots.csv", COERCE_SUNSPOTS)
 
 """Load a well-known public regression dataset with `Continuous` features."""
 macro load_boston()
@@ -225,6 +232,13 @@ macro load_iris()
     quote
         y, X = unpack(load_iris(), ==(:target), x-> true)
         (X, y)
+    end
+end
+
+"""Load a well-known sunspot time series (single table with one column)."""
+macro load_sunspots()
+    quote
+        load_sunspots()
     end
 end
 

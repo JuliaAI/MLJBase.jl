@@ -54,5 +54,8 @@ X, y = @load_smarket
 @test schema(X).names == (:Year, :Lag1, :Lag2, :Lag3, :Lag4, :Lag5, :Volume, :Today)
 @test scitype(y) == AbstractVector{Multiclass{2}}
 
+X = @load_sunspots
+@test schema(X).names == (:sunspot_number, )
+
 end # module
 true
