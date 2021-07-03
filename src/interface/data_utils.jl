@@ -75,12 +75,27 @@ end
 # nrows, selectrows, selectcols
 
 function MMI.nrows(::FI, ::Val{:table}, X)
-    Tables.columnaccess(X) || return length(collect(X))
-    # if has columnaccess
-    cols = Tables.columntable(X)
-    !isempty(cols) || return 0
-    return length(cols[1])
+    if Tables.rowaccess(X)
+        rows = Tables.rows(X)
+        return _nrows_rat(Base.IteratorSize(typeof(rows)), rows)
+        
+    else
+        cols = Tables.columns(X)
+        return _nrows_cat(cols)
+    end
 end
+
+# number of rows for columnaccessed table
+function _nrows_cat(cols)
+    names = Tables.columnnames(cols)
+    !isempty(names) || return 0
+    return length(Tables.getcolumn(cols, names[1]))
+end
+
+# number of rows for rowaccessed table
+_nrows_rat(::Base.HasShape, rows) = size(rows, 1)
+_nrows_rat(::Base.HasLength, rows) = length(rows)
+_nrows_rat(iter_size, rows) = length(collect(rows))
 
 MMI.selectrows(::FI, ::Val{:table}, X, ::Colon) = X
 MMI.selectcols(::FI, ::Val{:table}, X, ::Colon) = X

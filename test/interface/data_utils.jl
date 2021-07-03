@@ -110,9 +110,9 @@ end
     rt = Tables.rowtable(tt)
     ct = Tables.columntable(tt)
 
-    @test selectcols(nothing, 4:6)   == nothing
+    @test selectcols(nothing, 4:6)   === nothing
     @test selectrows(tt, 1)          == selectrows(tt[1:1], :)
-    @test MLJBase.select(nothing, 2, :x) == nothing
+    @test MLJBase.select(nothing, 2, :x) === nothing
     s = schema(tt)
     @test nrows(tt) == N
 
