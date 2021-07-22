@@ -193,7 +193,7 @@ In the inner loop, the `measure` is used to select the best performing
 model via the `best_measure_selector`.
 In the outer loop, the performance of the best model is estimated on the test set.
 This gives an indication of the best model and it's performance.
-Returns a dictionary which indicates the accuracy for each winning model.
+Returns a dictionary which indicates the accuracy for each winning model `i` where `i` is the index in `models`.
 
 ## TODO
 
@@ -210,7 +210,7 @@ function nested_cv(
 
     rows = 1:length(y)
     outer_folds = train_test_pairs(outer_resampling, rows)
-    results = Dict{Model,Vector}()
+    results = Dict(zip(models, fill([], length(models))))
     for (outer_train, outer_test) in outer_folds
         X_train = selectrows(X, outer_train)
         y_train = selectrows(y, outer_train)
@@ -219,9 +219,7 @@ function nested_cv(
         mach = machine(best_model, X, y)
         result = evaluate!(mach)
         measurement = result.measurement[1]
-        results[best_model] = best_model in keys(results) ?
-            append!(results[best_model], measurement) :
-            [measurement]
+        append!(results[best_model], measurement)
     end
     results
 end
