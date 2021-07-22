@@ -367,20 +367,26 @@ end
 end
 
 @testset "nested cross-validation" begin
-    x1 = ones(10)
-    x2 = ones(10)
+    x1 = ones(20)
+    x2 = ones(20)
     X = (x1=x1, x2=x2)
-    y = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
+    yraw = repeat([:a, :b], 10)
+    y = MLJBase.coerce(yraw, OrderedFactor{2})
 
-    models = [
-        Models.DeterministicConstantRegressor(),
-        Models.DeterministicConstantRegressor()
+    M = [
+        Models.BinaryThresholdPredictor(),
+        # Models.BinaryThresholdPredictor(threshold=0.6)
     ]
 
-    measure = rms
+    measure = accuracy
     outer_resampling = CV(nfolds=2)
     inner_resampling = CV(nfolds=2)
-    result = nested_cv(models, X, y; outer_resampling, inner_resampling, measure)
+
+    # Debug.
+    mach = machine(M[1], X, y)
+    e = evaluate!(mach, resampling=inner_resampling, measure=l1)
+
+    result = nested_cv(M, X, y; outer_resampling, inner_resampling, measure)
     @test false
 end
 
