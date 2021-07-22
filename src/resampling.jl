@@ -169,44 +169,20 @@ function train_test_pairs(cv::CV, rows)
     end
 end
 
-"""
-    evaluate_models(models; kwargs...)
-
-Return the best model. This is the inner loop for nested cross-validation.
-Takes `kwargs` for `evaluate!`.
-"""
-function evaluate_models(models, X_train, y_train, best_model_selector; kwargs...)
-    machs = [machine(m, X_train, y_train) for m in models]
-    results = evaluate!.(machs; kwargs...)
-    best_model_result = best_model_selector(results)
-    # For the unlikely case that results are non-unique, take the first.
-    i = findfirst(results .== best_model_result)
-    models[i]
-end
-
-"""
-    evaluate_folds()
-
-Return the best performing model `best_model` and its performance `performance` in the outer loop, that is, on the test set.
-The best model was determined via the training and validation sets
-(during the inner loop of nested cross-validation).
-Takes `kwargs...` for the `evaluate!` function call which is used in the outer and inner loop.
-"""
-function evaluate_folds(models,
+function evaluate_models(
+        models,
         X,
         y,
-        train::AbstractVector{Int64},
-        test::AbstractVector{Int64};
-        best_model_selector::Function,
-        kwargs...)
+        inner_resampling,
+        choose_best_result)
 
-    X_train = X[train]
-    y_train = y[train]
-    best_model = evaluate_models(models, X_train, y_train, best_model_selector; kwargs...)
-    mach = machine(best_model, X, y)
-    result = evaluate!(mach; kwargs...)
-    performance = result.measurement[1]
-    (; best_model, performance)
+    machs = [machine(m, X, y) for m in models]
+    results = evaluate!.(machs; resampling=inner_resampling)
+    measurements = first.(getproperty.(results, :measurement))
+    best_model_result = choose_best_result(measurements)
+    # For the unlikely case that results are non-unique, take the first.
+    i = findfirst(measurements .== best_model_result)
+    models[i]
 end
 
 """
@@ -217,21 +193,37 @@ In the inner loop, the `measure` is used to select the best performing
 model via the `best_measure_selector`.
 In the outer loop, the performance of the best model is estimated on the test set.
 This gives an indication of the best model and it's performance.
+Returns a dictionary which indicates the accuracy for each winning model.
 
 ## TODO
 
 - Handle rng.
 """
 function nested_cv(
-    models::AbstractVector{<:Model},
-    X,
-    y;
-    resampling=CV(),
-    measure::Measure=auc,
-    best_model_selector::Function=max)
+        models::AbstractVector{<:Model},
+        X,
+        y;
+        outer_resampling=CV(),
+        inner_resampling=CV(),
+        measure=auc,
+        choose_best_result::Function=maximum)
 
-    train, test = first(train_test_pairs(Holdout(), rows))
-    model_results = evaluate_folds(models, train, test, resampling, measure)
+    rows = 1:length(y)
+    outer_folds = train_test_pairs(outer_resampling, rows)
+    results = Dict{Model,Vector}()
+    for (outer_train, outer_test) in outer_folds
+        X_train = selectrows(X, outer_train)
+        y_train = selectrows(y, outer_train)
+        best_model = evaluate_models(models, X_train, y_train,
+            inner_resampling, choose_best_result)
+        mach = machine(best_model, X, y)
+        result = evaluate!(mach)
+        measurement = result.measurement[1]
+        results[best_model] = best_model in keys(results) ?
+            append!(results[best_model], measurement) :
+            [measurement]
+    end
+    results
 end
 
 # ----------------------------------------------------------------

@@ -209,20 +209,6 @@ end
     end
 end
 
-@testset "nested cross-validation" begin
-    x1 = ones(20)
-    x2 = ones(20)
-    X = (x1=x1, x2=x2)
-    y = rand(rng,20)
-
-    holdout = Holdout(fraction_train=0.75, rng=rng)
-    models = [
-        Models.DeterministicConstantRegressor(),
-        Models.DeterministicConstantRegressor()
-    ]
-    
-end
-
 @testset_accelerated "holdout" accel begin
     x1 = ones(4)
     x2 = ones(4)
@@ -378,6 +364,24 @@ end
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
     @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
+end
+
+@testset "nested cross-validation" begin
+    x1 = ones(10)
+    x2 = ones(10)
+    X = (x1=x1, x2=x2)
+    y = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
+
+    models = [
+        Models.DeterministicConstantRegressor(),
+        Models.DeterministicConstantRegressor()
+    ]
+
+    measure = rms
+    outer_resampling = CV(nfolds=2)
+    inner_resampling = CV(nfolds=2)
+    result = nested_cv(models, X, y; outer_resampling, inner_resampling, measure)
+    @test false
 end
 
 @testset_accelerated "sample weights in evaluation" accel begin
