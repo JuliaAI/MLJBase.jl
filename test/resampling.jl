@@ -374,17 +374,13 @@ end
     y = MLJBase.coerce(yraw, OrderedFactor{2})
 
     M = [
-        Models.BinaryThresholdPredictor(),
-        # Models.BinaryThresholdPredictor(threshold=0.6)
+        "first" => Models.BinaryThresholdPredictor(),
+        "second" => Models.BinaryThresholdPredictor(threshold=0.6)
     ]
 
     measure = accuracy
     outer_resampling = CV(nfolds=2)
     inner_resampling = CV(nfolds=2)
-
-    # Debug.
-    mach = machine(M[1], X, y)
-    e = evaluate!(mach, resampling=inner_resampling, measure=l1)
 
     result = nested_cv(M, X, y; outer_resampling, inner_resampling, measure)
     @test false
