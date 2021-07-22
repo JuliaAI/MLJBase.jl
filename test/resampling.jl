@@ -209,6 +209,20 @@ end
     end
 end
 
+@testset "nested cross-validation" begin
+    x1 = ones(20)
+    x2 = ones(20)
+    X = (x1=x1, x2=x2)
+    y = rand(rng,20)
+
+    holdout = Holdout(fraction_train=0.75, rng=rng)
+    models = [
+        Models.DeterministicConstantRegressor(),
+        Models.DeterministicConstantRegressor()
+    ]
+    
+end
+
 @testset_accelerated "holdout" accel begin
     x1 = ones(4)
     x2 = ones(4)

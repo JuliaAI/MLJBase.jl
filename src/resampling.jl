@@ -169,6 +169,58 @@ function train_test_pairs(cv::CV, rows)
     end
 end
 
+default_best_model_selector(scores::Vector) = max(mean(scores))
+
+"""
+    best_machine(models; kwargs...)
+
+Inner loop for nested cross-validation.
+Takes `kwargs` for `evaluate!`.
+"""
+function evaluate_models(models; kwargs...)
+    machs = [machine(m, X, y) for m in models]
+    results = evaluate!.(mach; kwargs...)
+    results = first.(results)
+    best_model_result = best_model_selector(results)
+    i = findfirst(results .== best_model_result)
+    models[i]
+end
+
+"""
+    evaluate_folds()
+
+Outer loop for nested cross-validation.
+"""
+function evaluate_folds(models,
+        folds,
+        resampling::ResamplingStrategy,
+        measure::Measure,
+        best_model_selector::Function)
+
+    best_model = evaluate_models(models, X, y)
+end
+
+"""
+    nested_cv(...)
+
+Perform nested cross-validation over a training, validation and test set.
+In the inner loop, the `measure` is used to select the best performing
+model via the `best_measure_selector`.
+
+## TODO
+
+- Handle rng.
+"""
+function nested_cv(
+    models::AbstractVector{<:Model}, X, y;
+    resampling=CV(),
+    measure::Measure=auc,
+    best_model_selector::Function=default_best_model_selector)
+
+    training_validation, test = first(train_test_pairs(Holdout(), rows))
+    folds = train_test_pairs(resampling, training_validation)
+    model_results = _evaluate_folds(machines, folds, resampling)
+end
 
 # ----------------------------------------------------------------
 # Cross-validation (TimeSeriesCV)
