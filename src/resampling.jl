@@ -170,7 +170,6 @@ function train_test_pairs(cv::CV, rows)
 end
 
 function evaluate_models(
-        names::AbstractVector{String},
         M::AbstractVector{<:Model},
         X,
         y,
@@ -184,6 +183,7 @@ function evaluate_models(
     best_model_result = choose_best_result(measurements)
     # For the unlikely case that results are non-unique, take the first.
     i = findfirst(measurements .== best_model_result)
+    M[i]
 end
 
 """
@@ -201,29 +201,26 @@ Returns a dictionary which indicates the accuracy for each winning model `i` whe
 - Handle rng.
 """
 function nested_cv(
-        NamesModels::AbstractVector{Pair{String,T}},
+        M::AbstractVector{<:Model},
         X,
         y;
         outer_resampling=CV(),
         inner_resampling=CV(),
         measure=auc,
-        choose_best_result::Function=maximum) where T<:Model
+        choose_best_result::Function=maximum)
 
-    names = first.(NamesModels)
-    M = last.(NamesModels)
     rows = 1:length(y)
     outer_folds = train_test_pairs(outer_resampling, rows)
-    results = Dict(zip(names, fill([], length(names))))
+    results = Dict(zip(M, fill([], length(M))))
     for (outer_train, outer_test) in outer_folds
         X_train = selectrows(X, outer_train)
         y_train = selectrows(y, outer_train)
-        best_i = evaluate_models(names, M, X_train, y_train,
+        best_model = evaluate_models(M, X_train, y_train,
             inner_resampling, measure, choose_best_result)
-        mach = machine(M[best_i], X, y)
+        mach = machine(best_model, X, y)
         result = evaluate!(mach)
         measurement = result.measurement[1]
-        best_model_name = names[best_i]
-        results[best_model_name] = [results[best_model_name]; measurement]
+        results[best_model] = [results[best_model]; measurement]
     end
     results
 end

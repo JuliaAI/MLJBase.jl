@@ -374,8 +374,8 @@ end
     y = MLJBase.coerce(yraw, OrderedFactor{2})
 
     M = [
-        "first" => Models.BinaryThresholdPredictor(),
-        "second" => Models.BinaryThresholdPredictor(threshold=0.6)
+        MLJModels.BinaryThresholdPredictor(),
+        MLJModels.BinaryThresholdPredictor(threshold=0.6)
     ]
 
     measure = accuracy
@@ -383,7 +383,7 @@ end
     inner_resampling = CV(nfolds=2)
 
     result = nested_cv(M, X, y; outer_resampling, inner_resampling, measure)
-    @test false
+    Set(values(result)) == Set([[], [0.5, 0.5]])
 end
 
 @testset_accelerated "sample weights in evaluation" accel begin
