@@ -1123,8 +1123,8 @@ are not to be confused with any weights bound to a `Resampler` instance
 in a machine, used for training the wrapped `model` when supported.
 
 """
-mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
-    model::M
+mutable struct Resampler{S} <: Supervised
+    model
     resampling::S # resampling strategy
     measure
     weights::Union{Nothing,AbstractVector{<:Real}}
@@ -1136,11 +1136,14 @@ mutable struct Resampler{S,M<:Union{Supervised,Nothing}} <: Supervised
     cache::Bool
 end
 
+# Some traits are markded as `missing` because we cannot determine
+# them from from the type because we have removed `M` (for "model"} as
+# a `Resampler` type parameter. See
+# https://github.com/JuliaAI/MLJTuning.jl/issues/141#issue-951221466
+
 StatisticalTraits.is_wrapper(::Type{<:Resampler}) = true
-StatisticalTraits.supports_weights(::Type{<:Resampler{<:Any,M}}) where M =
-    supports_weights(M)
-StatisticalTraits.supports_class_weights(::Type{<:Resampler{<:Any,M}}) where M =
-    supports_class_weights(M)
+StatisticalTraits.supports_weights(::Type{<:Resampler}) = missing
+StatisticalTraits.supports_class_weights(::Type{<:Resampler}) = missing
 StatisticalTraits.is_pure_julia(::Type{<:Resampler}) = true
 
 function MLJModelInterface.clean!(resampler::Resampler)
@@ -1244,7 +1247,7 @@ function MLJModelInterface.update(resampler::Resampler,
     measures = e.measure
 
     # update the model:
-    mach.model = resampler.model
+    mach.model = resampler.model 
 
     # re-evaluate:
     e = evaluate!(mach,
@@ -1268,13 +1271,14 @@ function MLJModelInterface.update(resampler::Resampler,
 
 end
 
+# The input and target scitypes cannot be determined from the type
+# because we have removed `M` (for "model") as a `Resampler` type
+# parameter. See
+# https://github.com/JuliaAI/MLJTuning.jl/issues/141#issue-951221466
 
-StatisticalTraits.input_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    StatisticalTraits.input_scitype(M)
-StatisticalTraits.target_scitype(::Type{<:Resampler{S,M}}) where {S,M} =
-    StatisticalTraits.target_scitype(M)
+StatisticalTraits.input_scitype(::Type{<:Resampler}) = Unknown
+StatisticalTraits.target_scitype(::Type{<:Resampler}) = Unknown
 StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"
-
 StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 fitted_params(::Resampler, fitresult) = fitresult
