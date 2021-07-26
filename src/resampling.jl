@@ -1225,6 +1225,17 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
 end
 
+# helper to update the model in a machine
+
+# when the machine's existing model and the new model have same type:
+function _update!(mach::Machine{M}, model::M) where M
+    mach.model = model
+    return mach
+end
+
+# when the types are different, we need a new machine:
+_update!(mach, model) = machine(model, mach.args...)
+
 function MLJModelInterface.update(resampler::Resampler,
                                   verbosity::Int,
                                   fitresult,
@@ -1247,10 +1258,10 @@ function MLJModelInterface.update(resampler::Resampler,
     measures = e.measure
 
     # update the model:
-    mach.model = resampler.model 
+    mach2 = _update!(mach, resampler.model)
 
     # re-evaluate:
-    e = evaluate!(mach,
+    e = evaluate!(mach2,
                   train_test_rows,
                   resampler.weights,
                   resampler.class_weights,
@@ -1263,7 +1274,7 @@ function MLJModelInterface.update(resampler::Resampler,
                   false)
 
     report = (evaluation = e, )
-    fitresult = (machine=mach, evaluation=e)
+    fitresult = (machine=mach2, evaluation=e)
     cache = (resampler = deepcopy(resampler),
              acceleration = acceleration)
 
