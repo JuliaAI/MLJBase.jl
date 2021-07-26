@@ -86,8 +86,10 @@ When training a machine bound to such an instance:
   criterion based on its internals.  For instance, a LinearRegression
   model will optimize the squared error.
 
-- `resampling::Union{CV, StratifiedCV}`: The resampling strategy used
-  to prepare out-of-sample predictions of the base learners
+- `resampling`: The resampling strategy used
+  to prepare out-of-sample predictions of the base learners. 
+  It can be a user-defined strategy, the only 
+  caveat being that it should have a `nfolds` attribute.
 
 - `name1=model1, name2=model2, ...`: the `Supervised` model instances
   to be used as base learners.  The provided names become properties
