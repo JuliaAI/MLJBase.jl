@@ -49,6 +49,8 @@ end
 
 # display:
 show_as_constructed(::Type{<:Measure}) = true
+show_compact(::Type{<:Measure}) = true
+Base.show(io::IO, m::Measure) = show(io, MIME("text/plain"), m)
 
 # info (see also src/init.jl):
 function ScientificTypes.info(M, ::Val{:measure_type})

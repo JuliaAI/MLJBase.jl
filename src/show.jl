@@ -108,9 +108,12 @@ end
 crind(n) = "\n"*repeat(' ', max(n, 0))
 
 # trait to tag those objects to be displayed as constructed:
-show_as_constructed(::Any) = false
+show_as_constructed(::Type) = false
 show_as_constructed(::Type{<:Model}) = true
+show_compact(::Type) = false
 
+show_as_constructed(object) = show_as_constructed(typeof(object))
+show_compact(object) = show_compact(typeof(object))
 
 # simplified string rep of an Type:
 function simple_repr(T)
@@ -167,8 +170,8 @@ end
 fancy(stream::IO, object) = fancy(stream, object, 0,
                                   DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH, 0)
 fancy(stream, object, current_depth, depth, n) = show(stream, object)
-function fancy(stream, object::MLJType, current_depth, depth, n) 
-    if current_depth == depth
+function fancy(stream, object::MLJType, current_depth, depth, n)
+    if current_depth == depth ;;;;;
         show(stream, object)
     else
         prefix = MLJModelInterface.name(object)
@@ -178,7 +181,8 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
         n_names = length(names)
         for k in eachindex(names)
             value =  getproperty(object, names[k])
-            print(stream, crind(n + length(prefix) - anti))
+            show_compact(object) ||
+                print(stream, crind(n + length(prefix) - anti))
             print(stream, "$(names[k]) = ")
             fancy(stream, value, current_depth + 1, depth, n + length(prefix)
                   - anti + length("$k = "))
