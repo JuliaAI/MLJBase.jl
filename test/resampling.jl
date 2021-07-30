@@ -21,6 +21,53 @@ import StatsBase
     using .Threads
 end
 
+@testset "_actual_operations" begin
+    clf = ConstantClassifier()
+    rgs = ConstantRegressor()
+    clf_det = DeterministicConstantClassifier()
+    rgs_det = DeterministicConstantRegressor()
+    measures = [LogLoss(), Accuracy(), BrierScore()] # mixed prob/determ
+    measures_det = [Accuracy(), FScore()]
+    operations = [predict, predict_mode, predict]
+
+    # single measure gets replicated to match length of `measures`:
+    @test MLJBase._actual_operations(predict_mean,
+                                   [Accuracy(), FScore()],
+                                    clf,
+                                    1) ==
+                                   [predict_mean, predict_mean]
+
+    # handling of a measure with `:unknown` `prediction_type` (eg,
+    # custom measure):
+    my_mae(yhat, y) = abs.(yhat - y)
+    @test(@test_logs(
+    (:info, MLJBase.info_ambiguous_operation_using_predict(rgs_det, my_mae)),
+        MLJBase._actual_operations(nothing, [my_mae, LPLoss()], rgs_det , 1)) ==
+          [predict, predict])
+
+    @test MLJBase._actual_operations(predict, [LogLoss(),], clf, 1) ==
+        [predict,]
+    @test MLJBase._actual_operations(operations, measures, clf, 1) == operations
+    @test_throws MLJBase.ERR_OPERATION_MEASURE_MISMATCH _ =
+        MLJBase._actual_operations([predict, predict_mode], measures, clf, 1)
+    @test_throws MLJBase.ERR_OPERATION_MEASURE_MISMATCH junk =
+        MLJBase._actual_operations([predict,], measures, clf, 1)
+    @test_throws MLJBase.ERR_INVALID_OPERATION _ =
+        MLJBase._actual_operations(transform, [LogLoss(),], clf, 1)
+    @test MLJBase._actual_operations(nothing, measures, clf, 1) == operations
+    @test(
+       @test_logs MLJBase._actual_operations(nothing, [Accuracy(),], clf, 1) ==
+           [predict_mode])
+    @test(
+       @test_logs((:info, MLJBase.info_ambiguous_operation_using_mean(rgs, l2)),
+                  MLJBase._actual_operations(nothing, [l2,], rgs, 1) ==
+                  [predict_mean, ]))
+    @test_throws(MLJBase.err_incompatible_prediction_types(clf_det, LogLoss()),
+                 MLJBase._actual_operations(nothing, [LogLoss(),], clf_det, 1))
+    @test MLJBase._actual_operations(nothing, measures_det, clf_det, 1) ==
+        [predict, predict]
+end
+
 @testset "_feature_dependencies_exist" begin
     measures = Any[rms, log_loss, brier_score]
     @test !MLJBase._feature_dependencies_exist(measures)
@@ -32,6 +79,8 @@ end
 end
 
 @testset_accelerated "dispatch of resources and progress meter" accel begin
+
+    @info "Checking progress bars:"
 
     X = (x = [1, ],)
     y = [2.0, ]
@@ -90,33 +139,38 @@ end
 
     # model prediction type is Probablistic but measure is Deterministic:
     @test_throws(ArgumentError,
-                  MLJBase._check_measure(rms, model, y, predict))
+                  MLJBase._check_measure(rms, predict, model, y))
 
-    @test MLJBase._check_measure(rms, model, y, predict_mean)
+    @test MLJBase._check_measure(rms, predict_mean, model, y)
 
-    @test MLJBase._check_measure(rms, model, y, predict_median)
+    @test MLJBase._check_measure(rms, predict_median, model, y)
 
     # has `y`  `Finite` elscityp but measure `rms` is for `Continuous`:
     y=categorical(collect("abc"))
     @test_throws(ArgumentError,
-                 MLJBase._check_measure(rms, model, y, predict_median))
+                 MLJBase._check_measure(rms, predict_median, model, y))
     model = ConstantClassifier()
     # model prediction type is Probablistic but measure is Deterministic:
     @test_throws(ArgumentError,
-                 MLJBase._check_measure(mcr, model, y,predict))
+                 MLJBase._check_measure(mcr, predict, model, y))
 
-    @test MLJBase._check_measure(mcr, model, y, predict_mode)
+    @test MLJBase._check_measure(mcr, predict_mode, model, y)
 
     # `Determistic` model but `Probablistic` measure:
-    model = Models.DeterministicConstantClassifier()
+    model = DeterministicConstantClassifier()
     @test_throws(ArgumentError,
-                 MLJBase._check_measure(cross_entropy, model, y, predict))
+                 MLJBase._check_measure(cross_entropy, predict, model, y))
+
+    # measure with wrong target_scitype:
+    @test_throws(ArgumentError,
+                 MLJBase._check_measures([brier_score, rms],
+                                         [predict_mode, predict_mean],
+                                         model, y))
 
     model = ConstantClassifier()
-    @test MLJBase._check_measures([brier_score, cross_entropy],
-                                  model, y, predict)
-    @test_throws(ArgumentError,
-                 MLJBase._check_measures([brier_score, rms], model, y, predict))
+    @test MLJBase._check_measures([brier_score, cross_entropy, accuracy],
+                                  [predict, predict, predict_mode],
+                                  model, coerce(y, Multiclass))
 end
 
 @testset "check weights" begin
@@ -145,6 +199,8 @@ end
     my_rms(yhat, y) = sqrt(mean((yhat -y).^2))
     my_mae(yhat, y) = abs.(yhat - y)
     MLJBase.reports_each_observation(::typeof(my_mae)) = true
+    MLJBase.prediction_type(::typeof(my_rms)) = :deterministic
+    MLJBase.prediction_type(::typeof(my_mae)) = :deterministic
 
     resampling = [(3:10, 1:2),
                   ([1, 2, 5, 6, 7, 8, 9, 10], 3:4),
@@ -154,7 +210,7 @@ end
 
     for cache in [true, false]
 
-        model = Models.DeterministicConstantRegressor()
+        model = DeterministicConstantRegressor()
         mach  = machine(model, X, y, cache=cache)
 
         # check detection of incompatible measure (cross_entropy):
@@ -227,7 +283,7 @@ end
         @test result.measurement[1] ≈ 2/3
 
         # test direct evaluation of a model + data:
-        result = evaluate(model, X, y, verbosity=1,
+        result = evaluate(model, X, y, verbosity=0,
                           resampling=holdout, measure=rms, cache=cache)
         @test result.measurement[1] ≈ 2/3
     end
@@ -249,11 +305,11 @@ end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
-    X, y = @load_iris
+    X, y = make_moons(50)
     model = ConstantClassifier()
 
     bad_loss(yhat, y) = throw(Exception())
-    @test_throws Exception evaluate(model, X, y, measure=bad_loss)
+    @test_throws Exception evaluate(model, X, y, measure=bad_loss, verbosity=0)
 end
 
 @testset_accelerated "cv" accel begin
@@ -398,8 +454,11 @@ end
     mach = machine(model, X, y)
     cv=CV(nfolds = 2)
     class_w = Dict(1=>1, 2=>2, 3=>3)
-    e = evaluate!(mach, resampling=cv, measure=MLJBase.MulticlassFScore(return_type=Vector),
-                  class_weights=class_w, verbosity=verb,
+    e = evaluate!(mach,
+                  resampling=cv,
+                  measure=MLJBase.MulticlassFScore(return_type=Vector),
+                  class_weights=class_w,
+                  verbosity=verb,
                   acceleration=accel).measurement[1]
     @test round(e, digits=3) ≈ 0.217
 
@@ -425,7 +484,7 @@ end
                           measure=mae, verbosity=verb,
                           acceleration=CPU1()).measurement[1]
     ridge_model.lambda=1.0
-    fit!(resampling_machine, verbosity=3)
+    fit!(resampling_machine, verbosity=verb)
     e2=evaluate(resampling_machine).measurement[1]
     @test e1 != e2
     resampler.weights = rand(rng,N)
@@ -489,7 +548,8 @@ struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
                  measure=misclassification_rate,
                  resampling=DummyResamplingStrategy(),
                  operation=predict_mode,
-                 acceleration=accel)
+                 acceleration=accel,
+                 verbosity=verb)
     @test e.measurement[1] ≈ 1.0
 end
 
@@ -604,7 +664,8 @@ end
                          measure=misclassification_rate,
                          operation=predict_mode,
                          weights=weval,
-                         acceleration=accel, verbosity=verb).measurement[1]
+                         acceleration=accel,
+                         verbosity=verb).measurement[1]
 
         @test e1 ≈ e2
 
@@ -629,7 +690,8 @@ end
         e2   = evaluate!(mach, resampling=CV();
                          measure=MulticlassFScore(return_type=Vector),
                          class_weights=cweval,
-                         acceleration=accel, verbosity=verb).measurement[1]
+                         acceleration=accel,
+                         verbosity=verb).measurement[1]
 
         @test e1 ≈ e2
 
@@ -650,6 +712,20 @@ end
                             measure=auc, class_weights=class_weights))
     end
 
+end
+
+@testset_accelerated "automatic operations - integration" accel begin
+    clf = ConstantClassifier()
+    X, y = make_moons(100)
+    e1 = evaluate(clf, X, y, resampling=CV(),
+                  measures=[LogLoss(), Accuracy()], verbosity=1)
+    e2 = evaluate(clf, X, y, resampling=CV(),
+                  operation=[predict, predict_mode],
+                  measures=[LogLoss(), Accuracy()], verbosity=1)
+    @test e1.measurement ≈ e2.measurement
+    evaluate(clf, X, y, resampling=CV(),
+             operation=predict,
+             measures=[LogLoss(), BrierScore()], verbosity=0)
 end
 
 #end
