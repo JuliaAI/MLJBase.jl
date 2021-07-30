@@ -51,7 +51,7 @@ mach_, modeltype_ex, struct_ex, no_fields, dic =
     MLJBase.from_network_preprocess(TestFromComposite, mach_ex, ex)
 eval(Parameters.with_kw(struct_ex, TestFromComposite, false))
 @test supertype(CompositeX) == DeterministicComposite
-composite = CompositeX()
+composite = CompositeX();;;
 @test composite.knn_rgs == knn
 @test composite.one_hot_enc == hot
 @test dic[:target_scitype] == :(AbstractVector{<:Continuous})
@@ -362,8 +362,8 @@ rgs = ConstantClassifier() # supports weights
 rgsM = machine(rgs, W, ys, ws)
 yhat = predict(rgsM, W)
 
-fit!(yhat)
-fit!(yhat, rows=1:div(N,2))
+fit!(yhat, verbosity=0)
+fit!(yhat, rows=1:div(N,2), verbosity=0)
 yhat(rows=1:div(N,2));
 
 mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat)
@@ -377,7 +377,7 @@ end
 
 my_composite = MyComposite()
 @test MLJBase.supports_weights(my_composite)
-mach = fit!(machine(my_composite, X, y))
+mach = fit!(machine(my_composite, X, y), verbosity=0)
 Xnew = selectrows(X, 1:div(N,2))
 predict(mach, Xnew)[1]
 posterior = predict(mach, Xnew)[1]
@@ -387,7 +387,7 @@ posterior = predict(mach, Xnew)[1]
 @test abs(pdf(posterior, 'b')/(pdf(posterior, 'c'))  - 1) < 0.15
 
 # now add weights:
-mach = fit!(machine(my_composite, X, y, w), rows=1:div(N,2))
+mach = fit!(machine(my_composite, X, y, w), rows=1:div(N,2), verbosity=0)
 posterior = predict(mach, Xnew)[1]
 
 # "posterior" is skewed appropriately in weighted case:
@@ -401,7 +401,7 @@ mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat)
     end
 end
 composite_with_no_fields = CompositeWithNoFields()
-mach = fit!(machine(composite_with_no_fields, X, y))
+mach = fit!(machine(composite_with_no_fields, X, y), verbosity=0)
 
 
 ## EXPORTING A TRANSFORMER WITH PREDICT AND TRANSFORM
@@ -434,7 +434,7 @@ clust = DummyClusterer(n=2)
 m = machine(clust, W)
 yhat = predict(m, W)
 Wout = transform(m, W)
-fit!(glb(yhat, Wout))
+fit!(glb(yhat, Wout), verbosity=0)
 mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
 
 @from_network mach begin
@@ -445,7 +445,7 @@ mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
 end
 
 model = WrappedClusterer()
-mach = fit!(machine(model, X))
+mach = fit!(machine(model, X), verbosity=0)
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
 
@@ -472,9 +472,9 @@ Z = 2*W
     end
 end
 
-mach = machine(NoTraining()) |> fit!
+mach = fit!(machine(NoTraining()), verbosity=0)
 @test transform(mach, X) == 2*X.age
-
+ 
 
 ## TESTINGS A STACK AND IN PARTICULAR FITTED_PARAMS
 
@@ -585,6 +585,5 @@ mach = machine(model, X, y)
                         fit!(mach, verbosity=-1)))
 
 end
-
 
 true

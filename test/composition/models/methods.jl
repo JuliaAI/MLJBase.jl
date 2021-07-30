@@ -29,7 +29,7 @@ X, y = make_regression(10, 2)
     mach1 = machine(model.model_in_network, W, ys)
     yhat = predict(mach1, W)
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    fitresult, cache, _ = return!(mach, model, 1)
+    fitresult, cache, _ = return!(mach, model, 0)
     @test cache.network_model_names == [:model_in_network, nothing]
     old_model = cache.old_model
     network_model_names = cache.network_model_names
@@ -97,7 +97,8 @@ function MLJBase.fit(model::Rubbish, verbosity, X, y)
     return!(mach, model, verbosity)
 end
 
-mach = machine(model, X, y) |> fit! # `model` is instance of `Rubbish`
+# `model` is instance of `Rubbish`
+mach = fit!(machine(model, X, y), verbosity=0)
 
 @testset "logic for composite model update - fit!" begin
 
@@ -198,10 +199,10 @@ selector_model = FeatureSelector()
 
     mach = machine(composite, Xs, ys)
     yhat = predict(mach, Xs)
-    fit!(yhat, verbosity=3)
+    fit!(yhat, verbosity=0)
     composite.transformer.features = [:b, :c]
-    fit!(yhat, verbosity=3)
-    fit!(yhat, rows=1:20, verbosity=3)
+    fit!(yhat, verbosity=0)
+    fit!(yhat, rows=1:20, verbosity=0)
     yhat(MLJBase.selectrows(Xin, test));
 
 end
@@ -242,11 +243,11 @@ end
     model_ = WrappedRidge(ridge)
     mach = machine(model_, Xin, yin)
     id = objectid(mach)
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test  objectid(mach) == id  # *********
     yhat=predict(mach, Xin);
     ridge.lambda = 1.0
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test predict(mach, Xin) != yhat
 
 #end
@@ -289,9 +290,9 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
-    mach = machine(model, X) |> fit!
+    mach = fit!(machine(model, X), verbosity=0)
     model.model.n = 3
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
     @test r.model.centres == MLJBase.matrix(X)[1:3,:]

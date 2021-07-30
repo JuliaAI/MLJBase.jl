@@ -22,7 +22,7 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
     ys = source(y)
     mach1 = machine(Standardizer(), Xs)
     W = transform(mach1, Xs)
-    fit!(W)
+    fit!(W, verbosity=0)
     @test_logs((:error, r"Failed"), @test_throws Exception W(34))
 
     mach2 = machine(DecisionTreeClassifier(), W, ys)
