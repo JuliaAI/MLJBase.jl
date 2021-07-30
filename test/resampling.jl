@@ -21,6 +21,19 @@ import StatsBase
     using .Threads
 end
 
+struct DummyInterval <: Interval end
+dummy_interval=DummyInterval()
+
+
+dummy_measure_det(yhat, y) = 42
+MLJBase.target_scitype(::typeof(dummy_measure_det)) = Table(MLJBase.Textual)
+MLJBase.prediction_type(::typeof(dummy_measure_det)) = :deterministic
+
+dummy_measure_interval(yhat, y) = [123, 456]
+MLJBase.target_scitype(::typeof(dummy_measure_interval)) =
+    Table(MLJBase.Textual)
+MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
+
 @testset "_actual_operations" begin
     clf = ConstantClassifier()
     rgs = ConstantRegressor()
@@ -66,6 +79,32 @@ end
                  MLJBase._actual_operations(nothing, [LogLoss(),], clf_det, 1))
     @test MLJBase._actual_operations(nothing, measures_det, clf_det, 1) ==
         [predict, predict]
+
+    # measure/model differ in prediction type but weird target_scitype:
+    @test_throws(
+        MLJBase.err_ambiguous_operation(clf, dummy_measure_det),
+        MLJBase._actual_operations(nothing, [dummy_measure_det, ], clf, 1))
+
+    # measure has :interval prediction type but model does not (2 cases):
+    @test_throws(
+        MLJBase.err_ambiguous_operation(clf, dummy_measure_interval),
+        MLJBase._actual_operations(nothing,
+                                   [dummy_measure_interval, ], clf, 1))
+    @test_throws(
+        MLJBase.err_ambiguous_operation(clf_det, dummy_measure_interval),
+        MLJBase._actual_operations(nothing,
+                                   [dummy_measure_interval, ], clf_det, 1))
+
+    # both measure and model have :interval prediction type:
+    @test MLJBase._actual_operations(nothing,
+                               [dummy_measure_interval, ],
+                               dummy_interval, 1) == [predict, ]
+
+    # model has :interval prediction type but measure does not:
+    @test_throws(
+        MLJBase.err_ambiguous_operation(dummy_interval, LogLoss()),
+        MLJBase._actual_operations(nothing,
+                                   [LogLoss(), ], dummy_interval, 1))
 end
 
 @testset "_feature_dependencies_exist" begin
