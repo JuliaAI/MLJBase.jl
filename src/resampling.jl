@@ -24,12 +24,6 @@ const ERR_INVALID_OPERATION = ArgumentError(
 _ambiguous_operation(model, measure) =
     "`prediction_type($measure) == $(prediction_type(measure))` but "*
     "`prediction_type($model) == $(prediction_type(model))`."
-info_ambiguous_operation_using_mean(model, measure) =
-    _ambiguous_operation(model, measure)*
-    "\nUsing `predict_mean` for this measure. "
-info_ambiguous_operation_using_predict(model, measure) =
-    _ambiguous_operation(model, measure)*
-    "\nUsing `predict` for this measure. "
 err_ambiguous_operation(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure)*
     "\n Unable to deduce an appropriate operation for $measure. "*
@@ -438,6 +432,7 @@ end
 
 const PerformanceEvaluation = NamedTuple{(:measure,
                                           :measurement,
+                                          :operation,
                                           :per_fold,
                                           :per_observation,
                                           :fitted_params_per_fold,
@@ -454,16 +449,18 @@ _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    data = hcat(e.measure, round3.(e.measurement),
+    data = hcat(e.measure, round3.(e.measurement), e.operation,
                 [round3.(v) for v in e.per_fold])
-    header = ["_.measure", "_.measurement", "_.per_fold"]
+    header = ["measure", "measurement", "operation", "per_fold"]
+    println(io, "tabular PerformanceEvaluation object "*
+            "with these fields (columns):")
+    println(io, "  measure, measurement, operation, per_fold,\n"*
+            "  per_observation, fitted_params_per_fold,\n"*
+            "  report_per_fold, train_test_pairs")
+    println(io, "extract:")
     PrettyTables.pretty_table(io, data, header;
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
-    println(io, "_.per_observation = $(_short(e.per_observation))")
-    println(io, "_.fitted_params_per_fold = [ … ]")
-    println(io, "_.report_per_fold = [ … ]")
-    println(io, "_.train_test_rows = [ … ]")
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)
@@ -616,8 +613,6 @@ function _actual_operations(operation::Nothing,
         target_scitype = MLJBase.target_scitype(m)
 
         if prediction_type === :unknown
-            verbosity < 1 ||
-                @info info_ambiguous_operation_using_predict(model, m)
             return predict
         end
 
@@ -629,8 +624,6 @@ function _actual_operations(operation::Nothing,
                     return predict_mode
                 elseif target_scitype <:
                     AbstractArray{<:Union{Missing,Continuous,Count}}
-                    verbosity < 1 ||
-                        @info info_ambiguous_operation_using_mean(model, m)
                     return predict_mean
                 else
                     throw(err_ambiguous_operation(model, m))
@@ -728,11 +721,12 @@ The type of operation (`predict`, `predict_mode`, etc) to be
 associated with `measure` is automatically inferred from measure
 traits where possible. For example, `predict_mode` will be used for a
 `Multiclass` target, if `model` is probabilistic but `measure` is
-deterministic. Abmiguities, such as `predict_mean`/`predict_median`
-are logged to `Info`. To suppress the logging, lower `verbosity` or
-explicitly specify `operation=...`. If `measure` is a vector, then any
-`operation` specified must be a single operation, which will be
-associated with all measures, or a vector of the same length.
+deterministic. The operations applied can be inspected from the
+`operation` field of the object returned. Alternatively, operations
+can be explicitly specified using `operation=...`. If `measure` is a
+vector, then `operation` must be a single operation, which will be
+associated with all measures, or a vector of the same length as
+`measure`.
 
 The resampling strategy is applied repeatedly (Monte Carlo resampling)
 if `repeats > 1`. For example, if `repeats = 10`, then `resampling =
@@ -813,12 +807,16 @@ these properties:
 
 - `measure`: the vector of specified measures
 
-- `measurements`: the corresponding measurements, aggregated across the
+- `measurement`: the corresponding measurements, aggregated across the
   test folds using the aggregation method defined for each measure (do
   `aggregation(measure)` to inspect)
 
-- `per_fold`: a vector of vectors of individual test fold evaluations
-  (one vector per measure)
+- `operation`: for each measure, the operation applied; one of:
+  $PREDICT_OPERATIONS_STRING.
+
+- `per_fold`: a vector of vectors of
+
+- individual test fold evaluations (one vector per measure)
 
 - `per_observation`: a vector of vectors of individual observation
   evaluations of those measures for which
@@ -1153,6 +1151,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     ret = (measure                = measures,
            measurement            = per_measure,
+           operation              = operations,
            per_fold               = per_fold,
            per_observation        = per_observation,
            fitted_params_per_fold = fitted_params_per_fold |> collect,
@@ -1336,8 +1335,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     fitresult = (machine = mach, evaluation = e)
     cache = (resampler = deepcopy(resampler),
-             acceleration = _acceleration,
-             operations = _operations)
+             acceleration = _acceleration)
     report =(evaluation = e, )
 
     return fitresult, cache, report
@@ -1361,7 +1359,7 @@ function MLJModelInterface.update(resampler::Resampler,
                                   cache,
                                   args...)
 
-    old_resampler, acceleration, operations = cache
+    old_resampler, acceleration = cache
 
     # if we need to generate new train/test pairs, or data caching
     # option has changed, then fit from scratch:
@@ -1375,6 +1373,7 @@ function MLJModelInterface.update(resampler::Resampler,
     train_test_rows = e.train_test_rows
 
     measures = e.measure
+    operations = e.operation
 
     # update the model:
     mach2 = _update!(mach, resampler.model)
@@ -1395,8 +1394,7 @@ function MLJModelInterface.update(resampler::Resampler,
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)
     cache = (resampler = deepcopy(resampler),
-             acceleration = acceleration,
-             operations = operations)
+             acceleration = acceleration)
 
     return fitresult, cache, report
 

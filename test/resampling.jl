@@ -53,10 +53,9 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
     # handling of a measure with `:unknown` `prediction_type` (eg,
     # custom measure):
     my_mae(yhat, y) = abs.(yhat - y)
-    @test(@test_logs(
-    (:info, MLJBase.info_ambiguous_operation_using_predict(rgs_det, my_mae)),
-        MLJBase._actual_operations(nothing, [my_mae, LPLoss()], rgs_det , 1)) ==
-          [predict, predict])
+    @test(
+        MLJBase._actual_operations(nothing, [my_mae, LPLoss()], rgs_det , 1) ==
+        [predict, predict])
 
     @test MLJBase._actual_operations(predict, [LogLoss(),], clf, 1) ==
         [predict,]
@@ -71,10 +70,8 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
     @test(
        @test_logs MLJBase._actual_operations(nothing, [Accuracy(),], clf, 1) ==
            [predict_mode])
-    @test(
-       @test_logs((:info, MLJBase.info_ambiguous_operation_using_mean(rgs, l2)),
-                  MLJBase._actual_operations(nothing, [l2,], rgs, 1) ==
-                  [predict_mean, ]))
+    @test MLJBase._actual_operations(nothing, [l2,], rgs, 1) ==
+        [predict_mean, ]
     @test_throws(MLJBase.err_incompatible_prediction_types(clf_det, LogLoss()),
                  MLJBase._actual_operations(nothing, [LogLoss(),], clf_det, 1))
     @test MLJBase._actual_operations(nothing, measures_det, clf_det, 1) ==
