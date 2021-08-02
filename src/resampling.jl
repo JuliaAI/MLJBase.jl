@@ -452,8 +452,8 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     data = hcat(e.measure, round3.(e.measurement), e.operation,
                 [round3.(v) for v in e.per_fold])
     header = ["measure", "measurement", "operation", "per_fold"]
-    println(io, "tabular PerformanceEvaluation object "*
-            "with these fields (columns):")
+    println(io, "PerformanceEvaluation object "*
+            "with these fields:")
     println(io, "  measure, measurement, operation, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_pairs")
