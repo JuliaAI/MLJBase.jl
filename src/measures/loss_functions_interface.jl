@@ -18,6 +18,21 @@ struct DistanceLoss{L<:LossFunctions.DistanceLoss} <: SupervisedLoss
     loss::L
 end
 
+# INTERFACE FOR EXTRACTING PARAMETERS
+
+# LossFunctions.jl does not have a uniform interface for extacting
+# parameters, and hence:
+
+_parameter(loss::LossFunctions.DWDMarginLoss) = loss.q
+_parameter(loss::LossFunctions.SmoothedL1HingeLoss) = loss.gamma
+_parameter(loss::LossFunctions.HuberLoss) = loss.d
+_parameter(loss::LossFunctions.L1EpsilonInsLoss) = loss.ε
+_parameter(loss::LossFunctions.L2EpsilonInsLoss) = loss.ε
+_parameter(::LossFunctions.LPDistLoss{P}) where P = P
+_parameter(::LossFunctions.L1DistLoss) = 1
+_parameter(::LossFunctions.L2DistLoss) = 2
+_parameter(loss::LossFunctions.QuantileLoss) = loss.τ
+
 
 ## CONSTRUCTORS AND CALLING BEHAVIOUR
 
@@ -59,10 +74,11 @@ macro wrap_loss(ex)
         push!(program.args, quote
               $Loss_ex(; $var_ex=$val_ex) =
                   $T(LossFunctions.$Loss_ex($var_ex))
+              $Loss_ex(p) = $Loss_ex($var_ex=p)
               Base.propertynames(::$Loss_ex) = (Symbol($var_str), )
               function Base.getproperty(wrapper::$Loss_ex, name::Symbol)
                   if name === Symbol($var_str)
-                      return getfield(getfield(wrapper, :loss), name)
+                      return _parameter(getfield(wrapper, :loss)) # see below
                   end
                   error("type $($Loss_ex) has no property $name")
               end
@@ -87,10 +103,10 @@ for Loss in WITHOUT_PARAMETERS
 end
 
 @wrap_loss DWDMarginLoss(; q=1.0)
-@wrap_loss SmoothedL1HingeLoss(; γ=1.0)
+@wrap_loss SmoothedL1HingeLoss(; gamma=1.0)
 @wrap_loss HuberLoss(; d=1.0)
-@wrap_loss L1EpsilonInsLoss(; ϵ=1.0)
-@wrap_loss L2EpsilonInsLoss(; ϵ=1.0)
+@wrap_loss L1EpsilonInsLoss(; ε=1.0)
+@wrap_loss L2EpsilonInsLoss(; ε=1.0)
 @wrap_loss LPDistLoss(; P=2)
 @wrap_loss QuantileLoss(; τ=0.7)
 
@@ -105,7 +121,6 @@ is_feature_dependent(::Type{<:SupervisedLoss})     = false
 supports_weights(::Type{<:SupervisedLoss}) = true
 docstring(M::Type{<:SupervisedLoss})       = name(M)
 instances(M::Type{<:SupervisedLoss}) = [snakecase(string.(naked(M))), ]
-
 
 
 ## DISTANCE BASED LOSS FUNCTIONS
@@ -155,9 +170,9 @@ human_name(::Type{<:DWDMarginLoss}) = "distance weighted discrimination loss"
 _signature(::Any) = ""
 _signature(::Type{<:HuberLoss}) = "`HuberLoss(; d=1.0)`"
 _signature(::Type{<:DWDMarginLoss}) = "`DWDMarginLoss(; q=1.0)`"
-_signature(::Type{<:SmoothedL1HingeLoss}) = "`SmoothedL1HingeLoss(; γ=1.0)`"
-_signature(::Type{<:L1EpsilonInsLoss}) = "`L1EpsilonInsLoss(; ϵ=1.0)`"
-_signature(::Type{<:L2EpsilonInsLoss}) = "`L2EpsilonInsLoss(; ϵ=1.0)`"
+_signature(::Type{<:SmoothedL1HingeLoss}) = "`SmoothedL1HingeLoss(; gamma=1.0)`"
+_signature(::Type{<:L1EpsilonInsLoss}) = "`L1EpsilonInsLoss(; ε=1.0)`"
+_signature(::Type{<:L2EpsilonInsLoss}) = "`L2EpsilonInsLoss(; ε=1.0)`"
 _signature(::Type{<:LPDistLoss}) = "`LPDistLoss(; P=2)`"
 _signature(::Type{<:QuantileLoss}) = "`QuantileLoss(; τ=0.7)`"
 
