@@ -73,5 +73,13 @@ include("finite.jl")
 include("loss_functions_interface.jl")
 include("confusion_matrix.jl")
 
+@testset "show method for measures" begin
+    for meta in measures()
+        m = eval(Meta.parse("$(meta.name)()"))
+        show(stdout, MIME("text/plain"), m)
+        println()
+    end
+end
+
 end
 true
