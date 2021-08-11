@@ -8,20 +8,27 @@
 
 # but also want this for all the abstract `Model` subtypes:
 
-composite_types = Any[]
-surrogate_types = Any[]
+const COMPOSITE_TYPES = Symbol[]
+const SURROGATE_TYPES = Symbol[]
+const composite_types = Any[]
+const surrogate_types = Any[]
 
 for T in MLJModelInterface.ABSTRACT_MODEL_SUBTYPES
     composite_type_name = string(T, "Composite") |> Symbol
     surrogate_type_name = string(T, "Surrogate") |> Symbol
+
     @eval(abstract type $composite_type_name <: $T end)
     @eval(struct $surrogate_type_name <: $T end)
+
+    push!(COMPOSITE_TYPES, composite_type_name)
+    push!(SURROGATE_TYPES, surrogate_type_name)
     push!(composite_types, @eval($composite_type_name))
     push!(surrogate_types, @eval($surrogate_type_name))
 
     # shorthand surrogate constructor:
     @eval($T() = $surrogate_type_name())
 end
+
 
 const Surrogate = Union{surrogate_types...}
 const Composite = Union{composite_types...}
@@ -36,3 +43,8 @@ end
 const DeterministicNetwork = DeterministicComposite
 const ProbabilisticNetwork = ProbabilisticComposite
 const UnsupervisedNetwork = UnsupervisedComposite
+
+export MLJType, Model, Surrogate, Composite
+for T in vcat(MMI.ABSTRACT_MODEL_SUBTYPES, COMPOSITE_TYPES, SURROGATE_TYPES)
+    @eval(export $T)
+end
