@@ -1,58 +1,35 @@
-# true composite models:
-abstract type DeterministicComposite <: Deterministic end
-abstract type ProbabilisticComposite <: Probabilistic end
-abstract type JointProbabilisticComposite <: JointProbabilistic end
-abstract type IntervalComposite <: Interval end
-abstract type  UnsupervisedComposite <: Unsupervised end
-abstract type  StaticComposite <: Static end
+##  COMPOSITE AND SURRUGOTE MODEL TYPES
 
-# surrogate composite models:
-struct DeterministicSurrogate <: Deterministic end
-struct ProbabilisticSurrogate <: Probabilistic end
-struct JointProbabilisticSurrogate <: JointProbabilistic end
-struct IntervalSurrogate <: Interval end
-struct UnsupervisedSurrogate <: Unsupervised end
-struct StaticSurrogate <: Static end
+# For example, we want to define
 
-Deterministic() = DeterministicSurrogate()
-Probabilistic() = ProbabilisticSurrogate()
-JointProbabilistic() = JointProbabilisticSurrogate()
-Interval() = IntervalSurrogate()
-Unsupervised() = UnsupervisedSurrogate()
-Static() = StaticSurrogate()
+# abstract type ProbabilisticComposite <: Probabilistic end
+# struct ProbabilisticSurrogate <: Probabilistic end
+# Probabilistic() = ProbablisiticSurrogate()
 
-const SupervisedComposite =
-    Union{DeterministicComposite,ProbabilisticComposite,JointProbabilisticComposite,IntervalComposite}
+# but also want this for all the abstract `Model` subtypes:
 
-const SupervisedSurrogate =
-    Union{DeterministicSurrogate,ProbabilisticSurrogate,JointProbabilisticSurrogate,IntervalSurrogate}
+composite_types = Any[]
+surrogate_types = Any[]
 
-const Surrogate = Union{DeterministicSurrogate,
-                        ProbabilisticSurrogate,
-                        JointProbabilisticSurrogate,
-                        IntervalSurrogate,
-                        UnsupervisedSurrogate,
-                        StaticSurrogate}
+for T in MLJModelInterface.ABSTRACT_MODEL_SUBTYPES
+    composite_type_name = string(T, "Composite") |> Symbol
+    surrogate_type_name = string(T, "Surrogate") |> Symbol
+    @eval(abstract type $composite_type_name <: $T end)
+    @eval(struct $surrogate_type_name <: $T end)
+    push!(composite_types, @eval($composite_type_name))
+    push!(surrogate_types, @eval($surrogate_type_name))
 
-const Composite = Union{SupervisedComposite,UnsupervisedComposite,
-                        StaticComposite}
+    # shorthand surrogate constructor:
+    @eval($T() = $surrogate_type_name())
+end
 
-for T in [:DeterministicComposite,
-          :ProbabilisticComposite,
-          :JointProbabilisticComposite,
-          :IntervalComposite,
-          :UnsupervisedComposite,
-          :StaticComposite,
-          :DeterministicSurrogate,
-          :JointProbabilisticSurrogate,
-          :ProbabilisticSurrogate,
-          :IntervalSurrogate,
-          :UnsupervisedSurrogate,
-          :StaticSurrogate]
-    eval(:(MMI.is_wrapper(::Type{$T}) = true))
-    eval(:(MMI.package_name(::Type{$T}) = "MLJBase"))
-    str = string(T)
-    eval(:(MMI.load_path(::Type{$T}) = "MLJBase."*$str))
+const Surrogate = Union{surrogate_types...}
+const Composite = Union{composite_types...}
+
+MLJModelInterface.is_wrapper(::Type{<:Union{Composite,Surrogate}}) = true
+MLJModelInterface.package_name(::Type{<:Union{Composite,Surrogate}}) = "MLJBase"
+for T in surrogate_types
+    MLJModelInterface.load_path(::Type{T}) = string("MLJBase.", T)
 end
 
 # aliases for legacy code:

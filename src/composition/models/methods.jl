@@ -128,7 +128,11 @@ function update(model::Composite,
 end
 
 # legacy method (replacements defined in operations.jl):
-predict(::SupervisedComposite, fitresult::Node, Xnew)     = fitresult(Xnew)
+const _SC = Union{DeterministicComposite,
+                  ProbabilisticComposite,
+                  JointProbabilisticComposite,
+                  IntervalComposite}
+predict(::_SC, fitresult::Node, Xnew) = fitresult(Xnew)
 
 # legacy method (replacements defined in operations.jl):
 transform(::UnsupervisedComposite, fitresult::Node, Xnew) = fitresult(Xnew)
