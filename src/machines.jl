@@ -74,24 +74,24 @@ end
 # In these checks the args are abstract nodes but `full=true` only
 # makes sense if they are actually source nodes.
 
-_throw_supervised_arg_error() = throw(ArgumentError(
+err_supervised_nargs() = ArgumentError(
     "`Supervised` models should have at least two "*
     "training arguments. "*
     "Use  `machine(model, X, y; ...)` or "*
-    "`machine(model, X, y, extras...; ...)`. "))
+    "`machine(model, X, y, extras...; ...)`. ")
 
-_throw_unsupervised_arg_error() = throw(ArgumentError(
+err_unsupervised_nargs() = ArgumentError(
     "`Unsupervised` models should have one "*
     "training argument, except `Static` models, which have none. "*
     "Use  `machine(model, X; ...)` (usual case) or "*
-    "`machine(model; ...)` (static case). "))
+    "`machine(model; ...)` (static case). ")
 
 function check(model::Supervised, args... ; full=false)
 
     nowarns = true
 
     nargs = length(args)
-    nargs > 1 || _throw_supervised_arg_error()
+    nargs > 1 || throw(err_supervised_nargs())
 
     full || return nowarns
 
@@ -127,6 +127,24 @@ function check(model::Supervised, args... ; full=false)
 end
 
 function check(model::Unsupervised, args...; full=false)
+    nowarns = true
+
+    nargs = length(args)
+    nargs <= 1 || throw(err_unsupervised_nargs())
+
+    if full && nargs == 1
+        X = args[1]
+        # check input scitype
+        input_scitype(model) <: Unknown ||
+            elscitype(X) <: input_scitype(model) ||
+            (@warn("The scitype of `X`, in `machine(model, X)` is "*
+        "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+             "input_scitype(model) = $(input_scitype(model))."); nowarns=false)
+    end
+    return nowarns
+end
+
+function check(model::UnsupervisedAnnotator, args...; full=false)
     nowarns = true
 
     nargs = length(args)
