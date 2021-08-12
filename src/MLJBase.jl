@@ -76,15 +76,6 @@ for trait in StatisticalTraits.TRAITS
 end
 export implemented_methods # defined here and not in StatisticalTraits
 
-# MLJ model hierarchy
-export MLJType, Model, Supervised, Unsupervised,
-    Probabilistic, JointProbabilistic, Deterministic, Interval, Static,
-    ProbabilisticComposite, JointProbabilisticComposite, DeterministicComposite,
-    IntervalComposite, UnsupervisedComposite, StaticComposite,
-    ProbabilisticSurrogate, JointProbabilisticSurrogate, DeterministicSurrogate,
-    IntervalSurrogate, UnsupervisedSurrogate, StaticSurrogate,
-    Surrogate, Composite
-
 export UnivariateFinite
 
 # MLJType equality
@@ -112,10 +103,6 @@ export coerce, coerce!, autotype, schema, info
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
-
-export DeterministicComposite,
-    ProbabilisticComposite,
-    UnsupervisedComposite
 
 # computational_resources.jl:
 export default_resource
@@ -173,6 +160,9 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 # -------------------------------------------------------------------
 # exports from MLJBase specific to Measure (these may go in their
 # specific MLJMeasureInterface package in some future)
+
+# `MLJType` and the abstract `Model` subtypes are exported from within
+# src/composition/abstract_types.jl
 
 # measures/registry.jl:
 export measures, metadata_measure
