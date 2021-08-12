@@ -74,10 +74,10 @@ include("loss_functions_interface.jl")
 include("confusion_matrix.jl")
 
 @testset "show method for measures" begin
+    io = IOBuffer()
     for meta in measures()
         m = eval(Meta.parse("$(meta.name)()"))
-        show(stdout, MIME("text/plain"), m)
-        println()
+        show(io, MIME("text/plain"), m)
     end
 end
 
