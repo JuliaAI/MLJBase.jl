@@ -74,24 +74,52 @@ end
 # In these checks the args are abstract nodes but `full=true` only
 # makes sense if they are actually source nodes.
 
-_throw_supervised_arg_error() = throw(ArgumentError(
+err_supervised_nargs() = ArgumentError(
     "`Supervised` models should have at least two "*
     "training arguments. "*
     "Use  `machine(model, X, y; ...)` or "*
-    "`machine(model, X, y, extras...; ...)`. "))
+    "`machine(model, X, y, extras...; ...)`. ")
 
-_throw_unsupervised_arg_error() = throw(ArgumentError(
+err_unsupervised_nargs() = ArgumentError(
     "`Unsupervised` models should have one "*
     "training argument, except `Static` models, which have none. "*
     "Use  `machine(model, X; ...)` (usual case) or "*
-    "`machine(model; ...)` (static case). "))
+    "`machine(model; ...)` (static case). ")
+
+warn_scitype(model::Supervised, X) =
+    "The scitype of `X`, in `machine(model, X, ...)` "*
+    "is incompatible with "*
+    "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+    "input_scitype(model) = $(input_scitype(model))."
+
+warn_scitype(model::Supervised, X, y) =
+    "The scitype of `y`, in `machine(model, X, y, ...)` "*
+    "is incompatible with "*
+    "`model=$model`:\nscitype(y) = "*
+    "$(elscitype(y))\ntarget_scitype(model) "*
+    "= $(target_scitype(model))."
+
+warn_scitype(model::Unsupervised, X) =
+    "The scitype of `X`, in `machine(model, X)` is "*
+    "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
+    "input_scitype(model) = $(input_scitype(model))."
+
+err_length_mismatch(model::Supervised) = DimensionMismatch(
+    "Differing number of observations "*
+    "in input and target. ")
+
+check(model::Any, args...; kwargs) =
+    throw(ArgumentError("Expected a `Model` instance, got $model. "))
+
+check(model::Model, args...; kwargs) =
+    @warn "Unrecognized model type $(typeof(model)). Forgoing all checks. "
 
 function check(model::Supervised, args... ; full=false)
 
     nowarns = true
 
     nargs = length(args)
-    nargs > 1 || _throw_supervised_arg_error()
+    nargs > 1 || throw(err_supervised_nargs())
 
     full || return nowarns
 
@@ -99,28 +127,21 @@ function check(model::Supervised, args... ; full=false)
 
     # checks on input type:
     input_scitype(model) <: Unknown ||
-        elscitype(X) <: input_scitype(model) ||
-        (@warn("The scitype of `X`, in `machine(model, X, ...)` "*
-               "is incompatible with "*
-               "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-               "input_scitype(model) = $(input_scitype(model)).");
-         nowarns=false)
+        elscitype(X) <: input_scitype(model) || begin
+            @warn warn_scitype(model, X)
+            nowarns=false
+        end
 
     # checks on target type:
     target_scitype(model) <: Unknown ||
-        elscitype(y) <: target_scitype(model) ||
-        (@warn("The scitype of `y`, in `machine(model, X, y, ...)` "*
-               "is incompatible with "*
-               "`model=$model`:\nscitype(y) = "*
-               "$(elscitype(y))\ntarget_scitype(model) "*
-               "= $(target_scitype(model)).");
-         nowarns=false)
+        elscitype(y) <: target_scitype(model) || begin
+            @warn warn_scitype(model, X, y)
+            nowarns=false
+        end
 
     # checks on dimension matching:
-
     scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
-        throw(DimensionMismatch("Differing number of observations "*
-                                "in input and target. "))
+        throw(err_length_mismatch(model))
 
     return nowarns
 
@@ -130,22 +151,20 @@ function check(model::Unsupervised, args...; full=false)
     nowarns = true
 
     nargs = length(args)
-    nargs <= 1 ||
-        throw(ArgumentError("Wrong number of arguments. Use "*
-                            "`machine(model, X)` for an unsupervised model, "*
-                            "or `machine(model)` if there are no training "*
-                            "arguments (`Static` transformers).) "))
+    nargs <= 1 || throw(err_unsupervised_nargs())
+
     if full && nargs == 1
         X = args[1]
         # check input scitype
         input_scitype(model) <: Unknown ||
-            elscitype(X) <: input_scitype(model) ||
-            (@warn("The scitype of `X`, in `machine(model, X)` is "*
-        "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-             "input_scitype(model) = $(input_scitype(model))."); nowarns=false)
+            elscitype(X) <: input_scitype(model) || begin
+                @warn warn_scitype(model, X)
+                nowarns=false
+            end
     end
     return nowarns
 end
+
 
 
 """
