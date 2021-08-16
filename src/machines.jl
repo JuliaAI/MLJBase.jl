@@ -92,6 +92,12 @@ warn_scitype(model::Supervised, X) =
     "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
     "input_scitype(model) = $(input_scitype(model))."
 
+warn_generic_scitype_mismatch(S, F) =
+    "The scitype of `args` in `machine(model, args...; kwargs)` "*
+    "does not match the scitype "*
+    "expected by model's `fit` method.\n"*
+    "  provided: $S\n  expected by fit: $F"
+
 warn_scitype(model::Supervised, X, y) =
     "The scitype of `y`, in `machine(model, X, y, ...)` "*
     "is incompatible with "*
@@ -111,8 +117,19 @@ err_length_mismatch(model::Supervised) = DimensionMismatch(
 check(model::Any, args...; kwargs) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
 
-check(model::Model, args...; kwargs) =
-    @warn "Unrecognized model type $(typeof(model)). Forgoing all checks. "
+function check(model::Model, args...; full=false)
+
+    nowarns = true
+
+    F = fit_data_scitype(model)
+    F == Unknown && return true
+
+    S = Tuple{elscitype.(args)...}
+    if !(S <: F)
+        @warn warn_generic_scitype_mismatch(S, F)
+        nowarns = false
+    end
+end
 
 function check(model::Supervised, args... ; full=false)
 
