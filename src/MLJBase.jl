@@ -7,7 +7,6 @@ import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*
 
 # Scitype
-import ScientificTypes.ScientificTypesBase: TRAIT_FUNCTION_GIVEN_NAME
 using ScientificTypes
 
 # Traits for models and measures (which are being overloaded):

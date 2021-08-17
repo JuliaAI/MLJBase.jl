@@ -33,8 +33,6 @@ const MEASURE_TRAITS = [:name,
 ## FOR BUILT-IN MEASURES (subtyping Measure)
 
 abstract type Measure <: MLJType end
-is_measure_type(::Type{<:Measure}) = true
-is_measure(m) = is_measure_type(typeof(m))
 
 # docstring fall-back:
 _decorate(s::AbstractString) = "`$s`"
@@ -51,11 +49,11 @@ end
 show_as_constructed(::Type{<:Measure}) = true
 
 # info (see also src/init.jl):
-function ScientificTypes.info(M, ::Val{:measure_type})
+function ScientificTypes.info(M::Type{<:Measure})
     values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
-ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
+ScientificTypes.info(m::Measure) = info(typeof(m))
 
 
 ## AGGREGATION

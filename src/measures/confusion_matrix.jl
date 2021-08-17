@@ -200,8 +200,6 @@ end
 
 ConfusionMatrix(; perm=nothing) = ConfusionMatrix(perm)
 
-is_measure(::ConfusionMatrix) = true
-is_measure_type(::Type{ConfusionMatrix}) = true
 human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
 target_scitype(::Type{ConfusionMatrix}) =
     AbstractVector{<:Finite}

@@ -114,7 +114,6 @@ end
 ## GENERIC TRAITS
 
 const LossFunctions = LossFunctions
-is_measure_type(::Type{<:SupervisedLoss})          = true
 orientation(::Type{<:SupervisedLoss})              = :loss
 reports_each_observation(::Type{<:SupervisedLoss}) = true
 is_feature_dependent(::Type{<:SupervisedLoss})     = false
