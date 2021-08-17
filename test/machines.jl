@@ -59,6 +59,24 @@ freeze!(stand)
                machine(tree, (x=categorical(1:N),), y))
 end
 
+struct FooBar <: Model end
+
+MLJBase.fit_data_scitype(::Type{<:FooBar}) =
+    Union{Tuple{AbstractVector{Count}},
+          Tuple{AbstractVector{Count},AbstractVector{Continuous}}}
+
+@testset "machine argument check for generic model" begin
+    X = [1, 2, 3, 4]
+    y = rand(4)
+    model = FooBar()
+    @test_logs machine(model, X, y)
+    @test_logs machine(model, X)
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+                                                      fit_data_scitype(model))),
+                machine(model, y))
+end
+
 @testset "weights" begin
     yraw = ["Perry", "Antonia", "Perry", "Skater"]
     X = (x=rand(4),)

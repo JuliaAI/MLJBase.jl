@@ -70,9 +70,9 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
     end
 
     if model isa Supervised
-        length(_sources) > 1 || _throw_supervised_arg_error()
+        length(_sources) > 1 || throw(err_supervised_nargs())
     elseif model isa Unsupervised
-        length(_sources) < 2 || _throw_unsupervised_arg_error()
+        length(_sources) < 2 || throw(err_unsupervised_nargs())
     else
         throw(DomainError)
     end
