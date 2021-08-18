@@ -22,8 +22,14 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-const OPERATIONS = (:predict, :predict_mean, :predict_mode, :predict_median,
-                    :predict_joint, :transform, :inverse_transform)
+const OPERATIONS = (:predict,
+                    :augmented_predict,
+                    :predict_mean,
+                    :predict_mode,
+                    :predict_median,
+                    :predict_joint,
+                    :transform,
+                    :inverse_transform)
 
 _err_rows_not_allowed() =
     throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
@@ -109,7 +115,11 @@ end
 
 ## SURROGATE AND COMPOSITE MODELS
 
-for operation in [:predict, :predict_joint, :transform, :inverse_transform]
+for operation in [:predict,
+                  :augmented_predict,
+                  :predict_joint,
+                  :transform,
+                  :inverse_transform]
     ex = quote
         $operation(model::Union{Composite,Surrogate}, fitresult,X) =
             fitresult.$operation(X)

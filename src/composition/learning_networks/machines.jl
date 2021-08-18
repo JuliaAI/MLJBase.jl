@@ -52,6 +52,38 @@ end
 
 caches_data_by_default(::Type{<:Surrogate}) = false
 
+const ERR_MUST_PREDICT = ArgumentError(
+    "You must specify at least `predict=<some node>`. ")
+const ERR_MUST_TRANSFORM = ArgumentError(
+    "You must specify at least `transform=<some node>`. ")
+const ERR_MUST_OPERATE = ArgumentError(
+    "You must specify at least one operation, as in `predict=<some node>`. ")
+const ERR_MUST_SPECIFY_SOURCES = ArgumentError(
+    "You must specify at least one source `Xs`, as in "*
+    "`machine(surrogate_model, Xs, ...; kwargs...)`. ")
+
+function check_surrogate_machine(::Surrogate, signature, _sources)
+    isempty(signature) && throw(ERR_MUST_OPERATE)
+    isempty(_sources) && throw(ERR_MUST_SPECIFY_SOURCES)
+    return nothing
+end
+
+function check_surrogate_machine(::Union{Supervised,SupervisedAnnotator},
+                                 signature,
+                                 _sources)
+    isempty(signature) && throw(ERR_MUST_PREDICT)
+    length(_sources) > 1 || throw(err_supervised_nargs())
+    return nothing
+end
+
+function check_surrogate_machine(::Union{Unsupervised},
+                                 signature,
+                                 _sources)
+    isempty(signature) && throw(ERR_MUST_TRANSFORM)
+    length(_sources) < 2 || throw(err_unsupervised_nargs())
+    return nothing
+end
+
 function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
@@ -60,22 +92,8 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
         op in OPERATIONS || throw(ArgumentError(
             "`$op` is not an admissible operation. "))
     end
-    if isempty(signature)
-        model isa Supervised &&
-            throw(ArgumentError(
-                "You must specify at least `predict=<some node>`. "))
-        model isa Unsupervised &&
-            throw(ArgumentError(
-                "You must specify at least `transform=<some node>`. "))
-    end
 
-    if model isa Supervised
-        length(_sources) > 1 || throw(err_supervised_nargs())
-    elseif model isa Unsupervised
-        length(_sources) < 2 || throw(err_unsupervised_nargs())
-    else
-        throw(DomainError)
-    end
+    check_surrogate_machine(model, signature, _sources)
 
     mach = Machine(model, _sources...)
 
@@ -85,26 +103,24 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
 end
 
-function machine(sources::Source...; pair_itr...)
+function machine(_sources::Source...; pair_itr...)
 
     signature = (; pair_itr...)
 
-    isempty(signature) &&
-        throw(ArgumentError(
-            "You must specify at least `predict=<some node>` or "*
-            "or `transform=<some node>`. "))
+    isempty(signature) && throw(ERR_MUST_OPERATE)
 
     T = model_supertype(signature)
     if T == nothing
         @warn "Unable to infer surrogate model type. \n"*
-        "Using Deterministic(). To override use:\n "*
+            "Using Deterministic(). To override specify "*
+            "surrogate model, as in "*
         "`machine(Probabilistic(), ...)` or `machine(Interval(), ...)`"
         model = Deterministic()
     else
         model = surrogate(T)
     end
 
-    return machine(model, sources...; pair_itr...)
+    return machine(model, _sources...; pair_itr...)
 
 end
 
