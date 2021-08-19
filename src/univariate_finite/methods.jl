@@ -227,6 +227,7 @@ function Distributions.pdf(
     return get(d.prob_given_ref, int(cv), zero(P))
 end
 Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = _pdf(d, c)
+Distributions.pdf(::UnivariateFinite{S,V}, ::Missing) where {S,V} = missing
 
 # Avoid method ambiguity errors with Distributions >= 0.24
 Distributions.pdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = _pdf(d, c)
@@ -241,6 +242,7 @@ end
 
 Distributions.logpdf(d::UnivariateFinite, cv::CategoricalValue) = log(pdf(d,cv))
 Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V} = log(pdf(d, c))
+Distributions.logpdf(::UnivariateFinite{S,V}, ::Missing) where {S,V} = missing
 
 # Avoid method ambiguity errors with Distributions >= 0.24
 Distributions.logpdf(d::UnivariateFinite{S,V}, c::V) where {S,V<:Real} = log(pdf(d, c))

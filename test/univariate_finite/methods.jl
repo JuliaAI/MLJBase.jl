@@ -27,7 +27,7 @@ A, S, Q, F = V[1], V[2], V[3], V[4]
     # levels!(v, reverse(levels(v)))
     # @test classes(d) == [s, q, f, a]
     # @test support(d) == [s, q, f]
-
+    @test ismissing(pdf(d, missing))
     @test pdf(d, s) ≈ 0.1
     @test pdf(d, 's') ≈ 0.1
     @test pdf(d, q) ≈ 0.2
