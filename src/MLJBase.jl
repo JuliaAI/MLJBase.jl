@@ -317,6 +317,13 @@ const INDENT = 4
 const Arr = AbstractArray
 const Vec = AbstractVector
 
+# Note the following are existential (union) types. In particular,
+# ArrMissing{Integer} is not the same as Arr{Union{Missing,Integer}},
+# etc.
+const ArrMissing{T,N} = Arr{<:Union{Missing,T},N}
+const VecMissing{T} = ArrMissing{T,1}
+const CatArrMissing{T,N} = ArrMissing{CategoricalValue{T},N}
+
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
 # ===================================================================

@@ -11,7 +11,7 @@ LogLoss(;eps=eps(), tol=eps) = LogLoss(tol)
 
 metadata_measure(LogLoss;
                  instances                = ["log_loss", "cross_entropy"],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :loss,
                  reports_each_observation = true,
@@ -44,17 +44,17 @@ _cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
     -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
 
 # multiple observations:
-function (c::LogLoss)(ŷ::Vec{<:UnivariateFinite},
-                           y::Vec)
+function (c::LogLoss)(ŷ::Arr{<:UnivariateFinite,N},
+                      y::Arr{V,N}) where {V,N}
     check_dimensions(ŷ, y)
-    check_pools(ŷ, y)
+#    check_pools(ŷ, y)
     return broadcast(_cross_entropy, ŷ, y, c.tol)
 end
 # performant in case of UnivariateFiniteArray:
-function (c::LogLoss)(ŷ::UnivariateFiniteVector{S,V,R,P},
-                           y::Vec) where {S,V,R,P}
+function (c::LogLoss)(ŷ::UnivariateFiniteArray{S,V,R,P,N},
+                      y::ArrMissing{V,N}) where {S,V,R,P,N}
     check_dimensions(ŷ, y)
-    check_pools(ŷ, y)
+#    check_pools(ŷ, y)
     return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
 end
 
@@ -66,7 +66,7 @@ struct BrierScore <: Measure end
 metadata_measure(BrierScore;
                  human_name = "Brier score (a.k.a. quadratic score)",
                  instances                = ["brier_score",],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
                  reports_each_observation = true,
@@ -103,9 +103,9 @@ function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
 end
 
 # calling on multiple observations:
-function (::BrierScore)(ŷ::Vec{<:UnivariateFinite},
-                        y::Vec,
-                        w::Union{Nothing,Vec{<:Real}}=nothing)
+function (::BrierScore)(ŷ::Arr{<:UnivariateFinite,N},
+                        y::Arr{V,N},
+                        w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N}
     check_dimensions(ŷ, y)
     w === nothing || check_dimensions(w, y)
 
@@ -120,9 +120,9 @@ end
 
 # Performant version in case of UnivariateFiniteArray:
 function (::BrierScore)(
-    ŷ::UnivariateFiniteVector{S,V,R,P},
-    y::Vec,
-    w::Union{Nothing,Vec{<:Real}}=nothing) where {S,V,R,P<:Real}
+    ŷ::UnivariateFiniteArray{S,V,R,P,N},
+    y::ArrMissing{V,N},
+    w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
 
     check_dimensions(ŷ, y)
     w === nothing || check_dimensions(w, y)
@@ -150,7 +150,7 @@ struct BrierLoss <: Measure end
 metadata_measure(BrierLoss;
                  human_name = "Brier loss (a.k.a. quadratic loss)",
                  instances                = ["brier_loss",],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
                  reports_each_observation = true,
@@ -186,13 +186,10 @@ function _brier_loss(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     return P(2) * pdf(d, y) - offset
 end
 
-(m::BrierLoss)(ŷ::Vec{<:UnivariateFinite},
-               y::Vec,
-               w::Union{Nothing,Vec{<:Real}}=nothing) =
+(m::BrierLoss)(ŷ::Arr{<:UnivariateFinite,N},
+               y::Arr{V,N},
+               w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N} =
                    - brier_score(ŷ, y, w)
-
-
-
 
 const INVARIANT_LABEL =
     "This metric is invariant to class reordering."
@@ -209,7 +206,7 @@ struct MisclassificationRate <: Measure end
 
 metadata_measure(MisclassificationRate;
                  instances  = ["misclassification_rate", "mcr"],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = false,
@@ -228,11 +225,10 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-(::MCR)(ŷ::Vec{<:CategoricalValue},
-        y::Vec{<:CategoricalValue}) = mean(y .!= ŷ)
-(::MCR)(ŷ::Vec{<:CategoricalValue},
-        y::Vec{<:CategoricalValue},
-        w::Vec{<:Real}) = sum((y .!= ŷ) .* w) / length(y)
+(::MCR)(ŷ, y) where {V,N} =
+    mean(skipmissing(y .!= ŷ))
+(::MCR)(ŷ, y, w) where {V,N} =
+    mean(skipmissing((y .!= ŷ) .* w))
 (::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
@@ -242,7 +238,7 @@ struct Accuracy <: Measure end
 
 metadata_measure(Accuracy;
                  instances = ["accuracy",],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -270,7 +266,7 @@ struct BalancedAccuracy <: Measure end
 
 metadata_measure(BalancedAccuracy;
                  instances = ["balanced_accuracy", "bacc", "bac"],
-                 target_scitype           = Vec{<:Finite},
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -290,16 +286,17 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behavior:
-function (::BACC)(ŷ::Vec{<:CategoricalValue},
-                  y::Vec{<:CategoricalValue})
+
+function (::BACC)(ŷ, y)
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
-    return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
+    weighted_matches = (ŷ .== y) .* ŵ
+    mask = .!(ismissing.(weighted_matches))
+    return sum(skipmissing(weighted_matches)) / sum(ŵ[mask])
 end
 
-function (::BACC)(ŷ::Vec{<:CategoricalValue},
-                  y::Vec{<:CategoricalValue},
-                  w::Vec{<:Real})
+function (::BACC)(ŷm, ym, w)
+    ŷ, y, w = _skipmissing(ŷm, ym, w)
     levels_ = levels(y)
     ŵ = similar(w)
     @inbounds for i in eachindex(w)
@@ -307,6 +304,7 @@ function (::BACC)(ŷ::Vec{<:CategoricalValue},
     end
     return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
 end
+
 
 # ==================================================================
 ## DETERMINISTIC BINARY PREDICTIONS - ORDER-INDEPENDENT
@@ -318,7 +316,7 @@ struct MatthewsCorrelation <: Measure end
 
 metadata_measure(MatthewsCorrelation;
                  instances = ["matthews_correlation", "mcc"],
-                 target_scitype           = Vec{<:Finite{2}},
+                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -360,9 +358,7 @@ function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ::Vec{<:CategoricalValue},
-         y::Vec{<:CategoricalValue}) =
-             _confmat(ŷ, y, warn=false) |> m
+(m::MCC)(ŷ, y) = _confmat(ŷ, y, warn=false) |> m
 
 # ---------------------------------------------------------
 # AreaUnderCurve
@@ -377,7 +373,7 @@ struct AreaUnderCurve <: Measure end
 metadata_measure(AreaUnderCurve;
                  human_name = "area under the ROC",
                  instances = ["area_under_curve", "auc"],
-                 target_scitype           = Vec{<:Finite{2}},
+                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -397,8 +393,8 @@ $INVARIANT_LABEL
 scitpye = DOC_FINITE_BINARY)
 
 # core algorithm:
-function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
-              y::Vec) where P<:Real # type of probabilities
+function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
+    ŷ, y    = _skipmissing(ŷm, ym)
     lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
@@ -418,10 +414,10 @@ function _auc(::Type{P}, ŷ::Vec{<:UnivariateFinite},
 end
 
 # calling behaviour:
-(::AUC)(ŷ::Vec{<:UnivariateFinite}, y::Vec) = _auc(Float64, ŷ, y)
+(::AUC)(ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
 
 # performant version for UnivariateFiniteVector:
-(::AUC)(ŷ::Vec{<:UnivariateFinite{S,V,R,P}}, y::Vec) where {S,V,R,P} =
+(::AUC)(ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
     _auc(P, ŷ, y)
 
 
@@ -443,7 +439,7 @@ FScore(; β=1.0, rev=nothing) = FScore(β, rev)
 metadata_measure(FScore;
                  human_name = "F-Score",
                  instances = ["f1score",],
-                 target_scitype           = Vec{<:Finite{2}},
+                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -477,7 +473,7 @@ function (score::FScore)(m::CM2)
     return (1 + β2) * (prec * rec) / (β2 * prec + rec)
 end
 
-# calling on vectors:
+# calling on arrays:
 (m::FScore)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
@@ -498,7 +494,7 @@ for M in TRUE_POSITIVE_AND_COUSINS
 end
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype           = Vec{<:Finite{2}},
+    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -507,7 +503,7 @@ metadata_measure.((FalsePositive, FalseNegative);
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
-    target_scitype           = Vec{<:Finite{2}},
+    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -515,7 +511,7 @@ metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
     supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype           = Vec{<:Finite{2}},
+    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -525,7 +521,7 @@ metadata_measure.((TruePositive, TrueNegative);
 
 metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
                    NegativePredictiveValue);
-    target_scitype           = Vec{<:Finite{2}},
+    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -710,7 +706,7 @@ MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict) =
 metadata_measure(MulticlassFScore;
                  instances = ["macro_f1score", "micro_f1score",
                               "multiclass_f1score"],
-                 target_scitype           = Vec{<:Finite{N}} where N,
+                 target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  reports_each_observation = false,
@@ -765,7 +761,7 @@ for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
 end
 
 metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -776,7 +772,7 @@ metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
 
 metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
                    MulticlassFalseDiscoveryRate);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -785,7 +781,7 @@ metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -795,7 +791,7 @@ metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
     supports_class_weights   = false)
 
 metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -804,7 +800,7 @@ metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
-    target_scitype           = Vec{<:Finite{N}} where N,
+    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
     reports_each_observation = false,
@@ -1194,55 +1190,55 @@ function _mtn(m::CM, return_type::Type{LittleDict})
     return LittleDict(m.labels, vec(_sum))
 end
 
-@inline function _mean(x::Vec{<:Real})
+@inline function _mean(x::Arr{<:Real})
     for i in eachindex(x)
         @inbounds x[i] = ifelse(isnan(x[i]), zero(eltype(x)), x[i])
     end
     return mean(x)
 end
 
-@inline function _class_w(level_m::Vec{<:String},
+@inline function _class_w(level_m::Arr{<:String},
                           class_w::AbstractDict{<:Any, <:Real})
     class_w_labels = levels(keys(class_w))
     string.(class_w_labels) == level_m || throw(ArgumentError(W_KEY_MISMATCH))
     return [class_w[l] for l in class_w_labels]
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             average::NoAvg, return_type::Type{Vector})
     return vec(a ./ (a + b))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             average::NoAvg, return_type::Type{LittleDict})
     return LittleDict(m.labels, _mc_helper(m, a, b, average, Vector))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             average::MacroAvg, return_type)
     return _mean(_mc_helper(m, a, b, no_avg, Vector))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             average::MicroAvg, return_type)
     a_sum, b_sum = sum(a), sum(b)
     return a_sum / (a_sum + b_sum)
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::NoAvg, return_type::Type{Vector})
     level_w = _class_w(m.labels, class_w)
     return _mc_helper(m, a, b, no_avg, return_type) .* level_w
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::MacroAvg, return_type::Type{Vector})
     return _mean(_mc_helper(m, a, b, class_w, no_avg, return_type))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::MicroAvg, return_type)
     @warn W_PROMOTE_WARN
@@ -1296,20 +1292,20 @@ end
     return 1.0 .- helper_name(m, average, Vector)
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::NoAvg, return_type::Type{LittleDict})
     level_w = _class_w(m.labels, class_w)
     return LittleDict(m.labels, _mc_helper(m, a, b, class_w, no_avg, Vector))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::MacroAvg, return_type::Type{U}) where U
     return _mean(_mc_helper(m, a, b, class_w, no_avg, Vector))
 end
 
-@inline function _mc_helper(m::CM, a::Vec{<:Real}, b::Vec{<:Real},
+@inline function _mc_helper(m::CM, a::Arr{<:Real}, b::Arr{<:Real},
                             class_w::AbstractDict{<:Any, <:Real},
                             average::MicroAvg, return_type::Type{U}) where U
     @warn W_PROMOTE_WARN
@@ -1413,19 +1409,19 @@ function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
     return _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 end
 
-@inline function _fs_helper(m::CM, β::Real, rec::Vec{<:Real}, prec::Vec{<:Real},
+@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
                     average::NoAvg, return_type::Type{LittleDict})
     β2 = β^2
     return LittleDict(m.labels, (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec))
 end
 
-@inline function _fs_helper(m::CM, β::Real, rec::Vec{<:Real}, prec::Vec{<:Real},
+@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
                     average::NoAvg, return_type::Type{Vector})
     β2 = β^2
     return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
 end
 
-@inline function _fs_helper(m::CM, β::Real, rec::Vec{<:Real}, prec::Vec{<:Real},
+@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
                     average::MacroAvg, return_type::Type{U}) where U
     return _mean(_fs_helper(m, β, rec, prec, no_avg, Vector))
 end
@@ -1537,9 +1533,8 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
-function roc_curve(ŷ::Vec{<:UnivariateFinite},
-                   y::Vec{<:CategoricalValue})
-
+function roc_curve(ŷm, ym)
+    ŷ, y    = _skipmissing(ŷm, ym)
     n       = length(y)
     lab_pos = levels(y)[2]
     scores  = pdf.(ŷ, lab_pos)

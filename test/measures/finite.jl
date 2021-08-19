@@ -6,15 +6,24 @@ const Vec = AbstractVector
     y    = categorical(collect("asdfasdfaaassdd"))
     yhat = categorical(collect("asdfaadfaasssdf"))
     w = 1:15
+    ym = vcat(y, [missing,])
+    yhatm = vcat(yhat, [missing,])
+    wm = 1:16
     @test misclassification_rate(yhat, y) ≈ 0.2
+    @test misclassification_rate(yhatm, ym) ≈ 0.2
     @test misclassification_rate(yhat, y, w) ≈ (6*1 + 11*1 + 15*1) / 15
+    @test misclassification_rate(yhatm, ym, wm) ≈ (6*1 + 11*1 + 15*1) / 15
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
     d1 = UnivariateFinite(L, [0.1, 0.9]) # a
     d2 = UnivariateFinite(L, Float32[0.4, 0.6]) # b
     d3 = UnivariateFinite(L, [0.2, 0.8]) # b
     yhat = [d1, d2, d3]
+    ym = vcat(y, [missing,])
+    yhatm = vcat(yhat, [d3, ])
     @test mean(cross_entropy(yhat, y)) ≈
+        Float32(-(log(0.1) + log(0.6) + log(0.8))/3)
+    @test mean(skipmissing(cross_entropy(yhatm, ym))) ≈
         Float32(-(log(0.1) + log(0.6) + log(0.8))/3)
     yhat = UnivariateFinite(L, [0.1 0.9;
                                 0.4 0.6;
@@ -30,11 +39,17 @@ const Vec = AbstractVector
     L2 = classes(y2[1])
     probs = vcat([.1 .9], [.9 .1], [.8 .2], [.35 .65], [0.2 0.8], [0.3 0.7])
     yhat2 = UnivariateFinite(L2, probs)
+    y2m = vcat(y2, [missing,])
+    yhat2m = UnivariateFinite(L2, vcat(probs, [0.1 0.9]))
     @test mean(cross_entropy(yhat2, y2)) ≈ 0.6130097025803921
+    @test mean(skipmissing(cross_entropy(yhat2, y2))) ≈ 0.6130097025803921
     # BrierScore
     scores = BrierScore()(yhat, y)
     @test size(scores) == size(y)
     @test Float32.(scores) ≈ [-1.62, -0.32, -0.08]
+    scoresm = BrierScore()(yhatm, ym)
+    @test Float32.((scoresm)[1:3]) ≈ [-1.62, -0.32, -0.08]
+    @test ismissing(scoresm[end])
     # sklearn test
     # >>> from sklearn.metrics import brier_score_loss
     # >>> brier_score_loss([1, 0, 0, 1, 0, 0], [.9, .1, .2, .65, 0.8, 0.7])
@@ -149,6 +164,18 @@ end
     TP = sum(ŷ .== y .== 2) # pred and true = + (2)
     FP = sum(ŷ .!= y .== 1) # pred + (2) and true - (1)
     FN = sum(ŷ .!= y .== 2) # pred - (1) and true + (2)
+    @test cm[1,1] == TN
+    @test cm[2,2] == TP
+    @test cm[1,2] == FN
+    @test cm[2,1] == FP
+
+    ym = categorical([1, missing, 2, 1, 2, 1, 1, 1, 2])
+    ŷm = categorical([1, 2,       2, 2, 2, missing, 2, 1, 2])
+    cm = MLJBase._confmat(ŷ, y, warn=false)
+    TN = sum(skipmissing(ŷ .== y .== 1)) # pred and true = - (1)
+    TP = sum(skipmissing(ŷ .== y .== 2)) # pred and true = + (2)
+    FP = sum(skipmissing(ŷ .!= y .== 1)) # pred + (2) and true - (1)
+    FN = sum(skipmissing(ŷ .!= y .== 2)) # pred - (1) and true + (2)
     @test cm[1,1] == TN
     @test cm[2,2] == TP
     @test cm[1,2] == FN
@@ -294,7 +321,7 @@ end
         m isa Precision  && (@test e.name == "Precision")
         m == f1score     && (@test e.name == "FScore")
         m == specificity && (@test e.name == "TrueNegativeRate")
-        @test e.target_scitype <: AbstractVector{<:Finite}
+        @test e.target_scitype <: AbstractArray{<:Union{Missing,Finite}}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
         @test e.reports_each_observation == false
@@ -307,7 +334,7 @@ end
     end
     e = info(auc)
     @test e.name == "AreaUnderCurve"
-    @test e.target_scitype == AbstractVector{<:Finite{2}}
+    @test e.target_scitype == AbstractArray{<:Union{Missing,Finite{2}}}
     @test e.prediction_type == :probabilistic
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false
@@ -326,7 +353,7 @@ end
             (@test e.name == "MulticlassFScore")
         m isa MulticlassTrueNegativeRate &&
             (@test e.name == "MulticlassTrueNegativeRate")
-        @test e.target_scitype <: AbstractVector{<:Finite}
+        @test e.target_scitype <: AbstractArray{<:Union{Missing,Finite}}
         @test e.prediction_type == :deterministic
         @test e.orientation == :score
         @test e.reports_each_observation == false
