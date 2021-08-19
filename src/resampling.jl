@@ -1,4 +1,15 @@
 # ==================================================================
+## MODEL TYPES THAT CAN BE EVALUATED
+
+# not exported:
+const Measurable = Union{Supervised,
+                         AbstractProbabilisticSupervisedDetector,
+                         AbstractProbabilisticUnsupervisedDetector,
+                         AbstractDeterministicSupervisedDetector,
+                         AbstractDeterministicUnsupervisedDetector}
+
+
+# ==================================================================
 ## RESAMPLING STRATEGIES
 
 abstract type ResamplingStrategy <: MLJType end
@@ -729,7 +740,7 @@ these properties:
    machine `mach` training in resampling
 
 """
-function evaluate!(mach::Machine{<:Supervised};
+function evaluate!(mach::Machine{<:Measurable};
                    resampling=CV(),
                    measures=nothing,
                    measure=measures,
@@ -741,7 +752,7 @@ function evaluate!(mach::Machine{<:Supervised};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1)
+                   verbosity=1) where M
 
     # this method just checks validity of options, preprocess the
     # weights and measures, and dispatches a strategy-specific
@@ -788,7 +799,7 @@ wk_options...)`.  See the machine version `evaluate!` for the complete
 list of options.
 
 """
-evaluate(model::Supervised, args...; cache=true, kwargs...) =
+evaluate(model::Measurable, args...; cache=true, kwargs...) =
     evaluate!(machine(model, args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
@@ -1123,7 +1134,7 @@ are not to be confused with any weights bound to a `Resampler` instance
 in a machine, used for training the wrapped `model` when supported.
 
 """
-mutable struct Resampler{S} <: Supervised
+mutable struct Resampler{S} <: Model
     model
     resampling::S # resampling strategy
     measure
