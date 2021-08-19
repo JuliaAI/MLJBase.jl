@@ -95,7 +95,9 @@ for func in [:pdf, :logpdf]
     eval(quote
         function Distributions.$func(
             u::AbstractArray{UnivariateFinite{S,V,R,P},N},
-            C::AbstractVector{<:Union{V, CategoricalValue{V,R}}}) where {S,V,R,P,N}
+            C::AbstractVector{<:Union{
+                V,
+                CategoricalValue{V,R}}}) where {S,V,R,P,N}
 
             #ret = Array{P,N+1}(undef, size(u)..., length(C))
             ret = zeros(P, size(u)..., length(C))
@@ -138,25 +140,32 @@ function Base.Broadcast.broadcasted(
         (get(f, u.prob_given_ref, int(cv)),)
         )
 end
+Base.Broadcast.broadcasted(
+    ::typeof(pdf),
+    u::UniFinArr{S,V,R,P,N},
+    ::Missing) where {S,V,R,P,N} = Missings.missings(P, length(u))
 
 # pdf.(u, v)
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
     u::UniFinArr{S,V,R,P,N},
-    v::AbstractArray{<:CategoricalValue{V,R},N}) where {S,V,R,P,N}
+    v::AbstractArray{<:Union{
+        Missing,
+        CategoricalValue{V,R}},N}) where {S,V,R,P,N}
 
     length(u) == length(v) ||throw(DimensionMismatch(
         "Arrays could not be broadcast to a common size; "*
         "got a dimension with lengths $(length(u)) and $(length(v))"))
     for cv in v
-        cv in classes(u) || _err_missing_class(cv)
+        ismissing(cv) || cv in classes(u) || _err_missing_class(cv)
     end
 
     # will use linear indexing:
     v_flat = ((v[i], i) for i in 1:length(v))
 
-    getter((cv, i), dtype) = _getindex(get(u.prob_given_ref, int(cv), nothing), i, dtype)
-
+    getter((cv, i), dtype) =
+        _getindex(get(u.prob_given_ref, int(cv), nothing), i, dtype)
+    getter(::Tuple{Missing,Any}, dtype) = missing
     ret_flat = getter.(v_flat, P)
     return reshape(ret_flat, size(u))
 end
@@ -165,18 +174,19 @@ end
 function Base.Broadcast.broadcasted(
     ::typeof(pdf),
     u::UnivariateFiniteArray{S,V,R,P,N},
-    raw::Union{V,AbstractArray{V,N}}) where {S,V,R,P,N}
+    raw::Union{V,AbstractArray{<:Union{Missing,V},N}}) where {S,V,R,P,N}
 
     cat = transform(classes(u), raw)
     return Base.Broadcast.broadcasted(pdf, u, cat)
 end
 
 # logpdf.(u::UniFinArr{S,V,R,P,N}, cv::CategoricalValue)
-# logpdf.(u::UniFinArr{S,V,R,P,N}, v::AbstractArray{<:CategoricalValue{V,R},N})
+# logpdf.(u::UniFinArr{S,V,R,P,N},
+#         v::AbstractArray{<:Union{Missing,CategoricalValue{V,R}},N})
 # logpdf.(u::UniFinArr{S,V,R,P,N}, raw::AbstractArray{V,N})
 # logpdf.(u::UniFinArr{S,V,R,P,N}, raw::V)
 for typ in (:CategoricalValue,
-            :(AbstractArray{<:CategoricalValue{V,R},N}),
+            :(AbstractArray{<:Union{Missing,CategoricalValue{V,R}},N}),
             :V,
             :(AbstractArray{V,N}))
    if typ == :CategoricalValue || typ == :V
@@ -207,13 +217,17 @@ for typ in (:CategoricalValue,
             @simd for j in eachindex(result)
                 @inbounds result[j] = log(result[j])
             end
-
             return result
         end
         end)
   end
 
 end
+Base.Broadcast.broadcasted(
+    ::typeof(logpdf),
+    u::UniFinArr{S,V,R,P,N},
+    c::Missing) where {S,V,R,P,N} = Missings.missings(P, length(u))
+
 
 ## PERFORMANT BROADCASTING OF mode:
 

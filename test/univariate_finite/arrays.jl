@@ -7,6 +7,7 @@ import Distributions:pdf, logpdf, support
 import Distributions
 using StableRNGs
 import Random
+using Missings
 
 rng = StableRNG(111)
 n   = 10
@@ -113,6 +114,13 @@ u = UnivariateFinite(all_classes, P, augment=true) #uni_fin_arr
 end
 
 @testset "broadcasting: pdf.(uni_fin_arr, scalar) and logpdf.(uni_fin_arr, scalar) " begin
+    v = pdf.(u, missing)
+    @test eltype(v) == Union{Missing,Float64}
+    @test all(ismissing, v)
+    v = logpdf.(u, missing)
+    @test eltype(v) == Union{Missing,Float64}
+    @test all(ismissing, v)
+
     @test pdf.(u,"yes") == P
     @test isequal(logpdf.(u,"yes"), log.(P))
     @test pdf.(u,all_classes[2]) == P
@@ -126,15 +134,21 @@ end
     @test isequal(logpdf.(u2, v[3]), log.(zeros(3)))
 end
 
+_skip(v) = collect(skipmissing(v))
+
 @testset "broadcasting: pdf.(uni_fin_arr, array_same_shape) and logpdf.(uni_fin_arr, array_same_shape)" begin
-    v = rand(classes(u), n)
-    @test broadcast(pdf, u, v) == [pdf(u[i], v[i]) for i in 1:length(u)]
-    @test isequal(broadcast(logpdf, u, v),
-        [logpdf(u[i], v[i]) for i in 1:length(u)])
-    @test broadcast(pdf, u, MLJBase.unwrap.(v)) ==
-        [pdf(u[i], v[i]) for i in 1:length(u)]
-    @test isequal(broadcast(logpdf, u, MLJBase.unwrap.(v)),
-        [logpdf(u[i], v[i]) for i in 1:length(u)])
+    v0 = categorical(rand(string.(classes(u)), n))
+    vm = vcat(v0[1:end-1], [missing, ])
+    for v in [v0, vm]
+        @test _skip(broadcast(pdf, u, v)) ==
+            _skip([pdf(u[i], v[i]) for i in 1:length(u)])
+        @test _skip(broadcast(logpdf, u, v)) ==
+                      _skip([logpdf(u[i], v[i]) for i in 1:length(u)])
+        @test _skip(broadcast(pdf, u, MLJBase.unwrap.(v))) ==
+            _skip([pdf(u[i], v[i]) for i in 1:length(u)])
+        @test _skip(broadcast(logpdf, u, MLJBase.unwrap.(v))) ==
+                      _skip([logpdf(u[i], v[i]) for i in 1:length(u)])
+    end
 end
 
 @testset "broadcasting: check indexing in `getter((cv, i), dtype)` see PR#375" begin

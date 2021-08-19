@@ -319,7 +319,7 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
 _err_missing_class(c) =  throw(DomainError(
-    "Value $c not pool"))
+    "Value `$c` not in pool"))
 
 
 function transform_(pool, x)

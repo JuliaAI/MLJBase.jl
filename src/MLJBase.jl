@@ -52,6 +52,7 @@ import LossFunctions
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
+using Missings
 import Distributions
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
