@@ -60,13 +60,13 @@ ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 ## AGGREGATION
 
-(::Sum)(v) = sum(v)
+(::Sum)(v) = sum(skipmissing(v))
 (::Sum)(v::LittleDict) = sum(values(v))
 
-(::Mean)(v) = mean(v)
+(::Mean)(v) = mean(skipmissing(v))
 (::Mean)(v::LittleDict) = mean(values(v))
 
-(::RootMeanSquare)(v) = sqrt(mean(v.^2))
+(::RootMeanSquare)(v) = sqrt(mean(skipmissing(v).^2))
 
 aggregate(v, measure) = aggregation(measure)(v)
 
@@ -106,7 +106,7 @@ value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
 value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
-## helper
+## helpers
 
 function check_pools(ŷ, y)
     levels(y) == levels(ŷ[1]) ||
@@ -115,6 +115,15 @@ function check_pools(ŷ, y)
     return nothing
 end
 
+function _skipmissing(yhat, y)
+    mask = .!(ismissing.(yhat) .| ismissing.(y))
+    return yhat[mask], y[mask]
+end
+
+function _skipmissing(yhat, y, w)
+    mask = .!(ismissing.(yhat) .| ismissing.(y))
+    return yhat[mask], y[mask], w[mask]
+end
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
 
