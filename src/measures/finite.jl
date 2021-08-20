@@ -41,7 +41,7 @@ scitype=DOC_FINITE)
 
 # workaround for https://github.com/JuliaLang/julia/issues/41939:
 @static if VERSION < v"1.1"
-    Base.clamp(::Missing, args...) = missing
+    Base.clamp(::Missing, lo::Any, hi::Any) = missing
 end
 
 # for single observation:
