@@ -39,6 +39,11 @@ A score is reported for every observation.
 """,
 scitype=DOC_FINITE)
 
+# workaround for https://github.com/JuliaLang/julia/issues/41939:
+@static if VERSION < v"1.1"
+    Base.clamp(::Missing, args...) = missing
+end
+
 # for single observation:
 _cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
     -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
