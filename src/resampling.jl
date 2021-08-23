@@ -26,7 +26,7 @@ _ambiguous_operation(model, measure) =
     "`prediction_type($model) == $(prediction_type(model))`."
 err_ambiguous_operation(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure)*
-    "\n Unable to deduce an appropriate operation for $measure. "*
+    "\nUnable to deduce an appropriate operation for $measure. "*
     "Explicitly specify `operation=...` or `operations=...`. ")
 err_incompatible_prediction_types(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure))
