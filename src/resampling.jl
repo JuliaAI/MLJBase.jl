@@ -814,9 +814,8 @@ these properties:
 - `operation`: for each measure, the operation applied; one of:
   $PREDICT_OPERATIONS_STRING.
 
-- `per_fold`: a vector of vectors of
-
-- individual test fold evaluations (one vector per measure)
+- `per_fold`: a vector of vectors of individual test fold evaluations
+  (one vector per measure)
 
 - `per_observation`: a vector of vectors of individual observation
   evaluations of those measures for which
