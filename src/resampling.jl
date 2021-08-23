@@ -15,7 +15,7 @@ const ERR_WEIGHTS_DICT =
 const ERR_WEIGHTS_CLASSES =
     DimensionMismatch("The keys of `class_weights` "*
                       "are not the same as the levels of the "*
-                      "target, y`. Do `levels(y)` to check levels. ")
+                      "target, `y`. Do `levels(y)` to check levels. ")
 const ERR_OPERATION_MEASURE_MISMATCH = DimensionMismatch(
     "The number of operations and the number of measures are different. ")
 const ERR_INVALID_OPERATION = ArgumentError(
