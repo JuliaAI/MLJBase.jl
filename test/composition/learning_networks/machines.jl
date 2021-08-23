@@ -44,7 +44,7 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
-    fit!(mach, force=true)
+    fit!(mach, force=true, verbosity=0)
 
     report(mach)
     fitted_params(mach)
@@ -60,19 +60,19 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
 
     # supervised - predict_mode
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test predict_mode(mach, X) == mode.(predict(mach, X))
     @test predict(mach, rows=1:2) == predict(mach, rows=:)[1:2]
 
     # evaluate a learning machine
-    evaluate!(mach, measure=LogLoss())
+    evaluate!(mach, measure=LogLoss(), verbosity=0)
 
     # supervised - predict_median, predict_mean
     X, y = make_regression(20)
     Xs = source(X); ys = source(y)
     mm = machine(ConstantRegressor(), Xs, ys)
     yhat = predict(mm, Xs)
-    mach = machine(Probabilistic(), Xs, ys; predict=yhat) |> fit!
+    mach = fit!(machine(Probabilistic(), Xs, ys; predict=yhat), verbosity=0)
     @test predict_mean(mach, X) ≈ mean.(predict(mach, X))
     @test predict_median(mach, X) ≈ median.(predict(mach, X))
 
@@ -103,7 +103,7 @@ yhat = exp(zhat)
 
 @testset "replace method for learning network machines" begin
 
-    fit!(yhat)
+    fit!(yhat, verbosity=0)
 
     # test nested reporting:
     r = MLJBase.report(yhat)

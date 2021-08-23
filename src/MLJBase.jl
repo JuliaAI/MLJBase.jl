@@ -43,7 +43,8 @@ import Dates
 # Distributed computing
 using Distributed
 using ComputationalResources
-using ComputationalResources: CPUProcesses
+import ComputationalResources: CPU1, CPUProcesses, CPUThreads
+
 using ProgressMeter
 import .Threads
 
@@ -94,6 +95,9 @@ export fit, update, update_data, transform, inverse_transform,
 # data operations
 export matrix, int, classes, decoder, table,
     nrows, selectrows, selectcols, select
+
+# re-export from ComputationalResources.jl:
+export CPU1, CPUProcesses, CPUThreads
 
 # re-exports from ScientificTypes
 export Unknown, Known, Finite, Infinite,

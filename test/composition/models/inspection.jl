@@ -41,7 +41,7 @@ target_stand = UnivariateStandardizer()
 model = Bar(scale, rgs, input_stand, target_stand)
 
 mach = machine(model, X, y)
-fit!(mach)
+fit!(mach, verbosity=0)
 
 @testset "user-friendly inspection of reports and fitted params" begin
 
@@ -90,7 +90,7 @@ end
     end
 
     model = Mixer(KNNRegressor(), KNNRegressor(), 42)
-    mach = machine(model, make_regression(10, 3)...) |> fit!
+    mach = fit!(machine(model, make_regression(10, 3)...), verbosity=0)
     fp = fitted_params(mach)
     @test !(fp.model1 isa Vector)
     @test !(fp.model2 isa Vector)
