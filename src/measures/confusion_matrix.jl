@@ -66,12 +66,14 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target.
 
 """
-function _confmat(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue};
-                          rev::Union{Nothing,Bool}=nothing,
-                          perm::Union{Nothing,Vector{<:Integer}}=nothing,
-                          warn::Bool=true)
+function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
+                  rev::Union{Nothing,Bool}=nothing,
+                  perm::Union{Nothing,Vector{<:Integer}}=nothing,
+                  warn::Bool=true) where {T,N}
 
-    check_dimensions(ŷ, y)
+    check_dimensions(ŷm, ym)
+    ŷ, y = _skipmissing(ŷm, ym)
+
     levels_ = levels(y)
     nc = length(levels_)
     if rev !== nothing && rev && nc > 2
@@ -204,7 +206,7 @@ is_measure(::ConfusionMatrix) = true
 is_measure_type(::Type{ConfusionMatrix}) = true
 human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
 target_scitype(::Type{ConfusionMatrix}) =
-    AbstractVector{<:Finite}
+    AbstractVector{<:Union{Missing,Finite}}
 supports_weights(::Type{ConfusionMatrix}) = false
 prediction_type(::Type{ConfusionMatrix}) = :deterministic
 instances(::Type{<:ConfusionMatrix}) = ["confusion_matrix", "confmat"]
@@ -229,7 +231,7 @@ data. For more than two classes, specify an appropriate permutation, as in
 scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
-(m::ConfusionMatrix)(ŷ::Vec{<:CategoricalValue}, y::Vec{<:CategoricalValue}) =
+(m::ConfusionMatrix)(ŷ, y) =
     _confmat(ŷ, y, perm=m.perm)
 
 # overloading addition to make aggregation work:

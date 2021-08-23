@@ -19,7 +19,7 @@ MLJBase.transform(transf::YourTransformer, verbosity, X) =
 @testset "nodal machine constructor for static transformers" begin
     X = (x1=rand(3), x2=[1, 2, 3]);
     mach = machine(YourTransformer(:x2))
-    fit!(mach)
+    fit!(mach, verbosity=0)
     @test transform(mach, X) == [1, 2, 3]
 end
 

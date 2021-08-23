@@ -43,7 +43,8 @@ import Dates
 # Distributed computing
 using Distributed
 using ComputationalResources
-using ComputationalResources: CPUProcesses
+import ComputationalResources: CPU1, CPUProcesses, CPUThreads
+
 using ProgressMeter
 import .Threads
 
@@ -52,6 +53,7 @@ import LossFunctions
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
+using Missings
 import Distributions
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
@@ -93,6 +95,9 @@ export fit, update, update_data, transform, inverse_transform,
 # data operations
 export matrix, int, classes, decoder, table,
     nrows, selectrows, selectcols, select
+
+# re-export from ComputationalResources.jl:
+export CPU1, CPUProcesses, CPUThreads
 
 # re-exports from ScientificTypes
 export Unknown, Known, Finite, Infinite,
@@ -315,6 +320,13 @@ const INDENT = 4
 
 const Arr = AbstractArray
 const Vec = AbstractVector
+
+# Note the following are existential (union) types. In particular,
+# ArrMissing{Integer} is not the same as Arr{Union{Missing,Integer}},
+# etc.
+const ArrMissing{T,N} = Arr{<:Union{Missing,T},N}
+const VecMissing{T} = ArrMissing{T,1}
+const CatArrMissing{T,N} = ArrMissing{CategoricalValue{T},N}
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface

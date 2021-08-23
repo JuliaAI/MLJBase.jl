@@ -81,5 +81,19 @@ include("confusion_matrix.jl")
     end
 end
 
+@testset "missing values in aggregation" begin
+    v =[1, 2, missing, 5]
+    @test MLJBase.Sum()(v) == 8
+    @test MLJBase.RootMeanSquare()(v) ≈ sqrt((1 + 4 + 25)/3)
+end
+
+@testset "_skipmissing" begin
+    w = rand(4)
+    @test MLJBase._skipmissing([1, 2, missing, 3], [missing, 5, 6, 7]) ==
+        ([2, 3], [5, 7])
+    @test MLJBase._skipmissing([1, 2, missing, 3], [missing, 5, 6, 7], w) ==
+        ([2, 3], [5, 7], w[[2,4]])
+end
+
 end
 true

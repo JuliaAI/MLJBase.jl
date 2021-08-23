@@ -9,11 +9,13 @@ using StableRNGs
 
 rng = StableRNG(698790187)
 
-struct MyTransformer <: Static
+struct MyTransformer2 <: Static
     ftr::Symbol
 end
 
-MLJBase.transform(transf::MyTransformer, verbosity, X) =
+const verb = 0 # verbosity
+
+MLJBase.transform(transf::MyTransformer2, verbosity, X) =
     selectcols(X, transf.ftr)
 
 NN = 7
@@ -236,11 +238,13 @@ end
     N2 = inverse_transform(uM, zhat)
 
     # compare predictions
-    fit!(mach); fit!(N2)
+    fit!(mach, verbosity=verb);
+    fit!(N2, verbosity=0)
     yhat = predict(mach, X);
     @test yhat ≈ N2()
     k.K = 3; f.features = [:x3,]
-    fit!(mach); fit!(N2)
+    fit!(mach, verbosity=verb);
+    fit!(N2, verbosity=0)
     @test !(yhat ≈ predict(mach, X))
     @test predict(mach, X) ≈ N2()
     global hand_built = predict(mach, X);
@@ -299,10 +303,11 @@ out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
 
 # invert_last = false:
 exs = [k, :(doubler), u]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
+out = @test_logs((:info, r"Treating pipeline as"),
+                 MLJBase.pipeline_preprocess(TestPipelines, exs...))
 @test out[8] == false
 
-exs = [m, t, :(MyTransformer(:age))]
+exs = [m, t, :(MyTransformer2(:age))]
 out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
 @test out[10] == Static
 
@@ -442,7 +447,7 @@ p = @pipeline(FeatureSelector, KNNRegressor,
               prediction_type=:deterministic)
 p.knn_regressor.K = 3; p.feature_selector.features = [:x3,]
 mach = machine(p, X, y)
-fit!(mach)
+fit!(mach, verbosity=verb)
 @test MLJBase.tree(mach.fitresult.predict).arg1.model.K == 3
 MLJBase.tree(mach.fitresult.predict).arg1.arg1.model.features == [:x3, ]
 @test predict(mach, X) ≈ hand_built
@@ -454,7 +459,7 @@ Xs = source(X)
 ys = source(y)
 p = @pipeline OneHotEncoder ConstantClassifier
 mach = machine(p, X, y)
-fit!(mach)
+fit!(mach, verbosity=verb)
 @test p isa ProbabilisticComposite
 pdf(predict(mach, X)[1], 'f') ≈ 4/7
 
@@ -476,7 +481,7 @@ ys = source(y)
 p = @pipeline(OneHotEncoder, ConstantClassifier, broadcast_mode,
               prediction_type=:probabilistic)
 mach = machine(p, X, y)
-fit!(mach)
+fit!(mach, verbosity=verb)
 @test predict(mach, X) == fill('f', 7)
 
 # test pipelines with weights:
@@ -484,7 +489,7 @@ w = map(y) do η
     η == 'm' ? 100 : 1
 end
 mach = machine(p, X, y, w)
-fit!(mach)
+fit!(mach, verbosity=verb)
 @test predict(mach, X) == fill('m', 7)
 
 # test a pipeline with static transformation of target:
@@ -504,18 +509,19 @@ knn = KNNRegressor(K=4)
 knn_ = machine(knn, Wsmall, z)
 zhat = predict(knn_, Wsmall)
 yhat = exp(zhat)
-fit!(yhat)
+fit!(yhat, verbosity=0)
 pred1 = yhat();
 # with pipeline:
 p = @pipeline(OneHotEncoder,
               FeatureSelector,
               KNNRegressor,
               target=v->log.(v),
-              inverse=v->exp.(v))
+              inverse=v->exp.(v),
+              prediction_type=:deterministic)
 p.feature_selector.features = [:x1, :x3__a]
 p.knn_regressor.K = 4
 p_ = machine(p, X, y)
-fit!(p_)
+fit!(p_, verbosity=0)
 pred2 = predict(p_, X);
 @test pred1 ≈ pred2
 
@@ -529,16 +535,16 @@ p = @pipeline(X -> coerce(X, :age=>Continuous),
               KNNRegressor(K=3),
               target = UnivariateStandardizer,
               prediction_type = :probabilistic)
-fit!(machine(p, X, height))
+fit!(machine(p, X, height), verbosity=0)
 
 
 ## STATIC TRANSFORMERS IN PIPELINES
 
 p99 = @pipeline(X -> coerce(X, :age=>Continuous),
                 OneHotEncoder,
-                MyTransformer(:age))
+                MyTransformer2(:age))
 
-mach  = machine(p99, X) |> fit!
+mach = fit!(machine(p99, X), verbosity=0)
 
 @test transform(mach, X) == float.(X.age)
 
@@ -546,14 +552,14 @@ mach  = machine(p99, X) |> fit!
 ## PURE STATIC PIPLINES
 
 p = @pipeline(X -> coerce(X, :age=>Continuous),
-                MyTransformer(:age))
+                MyTransformer2(:age))
 
 # no training arguments!
-mach = machine(p) |> fit!
+mach = fit!(machine(p), verbosity=0)
 @test transform(mach, X) == X.age
 
 p = @pipeline exp log x-> 2*x
-mach = machine(p) |> fit!
+mach = fit!(machine(p), verbosity=0)
 @test transform(mach, 20) ≈ 40
 
 
@@ -565,7 +571,7 @@ p = @pipeline(OneHotEncoder,
 
 @test p isa Deterministic
 
-mach = machine(p, X, height) |> fit!
+mach = fit!(machine(p, X, height), verbosity=0)
 @test scitype(predict(mach, X)) == AbstractVector{Continuous}
 
 
@@ -574,14 +580,15 @@ mach = machine(p, X, height) |> fit!
 X = (x1 = float.(1:10),)
 y = X.x1
 
-p = @pipeline(KNNRegressor(K=1), doubler, target=UnivariateStandardizer)
+p = @pipeline(KNNRegressor(K=1), doubler, target=UnivariateStandardizer,
+              prediction_type=:deterministic)
 
-mach = machine(p, X, y) |> fit!
+mach = fit!(machine(p, X, y), verbosity=0)
 @test predict(mach, X) ≈ doubler(y)
 
 p = @pipeline(KNNRegressor(K=1), doubler, target=UnivariateStandardizer,
-              invert_last=true)
-mach = machine(p, X, y) |> fit!
+              invert_last=true, prediction_type=:deterministic)
+mach = fit!(machine(p, X, y), verbosity=0)
 @test !(predict(mach, X) ≈ doubler(y))
 
 end

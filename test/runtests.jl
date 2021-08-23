@@ -106,4 +106,3 @@ end
     @test include("hyperparam/one_dimensional_ranges.jl")
     @test include("hyperparam/one_dimensional_range_methods.jl")
 end
-
