@@ -1083,7 +1083,7 @@ function evaluate!(mach::Machine, resampling, weights,
         end
         ytest = selectrows(y, test)
 
-        measurements =  map(zip(measures, operations)) do (m, op)
+        measurements =  map(measures, operations) do m, op
             wtest = measure_specific_weights(m,
                                              weights,
                                              class_weights,
