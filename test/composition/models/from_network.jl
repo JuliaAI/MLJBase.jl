@@ -51,7 +51,7 @@ mach_, modeltype_ex, struct_ex, no_fields, dic =
     MLJBase.from_network_preprocess(TestFromComposite, mach_ex, ex)
 eval(Parameters.with_kw(struct_ex, TestFromComposite, false))
 @test supertype(CompositeX) == DeterministicComposite
-composite = CompositeX();;;
+composite = CompositeX()
 @test composite.knn_rgs == knn
 @test composite.one_hot_enc == hot
 @test dic[:target_scitype] == :(AbstractVector{<:Continuous})
