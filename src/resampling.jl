@@ -498,29 +498,29 @@ function _check_measure(measure, operation, model, y)
             "\nscitype of target = $T but target_scitype($measure) = "*
             "$(target_scitype(measure))."*avoid))
 
-    if model isa Probabilistic
-        if operation == predict
-            if prediction_type(measure) != :probabilistic
-                if target_scitype(measure) <:
-                    AbstractVector{<:Union{Missing,Finite}}
-                    suggestion = "\nPerhaps you want to set `operation="*
-                        "predict_mode` or need to "*
-                        "specify multiple operations, "*
-                        "one for each measure. "
-                elseif target_scitype(measure) <:
-                    AbstractVector{<:Union{Missing,Continuous}}
-                    suggestion = "\nPerhaps you want to set `operation="*
-                        "predict_mean` or `operation=predict_median`, or "*
-                        "specify multiple operations, "*
-                        "one for each measure. "
-                else
-                    suggestion = ""
-                end
-                throw(ArgumentError(
-                   "\n$model <: Probabilistic but prediction_type($measure) = "*
-                      ":$(prediction_type(measure)). "*suggestion*avoid))
-            end
+    incompatible = model isa Probabilistic &&
+        operation == predict &&
+        prediction_type(measure) != :probabilistic
+
+    if incompatible
+        if target_scitype(measure) <:
+            AbstractVector{<:Union{Missing,Finite}}
+            suggestion = "\nPerhaps you want to set `operation="*
+                "predict_mode` or need to "*
+                "specify multiple operations, "*
+                "one for each measure. "
+        elseif target_scitype(measure) <:
+            AbstractVector{<:Union{Missing,Continuous}}
+            suggestion = "\nPerhaps you want to set `operation="*
+                "predict_mean` or `operation=predict_median`, or "*
+                "specify multiple operations, "*
+                "one for each measure. "
+        else
+            suggestion = ""
         end
+        throw(ArgumentError(
+            "\n$model <: Probabilistic but prediction_type($measure) = "*
+            ":$(prediction_type(measure)). "*suggestion*avoid))
     end
 
     model isa Deterministic && prediction_type(measure) != :deterministic &&
