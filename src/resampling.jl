@@ -635,7 +635,7 @@ function _actual_operations(operation::Nothing,
             if prediction_type === :probabilistic
                 throw(err_incompatible_prediction_types(model, m))
             elseif prediction_type === :deterministic
-                    return predict
+                return predict
             else
                 throw(err_ambiguous_operation(model, m))
             end
