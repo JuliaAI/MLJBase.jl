@@ -171,7 +171,7 @@ fancy(stream::IO, object) = fancy(stream, object, 0,
                                   DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH, 0)
 fancy(stream, object, current_depth, depth, n) = show(stream, object)
 function fancy(stream, object::MLJType, current_depth, depth, n)
-    if current_depth == depth ;;;;;
+    if current_depth == depth
         show(stream, object)
     else
         prefix = MLJModelInterface.name(object)
