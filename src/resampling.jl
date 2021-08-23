@@ -2,7 +2,7 @@ const PREDICT_OPERATIONS_STRING = begin
     strings = map(PREDICT_OPERATIONS) do op
         "`"*string(op)*"`"
     end
-    join(strings, ", ")
+    join(strings, ", ", ", or ")
 end
 const ERR_WEIGHTS_REAL =
     ArgumentError("`weights` must be a `Real` vector. ")
