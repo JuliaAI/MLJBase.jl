@@ -28,7 +28,7 @@ const PREDICT_OPERATIONS = (:predict,
                             :predict_median,
                             :predict_joint)
 
-const OPERATIONS = tuple(PREDICT_OPERATIONS..., :transform, :inverse_transform)
+const OPERATIONS = (PREDICT_OPERATIONS..., :transform, :inverse_transform)
 
 _err_rows_not_allowed() =
     throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
