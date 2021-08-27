@@ -457,7 +457,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "  measure, measurement, operation, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_pairs")
-    println(io, "extract:")
+    println(io, "Extract:")
     PrettyTables.pretty_table(io, data, header;
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
