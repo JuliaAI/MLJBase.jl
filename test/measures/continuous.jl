@@ -25,10 +25,13 @@ rng = StableRNG(666899)
     uniform = Distributions.Uniform(2, 5)
     poisson = Distributions.Poisson()
     discrete_uniform = Distributions.DiscreteUniform(2, 5)
+    w = [2, 3]
 
     yhat = [missing, uniform]
     @test isapprox(continuous_brier_score(yhat, [42.0, 1.0]), [-1/3,])
     @test isapprox(continuous_brier_score(yhat, [42.0, 4.0]), [1/3,])
+    @test isapprox(continuous_brier_score(yhat, [42.0, 1.0], w), [-1,])
+    @test isapprox(continuous_brier_score(yhat, [42.0, 4.0], w), [1,])
     @test_throws(MLJBase.err_brier_distribution(continuous_brier_score,
                                                 poisson),
                  continuous_brier_score([missing, poisson], [1.0, 1.0]))
