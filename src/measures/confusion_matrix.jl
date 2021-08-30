@@ -72,7 +72,7 @@ function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
                   warn::Bool=true) where {T,N}
 
     check_dimensions(ŷm, ym)
-    ŷ, y = _skipmissing(ŷm, ym)
+    ŷ, y = skipinvalid(ŷm, ym)
 
     levels_ = levels(y)
     nc = length(levels_)

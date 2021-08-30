@@ -81,19 +81,27 @@ include("confusion_matrix.jl")
     end
 end
 
-@testset "missing values in aggregation" begin
-    v =[1, 2, missing, 5]
+@testset "missing and NaN values in aggregation" begin
+    v =[1, 2, missing, 5, NaN]
     @test MLJBase.Sum()(v) == 8
     @test MLJBase.RootMeanSquare()(v) ≈ sqrt((1 + 4 + 25)/3)
     @test_throws MLJBase.ERR_NOTHING_LEFT_TO_AGGREGATE MLJBase.Mean()(Float32[])
 end
 
-@testset "_skipmissing" begin
-    w = rand(4)
-    @test MLJBase._skipmissing([1, 2, missing, 3], [missing, 5, 6, 7]) ==
+@testset "skipinvalid" begin
+    w = rand(5)
+    @test MLJBase.skipinvalid([1, 2, missing, 3, NaN], [missing, 5, 6, 7, 8]) ==
         ([2, 3], [5, 7])
-    @test MLJBase._skipmissing([1, 2, missing, 3], [missing, 5, 6, 7], w) ==
-        ([2, 3], [5, 7], w[[2,4]])
+    @test(
+        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
+                            [missing, 5, 6, 7, 8],
+                            w) ==
+        ([2, 3], [5, 7], w[[2,4]]))
+    @test(
+        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
+                            [missing, 5, 6, 7, 8],
+                            nothing) ==
+        ([2, 3], [5, 7], nothing))
 end
 
 end
