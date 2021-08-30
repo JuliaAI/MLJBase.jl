@@ -82,14 +82,19 @@ end
 
 """
     partition(X, fractions...;
-              shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
+              shuffle=nothing,
+              rng=Random.GLOBAL_RNG,
+              stratify=nothing)
 
-Splits the vector or matrix `X` into a tuple of vectors or matrices whose
-numbers of rows are given by the corresponding `fractions` of
-`length(nrows(X))`, where valid fractions are in (0,1) and sum up to less than
-1. The last fraction is not provided, as it is inferred from the preceding ones.
-`X` can also be any object which implements the `Tables.jl` interface according
-to `Tables.istable`.
+Splits the vector or matrix `X` into a tuple of vectors or matrices
+whose vertical concatentation is `X`. The number of rows in each
+componenent of the return value is determined by the corresponding
+`fractions` of `length(nrows(X))`, where valid fractions are in (0,1)
+and sum up to less than one. The last fraction is not provided, as it
+is inferred from the preceding ones.
+
+`X` can also be any object which implements the `Tables.jl` interface
+according to `Tables.istable`.
 
 So, for example,
 
@@ -101,6 +106,9 @@ So, for example,
 
     julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
     ([1 6], [2 7; 3 8], [4 9; 5 10])
+
+    X, _ = make_regression()          # a table
+    Xtrain, Xtest = partition(X, 0.8) # the table split on rows
 
 ## Keywords
 
@@ -144,17 +152,17 @@ end
 """
 
     t1, t2, ...., tk = unpack(table, f1, f2, ... fk;
-                               wrap_singles=false,
-                               shuffle=false,
-                               rng::Union{AbstractRNG,Int,Nothing}=nothing)
+                             wrap_singles=false,
+                             shuffle=false,
+                             rng::Union{AbstractRNG,Int,Nothing}=nothing)
 
-
-
-Split any Tables.jl compatible `table` into smaller tables (or
-vectors) `t1, t2, ..., tk` by making selections *without replacement*
-from the column names defined by the filters `f1`, `f2`, ...,
-`fk`. A *filter* is any object `f` such that `f(name)` is `true`
-or `false` for each column `name::Symbol` of `table`.
+Horizontally split any Tables.jl compatible `table` into smaller
+tables (or vectors) `t1, t2, ..., tk` by making column selections
+**without replacement** by successively applying the columnn name
+filters `f1`, `f2`, ..., `fk`. A *filter* is any object `f` such that
+`f(name)` is `true` or `false` for each column `name::Symbol` of
+`table`. For example, use the filter `_ -> true` to pick up all
+remaining columns of the table.
 
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
@@ -162,7 +170,7 @@ a vector unless `wrap_singles=true`.
 Scientific type conversions can be optionally specified (note
 semicolon):
 
-    unpack(table, t...; wrap_singles=false, col1=>scitype1, col2=>scitype2, ... )
+    unpack(table, t...; col1=>scitype1, col2=>scitype2, ... )
 
 If `shuffle=true` then the rows of `table` are first shuffled, using
 the global RNG, unless `rng` is specified; if `rng` is an integer, it

@@ -85,6 +85,7 @@ end
     v =[1, 2, missing, 5]
     @test MLJBase.Sum()(v) == 8
     @test MLJBase.RootMeanSquare()(v) ≈ sqrt((1 + 4 + 25)/3)
+    @test_throws MLJBase.ERR_NOTHING_LEFT_TO_AGGREGATE MLJBase.Mean()(Float32[])
 end
 
 @testset "_skipmissing" begin

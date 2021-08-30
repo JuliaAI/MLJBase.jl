@@ -21,6 +21,27 @@ rng = StableRNG(666899)
                    sqrt((log(2/3)^2 + log(3/4)^2 + log(4/5)^2 + log(5/6)^2)/4))
     @test isapprox(rmsp(yhat, y), sqrt((1 + 1/4 + 1/9 + 1/16)/4))
     @test isapprox(mape(yhat, y), (1/1 + 1/2 + 1/3 + 1/4)/4)
+
+    uniform = Distributions.Uniform(2, 5)
+    poisson = Distributions.Poisson()
+    discrete_uniform = Distributions.DiscreteUniform(2, 5)
+    w = [2, 3]
+
+    yhat = [missing, uniform]
+    @test isapprox(continuous_brier_score(yhat, [42.0, 1.0]), [-1/3,])
+    @test isapprox(continuous_brier_score(yhat, [42.0, 4.0]), [1/3,])
+    @test isapprox(continuous_brier_score(yhat, [42.0, 1.0], w), [-1,])
+    @test isapprox(continuous_brier_score(yhat, [42.0, 4.0], w), [1,])
+    @test_throws(MLJBase.err_brier_distribution(continuous_brier_score,
+                                                poisson),
+                 continuous_brier_score([missing, poisson], [1.0, 1.0]))
+
+    yhat = [missing, discrete_uniform]
+    @test isapprox(count_brier_score(yhat, [42.0, 1.0]), [-1/4,])
+    @test isapprox(count_brier_score(yhat, [42.0, 4.0]), [1/4,])
+    @test_throws(MLJBase.err_brier_distribution(count_brier_score,
+                                                uniform),
+                 count_brier_score([missing, uniform], [1.0, 1.0]))
 end
 
 @testset "MLJBase.value" begin

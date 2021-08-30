@@ -1,6 +1,6 @@
 const DOC_OBSERVATIONS =
-    "on observations `ŷ`, "*
-    "given ground truth values `y`. "
+    "on predictions `ŷ`, "*
+    "given ground truth observations `y`. "
 const DOC_WEIGHTS =
     "Optionally specify per-sample weights, `w`. "
 const DOC_CLASS_WEIGHTS =
@@ -55,7 +55,7 @@ function detailed_doc_string(M; typename="", body="", footer="", scitype="")
     ret *= "\n\n"
     isempty(body) || (ret *= "$body\n\n")
     ret *= "Requires `scitype(y)` to be a subtype of $scitype; "
-    ret *= "`ŷ` must be a $(prediction_type(M)) prediction. "
+    ret *= "`ŷ` must be an array of $(prediction_type(M)) predictions. "
     isempty(footer) ||(ret *= "\n\n$footer")
     ret *= "\n\n"
     ret *= "For more information, run `info($(name(M)))`. "
