@@ -457,11 +457,7 @@ function _infinite_brier_score(d, y)
 end
 
 # calling on multiple observations:
-function (measure::InfiniteBrierScore)(
-    ŷm::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
-    ym::Arr{<:Any,N},
-    wm::Union{Nothing,Arr{<:Real,N}}=nothing) where N
-
+function _infinite_brier_score(ŷm, ym, wm)
     ŷ, y, w = _skipmissing(ŷm, ym, wm)
 
     check_dimensions(ŷ, y)
@@ -476,3 +472,16 @@ function (measure::InfiniteBrierScore)(
     end
     return w.*unweighted
 end
+
+(measure::ContinuousBrierScore)(
+    ŷ::Arr{<:Union{Missing,Distributions.ContinuousUnivariateDistribution}},
+    y::Arr{<:Any,N},
+    w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
+        _infinite_brier_score(ŷ, y, w)
+
+(measure::CountBrierScore)(
+    ŷ::Arr{<:Union{Missing,Distributions.DiscreteUnivariateDistribution}},
+    y::Arr{<:Any,N},
+    w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
+        _infinite_brier_score(ŷ, y, w)
+
