@@ -458,7 +458,7 @@ end
 
 # calling on multiple observations:
 function _infinite_brier_score(measure, ŷm, ym, wm)
-    ŷ, y, w = _skipmissing(ŷm, ym, wm)
+    ŷ, y, w = skipinvalid(ŷm, ym, wm)
 
     check_dimensions(ŷ, y)
     w === nothing || check_dimensions(w, y)

@@ -301,7 +301,7 @@ function (::BACC)(ŷ, y)
 end
 
 function (::BACC)(ŷm, ym, w)
-    ŷ, y, w = _skipmissing(ŷm, ym, w)
+    ŷ, y, w = skipinvalid(ŷm, ym, w)
     levels_ = levels(y)
     ŵ = similar(w)
     @inbounds for i in eachindex(w)
@@ -399,7 +399,7 @@ scitpye = DOC_FINITE_BINARY)
 
 # core algorithm:
 function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
-    ŷ, y    = _skipmissing(ŷm, ym)
+    ŷ, y    = skipinvalid(ŷm, ym)
     lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
@@ -1539,7 +1539,7 @@ consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
 To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
 function roc_curve(ŷm, ym)
-    ŷ, y    = _skipmissing(ŷm, ym)
+    ŷ, y    = skipinvalid(ŷm, ym)
     n       = length(y)
     lab_pos = levels(y)[2]
     scores  = pdf.(ŷ, lab_pos)
