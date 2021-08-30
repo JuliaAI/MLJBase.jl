@@ -474,13 +474,13 @@ function _infinite_brier_score(measure, ŷm, ym, wm)
 end
 
 (measure::ContinuousBrierScore)(
-    ŷ::Arr{<:Union{Missing,Distributions.ContinuousUnivariateDistribution}},
+    ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
     y::Arr{<:Any,N},
     w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
         _infinite_brier_score(measure, ŷ, y, w)
 
 (measure::CountBrierScore)(
-    ŷ::Arr{<:Union{Missing,Distributions.DiscreteUnivariateDistribution}},
+    ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
     y::Arr{<:Any,N},
     w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
         _infinite_brier_score(measure, ŷ, y, w)
