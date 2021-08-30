@@ -36,5 +36,6 @@ ms = map(measures("Brier")) do  m
     m.name
 end
 
-@test Set(ms) == Set(["BrierLoss", "BrierScore"])
+@test Set(ms) == Set(["BrierLoss", "BrierScore",
+                      "ContinuousBrierScore", "CountBrierScore"])
 true

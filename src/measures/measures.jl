@@ -8,6 +8,7 @@ const DOC_ORDERED_FACTOR_BINARY =
     "`AbstractArray{<:OrderedFactor{2}}` "*
     "(binary classification where choice of \"true\" effects the measure)"
 const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
+const DOC_COUNT = "`AbstractArray{Count}`"
 
 ## TRAITS
 
@@ -82,6 +83,11 @@ function _skipmissing(yhat, y, w)
     return yhat[mask], y[mask], w[mask]
 end
 
+function _skipmissing(yhat, y, w::Nothing)
+    mask = .!(ismissing.(yhat) .| ismissing.(y))
+    return yhat[mask], y[mask], nothing
+end
+
 
 ## AGGREGATION
 
@@ -154,19 +160,25 @@ default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS
 default_measure(::Type{<:Deterministic},
-                ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}}) = rms
+                ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
+                               Vec{<:Union{Missing,Count}}}}) = rms
 
 # Deterministic + Finite ==> Misclassification rate
 default_measure(::Type{<:Deterministic},
-                ::Type{<:Vec{<:Finite}}) = misclassification_rate
-
-# default_measure(::Type{Probabilistic},
-#                 ::Type{<:Union{Vec{<:Continuous},
-#                                Vec{<:Count}}}) = ???
+                ::Type{<:Vec{<:Union{Missing,Finite}}}) = misclassification_rate
 
 # Probabilistic + Finite ==> Cross entropy
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Finite}}) = cross_entropy
+                ::Type{<:Vec{<:Union{Missing,Finite}}}) = cross_entropy
+
+# Probablistic + Continuous ==> Brier score
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:Vec{<:Union{Missing,Continuous}}}) =
+                    continuous_brier_score
+
+# Probablistic + Count ==> Brier score
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:Vec{<:Union{Missing,Count}}}) = count_brier_score
 
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))

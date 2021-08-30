@@ -84,12 +84,15 @@ end
     partition(X, fractions...;
               shuffle=nothing, rng=Random.GLOBAL_RNG, stratify=nothing)
 
-Splits the vector or matrix `X` into a tuple of vectors or matrices whose
-numbers of rows are given by the corresponding `fractions` of
-`length(nrows(X))`, where valid fractions are in (0,1) and sum up to less than
-1. The last fraction is not provided, as it is inferred from the preceding ones.
-`X` can also be any object which implements the `Tables.jl` interface according
-to `Tables.istable`.
+Splits the vector or matrix `X` into a tuple of vectors or matrices
+whose vertical concatentation is `X`. The number of rows in each
+componenent of the return value is determined by the corresponding
+`fractions` of `length(nrows(X))`, where valid fractions are in (0,1)
+and sum up to less than one. The last fraction is not provided, as it
+is inferred from the preceding ones.
+
+`X` can also be any object which implements the `Tables.jl` interface
+according to `Tables.istable`.
 
 So, for example,
 
