@@ -60,15 +60,38 @@ end
 ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
+## SKIPPING MISSINGS
+
+const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
+    "Trying to aggregrate an empty collection of measurements. Perhaps all "*
+    "measuresments are `missing` or `NaN`. ")
+
+@inline function _skipmissing(v)
+    ret = skipmissing(v)
+    isempty(ret) && throw(ERR_NOTHING_LEFT_TO_AGGREGATE)
+    return ret
+end
+
+function _skipmissing(yhat, y)
+    mask = .!(ismissing.(yhat) .| ismissing.(y))
+    return yhat[mask], y[mask]
+end
+
+function _skipmissing(yhat, y, w)
+    mask = .!(ismissing.(yhat) .| ismissing.(y))
+    return yhat[mask], y[mask], w[mask]
+end
+
+
 ## AGGREGATION
 
-(::Sum)(v) = sum(skipmissing(v))
+(::Sum)(v) = sum(_skipmissing(v))
 (::Sum)(v::LittleDict) = sum(values(v))
 
-(::Mean)(v) = mean(skipmissing(v))
+(::Mean)(v) = mean(_skipmissing(v))
 (::Mean)(v::LittleDict) = mean(values(v))
 
-(::RootMeanSquare)(v) = sqrt(mean(skipmissing(v).^2))
+(::RootMeanSquare)(v) = sqrt(mean(_skipmissing(v).^2))
 
 aggregate(v, measure) = aggregation(measure)(v)
 
@@ -117,15 +140,6 @@ function check_pools(ŷ, y)
     return nothing
 end
 
-function _skipmissing(yhat, y)
-    mask = .!(ismissing.(yhat) .| ismissing.(y))
-    return yhat[mask], y[mask]
-end
-
-function _skipmissing(yhat, y, w)
-    mask = .!(ismissing.(yhat) .| ismissing.(y))
-    return yhat[mask], y[mask], w[mask]
-end
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
 
