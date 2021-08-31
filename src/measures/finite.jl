@@ -84,9 +84,10 @@ metadata_measure(BrierScore;
 @create_docs(BrierScore,
 body=
 """
-If `p(y)` is the predicted probability for a *single*
-observation `y`, and `C` all possible classes, then the corresponding
-Brier score for that observation is given by
+Convention as in $PROPER_SCORING_RULES: If `p(y)` is the predicted
+probability for a *single* observation `y`, and `C` all possible
+classes, then the corresponding Brier score for that observation is
+given by
 
 ``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
 

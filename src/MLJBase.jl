@@ -183,8 +183,9 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
     RootMeanSquaredLogError, RMSL, root_mean_squared_log_error, rmsl, rmsle,
     RootMeanSquaredLogProportionalError, rmsl1, RMSLP,
     MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss,
-    ContinuousBrierScore, CountBrierScore,
-    continuous_brier_score, count_brier_score
+    InfiniteBrierScore, infinite_brier_score,
+    InfiniteSphericalScore, infinite_spherical_score,
+    InfiniteLogScore, infinite_log_score
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat, ConfusionMatrix

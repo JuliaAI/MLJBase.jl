@@ -20,6 +20,9 @@ const WITH_L2NORM_COUNT =
         :DiscreteUniform,
         :DiscreteNonParametric]]
 
+const WITH_L2NORM_INFINITE = vcat(WITH_L2NORM_CONTINUOUS,
+                                  WITH_L2NORM_COUNT)
+
 # -----------------------------------------------------------
 # MeanAbsoluteError
 
@@ -365,99 +368,22 @@ function (log_cosh::LogCoshLoss)(ŷ::Vec{<:T}, y::Vec{<:T}) where T <:Real
     return _log_cosh.(ŷ - y)
 end
 
-# -------------------------------------------------------------------------
-# ContinuousBrierScore and CountBrierScore
+# ===========================================================
+## DETERMINISTIC PREDICTIONS
 
-const DOC_BODY_CONTINUOUS =
-"""
-This measure assigns a score for each observation of a continuous
-variable, for which probabilistic predictions are being made. For
-example, predictions might be `Normal` distributions.
+const FORMULA_INFINITE_BRIER = "``2d(η) - ∫ d(t)^2 dt``"
+_infinite_brier(d, y) = 2*pdf(d, y) - Distributions.pdfsquaredL2norm(d)
 
-If `ŷ` were a *single* predicted probability density function, and `y` the
-corresponding ground truth observation, then the Brier score for that
-observation is
+const FORMULA_INFINITE_SPHERICAL =
+    "``d(η) / \\left(∫ d(t)^2 dt\\right)^{1/2}``"
+_infinite_spherical(d, y) = pdf(d, y)/sqrt(Distributions.pdfsquaredL2norm(d))
 
-``2ŷ(y) - ∫ ŷ(t)^2 dt``
+const FORMULA_INFINITE_LOG = "``log(d(η))``"
+# _infinite_log(d, y) = logpdf(d, y)
 
-*Note.* `ContinuousBrierScore()` is a "score" in the sense that bigger
-is better. The usage here differs by a sign, factor of one half,
-and/or a constant shift, from usage elsewhere.
-"""
+# helper to broadcast single observation versions:
+function _broadcast_measure(measure, f, ŷm, ym, wm)
 
-const DOC_BODY_COUNT =
-"""
-This measure assigns a score for each observation of a unbounded integer
-variable, for which probabilistic predictions are being made. For
-example, predictions might be `Poisson` distributions.
-
-If `ŷ` were a *single* predicted probability mass function, and `y` the
-corresponding ground truth observation, then the Brier score for that
-observation is
-
-``2ŷ(y) - ∑_j ŷ(j)^2``
-
-*Note.* `CountBrierScore()` is a "score" in the sense that bigger
-is better. The usage here differs by a sign, factor of one half,
-and/or a constant shift from usage elsewhere.
-"""
-
-for (Measure, DISTRIBUTIONS,
-     Scitype, Scitype_str, distribution_type,
-     DOC_BODY, DOC_SCITYPE) in
-    [(:ContinuousBrierScore, :WITH_L2NORM_CONTINUOUS,
-      Continuous, "Continuous", Distributions.ContinuousUnivariateDistribution,
-      DOC_BODY_CONTINUOUS, DOC_CONTINUOUS),
-     (:CountBrierScore, :WITH_L2NORM_COUNT,
-      Count, "Count", Distributions.DiscreteUnivariateDistribution,
-      DOC_BODY_COUNT, DOC_COUNT)]
-
-    measure_str = string(Measure)
-    scitype_str = lowercase(Scitype_str)
-
-    quote
-
-        struct $Measure <: Measure end
-
-        err_brier_distribution(::$Measure, d) = ArgumentError(
-            "Distribution $d is not supported by `"*$measure_str*"`. "*
-            "Supported distributions are "*
-            join(string.(map(s->"`$s`", $DISTRIBUTIONS)), ", ", ", and "))
-
-        check_distribution_supported(measure::$Measure, d) =
-            d isa Union{$DISTRIBUTIONS...} ||
-            throw(err_brier_distribution(measure, d))
-
-        metadata_measure($Measure;
-                         target_scitype = Arr{<:Union{Missing,$Scitype}},
-                         prediction_type          = :probabilistic,
-                         orientation              = :score,
-                         reports_each_observation = true,
-                         is_feature_dependent     = false,
-                         supports_weights         = true,
-                         distribution_type        = $distribution_type)
-
-        StatisticalTraits.instances(::Type{<:$Measure}) =
-            [$scitype_str*"_brier_score",]
-        StatisticalTraits.human_name(::Type{<:$Measure}) =
-            $Scitype_str*" Brier (or quadratic) score"
-
-        @create_aliases $Measure
-
-        @create_docs($Measure, body=$DOC_BODY, scitype=$DOC_SCITYPE)
-
-    end |> eval
-end
-
-const InfiniteBrierScore = Union{ContinuousBrierScore,CountBrierScore}
-
-# calling on single observations (no checks):
-function _infinite_brier_score(d, y)
-    return 2*pdf(d, y) - Distributions.pdfsquaredL2norm(d)
-end
-
-# calling on multiple observations:
-function _infinite_brier_score(measure, ŷm, ym, wm)
     ŷ, y, w = skipinvalid(ŷm, ym, wm)
 
     check_dimensions(ŷ, y)
@@ -465,7 +391,7 @@ function _infinite_brier_score(measure, ŷm, ym, wm)
 
     isempty(ŷ) || check_distribution_supported(measure, first(ŷ))
 
-    unweighted = broadcast(_infinite_brier_score, ŷ, y)
+    unweighted = broadcast(f, ŷ, y)
 
     if w === nothing
         return unweighted
@@ -473,14 +399,66 @@ function _infinite_brier_score(measure, ŷm, ym, wm)
     return w.*unweighted
 end
 
-(measure::ContinuousBrierScore)(
-    ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
-    y::Arr{<:Any,N},
-    w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
-        _infinite_brier_score(measure, ŷ, y, w)
+doc_body(formula) =
+"""
+Note here that `ŷ` is an array of *probabilistic* predictions. For
+example, predictions might be `Normal` or `Poisson` distributions.
 
-(measure::CountBrierScore)(
-    ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
-    y::Arr{<:Any,N},
-    w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
-        _infinite_brier_score(measure, ŷ, y, w)
+Convention as in $PROPER_SCORING_RULES: If `d` is a *single* predicted
+probability density or mass function, and `η` the corresponding ground
+truth observation, then the score for that observation is
+
+$formula
+
+"""
+
+for (Measure, FORMULA, f, human_name) in [
+    (:InfiniteBrierScore,     FORMULA_INFINITE_BRIER,     _infinite_brier,
+     "Brier (or quadratic) score"),
+    (:InfiniteSphericalScore, FORMULA_INFINITE_SPHERICAL, _infinite_spherical,
+     "Spherical score"),
+    (:InfiniteLogScore,       FORMULA_INFINITE_LOG,       logpdf,
+     "Logarithmic score")]
+
+    measure_str = string(Measure)
+    instance_str = StatisticalTraits.snakecase(measure_str)
+
+    quote
+
+        struct $Measure <: Measure end
+
+        err_distribution(::$Measure, d) = ArgumentError(
+            "Distribution $d is not supported by `"*$measure_str*"`. "*
+            "Supported distributions are "*
+            join(string.(map(s->"`$s`", WITH_L2NORM_INFINITE)), ", ", ", and "))
+
+        check_distribution_supported(measure::$Measure, d) =
+            d isa Union{WITH_L2NORM_INFINITE...} ||
+            throw(err_distribution(measure, d))
+
+        metadata_measure($Measure;
+                         target_scitype = Arr{<:Union{Missing,Infinite}},
+                         prediction_type          = :probabilistic,
+                         orientation              = :score,
+                         reports_each_observation = true,
+                         is_feature_dependent     = false,
+                         supports_weights         = true,
+                         distribution_type        =
+                         Distributions.UnivariateDistribution)
+
+        StatisticalTraits.instances(::Type{<:$Measure})  = [$instance_str,]
+        StatisticalTraits.human_name(::Type{<:$Measure}) =
+            $human_name*" for a continuous or unbounded discrete target"
+
+        @create_aliases $Measure
+
+        @create_docs($Measure, body=doc_body($FORMULA), scitype=DOC_FINITE)
+
+        (measure::$Measure)(
+            ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
+            y::Arr{<:Any,N},
+            w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
+                _broadcast_measure(measure, $f, ŷ, y, w)
+
+    end |> eval
+end
