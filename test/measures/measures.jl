@@ -8,6 +8,8 @@ import LossFunctions
 using StableRNGs
 using OrderedCollections: LittleDict
 
+rng  = StableRNGs.StableRNG(123)
+
 @testset "aggregation" begin
     v = rand(5)
     @test aggregate(v, mae) ≈ mean(v)
@@ -40,6 +42,32 @@ end
     @test MLJBase.distribution_type(BrierScore) == MLJBase.UnivariateFinite
 end
 
+@testset "MLJBase.value" begin
+    yhat = randn(rng,5)
+    X = (weight=randn(rng,5), x1 = randn(rng,5))
+    y = randn(rng,5)
+    w = randn(rng,5)
+
+    @test MLJBase.value(mae, yhat, nothing, y, nothing) ≈ mae(yhat, y)
+    @test MLJBase.value(mae, yhat, nothing, y, w) ≈ mae(yhat, y, w)
+
+    spooky(yhat, y) = abs.(yhat - y) |> mean
+    @test MLJBase.value(spooky, yhat, nothing, y, nothing) ≈ mae(yhat, y)
+
+    cool(yhat, y, w) = abs.(yhat - y) .* w |> mean
+    MLJBase.supports_weights(::Type{typeof(cool)}) = true
+    @test MLJBase.value(cool, yhat, nothing, y, w) ≈ mae(yhat, y, w)
+
+    funky(yhat, X, y) = X.weight .* abs.(yhat - y) |> mean
+    MLJBase.is_feature_dependent(::Type{typeof(funky)}) = true
+    @test MLJBase.value(funky, yhat, X, y, nothing) ≈ mae(yhat, y, X.weight)
+
+    weird(yhat, X, y, w) = w .* X.weight .* abs.(yhat - y) |> mean
+    MLJBase.is_feature_dependent(::Type{typeof(weird)}) = true
+    MLJBase.supports_weights(::Type{typeof(weird)}) = true
+    @test MLJBase.value(weird, yhat, X, y, w) ≈ mae(yhat, y, X.weight .* w)
+end
+
 mutable struct DRegressor <: Deterministic end
 MLJBase.target_scitype(::Type{<:DRegressor}) =
     AbstractVector{<:Continuous}
@@ -70,6 +98,7 @@ end
 
 include("continuous.jl")
 include("finite.jl")
+include("probabilistic.jl")
 include("loss_functions_interface.jl")
 include("confusion_matrix.jl")
 

@@ -7,7 +7,7 @@ const WITHOUT_PARAMETERS =
 
 ## WRAPPER
 
-abstract type SupervisedLoss <: Measure end
+abstract type SupervisedLoss <: Unaggregated end
 
 
 struct MarginLoss{L<:LossFunctions.MarginLoss} <: SupervisedLoss

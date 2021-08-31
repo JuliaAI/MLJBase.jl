@@ -4,7 +4,7 @@
 # -----------------------------------------------------------
 # MeanAbsoluteError
 
-struct MeanAbsoluteError <: Measure end
+struct MeanAbsoluteError <: Aggregated end
 
 metadata_measure(MeanAbsoluteError;
                  instances = ["mae", "mav", "mean_absolute_error",
@@ -52,7 +52,7 @@ end
 # ----------------------------------------------------------------
 # RootMeanSquaredError
 
-struct RootMeanSquaredError <: Measure end
+struct RootMeanSquaredError <: Aggregated end
 
 metadata_measure(RootMeanSquaredError;
                  instances                = ["rms", "rmse",
@@ -99,7 +99,7 @@ end
 # -------------------------------------------------------------------
 # LP
 
-struct LPLoss{T<:Real} <: Measure
+struct LPLoss{T<:Real} <: Unaggregated
     p::T
 end
 
@@ -139,7 +139,7 @@ end
 # ----------------------------------------------------------------------------
 # RootMeanSquaredLogError
 
-struct RootMeanSquaredLogError <: Measure end
+struct RootMeanSquaredLogError <: Aggregated end
 
 metadata_measure(RootMeanSquaredLogError;
                  instances = ["rmsl", "rmsle", "root_mean_squared_log_error"],
@@ -175,7 +175,7 @@ end
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
 
-struct RootMeanSquaredLogProportionalError{T<:Real} <: Measure
+struct RootMeanSquaredLogProportionalError{T<:Real} <: Aggregated
     offset::T
 end
 
@@ -218,7 +218,7 @@ end
 # --------------------------------------------------------------------------
 # RootMeanSquaredProportionalError
 
-struct RootMeanSquaredProportionalError{T<:Real} <: Measure
+struct RootMeanSquaredProportionalError{T<:Real} <: Aggregated
     tol::T
 end
 
@@ -269,7 +269,7 @@ end
 # -----------------------------------------------------------------------
 # MeanAbsoluteProportionalError
 
-struct MeanAbsoluteProportionalError{T} <: Measure
+struct MeanAbsoluteProportionalError{T} <: Aggregated
     tol::T
 end
 
@@ -320,7 +320,7 @@ end
 # -------------------------------------------------------------------------
 # LogCoshLoss
 
-struct LogCoshLoss <: Measure end
+struct LogCoshLoss <: Unaggregated end
 
 metadata_measure(LogCoshLoss;
     instances                = ["log_cosh", "log_cosh_loss"],
@@ -349,115 +349,3 @@ end
 # ===========================================================
 ## PROBABLISTIC PREDICTIONS
 
-const UD = Distributions.UnivariateDistribution
-const WITH_L2NORM_CONTINUOUS =
-    [@eval(Distributions.$d) for d in [
-        :Chisq,
-        :Gamma,
-        :Beta,
-        :Chi,
-        :Cauchy,
-        :Normal,
-        :Uniform,
-        :Logistic,
-        :Exponential]]
-
-const WITH_L2NORM_COUNT =
-    [@eval(Distributions.$d) for d in [
-        :Poisson,
-        :DiscreteUniform,
-        :DiscreteNonParametric]]
-
-const WITH_L2NORM_INFINITE = vcat(WITH_L2NORM_CONTINUOUS,
-                                  WITH_L2NORM_COUNT)
-const FORMULA_INFINITE_BRIER = "``2d(η) - ∫ d(t)^2 dt``"
-_infinite_brier(d, y) = 2*pdf(d, y) - Distributions.pdfsquaredL2norm(d)
-
-const FORMULA_INFINITE_SPHERICAL =
-    "``d(η) / \\left(∫ d(t)^2 dt\\right)^{1/2}``"
-_infinite_spherical(d, y) = pdf(d, y)/sqrt(Distributions.pdfsquaredL2norm(d))
-
-const FORMULA_INFINITE_LOG = "``log(d(η))``"
-# _infinite_log(d, y) = logpdf(d, y)
-
-# helper to broadcast single observation versions:
-function _broadcast_measure(measure, f, ŷm, ym, wm)
-
-    ŷ, y, w = skipinvalid(ŷm, ym, wm)
-
-    check_dimensions(ŷ, y)
-    w === nothing || check_dimensions(w, y)
-
-    isempty(ŷ) || check_distribution_supported(measure, first(ŷ))
-
-    unweighted = broadcast(f, ŷ, y)
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
-end
-
-doc_body(formula) =
-"""
-Note here that `ŷ` is an array of *probabilistic* predictions. For
-example, predictions might be `Normal` or `Poisson` distributions.
-
-Convention as in $PROPER_SCORING_RULES: If `d` is a *single* predicted
-probability density or mass function, and `η` the corresponding ground
-truth observation, then the score for that observation is
-
-$formula
-
-"""
-
-for (Measure, FORMULA, f, human_name) in [
-    (:InfiniteBrierScore,     FORMULA_INFINITE_BRIER,     _infinite_brier,
-     "Brier (or quadratic) score"),
-    (:InfiniteSphericalScore, FORMULA_INFINITE_SPHERICAL, _infinite_spherical,
-     "Spherical score"),
-    (:InfiniteLogScore,       FORMULA_INFINITE_LOG,       logpdf,
-     "Logarithmic score")]
-
-    measure_str = string(Measure)
-    instance_str = StatisticalTraits.snakecase(measure_str)
-
-    quote
-
-        struct $Measure <: Measure end
-
-        err_distribution(::$Measure, d) = ArgumentError(
-            "Distribution $d is not supported by `"*$measure_str*"`. "*
-            "Supported distributions are "*
-            join(string.(map(s->"`$s`", WITH_L2NORM_INFINITE)), ", ", ", and "))
-
-        check_distribution_supported(measure::$Measure, d) =
-            d isa Union{WITH_L2NORM_INFINITE...} ||
-            throw(err_distribution(measure, d))
-
-        metadata_measure($Measure;
-                         target_scitype = Arr{<:Union{Missing,Infinite}},
-                         prediction_type          = :probabilistic,
-                         orientation              = :score,
-                         reports_each_observation = true,
-                         is_feature_dependent     = false,
-                         supports_weights         = true,
-                         distribution_type        =
-                         Distributions.UnivariateDistribution)
-
-        StatisticalTraits.instances(::Type{<:$Measure})  = [$instance_str,]
-        StatisticalTraits.human_name(::Type{<:$Measure}) =
-            $human_name*" for a continuous or unbounded discrete target"
-
-        @create_aliases $Measure
-
-        @create_docs($Measure, body=doc_body($FORMULA), scitype=DOC_FINITE)
-
-        (measure::$Measure)(
-            ŷ::Arr{<:Union{Missing,Distributions.UnivariateDistribution}},
-            y::Arr{<:Any,N},
-            w::Union{Nothing,Arr{<:Real,N}}=nothing) where N =
-                _broadcast_measure(measure, $f, ŷ, y, w)
-
-    end |> eval
-end
