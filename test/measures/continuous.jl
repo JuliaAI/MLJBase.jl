@@ -23,25 +23,41 @@ rng = StableRNG(666899)
     @test isapprox(mape(yhat, y), (1/1 + 1/2 + 1/3 + 1/4)/4)
 
     uniform = Distributions.Uniform(2, 5)
-    poisson = Distributions.Poisson()
+    betaprime = Distributions.BetaPrime()
     discrete_uniform = Distributions.DiscreteUniform(2, 5)
     w = [2, 3]
 
+    # brier
     yhat = [missing, uniform]
-    @test isapprox(continuous_brier_score(yhat, [42.0, 1.0]), [-1/3,])
-    @test isapprox(continuous_brier_score(yhat, [42.0, 4.0]), [1/3,])
-    @test isapprox(continuous_brier_score(yhat, [42.0, 1.0], w), [-1,])
-    @test isapprox(continuous_brier_score(yhat, [42.0, 4.0], w), [1,])
-    @test_throws(MLJBase.err_brier_distribution(continuous_brier_score,
-                                                poisson),
-                 continuous_brier_score([missing, poisson], [1.0, 1.0]))
-
+    @test isapprox(infinite_brier_score(yhat, [42.0, 1.0]), [-1/3,])
+    @test isapprox(infinite_brier_score(yhat, [NaN, 4.0]), [1/3,])
+    @test isapprox(infinite_brier_score(yhat, [42.0, 1.0], w), [-1,])
+    @test isapprox(infinite_brier_score(yhat, [42.0, 4.0], w), [1,])
     yhat = [missing, discrete_uniform]
-    @test isapprox(count_brier_score(yhat, [42.0, 1.0]), [-1/4,])
-    @test isapprox(count_brier_score(yhat, [42.0, 4.0]), [1/4,])
-    @test_throws(MLJBase.err_brier_distribution(count_brier_score,
-                                                uniform),
-                 count_brier_score([missing, uniform], [1.0, 1.0]))
+    @test isapprox(infinite_brier_score(yhat, [NaN, 1.0]), [-1/4,])
+    @test isapprox(infinite_brier_score(yhat, [42.0, 4.0]), [1/4,])
+
+    # spherical
+    yhat = [missing, uniform]
+    @test isapprox(infinite_spherical_score(yhat, [42.0, 1.0]), [0,])
+    @test isapprox(infinite_spherical_score(yhat, [NaN, 4.0]), [1/sqrt(3),])
+    @test isapprox(infinite_spherical_score(yhat, [42.0, 1.0], w), [0,])
+    @test isapprox(infinite_spherical_score(yhat, [42.0, 4.0], w), [sqrt(3),])
+    yhat = [missing, discrete_uniform]
+    @test isapprox(infinite_spherical_score(yhat, [NaN, 1.0]), [0,])
+    @test isapprox(infinite_spherical_score(yhat, [42.0, 4.0]), [1/2,])
+
+    # log
+    yhat = [missing, uniform]
+    @test isapprox(infinite_log_score(yhat, [NaN, 4.0]), [-log(3),])
+    @test isapprox(infinite_log_score(yhat, [42.0, 4.0], w), [-log(27),])
+    yhat = [missing, discrete_uniform]
+    @test isapprox(infinite_log_score(yhat, [42.0, 4.0]), [-log(4),])
+
+    # errors
+    @test_throws(MLJBase.err_distribution(infinite_brier_score,
+                                                betaprime),
+                 infinite_brier_score([missing, betaprime], [1.0, 1.0]))
 end
 
 @testset "MLJBase.value" begin

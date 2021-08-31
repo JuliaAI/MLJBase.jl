@@ -1,3 +1,6 @@
+const PROPER_SCORING_RULES = "[Gneiting and Raftery (2007), \"Strictly"*
+    "Proper Scoring Rules, Prediction, and Estimation\""*
+    "](https://doi.org/10.1198/016214506000001437)"
 const DOC_FINITE =
     "`AbstractArray{<:Finite}` (multiclass classification)"
 const DOC_FINITE_BINARY =
@@ -9,6 +12,7 @@ const DOC_ORDERED_FACTOR_BINARY =
     "(binary classification where choice of \"true\" effects the measure)"
 const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
 const DOC_COUNT = "`AbstractArray{Count}`"
+const DOC_INFINITE = "AbstractArray{<:Infinite}"
 
 ## TRAITS
 
