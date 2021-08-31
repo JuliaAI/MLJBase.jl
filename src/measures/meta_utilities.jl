@@ -98,7 +98,6 @@ function metadata_measure(T; name::String="",
                           target_scitype=Unknown,
                           prediction_type::Symbol=:unknown,
                           orientation::Symbol=:unknown,
-                          reports_each_observation::Bool=true,
                           aggregation=Mean(),
                           is_feature_dependent::Bool=false,
                           supports_weights::Bool=false,
@@ -129,7 +128,6 @@ function metadata_measure(T; name::String="",
             human_name(::Type{<:$T}) = $human_name
         end
         orientation(::Type{<:$T}) = Symbol($orientation_str)
-        reports_each_observation(::Type{<:$T}) = $reports_each_observation
         aggregation(::Type{<:$T}) = $aggregation
         is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
         supports_class_weights(::Type{<:$T}) = $supports_class_weights

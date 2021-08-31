@@ -46,7 +46,6 @@ abstract type Aggregated <: Measure end
 abstract type Unaggregated <: Measure end
 
 StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
-StatisticalTraits.reports_each_observation(::Type{<:Unaggregated}) = true
 
 
 ## FALLBACK CHECKS

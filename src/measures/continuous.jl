@@ -12,7 +12,6 @@ metadata_measure(MeanAbsoluteError;
                  target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = true)
 
@@ -60,7 +59,6 @@ metadata_measure(RootMeanSquaredError;
                  target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
                  aggregation              = RootMeanSquare(),
                  is_feature_dependent     = false,
                  supports_weights         = true)
@@ -110,7 +108,6 @@ metadata_measure(LPLoss;
                  target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = true,
                  is_feature_dependent     = false,
                  supports_weights         = true)
 
@@ -146,7 +143,6 @@ metadata_measure(RootMeanSquaredLogError;
                  target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
                  aggregation              = RootMeanSquare(),
                  is_feature_dependent     = false,
                  supports_weights         = false)
@@ -187,7 +183,6 @@ metadata_measure(RootMeanSquaredLogProportionalError;
                  target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
                  aggregation              = RootMeanSquare(),
                  is_feature_dependent     = false,
                  supports_weights         = false)
@@ -230,7 +225,6 @@ metadata_measure(RootMeanSquaredProportionalError;
     target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     aggregation              = RootMeanSquare(),
     is_feature_dependent     = false,
     supports_weights         = false)
@@ -280,7 +274,6 @@ metadata_measure(MeanAbsoluteProportionalError;
     target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     docstring                = "Mean Absolute Proportional Error; "*
@@ -327,7 +320,6 @@ metadata_measure(LogCoshLoss;
     target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = true,
     is_feature_dependent     = false,
     supports_weights         = false,
     docstring                = "log cosh loss; aliases: `log_cosh`.")

@@ -8,7 +8,6 @@ metadata_measure(MisclassificationRate;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = true)
 
@@ -40,7 +39,6 @@ metadata_measure(Accuracy;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = true),
 
@@ -68,7 +66,6 @@ metadata_measure(BalancedAccuracy;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = true)
 
@@ -118,7 +115,6 @@ metadata_measure(MatthewsCorrelation;
                  target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = false)
 const MCC = MatthewsCorrelation
@@ -181,7 +177,6 @@ metadata_measure(FScore;
                  target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = false)
 
@@ -236,7 +231,6 @@ metadata_measure.((FalsePositive, FalseNegative);
     target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     aggregation              = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false)
@@ -245,7 +239,6 @@ metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
     target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false)
 
@@ -253,7 +246,6 @@ metadata_measure.((TruePositive, TrueNegative);
     target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     aggregation              = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false)
@@ -263,7 +255,6 @@ metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
     target_scitype           = Arr{<:Union{Missing,Finite{2}}},
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false)
 
@@ -448,7 +439,6 @@ metadata_measure(MulticlassFScore;
                  target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = false,
                  supports_class_weights   = true)
@@ -503,7 +493,6 @@ metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
     target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     aggregation               = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false,
@@ -514,7 +503,6 @@ metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
     target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)
@@ -523,7 +511,6 @@ metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
     target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     aggregation              = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false,
@@ -533,7 +520,6 @@ metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue
     target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)
@@ -542,7 +528,6 @@ metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
     target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)

@@ -36,7 +36,6 @@ metadata_measure(AreaUnderCurve;
                  target_scitype           = Arr{<:Union{Missing,Finite{2}}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 reports_each_observation = false,
                  is_feature_dependent     = false,
                  supports_weights         = false)
 
@@ -94,7 +93,6 @@ metadata_measure(LogLoss;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :loss,
-                 reports_each_observation = true,
                  is_feature_dependent     = false,
                  supports_weights         = false,
                  distribution_type        = UnivariateFinite)
@@ -154,7 +152,6 @@ metadata_measure(BrierScore;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 reports_each_observation = true,
                  is_feature_dependent     = false,
                  supports_weights         = true,
                  distribution_type        = UnivariateFinite)
@@ -239,7 +236,6 @@ metadata_measure(BrierLoss;
                  target_scitype           = Arr{<:Union{Missing,Finite}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 reports_each_observation = true,
                  is_feature_dependent     = false,
                  supports_weights         = true,
                  distribution_type        = UnivariateFinite)
@@ -349,7 +345,6 @@ for (Measure, FORMULA, f, human_name) in [
                          target_scitype = Arr{<:Union{Missing,Infinite}},
                          prediction_type          = :probabilistic,
                          orientation              = :score,
-                         reports_each_observation = true,
                          is_feature_dependent     = false,
                          supports_weights         = true,
                          distribution_type        =
