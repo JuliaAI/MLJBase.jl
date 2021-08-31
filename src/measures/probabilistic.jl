@@ -20,6 +20,9 @@ const WITH_L2NORM_COUNT =
 const WITH_L2NORM_INFINITE = vcat(WITH_L2NORM_CONTINUOUS,
                                   WITH_L2NORM_COUNT)
 
+# ========================================================
+# AGGREGATED MEASURES
+
 # ---------------------------------------------------------
 # AreaUnderCurve
 
@@ -79,6 +82,8 @@ end
 (::AUC)(ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
     _auc(P, ŷ, y)
 
+# ========================================================
+# UNAGGREGATED MEASURES
 
 # ---------------------------------------------------------------------
 # LogLoss
