@@ -13,6 +13,10 @@ const DOC_ORDERED_FACTOR_BINARY =
 const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
 const DOC_COUNT = "`AbstractArray{Count}`"
 const DOC_INFINITE = "AbstractArray{<:Infinite}"
+const INVARIANT_LABEL =
+    "This metric is invariant to class reordering."
+const VARIANT_LABEL =
+    "This metric is *not* invariant to class re-ordering"
 
 ## TRAITS
 
@@ -38,6 +42,56 @@ const MEASURE_TRAITS = [:name,
 ## FOR BUILT-IN MEASURES (subtyping Measure)
 
 abstract type Measure <: MLJType end
+abstract type Aggregated <: Measure end
+abstract type Unaggregated <: Measure end
+
+StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
+StatisticalTraits.reports_each_observation(::Type{<:Unaggregated}) = true
+
+
+## FALLBACK CHECKS
+
+extra_check(measure, args...) = nothing
+function check(measure, yhat, y)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y)
+end
+function check(measure, yhat, w::Arr)
+    check_dimensions(yhat, y)
+    check_dimensions(y, w)
+    extra_check(mesure, yhat, y, args)
+end
+function check(measure, yhat::Arr{<:UnivariateFinite})
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y, args)
+end
+function check(measure, yhat::Arr{<:UnivariateFinite}, w::AbstractDict)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    check_pools(yhat, w)
+    extra_check(mesure, yhat, y, args)
+end
+
+
+## FALLBACK CALLING BEHAVIOUR
+
+# for `Unaggregated` measures, `single(measure, yhat, y)` should
+# return the measurement, without checks, for a single observation `y`
+# and corresponding prediction `yhat`. `Aggregated` measures only
+# implement `call`, which evaluates the measure without checks:
+
+single(m::Measure) = (ηhat, η) -> single(m, ηhat, η)
+call(measure::Unaggregated, yhat, y) = broadcast(single, measure, yhat, y)
+function call(measure::Unaggregated, yhat, y, w::Arr)
+    unweighted = broadcast(single, measure, yhat, y)
+    return w .* unweighted
+end
+function (measure::Measure)(args...)
+    check(measure, args...)
+    call(measure, args...)
+end
+
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
 
@@ -65,7 +119,7 @@ end
 ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
-## SKIPPING MISSINGS
+## SKIPPING MISSING AND NAN
 
 const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
     "Trying to aggregrate an empty collection of measurements. Perhaps all "*
@@ -157,6 +211,13 @@ function check_pools(ŷ, y)
     return nothing
 end
 
+function check_pools(ŷ, w::AbstractDict)
+    Set(levels(ŷ[1])) == Set(keys(w)) ||
+        error("Conflicting categorical pools found "*
+              "in class weights and predictions. ")
+    return nothing
+end
+
 
 ## INCLUDE SPECIFIC MEASURES AND TOOLS
 
@@ -164,6 +225,7 @@ include("meta_utilities.jl")
 include("continuous.jl")
 include("confusion_matrix.jl")
 include("finite.jl")
+include("probabilistic.jl")
 include("loss_functions_interface.jl")
 
 ## DEFAULT MEASURES
@@ -182,15 +244,17 @@ default_measure(::Type{<:Deterministic},
 default_measure(::Type{<:Probabilistic},
                 ::Type{<:Vec{<:Union{Missing,Finite}}}) = cross_entropy
 
-# Probablistic + Continuous ==> Brier score
+# Probablistic + Continuous ==> Log score
 default_measure(::Type{<:Probabilistic},
                 ::Type{<:Vec{<:Union{Missing,Continuous}}}) =
-                    continuous_brier_score
+                    infinite_log_score
 
-# Probablistic + Count ==> Brier score
+# Probablistic + Count ==> Log score
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Count}}}) = count_brier_score
+                ::Type{<:Vec{<:Union{Missing,Count}}}) = infinite_log_score
 
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Supervised = default_measure(M)
+
+
