@@ -51,21 +51,21 @@ StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
 ## FALLBACK CHECKS
 
 extra_check(measure, args...) = nothing
-function check(measure, yhat, y)
+function check(measure::Measure, yhat, y)
     check_dimensions(yhat, y)
     extra_check(measure, yhat, y)
 end
-function check(measure, yhat, y, w::Arr)
+function check(measure::Measure, yhat, y, w::Arr)
     check_dimensions(yhat, y)
     check_dimensions(y, w)
     extra_check(measure, yhat, y, w)
 end
-function check(measure, yhat::Arr{<:UnivariateFinite})
+function check(measure::Measure, yhat::Arr{<:UnivariateFinite})
     check_dimensions(yhat, y)
     check_pools(yhat, y)
     extra_check(measure, yhat, y)
 end
-function check(measure, yhat::Arr{<:UnivariateFinite}, w::AbstractDict)
+function check(measure::Measure, yhat::Arr{<:UnivariateFinite}, w::AbstractDict)
     check_dimensions(yhat, y)
     check_pools(yhat, y)
     check_pools(yhat, w)
@@ -80,10 +80,10 @@ end
 # and corresponding prediction `yhat`. `Aggregated` measures only
 # implement `call`, which evaluates the measure without checks:
 
-single(m::Measure) = (ηhat, η) -> single(m, ηhat, η)
-call(measure::Unaggregated, yhat, y) = broadcast(single, measure, yhat, y)
+single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
+call(measure::Unaggregated, yhat, y) = broadcast(single(measure), yhat, y)
 function call(measure::Unaggregated, yhat, y, w::Arr)
-    unweighted = broadcast(single, measure, yhat, y)
+    unweighted = broadcast(single(measure), yhat, y)
     return w .* unweighted
 end
 function (measure::Measure)(args...)
