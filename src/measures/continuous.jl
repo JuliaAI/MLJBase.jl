@@ -31,7 +31,7 @@ struct MeanAbsoluteError <: Measure end
 metadata_measure(MeanAbsoluteError;
                  instances = ["mae", "mav", "mean_absolute_error",
                               "mean_absolute_value"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = false,
@@ -49,7 +49,7 @@ body=
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 """)
 
-function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::MeanAbsoluteError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     for i in eachindex(y)
@@ -59,8 +59,8 @@ function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     return ret / length(y)
 end
 
-function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                 w::Vec{<:Real})
+function (::MeanAbsoluteError)(ŷ::Arr{<:Real}, y::Arr{<:Real},
+                 w::Arr{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(y, w)
     ret = zero(eltype(y))
@@ -79,7 +79,7 @@ struct RootMeanSquaredError <: Measure end
 metadata_measure(RootMeanSquaredError;
                  instances                = ["rms", "rmse",
                                              "root_mean_squared_error"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = false,
@@ -97,7 +97,7 @@ body=
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 """)
 
-function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::RootMeanSquaredError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     for i in eachindex(y)
@@ -107,8 +107,8 @@ function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
     return sqrt(ret / length(y))
 end
 
-function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                 w::Vec{<:Real})
+function (::RootMeanSquaredError)(ŷ::Arr{<:Real}, y::Arr{<:Real},
+                 w::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     for i in eachindex(y)
@@ -129,7 +129,7 @@ LPLoss(; p=2.0) = LPLoss(p)
 
 metadata_measure(LPLoss;
                  instances = ["l1", "l2"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = true,
@@ -146,13 +146,13 @@ Constructor signature: `LPLoss(p=2)`. Reports
 `|ŷ[i] - y[i]|^p` for every index `i`.
 """)
 
-function (m::LPLoss)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (m::LPLoss)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     return abs.((y - ŷ)).^(m.p)
 end
 
-function (m::LPLoss)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                w::Vec{<:Real})
+function (m::LPLoss)(ŷ::Arr{<:Real}, y::Arr{<:Real},
+                w::Arr{<:Real})
     check_dimensions(ŷ, y)
     check_dimensions(w, y)
     return w .* abs.((y - ŷ)).^(m.p)
@@ -165,7 +165,7 @@ struct RootMeanSquaredLogError <: Measure end
 
 metadata_measure(RootMeanSquaredLogError;
                  instances = ["rmsl", "rmsle", "root_mean_squared_log_error"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = false,
@@ -184,7 +184,7 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
 footer="See also [`rmslp1`](@ref).")
 
-function (::RootMeanSquaredLogError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (::RootMeanSquaredLogError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     for i in eachindex(y)
@@ -206,7 +206,7 @@ RootMeanSquaredLogProportionalError(; offset=1.0) =
 
 metadata_measure(RootMeanSquaredLogProportionalError;
                  instances                = ["rmslp1", ],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  reports_each_observation = false,
@@ -227,7 +227,7 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 """,
 footer="See also [`rmsl`](@ref). ")
 
-function (m::RMSLP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (m::RMSLP)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     for i in eachindex(y)
@@ -249,7 +249,7 @@ RootMeanSquaredProportionalError(; tol=eps()) =
 
 metadata_measure(RootMeanSquaredProportionalError;
     instances                = ["rmsp", ],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -273,7 +273,7 @@ of such indices.
 
 """)
 
-function (m::RootMeanSquaredProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (m::RootMeanSquaredProportionalError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
@@ -299,7 +299,7 @@ MeanAbsoluteProportionalError(; tol=eps()) = MeanAbsoluteProportionalError(tol)
 
 metadata_measure(MeanAbsoluteProportionalError;
     instances                = ["mape", ],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = false,
@@ -322,7 +322,7 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """)
 
-function (m::MeanAbsoluteProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
+function (m::MeanAbsoluteProportionalError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     check_dimensions(ŷ, y)
     ret = zero(eltype(y))
     count = 0
@@ -346,7 +346,7 @@ struct LogCoshLoss <: Measure end
 
 metadata_measure(LogCoshLoss;
     instances                = ["log_cosh", "log_cosh_loss"],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = Union{Arr{Continuous},Arr{Count}},
     prediction_type          = :deterministic,
     orientation              = :loss,
     reports_each_observation = true,
@@ -363,7 +363,7 @@ body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ")
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))
 
-function (log_cosh::LogCoshLoss)(ŷ::Vec{<:T}, y::Vec{<:T}) where T <:Real
+function (log_cosh::LogCoshLoss)(ŷ::Arr{<:T}, y::Arr{<:T}) where T <:Real
     check_dimensions(ŷ, y)
     return _log_cosh.(ŷ - y)
 end
