@@ -1,28 +1,6 @@
 # ===========================================================
 ## DETERMINISTIC PREDICTIONS
 
-const UD = Distributions.UnivariateDistribution
-const WITH_L2NORM_CONTINUOUS =
-    [@eval(Distributions.$d) for d in [
-        :Chisq,
-        :Gamma,
-        :Beta,
-        :Chi,
-        :Cauchy,
-        :Normal,
-        :Uniform,
-        :Logistic,
-        :Exponential]]
-
-const WITH_L2NORM_COUNT =
-    [@eval(Distributions.$d) for d in [
-        :Poisson,
-        :DiscreteUniform,
-        :DiscreteNonParametric]]
-
-const WITH_L2NORM_INFINITE = vcat(WITH_L2NORM_CONTINUOUS,
-                                  WITH_L2NORM_COUNT)
-
 # -----------------------------------------------------------
 # MeanAbsoluteError
 
@@ -369,8 +347,29 @@ function (log_cosh::LogCoshLoss)(ŷ::Arr{<:T}, y::Arr{<:T}) where T <:Real
 end
 
 # ===========================================================
-## DETERMINISTIC PREDICTIONS
+## PROBABLISTIC PREDICTIONS
 
+const UD = Distributions.UnivariateDistribution
+const WITH_L2NORM_CONTINUOUS =
+    [@eval(Distributions.$d) for d in [
+        :Chisq,
+        :Gamma,
+        :Beta,
+        :Chi,
+        :Cauchy,
+        :Normal,
+        :Uniform,
+        :Logistic,
+        :Exponential]]
+
+const WITH_L2NORM_COUNT =
+    [@eval(Distributions.$d) for d in [
+        :Poisson,
+        :DiscreteUniform,
+        :DiscreteNonParametric]]
+
+const WITH_L2NORM_INFINITE = vcat(WITH_L2NORM_CONTINUOUS,
+                                  WITH_L2NORM_COUNT)
 const FORMULA_INFINITE_BRIER = "``2d(η) - ∫ d(t)^2 dt``"
 _infinite_brier(d, y) = 2*pdf(d, y) - Distributions.pdfsquaredL2norm(d)
 
