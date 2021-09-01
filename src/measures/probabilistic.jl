@@ -1,3 +1,11 @@
+const DOC_DISTRIBUTIONS =
+"""
+In the case the predictions `ŷ` are continuous probability
+distributions, such as `Distributions.Normal`, replace the above sum
+with an integral, and interpret `p` as the probablity density
+function. In case of discrete distributions over the integers, such as
+`Distributions.Poisson`, sum over all integers instead of `C`.
+"""
 const UD = Distributions.UnivariateDistribution
 const WITH_L2NORM_CONTINUOUS =
     [@eval(Distributions.$d) for d in [
@@ -293,7 +301,74 @@ call(m::BrierLoss,
      w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
          - call(BrierScore(), ŷ, y, w)
 
+# -----------------------------------------------------
+# SphericalScore
 
+struct SphericalScore{T<:Real} <: Unaggregated
+    alpha::T
+end
+SphericalScore(; alpha=2) = SphericalScore(alpha)
+
+metadata_measure(SphericalScore;
+                 human_name               = "Spherical score",
+                 instances                = ["spherical_score",],
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 prediction_type          = :probabilistic,
+                 orientation              = :score,
+                 is_feature_dependent     = false,
+                 supports_weights         = true,
+                 distribution_type        = UnivariateFinite)
+
+@create_aliases SphericalScore
+
+@create_docs(SphericalScore,
+body=
+"""
+Convention as in $PROPER_SCORING_RULES: If `η` takes on a finite
+number of classes `C` and ``p(η)` is the predicted probability for a
+*single* observation `η`, then the corresponding Brier score for that
+observation is given by
+
+``p(y)^α / \\left(\\sum_{η ∈ C} p(η)^α\\right)^{1-α} - 1``
+
+where `α` is the measure parameter `alpha`.
+
+$DOC_DISTRIBUTIONS
+
+""",
+scitype=DOC_FINITE)
+
+# calling on single observations:
+function single(s::SphericalScore,
+                d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
+    α = s.alpha
+    levels = classes(d)
+    pvec = broadcast(pdf, d, levels)
+    return (pdf(d, y)/norm(pvec, α))^(α - 1)
+end
+
+# to compute the α-norm along last dimension:
+_norm(A::AbstractArray{<:Any,N}, α) where N =
+    sum(x -> x^α, A, dims=N)^(1/α)
+
+# Performant version in case of UnivariateFiniteArray:
+function call(s::SphericalScore,
+              ŷ::UnivariateFiniteArray{S,V,R,P,N},
+              y::ArrMissing{V,N},
+              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
+
+    α = s.alpha
+    alphanorm(A) = _norm(A, α)
+
+    predicted_probs = pdf(ŷ, classes(first(ŷ)))
+
+    unweighted = (broadcast(pdf, ŷ, y) ./ alphanorm(predicted_probs)).^(α - 1)
+
+    if w === nothing
+        return unweighted
+    end
+    return w.*unweighted
+end
 
 # -------------------------
 # Infinite

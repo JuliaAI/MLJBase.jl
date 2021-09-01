@@ -1,4 +1,5 @@
 rng = StableRNG(51803)
+using LinearAlgebra
 
 const Vec = AbstractVector
 
@@ -52,7 +53,7 @@ const Vec = AbstractVector
 
 end
 
-@testset "Log, Brier - finite case" begin
+@testset "Log, Brier, Spherical - finite case" begin
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
     d1 = UnivariateFinite(L, [0.1, 0.9]) # a
@@ -105,6 +106,14 @@ end
     yhat3 = [UnivariateFinite(L2, prob) for prob in probs2]
     @test -mean(BrierScore()(yhat3, y2) / 2) ≈ 0.21875
     @test mean(BrierLoss()(yhat3, y2) / 2) ≈ -mean(BrierScore()(yhat3, y2) / 2)
+
+    # Spherical
+    s = SphericalScore() # SphericalScore(2)
+    norms = [norm(probs[i,:]) for i in 1:size(probs, 1)]
+    @test (pdf.(yhat2, y2) ./ norms) ≈  s(yhat2, y2)
+    # non-performant version:
+    yhat4 = collect(yhat2)
+    @test (pdf.(yhat2, y2) ./ norms) ≈  s(yhat4, y2)
 end
 
 @testset "LogScore, BrierScore, SphericalScore - infinite case" begin
