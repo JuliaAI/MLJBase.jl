@@ -55,13 +55,13 @@ function _check(measure::Measure, yhat, y)
     check_dimensions(yhat, y)
     extra_check(measure, yhat, y)
 end
+function _check(measure::Measure, yhat, y, w)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
 function _check(measure::Measure, yhat, y, w::Arr)
     check_dimensions(yhat, y)
     check_dimensions(y, w)
-    extra_check(measure, yhat, y, w)
-end
-function _check(measure::Measure, yhat, y, w::AbstractDict)
-    check_dimensions(yhat, y)
     extra_check(measure, yhat, y, w)
 end
 function _check(measure::Measure, yhat::Arr{<:UnivariateFinite})
@@ -69,7 +69,18 @@ function _check(measure::Measure, yhat::Arr{<:UnivariateFinite})
     check_pools(yhat, y)
     extra_check(measure, yhat, y)
 end
-function _check(measure::Measure, yhat::Arr{<:UnivariateFinite}, w::AbstractDict)
+function _check(measure::Measure,
+                yhat::Arr{<:UnivariateFinite},
+                y,
+                w::Arr)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure,
+                yhat::Arr{<:UnivariateFinite},
+                y,
+                w::AbstractDict)
     check_dimensions(yhat, y)
     check_pools(yhat, y)
     check_pools(yhat, w)

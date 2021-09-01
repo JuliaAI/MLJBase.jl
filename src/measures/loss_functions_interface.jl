@@ -88,10 +88,11 @@ macro wrap_loss(ex)
     end
 
     # define calling behaviour:
-    push!(program.args, quote
-          (m::$Loss_ex)(yhat, y) =
+    push!(program.args,
+          quote
+          call(m::$Loss_ex, yhat, y::Arr) =
               MLJBase.value(m, yhat, nothing, y, nothing)
-          (m::$Loss_ex)(yhat, y, w) =
+          call(m::$Loss_ex, yhat, y::Arr, w::Arr{<:Real}) =
               MLJBase.value(m, yhat, nothing, y, w)
           end)
 

@@ -38,10 +38,10 @@ end
 
 include("test_utilities.jl")
 
-# load Models module containing model implementations for testing:
-print("Loading some models for testing...")
-include_everywhere("_models/models.jl")
-print("\r                                           \r")
+# # load Models module containing model implementations for testing:
+# print("Loading some models for testing...")
+# include_everywhere("_models/models.jl")
+# print("\r                                           \r")
 
 # @testset "misc" begin
 #    @test include("utilities.jl")

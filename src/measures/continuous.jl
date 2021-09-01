@@ -1,6 +1,3 @@
-# ===========================================================
-## DETERMINISTIC PREDICTIONS
-
 # -----------------------------------------------------------
 # MeanAbsoluteError
 
@@ -26,8 +23,7 @@ body=
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 """)
 
-function (::MeanAbsoluteError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = abs(y[i] - ŷ[i])
@@ -36,10 +32,10 @@ function (::MeanAbsoluteError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     return ret / length(y)
 end
 
-function (::MeanAbsoluteError)(ŷ::Arr{<:Real}, y::Arr{<:Real},
-                 w::Arr{<:Real})
-    check_dimensions(ŷ, y)
-    check_dimensions(y, w)
+function call(::MeanAbsoluteError,
+              ŷ::Arr{<:Real},
+              y::Arr{<:Real},
+              w::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = abs(y[i] - ŷ[i])
@@ -73,8 +69,7 @@ body=
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 """)
 
-function (::RootMeanSquaredError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = (y[i] - ŷ[i])^2
@@ -83,9 +78,10 @@ function (::RootMeanSquaredError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
     return sqrt(ret / length(y))
 end
 
-function (::RootMeanSquaredError)(ŷ::Arr{<:Real}, y::Arr{<:Real},
-                 w::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(::RootMeanSquaredError,
+              ŷ::Arr{<:Real},
+              y::Arr{<:Real},
+              w::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = (y[i] - ŷ[i])^2
@@ -121,17 +117,7 @@ Constructor signature: `LPLoss(p=2)`. Reports
 `|ŷ[i] - y[i]|^p` for every index `i`.
 """)
 
-function (m::LPLoss)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
-    return abs.((y - ŷ)).^(m.p)
-end
-
-function (m::LPLoss)(ŷ::Arr{<:Real}, y::Arr{<:Real},
-                w::Arr{<:Real})
-    check_dimensions(ŷ, y)
-    check_dimensions(w, y)
-    return w .* abs.((y - ŷ)).^(m.p)
-end
+single(m::LPLoss, ŷ::Real, y::Real) =  abs(y - ŷ)^(m.p)
 
 # ----------------------------------------------------------------------------
 # RootMeanSquaredLogError
@@ -158,8 +144,7 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
 footer="See also [`rmslp1`](@ref).")
 
-function (::RootMeanSquaredLogError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(::RootMeanSquaredLogError, ŷ::Arr{<:Real}, y::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = (log(y[i]) - log(ŷ[i]))^2
@@ -200,8 +185,7 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 """,
 footer="See also [`rmsl`](@ref). ")
 
-function (m::RMSLP)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real})
     ret = zero(eltype(y))
     for i in eachindex(y)
         dev = (log(y[i] + m.offset) - log(ŷ[i] + m.offset))^2
@@ -245,8 +229,9 @@ of such indices.
 
 """)
 
-function (m::RootMeanSquaredProportionalError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(m::RootMeanSquaredProportionalError,
+              ŷ::Arr{<:Real},
+              y::Arr{<:Real})
     ret = zero(eltype(y))
     count = 0
     @inbounds for i in eachindex(y)
@@ -293,8 +278,7 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """)
 
-function (m::MeanAbsoluteProportionalError)(ŷ::Arr{<:Real}, y::Arr{<:Real})
-    check_dimensions(ŷ, y)
+function call(m::MeanAbsoluteProportionalError, ŷ::Arr{<:Real}, y::Arr{<:Real})
     ret = zero(eltype(y))
     count = 0
     @inbounds for i in eachindex(y)
@@ -333,11 +317,4 @@ body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ")
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))
 
-function (log_cosh::LogCoshLoss)(ŷ::Arr{<:T}, y::Arr{<:T}) where T <:Real
-    check_dimensions(ŷ, y)
-    return _log_cosh.(ŷ - y)
-end
-
-# ===========================================================
-## PROBABLISTIC PREDICTIONS
-
+single(::LogCoshLoss, ŷ::Real, y::Real) = _log_cosh(ŷ - y)

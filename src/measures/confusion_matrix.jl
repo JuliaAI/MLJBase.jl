@@ -71,7 +71,6 @@ function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
                   perm::Union{Nothing,Vector{<:Integer}}=nothing,
                   warn::Bool=true) where {T,N}
 
-    check_dimensions(ŷm, ym)
     ŷ, y = skipinvalid(ŷm, ym)
 
     levels_ = levels(y)
@@ -231,8 +230,7 @@ data. For more than two classes, specify an appropriate permutation, as in
 scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
-(m::ConfusionMatrix)(ŷ, y) =
-    _confmat(ŷ, y, perm=m.perm)
+call(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
 
 # overloading addition to make aggregation work:
 Base.round(m::MLJBase.ConfusionMatrixObject; kws...) = m

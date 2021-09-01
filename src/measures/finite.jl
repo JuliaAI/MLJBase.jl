@@ -23,10 +23,8 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-(::MCR)(ŷ, y) where {V,N} =
-    mean(skipmissing(y .!= ŷ))
-(::MCR)(ŷ, y, w) where {V,N} =
-    mean(skipmissing((y .!= ŷ) .* w))
+call(::MCR, ŷ, y) where {V,N} = mean(skipinvalid(y .!= ŷ))
+call(::MCR, ŷ, y, w) where {V,N} = mean(skipinvalid((y .!= ŷ) .* w))
 (::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
@@ -53,7 +51,7 @@ ground truth `y[i]` observations. $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-(::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
+call(::Accuracy, args...) = 1.0 - call(misclassification_rate, args...)
 (::Accuracy)(m::ConfusionMatrixObject) = sum(diag(m.mat)) / sum(m.mat)
 
 # -----------------------------------------------------------
@@ -83,15 +81,15 @@ scitype=DOC_FINITE)
 
 # calling behavior:
 
-function (::BACC)(ŷ, y)
+function call(::BACC, ŷ, y)
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
     weighted_matches = (ŷ .== y) .* ŵ
-    mask = .!(ismissing.(weighted_matches))
-    return sum(skipmissing(weighted_matches)) / sum(ŵ[mask])
+    mask = .!(isinvalid.(weighted_matches))
+    return sum(skipinvalid(weighted_matches)) / sum(ŵ[mask])
 end
 
-function (::BACC)(ŷm, ym, w)
+function call(::BACC, ŷm, ym, w)
     ŷ, y, w = skipinvalid(ŷm, ym, w)
     levels_ = levels(y)
     ŵ = similar(w)
@@ -153,7 +151,7 @@ function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ, y) = _confmat(ŷ, y, warn=false) |> m
+call(m::MCC, ŷ, y) = _confmat(ŷ, y, warn=false) |> m
 
 
 # ==========================================================================
@@ -208,7 +206,7 @@ function (score::FScore)(m::CM2)
 end
 
 # calling on arrays:
-(m::FScore)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+call(m::FScore, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
 # TruePositive and its cousins - struct and metadata declerations
@@ -369,19 +367,22 @@ _npv(m::CM2) = _tn(m) / (_tn(m) + _fn(m))
 (::NPV)(m::CM2) = _npv(m)
 (::Precision)(m::CM2) = 1.0 - _fdr(m)
 
-# on vectors (ŷ, y):
+# on arrays (ŷ, y):
 for M_ex in TRUE_POSITIVE_AND_COUSINS
-    local M = eval(M_ex)
-    (m::M)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+    @eval call(m::$M_ex, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 end
 
-# special `precision` case (conflict with Base.precision):
+# since Base.precision exists (as single argument function) we
+# manually overload Base.precision:
 Base.precision(m::CM2) = m |> Precision()
-Base.precision(ŷ, y)   = _confmat(ŷ, y) |> Precision()
+function Base.precision(ŷ, y)
+    _check(Precision(), ŷ, y)
+    call(Precision(), ŷ, y)
+end
 
 
 # =================================================================
-#MULTICLASS AND ORDER INDEPENDENT
+# MULTICLASS AND ORDER INDEPENDENT
 
 const CM = ConfusionMatrixObject{N} where N
 
@@ -436,7 +437,7 @@ MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict) =
 metadata_measure(MulticlassFScore;
                  instances = ["macro_f1score", "micro_f1score",
                               "multiclass_f1score"],
-                 target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+                 target_scitype = Arr{<:Union{Missing,Finite{N}}} where N,
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -881,7 +882,7 @@ const MNPV                                 = MulticlassNegativePredictiveValue
 
 
 # -----------------------------------------------------
-## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
+## INTERNAL FUNCTIONS ON MULTICLASS CONFUSION MATRIX
 
 _mtp(m::CM, return_type::Type{Vector}) = diag(m.mat)
 _mtp(m::CM, return_type::Type{LittleDict}) =
@@ -914,12 +915,7 @@ function _mtn(m::CM, return_type::Type{LittleDict})
     return LittleDict(m.labels, vec(_sum))
 end
 
-@inline function _mean(x::Arr{<:Real})
-    for i in eachindex(x)
-        @inbounds x[i] = ifelse(isnan(x[i]), zero(eltype(x)), x[i])
-    end
-    return mean(x)
-end
+_mean(x::Arr{<:Real}) = mean(skipinvalid(x))
 
 @inline function _class_w(level_m::Arr{<:String},
                           class_w::AbstractDict{<:Any, <:Real})
@@ -1129,9 +1125,8 @@ end
 
 (p::MulticlassPrecision)(m::CM) =
     _mc_helper_b(m, _mfdr, p.average, p.return_type)
-function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
-    return _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
-end
+(p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real}) =
+    _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 
 @inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
                     average::NoAvg, return_type::Type{LittleDict})
@@ -1199,18 +1194,18 @@ function (f::MulticlassFScore)(m::CM, class_w::AbstractDict{<:Any, <:Real})
     return _fs_helper(m, class_w, f.β, f.average, f.return_type)
 end
 
-## Callables on vectors
+## Callables on arrays
 
-for M in (MulticlassTruePositive, MulticlassTrueNegative,
-          MulticlassFalsePositive, MulticlassFalseNegative)
-    (m::M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
+for M_ex in (:MulticlassTruePositive, :MulticlassTrueNegative,
+          :MulticlassFalsePositive, :MulticlassFalseNegative)
+    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
 end
 
-for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV,
-          MulticlassFScore)
-    @eval (m::$M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
-    @eval (m::$M)(ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
-                          m(_confmat(ŷ, y, warn=false), class_w)
+for M_ex in (:MTPR, :MTNR, :MFPR, :MFNR, :MFDR, :MulticlassPrecision, :MNPV,
+          :MulticlassFScore)
+    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
+    @eval call(m::$M_ex, ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
+        m(_confmat(ŷ, y, warn=false), class_w)
 end
 
 

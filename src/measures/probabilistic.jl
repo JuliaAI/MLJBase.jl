@@ -76,11 +76,12 @@ function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
 end
 
 # calling behaviour:
-(::AUC)(ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
+call(::AUC, ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
 
 # performant version for UnivariateFiniteVector:
-(::AUC)(ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
+call(::AUC, ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
     _auc(P, ŷ, y)
+
 
 # ========================================================
 # UNAGGREGATED MEASURES
@@ -127,24 +128,15 @@ scitype=DOC_FINITE)
     Base.clamp(::Missing, lo::Any, hi::Any) = missing
 end
 
-# for single observation:
-_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
-    -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
+# for single finite observation:
+single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
+    -log(clamp(pdf(d, η), P(c.tol), P(1) - P(c.tol)))
 
-# multiple observations:
-function (c::LogLoss)(ŷ::Arr{<:UnivariateFinite,N},
-                      y::Arr{V,N}) where {V,N}
-    check_dimensions(ŷ, y)
-#    check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y, c.tol)
-end
-# performant in case of UnivariateFiniteArray:
-function (c::LogLoss)(ŷ::UnivariateFiniteArray{S,V,R,P,N},
-                      y::ArrMissing{V,N}) where {S,V,R,P,N}
-    check_dimensions(ŷ, y)
-#    check_pools(ŷ, y)
-    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
-end
+# performant broadasting in case of UnivariateFiniteArray:
+call(c::LogLoss, ŷ::UnivariateFiniteArray{S,V,R,P,N},
+     y::ArrMissing{V,N}) where {S,V,R,P,N} =
+    -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
+
 
 # -----------------------------------------------------
 # BrierScore
@@ -182,42 +174,19 @@ case, by a factor of two from usage elsewhere.
 """,
 scitype=DOC_FINITE)
 
-# calling on single observations (no checks):
-function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
+# calling on single observations:
+function single(::BrierScore, d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     offset = P(1) + sum(pvec.^2)
     return P(2) * pdf(d, y) - offset
 end
 
-# calling on multiple observations:
-function (::BrierScore)(ŷ::Arr{<:UnivariateFinite,N},
-                        y::Arr{V,N},
-                        w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N}
-    check_dimensions(ŷ, y)
-    w === nothing || check_dimensions(w, y)
-
-    check_pools(ŷ, y)
-    unweighted = broadcast(_brier_score, ŷ, y)
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
-end
-
 # Performant version in case of UnivariateFiniteArray:
-function (::BrierScore)(
-    ŷ::UnivariateFiniteArray{S,V,R,P,N},
-    y::ArrMissing{V,N},
-    w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
-
-    check_dimensions(ŷ, y)
-    w === nothing || check_dimensions(w, y)
-
-    isempty(y) && return P(0)
-
-    check_pools(ŷ, y)
+function call(::BrierScore,
+              ŷ::UnivariateFiniteArray{S,V,R,P,N},
+              y::ArrMissing{V,N},
+              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
 
     probs = pdf(ŷ, classes(first(ŷ)))
     offset = P(1) .+ vec(sum(probs.^2, dims=2))
@@ -266,17 +235,15 @@ a factor of two from usage elsewhere.
 scitype=DOC_FINITE)
 
 # calling on single observations (no checks):
-function _brier_loss(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
-    levels = classes(d)
-    pvec = broadcast(pdf, d, levels)
-    offset = P(1) + sum(pvec.^2)
-    return P(2) * pdf(d, y) - offset
-end
+single(m::BrierLoss, d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P} =
+    - single(BrierScore(), d, y)
 
-(m::BrierLoss)(ŷ::Arr{<:UnivariateFinite,N},
-               y::Arr{V,N},
-               w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N} =
-                   - brier_score(ŷ, y, w)
+# to get performant broadcasting in case of UnivariateFiniteArray
+call(m::BrierLoss,
+     ŷ::UnivariateFiniteArray{S,V,R,P,N},
+     y::ArrMissing{V,N},
+     w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
+         - call(BrierScore(), ŷ, y, w)
 
 # -------------------------
 # Infinite
