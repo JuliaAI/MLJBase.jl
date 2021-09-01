@@ -52,7 +52,7 @@ const Vec = AbstractVector
 
 end
 
-@testset "LogLoss, Brier - finite case" begin
+@testset "Log, Brier - finite case" begin
     y = categorical(collect("abb"))
     L = [y[1], y[2]]
     d1 = UnivariateFinite(L, [0.1, 0.9]) # a
@@ -71,6 +71,9 @@ end
                                 0.2 0.8])
     @test isapprox(mean(log_loss(yhat, y)),
                    -(log(0.1) + log(0.6) + log(0.8))/3, atol=eps(Float32))
+
+    @test log_score(yhat, y) ≈ -log_loss(yhat, y)
+
     # sklearn test
     # >>> from sklearn.metrics import log_loss
     # >>> log_loss(["spam", "ham", "ham", "spam","ham","ham"],

@@ -193,7 +193,7 @@ export confusion_matrix, confmat, ConfusionMatrix
 # measures/finite.jl:
 export cross_entropy, BrierScore, brier_score,
     BrierLoss, brier_loss,
-    LogLoss, log_loss,
+    LogLoss, log_loss, LogScore, log_score,
     misclassification_rate, mcr, accuracy,
     balanced_accuracy, bacc, bac, BalancedAccuracy,
     matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,

@@ -87,6 +87,58 @@ call(::AUC, ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
 # UNAGGREGATED MEASURES
 
 # ---------------------------------------------------------------------
+# LogScore
+
+struct LogScore{R <: Real} <: Unaggregated
+    tol::R
+end
+LogScore(;eps=eps(), tol=eps) = LogScore(tol)
+
+metadata_measure(LogScore;
+                 instances                = ["log_score", ],
+                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 prediction_type          = :probabilistic,
+                 orientation              = :loss,
+                 is_feature_dependent     = false,
+                 supports_weights         = false,
+                 distribution_type        = UnivariateFinite)
+
+@create_aliases LogScore
+
+@create_docs(LogScore,
+body=
+"""
+Since the score is undefined in the case that the true observation is
+predicted to occur with probability zero, probablities are clipped
+between `tol` and `1-tol`, where `tol` is a constructor key-word
+argument.
+
+If `sᵢ` is the predicted probability for the true class `yᵢ` then
+the score for that example is given by
+
+    log(clamp(sᵢ, tol), 1 - tol)
+
+A score is reported for every observation. See also [`LogLoss`](@ref),
+which differs only in sign.
+""",
+scitype=DOC_FINITE)
+
+# workaround for https://github.com/JuliaLang/julia/issues/41939:
+@static if VERSION < v"1.1"
+    Base.clamp(::Missing, lo::Any, hi::Any) = missing
+end
+
+# for single finite observation:
+single(c::LogScore, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
+    log(clamp(pdf(d, η), P(c.tol), P(1) - P(c.tol)))
+
+# performant broadasting in case of UnivariateFiniteArray:
+call(c::LogScore, ŷ::UnivariateFiniteArray{S,V,R,P,N},
+     y::ArrMissing{V,N}) where {S,V,R,P,N} =
+    log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
+
+
+# ---------------------------------------------------------------------
 # LogLoss
 
 struct LogLoss{R <: Real} <: Unaggregated
@@ -119,23 +171,19 @@ the score for that example is given by
 
     -log(clamp(sᵢ, tol), 1 - tol)
 
-A score is reported for every observation.
+A score is reported for every observation. See also
+[`LogScore`](@ref), which differs only in sign.
 """,
 scitype=DOC_FINITE)
 
-# workaround for https://github.com/JuliaLang/julia/issues/41939:
-@static if VERSION < v"1.1"
-    Base.clamp(::Missing, lo::Any, hi::Any) = missing
-end
-
 # for single finite observation:
 single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
-    -log(clamp(pdf(d, η), P(c.tol), P(1) - P(c.tol)))
+    -single(LogScore(tol=c.tol), d, η)
 
 # performant broadasting in case of UnivariateFiniteArray:
 call(c::LogLoss, ŷ::UnivariateFiniteArray{S,V,R,P,N},
      y::ArrMissing{V,N}) where {S,V,R,P,N} =
-    -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
+    -call(LogScore(tol=c.tol), ŷ, y)
 
 
 # -----------------------------------------------------
@@ -244,6 +292,8 @@ call(m::BrierLoss,
      y::ArrMissing{V,N},
      w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
          - call(BrierScore(), ŷ, y, w)
+
+
 
 # -------------------------
 # Infinite
