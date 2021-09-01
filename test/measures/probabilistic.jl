@@ -123,36 +123,40 @@ end
     w = [2, 3]
 
     # brier
-    yhat = [missing, uniform]
-    @test isapprox(infinite_brier_score(yhat, [42.0, 1.0]), [-1/3,])
-    @test isapprox(infinite_brier_score(yhat, [NaN, 4.0]), [1/3,])
-    @test isapprox(infinite_brier_score(yhat, [42.0, 1.0], w), [-1,])
-    @test isapprox(infinite_brier_score(yhat, [42.0, 4.0], w), [1,])
-    yhat = [missing, discrete_uniform]
-    @test isapprox(infinite_brier_score(yhat, [NaN, 1.0]), [-1/4,])
-    @test isapprox(infinite_brier_score(yhat, [42.0, 4.0]), [1/4,])
+    yhat = [uniform, uniform]
+    @test isapprox(brier_score(yhat, [1.0, 1.0]), [-1/3, -1/3,])
+    @test isapprox(brier_score(yhat, [NaN, 4.0]), [-1/3, 1/3,])
+    @test isapprox(brier_score(yhat, [1.0, 1.0], w), [-2/3, -1])
+    # issue https://github.com/JuliaStats/Distributions.jl/issues/1392
+    @test_broken isapprox(brier_score(yhat, [missing, 4.0], w), [1,])
+    yhat = [discrete_uniform, discrete_uniform]
+    @test isapprox(brier_score(yhat, [NaN, 1.0]), [-1/4, -1/4,])
+    @test isapprox(brier_score(yhat, [4.0, 4.0]), [1/4, 1/4,])
 
     # spherical
-    yhat = [missing, uniform]
-    @test isapprox(infinite_spherical_score(yhat, [42.0, 1.0]), [0,])
-    @test isapprox(infinite_spherical_score(yhat, [NaN, 4.0]), [1/sqrt(3),])
-    @test isapprox(infinite_spherical_score(yhat, [42.0, 1.0], w), [0,])
-    @test isapprox(infinite_spherical_score(yhat, [42.0, 4.0], w), [sqrt(3),])
-    yhat = [missing, discrete_uniform]
-    @test isapprox(infinite_spherical_score(yhat, [NaN, 1.0]), [0,])
-    @test isapprox(infinite_spherical_score(yhat, [42.0, 4.0]), [1/2,])
+    yhat = [uniform, uniform]
+    @test isapprox(spherical_score(yhat, [1.0, 1.0]), [0, 0])
+    @test isapprox(spherical_score(yhat, [NaN, 4.0]), [0, 1/sqrt(3),])
+    # issue https://github.com/JuliaStats/Distributions.jl/issues/1392
+    @test_broken isapprox(spherical_score(yhat, [missing, 4.0], w), [sqrt(3),])
+    @test isapprox(spherical_score(yhat, [4.0, 4.0], w), [2/sqrt(3), sqrt(3),])
+    yhat = [discrete_uniform, discrete_uniform]
+    @test isapprox(spherical_score(yhat, [NaN, 1.0]), [0, 0])
+    @test isapprox(spherical_score(yhat, [4.0, 4.0]), [1/2, 1/2])
 
     # log
-    yhat = [missing, uniform]
-    @test isapprox(infinite_log_score(yhat, [NaN, 4.0]), [-log(3),])
-    @test isapprox(infinite_log_score(yhat, [42.0, 4.0], w), [-log(27),])
-    yhat = [missing, discrete_uniform]
-    @test isapprox(infinite_log_score(yhat, [42.0, 4.0]), [-log(4),])
+    yhat = [uniform, uniform]
+    @test isapprox(log_score(yhat, [4.0, 4.0]), [-log(3), -log(3),])
+    @test isapprox(log_score(yhat, [4.0, 4.0], w), [-2*log(27)/3, -log(27)])
+    yhat = [discrete_uniform, discrete_uniform]
+    # issue https://github.com/JuliaStats/Distributions.jl/issues/1392
+    @test_broken  isapprox(log_score(yhat, [missing, 4.0]), [-log(4),])
 
     # errors
-    @test_throws(MLJBase.err_distribution(infinite_brier_score,
-                                                betaprime),
-                 infinite_brier_score([missing, betaprime], [1.0, 1.0]))
+    @test_throws(MLJBase.err_l2_norm(brier_score, betaprime),
+                 brier_score([betaprime, betaprime], [1.0, 1.0]))
+    s = SphericalScore(alpha=1)
+    @test_throws MLJBase.ERR_UNSUPPORTED_ALPHA s(yhat, [1.0, 1.0])
 end
 
 true

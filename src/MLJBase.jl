@@ -175,6 +175,13 @@ export measures, metadata_measure
 # measure/measures.jl (excluding traits):
 export aggregate, default_measure, value
 
+# measures/probabilistic:
+export cross_entropy, BrierScore, brier_score,
+    BrierLoss, brier_loss,
+    LogLoss, log_loss, LogScore, log_score,
+    SphericalScore, spherical_score,
+    auc, area_under_curve, roc_curve, roc
+
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
     MAV, MAE, MeanAbsoluteError, mean_absolute_error, mean_absolute_value,
@@ -182,27 +189,17 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
     RMS, rmse, RootMeanSquaredError, root_mean_squared_error,
     RootMeanSquaredLogError, RMSL, root_mean_squared_log_error, rmsl, rmsle,
     RootMeanSquaredLogProportionalError, rmsl1, RMSLP,
-    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss,
-    InfiniteBrierScore, infinite_brier_score,
-    InfiniteSphericalScore, infinite_spherical_score,
-    InfiniteLogScore, infinite_log_score
+    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat, ConfusionMatrix
 
 # measures/finite.jl:
-export cross_entropy, BrierScore, brier_score,
-    BrierLoss, brier_loss,
-    LogLoss, log_loss, LogScore, log_score,
-    SphericalScore, spherical_score,
-    misclassification_rate, mcr, accuracy,
+export misclassification_rate, mcr, accuracy,
     balanced_accuracy, bacc, bac, BalancedAccuracy,
     matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
     MisclassificationRate, Accuracy, MCR, BACC, BAC,
     MatthewsCorrelation
-
-# measures/finite.jl -- Multiclass{2} (order independent):
-export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,

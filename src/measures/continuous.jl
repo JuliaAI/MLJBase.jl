@@ -1,3 +1,7 @@
+const InfiniteMissingArr = Union{
+    AbstractArray{<:Union{Missing,Continuous}},
+    AbstractArray{<:Union{Missing,Count}}}
+
 # -----------------------------------------------------------
 # MeanAbsoluteError
 

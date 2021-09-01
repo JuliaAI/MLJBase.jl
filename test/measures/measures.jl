@@ -39,7 +39,7 @@ end
     @test reports_each_observation(auc) == false
     @test is_feature_dependent(auc) == false
 
-    @test MLJBase.distribution_type(BrierScore) == MLJBase.UnivariateFinite
+    @test MLJBase.distribution_type(auc) == MLJBase.UnivariateFinite
 end
 
 @testset "MLJBase.value" begin

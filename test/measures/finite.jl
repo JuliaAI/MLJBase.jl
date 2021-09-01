@@ -237,7 +237,9 @@ end
     end
     e = info(auc)
     @test e.name == "AreaUnderCurve"
-    @test e.target_scitype == AbstractArray{<:Union{Missing,Finite{2}}}
+    @test e.target_scitype ==
+        Union{AbstractArray{<:Union{Missing,Multiclass{2}}},
+              AbstractArray{<:Union{Missing,OrderedFactor{2}}}}
     @test e.prediction_type == :probabilistic
     @test e.reports_each_observation == false
     @test e.is_feature_dependent == false

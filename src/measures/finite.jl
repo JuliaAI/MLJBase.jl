@@ -1,3 +1,7 @@
+const FiniteMissingArr{N} = Union{
+    AbstractArray{<:Union{Missing,Multiclass{N}}},
+    AbstractArray{<:Union{Missing,OrderedFactor{N}}}}
+
 # ---------------------------------------------------
 # misclassification rate
 
@@ -5,7 +9,7 @@ struct MisclassificationRate <: Aggregated end
 
 metadata_measure(MisclassificationRate;
                  instances  = ["misclassification_rate", "mcr"],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  is_feature_dependent     = false,
@@ -34,7 +38,7 @@ struct Accuracy <: Aggregated end
 
 metadata_measure(Accuracy;
                  instances = ["accuracy",],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -61,7 +65,7 @@ struct BalancedAccuracy <: Aggregated end
 
 metadata_measure(BalancedAccuracy;
                  instances = ["balanced_accuracy", "bacc", "bac"],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -110,7 +114,7 @@ struct MatthewsCorrelation <: Aggregated end
 
 metadata_measure(MatthewsCorrelation;
                  instances = ["matthews_correlation", "mcc"],
-                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+                 target_scitype           = FiniteMissingArr{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -172,7 +176,7 @@ FScore(; β=1.0, rev=nothing) = FScore(β, rev)
 metadata_measure(FScore;
                  human_name = "F-Score",
                  instances = ["f1score",],
-                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+                 target_scitype           = FiniteMissingArr{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -226,7 +230,7 @@ for M in TRUE_POSITIVE_AND_COUSINS
 end
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :loss,
     aggregation              = Sum(),
@@ -234,14 +238,14 @@ metadata_measure.((FalsePositive, FalseNegative);
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :loss,
     is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :score,
     aggregation              = Sum(),
@@ -250,7 +254,7 @@ metadata_measure.((TruePositive, TrueNegative);
 
 metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
                    NegativePredictiveValue);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :score,
     is_feature_dependent     = false,
@@ -437,7 +441,7 @@ MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict) =
 metadata_measure(MulticlassFScore;
                  instances = ["macro_f1score", "micro_f1score",
                               "multiclass_f1score"],
-                 target_scitype = Arr{<:Union{Missing,Finite{N}}} where N,
+                 target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :score,
                  is_feature_dependent     = false,
@@ -491,7 +495,7 @@ for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
 end
 
 metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :loss,
     aggregation               = Sum(),
@@ -501,7 +505,7 @@ metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
 
 metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
                    MulticlassFalseDiscoveryRate);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :loss,
     is_feature_dependent     = false,
@@ -509,7 +513,7 @@ metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :score,
     aggregation              = Sum(),
@@ -518,7 +522,7 @@ metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
     supports_class_weights   = false)
 
 metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :score,
     is_feature_dependent     = false,
@@ -526,7 +530,7 @@ metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :score,
     is_feature_dependent     = false,
