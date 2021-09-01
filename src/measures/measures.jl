@@ -18,11 +18,23 @@ const INVARIANT_LABEL =
 const VARIANT_LABEL =
     "This metric is *not* invariant to class re-ordering"
 
+
+## TYPE FOR RAW LABELS FOR FINITE METRICS
+
+# We need a type for labels, to mitigate type ambiguity when
+# overloading `single` below on `missing` arguments. This could be
+# enlarged if needed. It just can't include `missing` as an
+# instance. It already includes all allowed raw label types from
+# CategoricalArrays.
+
+const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
+
+
 ## TRAITS
 
 is_measure_type(::Any) = false
 
-# The following traits, with fallbacks defined in
+# Each of the following traits, with fallbacks defined in
 # StatisticalTraits.jl, make sense for some or all measures:
 
 const MEASURE_TRAITS = [:name,
@@ -96,6 +108,10 @@ end
 # implement `call`, which evaluates the measure without checks:
 
 # single observation:
+single(::Measure, yhat::Missing, y::Any) = missing
+single(::Measure, yhat, y::Missing) = missing
+
+# a closure for broadcasting below:
 single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
 
 # multiple observations, no checks:
@@ -105,7 +121,7 @@ function call(measure::Unaggregated, yhat, y, w::Arr)
     return w .* unweighted
 end
 
-# multiple observations:
+# multiple observations, with checks:
 function (measure::Measure)(args...)
     _check(measure, args...)
     call(measure, args...)

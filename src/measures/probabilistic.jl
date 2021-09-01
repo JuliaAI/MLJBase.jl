@@ -6,7 +6,6 @@ with an integral, and interpret `p` as the probablity density
 function. In case of discrete distributions over the integers, such as
 `Distributions.Poisson`, sum over all integers instead of `C`.
 """
-const UD = Distributions.UnivariateDistribution
 const WITH_L2NORM_CONTINUOUS =
     [@eval(Distributions.$d) for d in [
         :Chisq,
@@ -29,6 +28,7 @@ const WITH_L2NORM = vcat([UnivariateFinite, ],
                                   WITH_L2NORM_CONTINUOUS,
                          WITH_L2NORM_COUNT)
 
+const UD = Distributions.UnivariateDistribution
 
 # ========================================================
 # AGGREGATED MEASURES
@@ -144,11 +144,11 @@ See also [`LogLoss`](@ref), which differs only in sign.
 """)
 
 # for single finite observation:
-single(c::LogScore, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
+single(c::LogScore, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
     log(clamp(pdf(d, η), P(c.tol), P(1) - P(c.tol)))
 
 # for a single infinite observation:
-single(c::LogScore, d::Distributions.UnivariateDistribution, η) =
+single(c::LogScore, d::Distributions.UnivariateDistribution, η::Real) =
     log(clamp(pdf(d, η), c.tol, 1 - c.tol))
 
 # performant broadasting in case of UnivariateFiniteArray:
@@ -188,11 +188,11 @@ For details, see [`LogScore`](@ref), which differs only by a sign.
 """)
 
 # for single finite observation:
-single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
+single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
     -single(LogScore(tol=c.tol), d, η)
 
 # for a single infinite observation:
-single(c::LogLoss, d::Distributions.UnivariateDistribution, η) =
+single(c::LogLoss, d::Distributions.UnivariateDistribution, η::Real) =
     -single(LogScore(tol=c.tol), d, η)
 
 # performant broadasting in case of UnivariateFiniteArray:
@@ -256,7 +256,9 @@ in the `Count` cae (`p` the probablity mass function).
 scitype=DOC_FINITE)
 
 # calling on single finite observation:
-function single(::BrierScore, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P}
+function single(::BrierScore,
+                d::UnivariateFinite{S,V,R,P},
+                η::Label) where {S,V,R,P}
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     offset = P(1) + sum(pvec.^2)
@@ -264,7 +266,7 @@ function single(::BrierScore, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P}
 end
 
 # calling on a single infinite observation:
-single(::BrierScore, d::Distributions.UnivariateDistribution, η) =
+single(::BrierScore, d::Distributions.UnivariateDistribution, η::Real) =
     2*pdf(d, η) - Distributions.pdfsquaredL2norm(d)
 
 # Performant broadcasted version in case of UnivariateFiniteArray:
@@ -311,11 +313,12 @@ body=
 For details, see [`BrierScore`](@ref), which differs only by a sign.
 """)
 
-# calling on single observations (no checks):
-single(::BrierLoss, d::UnivariateFinite{S,V,R,P}, η) where {S,V,R,P} =
+# calling on single finite observations:
+single(::BrierLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
     - single(BrierScore(), d, η)
 
-single(::BrierLoss, d::Distributions.UnivariateDistribution, η) =
+# calling on single infinite observations:
+single(::BrierLoss, d::Distributions.UnivariateDistribution, η::Real) =
     -single(BrierScore(), d, η)
 
 # to get performant broadcasting in case of UnivariateFiniteArray
@@ -367,14 +370,14 @@ $DOC_DISTRIBUTIONS
 
 # calling on single observations:
 function single(s::SphericalScore,
-                d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
+                d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P}
     α = s.alpha
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
-    return (pdf(d, y)/norm(pvec, α))^(α - 1)
+    return (pdf(d, η)/norm(pvec, α))^(α - 1)
 end
 
-single(s::SphericalScore, d::Distributions.UnivariateDistribution, η) =
+single(s::SphericalScore, d::Distributions.UnivariateDistribution, η::Real) =
     pdf(d, η)/sqrt(Distributions.pdfsquaredL2norm(d))
 
 # to compute the α-norm along last dimension:
@@ -404,8 +407,8 @@ end
 # ---------------------------------------------------------------------------
 # Extra check for L2 norm based proper scoring rules
 
-err_l2_norm(m, d) = ArgumentError(
-    "Distribution $d is not supported by $m. "*
+err_l2_norm(m) = ArgumentError(
+    "Distribution not supported by $m. "*
     "Supported distributions are "*
     join(string.(map(s->"`$s`", WITH_L2NORM)), ", ", ", and "))
 
@@ -420,11 +423,12 @@ const L2ProperScoringRules = Union{LogScore,
                                    SphericalScore}
 
 function extra_check(measure::L2ProperScoringRules, yhat, args...)
-    if !isempty(yhat)
-        d = first(yhat)
-        d isa Union{WITH_L2NORM...} ||
-            throw(err_l2_norm(measure, d))
-    end
+
+    D = nonmissing(eltype(yhat))
+    D <: Distributions.Distribution ||
+        (D = typeof(findfirst(x->!isinvalid(x), yhat)))
+    D <: Union{Nothing, WITH_L2NORM...} ||
+        throw(err_l2_norm(measure))
 
     if measure isa SphericalScore
         measure.alpha == 2 || throw(ERR_UNSUPPORTED_ALPHA)

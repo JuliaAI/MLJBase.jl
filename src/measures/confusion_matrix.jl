@@ -205,7 +205,8 @@ is_measure(::ConfusionMatrix) = true
 is_measure_type(::Type{ConfusionMatrix}) = true
 human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
 target_scitype(::Type{ConfusionMatrix}) =
-    AbstractVector{<:Union{Missing,Finite}}
+    Union{AbstractVector{<:Union{Missing,OrderedFactor}},
+          AbstractVector{<:Union{Missing,OrderedFactor}}}
 supports_weights(::Type{ConfusionMatrix}) = false
 prediction_type(::Type{ConfusionMatrix}) = :deterministic
 instances(::Type{<:ConfusionMatrix}) = ["confusion_matrix", "confmat"]

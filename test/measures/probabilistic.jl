@@ -123,10 +123,11 @@ end
     w = [2, 3]
 
     # brier
-    yhat = [uniform, uniform]
-    @test isapprox(brier_score(yhat, [1.0, 1.0]), [-1/3, -1/3,])
-    @test isapprox(brier_score(yhat, [NaN, 4.0]), [-1/3, 1/3,])
-    @test isapprox(brier_score(yhat, [1.0, 1.0], w), [-2/3, -1])
+    yhat = [missing, uniform]
+    @test isapprox(brier_score(yhat, [1.0, 1.0]) |> last, -1/3)
+    @test isapprox(brier_score(yhat, [NaN, 4.0]) |> last,  1/3)
+    @test isapprox(brier_score(yhat, [1.0, 1.0], w) |> last, -1)
+    yhat = [missing, uniform]
     # issue https://github.com/JuliaStats/Distributions.jl/issues/1392
     @test_broken isapprox(brier_score(yhat, [missing, 4.0], w), [1,])
     yhat = [discrete_uniform, discrete_uniform]
@@ -152,8 +153,10 @@ end
     # issue https://github.com/JuliaStats/Distributions.jl/issues/1392
     @test_broken  isapprox(log_score(yhat, [missing, 4.0]), [-log(4),])
 
+    log_score([missing, uniform], [4.0, 4.0])
+
     # errors
-    @test_throws(MLJBase.err_l2_norm(brier_score, betaprime),
+    @test_throws(MLJBase.err_l2_norm(brier_score),
                  brier_score([betaprime, betaprime], [1.0, 1.0]))
     s = SphericalScore(alpha=1)
     @test_throws MLJBase.ERR_UNSUPPORTED_ALPHA s(yhat, [1.0, 1.0])
