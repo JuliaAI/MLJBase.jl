@@ -1,4 +1,4 @@
-const InfiniteMissingArr = Union{
+const InfiniteArrMissing = Union{
     AbstractArray{<:Union{Missing,Continuous}},
     AbstractArray{<:Union{Missing,Count}}}
 
@@ -10,7 +10,7 @@ struct MeanAbsoluteError <: Aggregated end
 metadata_measure(MeanAbsoluteError;
                  instances = ["mae", "mav", "mean_absolute_error",
                               "mean_absolute_value"],
-                 target_scitype           = InfiniteMissingArr,
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss),
 
@@ -25,11 +25,14 @@ body=
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 """)
 
-multi(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
-    abs.(ŷ .- y) |> mean
+call(::MeanAbsoluteError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    abs.(ŷ .- y) |> skipinvalid |> mean
 
-multi(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
-    abs.(ŷ .- y) .* w |> mean
+call(::MeanAbsoluteError,
+     ŷ::ArrMissing{<:Real},
+     y::ArrMissing{<:Real},
+     w::Arr{<:Real}) =
+         abs.(ŷ .- y) .* w |> skipinvalid |> mean
 
 # ----------------------------------------------------------------
 # RootMeanSquaredError
@@ -39,7 +42,7 @@ struct RootMeanSquaredError <: Aggregated end
 metadata_measure(RootMeanSquaredError;
                  instances                = ["rms", "rmse",
                                              "root_mean_squared_error"],
-                 target_scitype           = InfiniteMissingArr,
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  aggregation              = RootMeanSquare())
@@ -54,11 +57,14 @@ body=
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 """)
 
-multi(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
-    (y .- ŷ).^2 |> mean |> sqrt
+call(::RootMeanSquaredError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (y .- ŷ).^2 |> skipinvalid |> mean |> sqrt
 
-multi(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
-    (y .- ŷ).^2 .* w |> mean |> sqrt
+call(::RootMeanSquaredError,
+     ŷ::ArrMissing{<:Real},
+     y::ArrMissing{<:Real},
+     w::Arr{<:Real}) =
+         (y .- ŷ).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # -------------------------------------------------------------------
 # LP
@@ -71,7 +77,7 @@ LPLoss(; p=2.0) = LPLoss(p)
 
 metadata_measure(LPLoss;
                  instances = ["l1", "l2"],
-                 target_scitype           = InfiniteMissingArr,
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss)
 
@@ -94,7 +100,7 @@ struct RootMeanSquaredLogError <: Aggregated end
 
 metadata_measure(RootMeanSquaredLogError;
                  instances = ["rmsl", "rmsle", "root_mean_squared_log_error"],
-                 target_scitype           = InfiniteMissingArr,
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  aggregation              = RootMeanSquare())
@@ -110,14 +116,14 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
 footer="See also [`rmslp1`](@ref).")
 
-multi(::RootMeanSquaredLogError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
-    (log.(y) - log.(ŷ)).^2 |> mean |> sqrt
+call(::RootMeanSquaredLogError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (log.(y) - log.(ŷ)).^2 |> skipinvalid |> mean |> sqrt
 
-multi(::RootMeanSquaredLogError,
-      ŷ::Arr{<:Real},
-      y::Arr{<:Real},
+call(::RootMeanSquaredLogError,
+      ŷ::ArrMissing{<:Real},
+      y::ArrMissing{<:Real},
       w::Arr{<:Real}) =
-          (log.(y) - log.(ŷ)).^2 .* w |> mean |> sqrt
+          (log.(y) - log.(ŷ)).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
@@ -131,7 +137,7 @@ RootMeanSquaredLogProportionalError(; offset=1.0) =
 
 metadata_measure(RootMeanSquaredLogProportionalError;
                  instances                = ["rmslp1", ],
-                 target_scitype           = InfiniteMissingArr,
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
                  aggregation              = RootMeanSquare())
@@ -149,11 +155,13 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 """,
 footer="See also [`rmsl`](@ref). ")
 
-multi(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
-    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |> mean |> sqrt
+call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |>
+    skipinvalid |> mean |> sqrt
 
-multi(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
-    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 .* w|> mean |> sqrt
+call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}, w::Arr{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 .* w |>
+    skipinvalid |> mean |> sqrt
 
 # --------------------------------------------------------------------------
 # RootMeanSquaredProportionalError
@@ -167,7 +175,7 @@ RootMeanSquaredProportionalError(; tol=eps()) =
 
 metadata_measure(RootMeanSquaredProportionalError;
     instances                = ["rmsp", ],
-    target_scitype           = InfiniteMissingArr,
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss,
     aggregation              = RootMeanSquare())
@@ -191,13 +199,14 @@ of such indices.
 _scale(x, w::Arr, i) = x*w[i]
 _scale(x, ::Nothing, i::Any) = x
 
-function multi(m::RootMeanSquaredProportionalError,
-               ŷ::Arr{<:Real},
-               y::Arr{T},
+function call(m::RootMeanSquaredProportionalError,
+               ŷ::ArrMissing{<:Real},
+               y::ArrMissing{T},
                w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
     ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         ayi = abs(y[i])
         if ayi > m.tol
             dev = ((y[i] - ŷ[i]) / ayi)^2
@@ -220,7 +229,7 @@ MeanAbsoluteProportionalError(; tol=eps()) = MeanAbsoluteProportionalError(tol)
 
 metadata_measure(MeanAbsoluteProportionalError;
     instances                = ["mape", ],
-    target_scitype           = InfiniteMissingArr,
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss)
 
@@ -238,13 +247,14 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """)
 
-function multi(m::MeanAbsoluteProportionalError,
-               ŷ::Arr{<:Real},
-               y::Arr{T},
-               w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
+function call(m::MeanAbsoluteProportionalError,
+              ŷ::ArrMissing{<:Real},
+              y::ArrMissing{T},
+              w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
     ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         ayi = abs(y[i])
         if ayi > m.tol
         #if y[i] != zero(eltype(y))
@@ -264,7 +274,7 @@ struct LogCoshLoss <: Unaggregated end
 
 metadata_measure(LogCoshLoss;
     instances                = ["log_cosh", "log_cosh_loss"],
-    target_scitype           = InfiniteMissingArr,
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss)
 

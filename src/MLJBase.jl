@@ -173,7 +173,7 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 export measures, metadata_measure
 
 # measure/measures.jl (excluding traits):
-export aggregate, default_measure, value
+export aggregate, default_measure, value, skipinvalid
 
 # measures/probabilistic:
 export cross_entropy, BrierScore, brier_score,

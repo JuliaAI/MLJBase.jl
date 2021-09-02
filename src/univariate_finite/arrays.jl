@@ -257,7 +257,8 @@ end
 const ERR_EMPTY_UNIVARIATE_FINITE = ArgumentError(
     "No `UnivariateFinite` object found from which to extract classes. ")
 
-function classes(yhat::AbstractArray{<:Union{Missing,UnivariateFinite}})
+function MMI.classes(::FullInterface,
+                     yhat::AbstractArray{<:Union{Missing,UnivariateFinite}})
     i = findfirst(x->!ismissing(x), yhat)
     i === nothing && throw(ERR_EMPTY_UNIVARIATE_FINITE)
     return classes(yhat[i])

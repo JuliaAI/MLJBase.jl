@@ -117,21 +117,5 @@ end
     @test_throws MLJBase.ERR_NOTHING_LEFT_TO_AGGREGATE MLJBase.Mean()(Float32[])
 end
 
-@testset "skipinvalid" begin
-    w = rand(5)
-    @test MLJBase.skipinvalid([1, 2, missing, 3, NaN], [missing, 5, 6, 7, 8]) ==
-        ([2, 3], [5, 7])
-    @test(
-        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
-                            [missing, 5, 6, 7, 8],
-                            w) ==
-        ([2, 3], [5, 7], w[[2,4]]))
-    @test(
-        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
-                            [missing, 5, 6, 7, 8],
-                            nothing) ==
-        ([2, 3], [5, 7], nothing))
-end
-
 end
 true

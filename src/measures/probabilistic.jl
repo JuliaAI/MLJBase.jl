@@ -44,7 +44,7 @@ struct AreaUnderCurve <: Aggregated end
 metadata_measure(AreaUnderCurve;
                  human_name = "area under the ROC",
                  instances = ["area_under_curve", "auc"],
-                 target_scitype           = FiniteMissingArr{2},
+                 target_scitype           = FiniteArrMissing{2},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
                  supports_weights         = false,
@@ -56,14 +56,18 @@ const AUC = AreaUnderCurve
 @create_docs(AreaUnderCurve,
 body=
 """
-Returns the area under the ROC ([receiver operator characteristic](https://en.wikipedia.org/wiki/Receiver_operating_characteristic))
+Returns the area under the ROC ([receiver operator
+characteristic](https://en.wikipedia.org/wiki/Receiver_operating_characteristic))
+
+If `missing` or `NaN` values are present, use `auc(skipinvalid(yhat, y)...)`.
+
 $INVARIANT_LABEL
 """,
 scitpye = DOC_FINITE_BINARY)
 
 # core algorithm:
 function _auc(::Type{P}, ŷ, y) where P<:Real # type of probabilities
-    lab_pos = classes(first(ŷ))[2] # 'positive' label
+    lab_pos = classes(ŷ)[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
     n       = length(y)
@@ -81,12 +85,16 @@ function _auc(::Type{P}, ŷ, y) where P<:Real # type of probabilities
     return auc / (n_neg * n_pos)
 end
 
-# calling behaviour:
-multi(::AUC, ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
+# Missing values not supported, but allow `Missing` in eltype, because
+# `skipinvalid(yhat, y)` does not tighten the type. See doc string above.
 
-# performant version for UnivariateFiniteVector:
-multi(::AUC, ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
+call(::AUC, ŷ::ArrMissing{UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
     _auc(P, ŷ, y)
+
+# corner case of UnivariateFinite's of mixed type
+call(::AUC, ŷ::ArrMissing{UnivariateFinite}, y) where {S,V,R,P} =
+    _auc(Float64, ŷ, y)
+
 
 
 # ========================================================

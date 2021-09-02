@@ -515,7 +515,7 @@ end
 @testset "ROC" begin
     y = [  0   0   0   1   0   1   1   0] |> vec |> categorical
     s = [0.0 0.1 0.1 0.1 0.2 0.2 0.5 0.5] |> vec
-    ŷ = [UnivariateFinite(classes(y[1]), [1.0-p, p]) for p in s]
+    ŷ = UnivariateFinite([0, 1], s, augment=true, pool=y)
 
     fprs, tprs, ts = roc(ŷ, y)
 

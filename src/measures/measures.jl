@@ -90,8 +90,6 @@ end
 
 # See measures/README.md for details
 
-# ## Unaggregated case
-
 single(::Unaggregated, η̂::Missing, η)          = missing
 single(::Unaggregated, η̂,          η::Missing) = missing
 
@@ -109,18 +107,6 @@ function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
     unweighted = broadcast(single(measure), yhat, y) # `single` closure below
     w = @inbounds broadcast(η -> weight_given_class[η], y)
     return w .* unweighted
-end
-
-# ## Aggregated case
-
-function multi end
-function call(measure::Aggregated, yhatm, ym)
-    yhat, y = skipinvalid(yhatm, ym)
-    multi(measure, yhat, y)
-end
-function call(measure::Aggregated, yhatm, ym, wm)
-    yhat, y, w = skipinvalid(yhatm, ym, wm)
-    multi(measure, yhat, y, w)
 end
 
 # ## Top level
@@ -162,41 +148,6 @@ function ScientificTypes.info(M, ::Val{:measure_type})
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
 ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
-
-
-# # SKIPPING MISSING AND NAN
-
-const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
-    "Trying to aggregrate an empty collection of measurements. Perhaps all "*
-    "measuresments are `missing` or `NaN`. ")
-
-_isnan(x) = false
-_isnan(x::Number) = isnan(x)
-
-skipnan(x) = Iterators.filter(!_isnan, x)
-
-@inline function skipinvalid(v)
-    ret = v |> skipmissing |> skipnan
-    isempty(ret) && throw(ERR_NOTHING_LEFT_TO_AGGREGATE)
-    return ret
-end
-
-isinvalid(x) = ismissing(x) || _isnan(x)
-
-function skipinvalid(yhat, y)
-    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-    return yhat[mask], y[mask]
-end
-
-function skipinvalid(yhat, y, w::Arr)
-    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-    return yhat[mask], y[mask], w[mask]
-end
-
-function skipinvalid(yhat, y, w::Union{Nothing,AbstractDict})
-    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-    return yhat[mask], y[mask], w
-end
 
 
 # # AGGREGATION

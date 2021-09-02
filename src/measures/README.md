@@ -17,20 +17,12 @@ uses `MLJBase.call` instead:
 MLJBase.call(m, ŷ, y)
 ```
 
-However, measures defined in this package ordinarily implement
-functionality using the lower level `single` or `mutli` methods,
-according to whether the measure reports a measurement for every
-observation (e.g., `LPLoss`) or only an aggregate (e.g.,
-`AreaUnderCurve`). Such measures are subtypes of `Unaggregated` or
-`Aggregated` respectively. This avoids the need for the implementer to
-worry about:
-
-- handling of invalid data (`missing` or `NaN`)
-
-- dimension checking and class pool checking
-
-- incorporating per-observation or per-class weights, unless the
-  measure is `Aggregated`,
+A new measure reporting an aggregate measurement, such as
+`AreaUnderCurve`, will subtype `Aggregate`, and only needs to
+implement `call`. A measure that reports a measurement for each
+observation , such as `LPLoss`, subtypes `Unaggregated` and only needs
+to implement an evaluation method for single observations called
+`single`.
 
 
 ### Unaggregated measures implement `single`
@@ -38,7 +30,7 @@ worry about:
 To implement an `Unaggregated` measure, it suffices to implement
 `single(measure, η̂, η)`, which should return a measurement (e.g., a
 float) for a single example `(η̂, η)` (e.g., a pair of
-floats). Behaviour on `missing` values is handled by fallbacks:
+floats). Behavior on `missing` values is handled by fallbacks:
 
 ```julia
 single(::Unaggregated, η̂::Missing, η)          = missing
@@ -65,9 +57,9 @@ const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
 ```
 
 If only `single` is implemented, then the measure will automatically
-support per-obervation weights and, where that makes sense, per-class
-weights. However, if necessary, `supports_class_weights` may need to
-be overloaded, as this is `false` by default.
+support per-observation weights and, where that makes sense, per-class
+weights. However, `supports_class_weights` may need to be overloaded,
+as this defaults to `false`.
 
 #### Special cases
 
@@ -75,39 +67,44 @@ If `single` is *not* implemented, then `call(measure, ŷ, y)`, and
 optionally `call(measure, ŷ, y, w)`, must be implemented (the
 fallbacks call `single`).  In this case `y` and `ŷ` are arrays of
 matching size and the method should return an array of that size
-*without performing size or pool checks*.
+*without performing size or pool checks*. The method should handle
+`missing` and `NaN` values if possible, which should be propagated to
+relevant elements of the returned array.
 
 The `supports_weights` trait, which defaults to `true`, will need to
-be overloaded if neither `single` nor `call(ŷ, y, w::AbstractDict)`
-are overloaded.
+be overloaded to return `false` if neither `single(::MyMeasure,
+args...)` nor `call(::MyMeasure, ŷ, y, w::AbstractArray)` are
+overloaded.
+
+### Aggregated measures implement `call`
+
+To implement an `Aggregated` measure, implement
+`call(measure::MyMeasure, ŷ, y)`. Optionally implement 
+`call(measure::MyMeasure, ŷ, y, w)`.
 
 
-`supports_class_weights(measure)` is be declared true, then
- must also be implemented.
+### Trait declarations 
 
-Note that by default `supports_weights(typeof(measure))` is `true` and
-`supports_class_weights(typeof(measure))` is `false` whenever `measure isa
-Union{Aggregated,Unaggregated}`. Both are false for direct subtypes of 
+Measure traits can be set using the `metadata_measure`
+function (query the doc-string) or individually, as in 
+
+```julia
+supports_weights(::Type{<:MyMeasure}) = false
+```
+
+Defaults are shown below
+
+trait                    | allowed values               | default 
+-------------------------|------------------------------|--------------
+`target_scitype`         | some scientific type         | `Unknown`
+`human_name`             | any `String`                 | string version of type name
+`instances`              | any `Vector{String}`         | empty
+`prediction_type`        | `:deterministic`, `:probabilistic`, `:interval` `:unknown` | `:unknown`
+`orientation`            | `:score`, `:loss`, `:unknown`| `:unknown`
+`aggregation`            | `Mean()`, `Sum()`, `RootMeanSqaure()` | `Mean()`
+`supports_weights`       | `true` or `false`            | `true`
+`supports_class_weights` | `true` or `false`            | `false`
+`docstring`              | any `String`                 | includes `name`, `human_name` and `instances`
+`distribution_type`      | any `Distribution` subtype or `Unknown`   | `Unknown`
 
 
-### Aggregated measures implement `multi`
-
-To implement an `Aggregated` measure, it suffices to implement the
-`multi(measure::MyMeasure, ŷ, y)`, which retuns an aggregated
-(scalar) value which should:
-
-- perform no dimension or pool checks, but
-
-- can safely assume all argument elements are valid (non-missing and
-  non-NaN).
-
-Implementing `multi(measure, ŷ, y, w)` for `w::Arr{<:Real}` or
-`w::AbstractDict` is optional, but keep in mind that the traits
-`supports_weights` default to `true` and `supports_class_weights`
-defaults to `false`.
-
-There is also a `call` method for `Unaggregated` measures, which
-accepts invalid data. Like it's `Unaggregated` counterpart, it skips
-dimension and pool checks. However, it is not expected the implementer of a
-new `Aggregated` measure should need to overload `call` whose
-fallback calls `multi`.

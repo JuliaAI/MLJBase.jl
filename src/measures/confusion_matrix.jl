@@ -114,6 +114,7 @@ function _confmat(ŷ::CatArrMissing{T,N}, y::CatArrMissing{T,N};
     if isempty(perm)
         cmat = zeros(Int, nc, nc)
         @inbounds for i in eachindex(y)
+            (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
             cmat[int(ŷ[i]), int(y[i])] += 1
         end
         return ConfusionMatrixObject(cmat, string.(levels_))
@@ -123,6 +124,7 @@ function _confmat(ŷ::CatArrMissing{T,N}, y::CatArrMissing{T,N};
     cmat = zeros(Int, nc, nc)
     iperm = invperm(perm)
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         cmat[iperm[int(ŷ[i])], iperm[int(y[i])]] += 1
     end
     return ConfusionMatrixObject(cmat, string.(levels_[perm]))
@@ -230,7 +232,7 @@ data. For more than two classes, specify an appropriate permutation, as in
 scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
-multi(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
+call(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
 
 # overloading addition to make aggregation work:
 Base.round(m::MLJBase.ConfusionMatrixObject; kws...) = m
