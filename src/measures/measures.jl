@@ -218,8 +218,9 @@ end
 # # INCLUDE SPECIFIC MEASURES AND TOOLS
 
 include("meta_utilities.jl")
-include("continuous.jl")
+include("roc.jl")
 include("confusion_matrix.jl")
+include("continuous.jl")
 include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")

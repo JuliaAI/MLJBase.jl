@@ -96,11 +96,12 @@ MLJBase.target_scitype(::Type{<:PClassifier}) =
     @test MLJBase.default_measure(PClassifier) == cross_entropy
 end
 
+include("confusion_matrix.jl")
+include("roc.jl")
 include("continuous.jl")
 include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")
-include("confusion_matrix.jl")
 
 @testset "show method for measures" begin
     io = IOBuffer()
