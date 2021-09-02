@@ -68,7 +68,7 @@ function check_surrogate_machine(::Surrogate, signature, _sources)
     return nothing
 end
 
-function check_surrogate_machine(::Union{Supervised,SupervisedAnnotator},
+function check_surrogate_machine(::Supervised,
                                  signature,
                                  _sources)
     isempty(signature) && throw(ERR_MUST_PREDICT)
@@ -76,7 +76,7 @@ function check_surrogate_machine(::Union{Supervised,SupervisedAnnotator},
     return nothing
 end
 
-function check_surrogate_machine(::Union{Unsupervised},
+function check_surrogate_machine(::Unsupervised,
                                  signature,
                                  _sources)
     isempty(signature) && throw(ERR_MUST_TRANSFORM)
