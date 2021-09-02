@@ -23,7 +23,6 @@
 ## predict(::Machine, ) and transform(::Machine, )
 
 const OPERATIONS = (:predict,
-                    :augmented_transform,
                     :predict_mean,
                     :predict_mode,
                     :predict_median,
@@ -116,7 +115,6 @@ end
 ## SURROGATE AND COMPOSITE MODELS
 
 for operation in [:predict,
-                  :augmented_transform,
                   :predict_joint,
                   :transform,
                   :inverse_transform]
