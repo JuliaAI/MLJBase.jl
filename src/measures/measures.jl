@@ -18,20 +18,6 @@ const INVARIANT_LABEL =
 const VARIANT_LABEL =
     "This metric is *not* invariant to class re-ordering"
 
-
-## TYPE FOR RAW LABELS FOR FINITE METRICS
-
-# We need a type for labels, to mitigate type ambiguity when
-# overloading `single` below on `missing` arguments. This could be
-# enlarged if needed. It just can't include `missing` as an
-# instance. It already includes all allowed raw label types from
-# CategoricalArrays.
-
-const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
-
-
-## TRAITS
-
 is_measure_type(::Any) = false
 
 # Each of the following traits, with fallbacks defined in
@@ -51,7 +37,7 @@ const MEASURE_TRAITS = [:name,
                         :docstring,
                         :distribution_type]
 
-## FOR BUILT-IN MEASURES (subtyping Measure)
+# # FOR BUILT-IN MEASURES (subtyping Measure)
 
 abstract type Measure <: MLJType end
 abstract type Aggregated <: Measure end
@@ -60,7 +46,7 @@ abstract type Unaggregated <: Measure end
 StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
 
 
-## FALLBACK CHECKS
+# # FALLBACK CHECKS
 
 extra_check(::Measure, args...) = nothing
 function _check(measure::Measure, yhat, y)
@@ -100,32 +86,56 @@ function _check(measure::Measure,
 end
 
 
-## FALLBACK CALLING BEHAVIOUR
+# # METHODS TO EVALUATE MEASURES
 
-# for `Unaggregated` measures, `single(measure, yhat, y)` should
-# return the measurement, without checks, for a single observation `y`
-# and corresponding prediction `yhat`. `Aggregated` measures only
-# implement `call`, which evaluates the measure without checks:
+# See measures/README.md for details
 
-# single observation:
-single(::Measure, yhat::Missing, y::Any) = missing
-single(::Measure, yhat, y::Missing) = missing
+# ## Unaggregated case
 
-# a closure for broadcasting below:
+single(::Unaggregated, η̂::Missing, η)          = missing
+single(::Unaggregated, η̂,          η::Missing) = missing
+
+const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
+
+# closure for broadcasting:
 single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
 
-# multiple observations, no checks:
 call(measure::Unaggregated, yhat, y) = broadcast(single(measure), yhat, y)
 function call(measure::Unaggregated, yhat, y, w::Arr)
-    unweighted = broadcast(single(measure), yhat, y)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    return w .* unweighted
+end
+function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    w = @inbounds broadcast(η -> weight_given_class[η], y)
     return w .* unweighted
 end
 
-# multiple observations, with checks:
+# ## Aggregated case
+
+function multi end
+function call(measure::Aggregated, yhatm, ym)
+    yhat, y = skipinvalid(yhatm, ym)
+    multi(measure, yhat, y)
+end
+function call(measure::Aggregated, yhatm, ym, wm)
+    yhat, y, w = skipinvalid(yhatm, ym, wm)
+    multi(measure, yhat, y, w)
+end
+
+# ## Top level
+
 function (measure::Measure)(args...)
     _check(measure, args...)
     call(measure, args...)
 end
+
+# # TRAITS
+
+# user-bespoke measures will subtype `Measure` directly and the
+# following will therefore not apply:
+StatisticalTraits.supports_weights(::Type{<:Union{Aggregated,Unaggregated}}) =
+    true
 
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
@@ -154,7 +164,7 @@ end
 ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
-## SKIPPING MISSING AND NAN
+# # SKIPPING MISSING AND NAN
 
 const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
     "Trying to aggregrate an empty collection of measurements. Perhaps all "*
@@ -178,18 +188,18 @@ function skipinvalid(yhat, y)
     return yhat[mask], y[mask]
 end
 
-function skipinvalid(yhat, y, w)
+function skipinvalid(yhat, y, w::Arr)
     mask = .!(isinvalid.(yhat) .| isinvalid.(y))
     return yhat[mask], y[mask], w[mask]
 end
 
-function skipinvalid(yhat, y, w::Nothing)
+function skipinvalid(yhat, y, w::Union{Nothing,AbstractDict})
     mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-    return yhat[mask], y[mask], nothing
+    return yhat[mask], y[mask], w
 end
 
 
-## AGGREGATION
+# # AGGREGATION
 
 (::Sum)(v) = sum(skipinvalid(v))
 (::Sum)(v::LittleDict) = sum(values(v))
@@ -206,7 +216,7 @@ const MeasureValue = Union{Real,Tuple{<:Real,<:Real}} # number or interval
 aggregate(x::MeasureValue, measure) = x
 
 
-## DISPATCH FOR EVALUATION
+# # UNIVERSAL CALLING SYNTAX
 
 # yhat - predictions (point or probabilisitic)
 # X - features
@@ -221,7 +231,7 @@ function value(measure, yhat, X, y, w)
 end
 
 
-## DEFAULT EVALUATION INTERFACE
+# # DEFAULT EVALUATION INTERFACE
 
 #  is feature independent, weights not supported:
 value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)
@@ -237,7 +247,7 @@ value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
 value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
-## helpers
+# # helpers
 
 function check_pools(ŷ, y)
     levels(y) == levels(ŷ[1]) ||
@@ -254,7 +264,7 @@ function check_pools(ŷ, w::AbstractDict)
 end
 
 
-## INCLUDE SPECIFIC MEASURES AND TOOLS
+# # INCLUDE SPECIFIC MEASURES AND TOOLS
 
 include("meta_utilities.jl")
 include("continuous.jl")
@@ -263,7 +273,7 @@ include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")
 
-## DEFAULT MEASURES
+# # DEFAULT MEASURES
 default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS

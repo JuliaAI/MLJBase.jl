@@ -47,7 +47,6 @@ metadata_measure(AreaUnderCurve;
                  target_scitype           = FiniteMissingArr{2},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
                  supports_weights         = false,
                  distribution_type        = UnivariateFinite)
 
@@ -63,8 +62,7 @@ $INVARIANT_LABEL
 scitpye = DOC_FINITE_BINARY)
 
 # core algorithm:
-function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
-    ŷ, y    = skipinvalid(ŷm, ym)
+function _auc(::Type{P}, ŷ, y) where P<:Real # type of probabilities
     lab_pos = classes(first(ŷ))[2] # 'positive' label
     scores  = pdf.(ŷ, lab_pos)     # associated scores
     y_sort  = y[sortperm(scores)]  # sort by scores
@@ -84,10 +82,10 @@ function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
 end
 
 # calling behaviour:
-call(::AUC, ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
+multi(::AUC, ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
 
 # performant version for UnivariateFiniteVector:
-call(::AUC, ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
+multi(::AUC, ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
     _auc(P, ŷ, y)
 
 
@@ -111,8 +109,6 @@ metadata_measure(LogScore;
                      Arr{<:Union{Missing,Count}}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
-                 supports_weights         = false,
                  distribution_type        = Union{WITH_L2NORM...})
 
 @create_aliases LogScore
@@ -152,10 +148,16 @@ single(c::LogScore, d::Distributions.UnivariateDistribution, η::Real) =
     log(clamp(pdf(d, η), c.tol, 1 - c.tol))
 
 # performant broadasting in case of UnivariateFiniteArray:
-call(c::LogScore, ŷ::UnivariateFiniteArray{S,V,R,P,N},
-     y::ArrMissing{V,N}) where {S,V,R,P,N} =
-    log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
-
+function call(c::LogScore,
+              ŷ::UnivariateFiniteArray{S,V,R,P,N},
+              y::ArrMissing{V,N},
+              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
+    unweighted = log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
+    if w === nothing
+        return unweighted
+    end
+    return w .* unweighted
+end
 
 # ---------------------------------------------------------------------
 # LogLoss
@@ -174,8 +176,6 @@ metadata_measure(LogLoss;
                      Arr{<:Union{Missing,Count}}},
                  prediction_type          = :probabilistic,
                  orientation              = :loss,
-                 is_feature_dependent     = false,
-                 supports_weights         = false,
                  distribution_type        = Union{WITH_L2NORM...})
 
 const CrossEntropy = LogLoss
@@ -196,9 +196,11 @@ single(c::LogLoss, d::Distributions.UnivariateDistribution, η::Real) =
     -single(LogScore(tol=c.tol), d, η)
 
 # performant broadasting in case of UnivariateFiniteArray:
-call(c::LogLoss, ŷ::UnivariateFiniteArray{S,V,R,P,N},
-     y::ArrMissing{V,N}) where {S,V,R,P,N} =
-    -call(LogScore(tol=c.tol), ŷ, y)
+call(c::LogLoss,
+     ŷ::UnivariateFiniteArray{S,V,R,P,N},
+     y::ArrMissing{V,N},
+     w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
+    -call(LogScore(tol=c.tol), ŷ, y, w)
 
 
 # -----------------------------------------------------
@@ -216,8 +218,6 @@ metadata_measure(BrierScore;
                      Arr{<:Union{Missing,Count}}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
-                 supports_weights         = true,
                  distribution_type        = Union{WITH_L2NORM...})
 
 @create_aliases BrierScore
@@ -301,8 +301,6 @@ metadata_measure(BrierLoss;
                      Arr{<:Union{Missing,Count}}},
                  prediction_type          = :probabilistic,
                  orientation              = :loss,
-                 is_feature_dependent     = false,
-                 supports_weights         = true,
                  distribution_type        = Union{WITH_L2NORM...})
 
 @create_aliases BrierLoss
@@ -346,8 +344,6 @@ metadata_measure(SphericalScore;
                      Arr{<:Union{Missing,Count}}},
                  prediction_type          = :probabilistic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
-                 supports_weights         = true,
                  distribution_type        = Union{WITH_L2NORM...})
 
 @create_aliases SphericalScore

@@ -34,7 +34,7 @@ Base.getindex(cm::ConfusionMatrixObject, inds...) = getindex(cm.mat, inds...)
 """
     _confmat(ŷ, y; rev=false)
 
-A private method. General users should use `confmat` or other instance
+A private method. General users should use `confmat` or other instances
 of the measure type [`ConfusionMatrix`](@ref).
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements
@@ -66,12 +66,10 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target.
 
 """
-function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
+function _confmat(ŷ::CatArrMissing{T,N}, y::CatArrMissing{T,N};
                   rev::Union{Nothing,Bool}=nothing,
                   perm::Union{Nothing,Vector{<:Integer}}=nothing,
                   warn::Bool=true) where {T,N}
-
-    ŷ, y = skipinvalid(ŷm, ym)
 
     levels_ = levels(y)
     nc = length(levels_)
@@ -195,7 +193,7 @@ end
 
 ## CONFUSION MATRIX AS MEASURE
 
-struct ConfusionMatrix <: Measure
+struct ConfusionMatrix <: Aggregated
     perm::Union{Nothing,Vector{<:Integer}}
 end
 
@@ -227,11 +225,12 @@ The ordering follows that of `levels(y)`.
 Use `ConfusionMatrix(perm=[2, 1])` to reverse the class order for binary
 data. For more than two classes, specify an appropriate permutation, as in
 `ConfusionMatrix(perm=[2, 3, 1])`.
+
 """,
 scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
-call(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
+multi(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
 
 # overloading addition to make aggregation work:
 Base.round(m::MLJBase.ConfusionMatrixObject; kws...) = m

@@ -10,11 +10,9 @@ struct MeanAbsoluteError <: Aggregated end
 metadata_measure(MeanAbsoluteError;
                  instances = ["mae", "mav", "mean_absolute_error",
                               "mean_absolute_value"],
-                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
+                 target_scitype           = InfiniteMissingArr,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss),
 
 const MAE = MeanAbsoluteError
 const MAV = MeanAbsoluteError
@@ -27,26 +25,11 @@ body=
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 """)
 
-function call(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = abs(y[i] - ŷ[i])
-        ret += dev
-    end
-    return ret / length(y)
-end
+multi(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
+    abs.(ŷ .- y) |> mean
 
-function call(::MeanAbsoluteError,
-              ŷ::Arr{<:Real},
-              y::Arr{<:Real},
-              w::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = abs(y[i] - ŷ[i])
-        ret += w[i]*dev
-    end
-    return ret / length(y)
-end
+multi(::MeanAbsoluteError, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
+    abs.(ŷ .- y) .* w |> mean
 
 # ----------------------------------------------------------------
 # RootMeanSquaredError
@@ -56,12 +39,10 @@ struct RootMeanSquaredError <: Aggregated end
 metadata_measure(RootMeanSquaredError;
                  instances                = ["rms", "rmse",
                                              "root_mean_squared_error"],
-                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
+                 target_scitype           = InfiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 aggregation              = RootMeanSquare())
 
 const RMS = RootMeanSquaredError
 @create_aliases RootMeanSquaredError
@@ -73,26 +54,11 @@ body=
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 """)
 
-function call(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (y[i] - ŷ[i])^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+multi(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
+    (y .- ŷ).^2 |> mean |> sqrt
 
-function call(::RootMeanSquaredError,
-              ŷ::Arr{<:Real},
-              y::Arr{<:Real},
-              w::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (y[i] - ŷ[i])^2
-        ret += w[i]*dev
-    end
-    return sqrt(ret / length(y))
-end
+multi(::RootMeanSquaredError, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
+    (y .- ŷ).^2 .* w |> mean |> sqrt
 
 # -------------------------------------------------------------------
 # LP
@@ -105,11 +71,9 @@ LPLoss(; p=2.0) = LPLoss(p)
 
 metadata_measure(LPLoss;
                  instances = ["l1", "l2"],
-                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
+                 target_scitype           = InfiniteMissingArr,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss)
 
 const l1 = LPLoss(1)
 const l2 = LPLoss(2)
@@ -130,12 +94,10 @@ struct RootMeanSquaredLogError <: Aggregated end
 
 metadata_measure(RootMeanSquaredLogError;
                  instances = ["rmsl", "rmsle", "root_mean_squared_log_error"],
-                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
+                 target_scitype           = InfiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = false)
+                 aggregation              = RootMeanSquare())
 
 const RMSL = RootMeanSquaredLogError
 @create_aliases RootMeanSquaredLogError
@@ -148,14 +110,14 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
 footer="See also [`rmslp1`](@ref).")
 
-function call(::RootMeanSquaredLogError, ŷ::Arr{<:Real}, y::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (log(y[i]) - log(ŷ[i]))^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+multi(::RootMeanSquaredLogError, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
+    (log.(y) - log.(ŷ)).^2 |> mean |> sqrt
+
+multi(::RootMeanSquaredLogError,
+      ŷ::Arr{<:Real},
+      y::Arr{<:Real},
+      w::Arr{<:Real}) =
+          (log.(y) - log.(ŷ)).^2 .* w |> mean |> sqrt
 
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
@@ -169,12 +131,10 @@ RootMeanSquaredLogProportionalError(; offset=1.0) =
 
 metadata_measure(RootMeanSquaredLogProportionalError;
                  instances                = ["rmslp1", ],
-                 target_scitype           = Union{Arr{Continuous},Arr{Count}},
+                 target_scitype           = InfiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = false)
+                 aggregation              = RootMeanSquare())
 
 const RMSLP = RootMeanSquaredLogProportionalError
 @create_aliases RootMeanSquaredLogProportionalError
@@ -189,14 +149,11 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 """,
 footer="See also [`rmsl`](@ref). ")
 
-function call(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real})
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (log(y[i] + m.offset) - log(ŷ[i] + m.offset))^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+multi(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |> mean |> sqrt
+
+multi(m::RMSLP, ŷ::Arr{<:Real}, y::Arr{<:Real}, w::Arr{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 .* w|> mean |> sqrt
 
 # --------------------------------------------------------------------------
 # RootMeanSquaredProportionalError
@@ -210,14 +167,12 @@ RootMeanSquaredProportionalError(; tol=eps()) =
 
 metadata_measure(RootMeanSquaredProportionalError;
     instances                = ["rmsp", ],
-    target_scitype           = Union{Arr{Continuous},Arr{Count}},
+    target_scitype           = InfiniteMissingArr,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    aggregation              = RootMeanSquare(),
-    is_feature_dependent     = false,
-    supports_weights         = false)
+    aggregation              = RootMeanSquare())
 
-const RMSP = RootMeanSquaredProportionalError
+      const RMSP = RootMeanSquaredProportionalError
 @create_aliases RMSP
 
 @create_docs(RootMeanSquaredProportionalError,
@@ -233,16 +188,21 @@ of such indices.
 
 """)
 
-function call(m::RootMeanSquaredProportionalError,
-              ŷ::Arr{<:Real},
-              y::Arr{<:Real})
-    ret = zero(eltype(y))
+_scale(x, w::Arr, i) = x*w[i]
+_scale(x, ::Nothing, i::Any) = x
+
+function multi(m::RootMeanSquaredProportionalError,
+               ŷ::Arr{<:Real},
+               y::Arr{T},
+               w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
+    ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
         ayi = abs(y[i])
         if ayi > m.tol
             dev = ((y[i] - ŷ[i]) / ayi)^2
             ret += dev
+            ret = _scale(ret, w, i)
             count += 1
         end
     end
@@ -260,13 +220,9 @@ MeanAbsoluteProportionalError(; tol=eps()) = MeanAbsoluteProportionalError(tol)
 
 metadata_measure(MeanAbsoluteProportionalError;
     instances                = ["mape", ],
-    target_scitype           = Union{Arr{Continuous},Arr{Count}},
+    target_scitype           = InfiniteMissingArr,
     prediction_type          = :deterministic,
-    orientation              = :loss,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Mean Absolute Proportional Error; "*
-                 "aliases: `mape=MAPE()`.")
+    orientation              = :loss)
 
 const MAPE = MeanAbsoluteProportionalError
 @create_aliases MAPE
@@ -282,16 +238,19 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """)
 
-function call(m::MeanAbsoluteProportionalError, ŷ::Arr{<:Real}, y::Arr{<:Real})
-    ret = zero(eltype(y))
+function multi(m::MeanAbsoluteProportionalError,
+               ŷ::Arr{<:Real},
+               y::Arr{T},
+               w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
+    ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
         ayi = abs(y[i])
         if ayi > m.tol
         #if y[i] != zero(eltype(y))
             dev = abs((y[i] - ŷ[i]) / ayi)
-            #dev = abs((y[i] - ŷ[i]) / y[i])
             ret += dev
+            ret =_scale(ret, w, i)
             count += 1
         end
     end
@@ -305,12 +264,9 @@ struct LogCoshLoss <: Unaggregated end
 
 metadata_measure(LogCoshLoss;
     instances                = ["log_cosh", "log_cosh_loss"],
-    target_scitype           = Union{Arr{Continuous},Arr{Count}},
+    target_scitype           = InfiniteMissingArr,
     prediction_type          = :deterministic,
-    orientation              = :loss,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "log cosh loss; aliases: `log_cosh`.")
+    orientation              = :loss)
 
 const LogCosh = LogCoshLoss
 @create_aliases LogCoshLoss

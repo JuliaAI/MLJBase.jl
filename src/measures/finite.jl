@@ -11,9 +11,7 @@ metadata_measure(MisclassificationRate;
                  instances  = ["misclassification_rate", "mcr"],
                  target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss)
 
 const MCR = MisclassificationRate
 @create_aliases MCR
@@ -27,8 +25,8 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-call(::MCR, ŷ, y) where {V,N} = mean(skipinvalid(y .!= ŷ))
-call(::MCR, ŷ, y, w) where {V,N} = mean(skipinvalid((y .!= ŷ) .* w))
+multi(::MCR, ŷ, y) where {V,N} = (y .!= ŷ) |> mean
+multi(::MCR, ŷ, y, w) where {V,N} = (y .!= ŷ) .* w |> mean
 (::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
@@ -40,9 +38,7 @@ metadata_measure(Accuracy;
                  instances = ["accuracy",],
                  target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
-                 orientation              = :score,
-                 is_feature_dependent     = false,
-                 supports_weights         = true),
+                 orientation              = :score)
 
 @create_aliases Accuracy
 
@@ -55,7 +51,7 @@ ground truth `y[i]` observations. $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-call(::Accuracy, args...) = 1.0 - call(misclassification_rate, args...)
+multi(::Accuracy, args...) = 1.0 - multi(misclassification_rate, args...)
 (::Accuracy)(m::ConfusionMatrixObject) = sum(diag(m.mat)) / sum(m.mat)
 
 # -----------------------------------------------------------
@@ -67,9 +63,7 @@ metadata_measure(BalancedAccuracy;
                  instances = ["balanced_accuracy", "bacc", "bac"],
                  target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
-                 orientation              = :score,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :score)
 
 const BACC = BalancedAccuracy
 @create_aliases BACC
@@ -85,16 +79,14 @@ scitype=DOC_FINITE)
 
 # calling behavior:
 
-function call(::BACC, ŷ, y)
+function multi(::BACC, ŷ, y)
     class_count = Dist.countmap(y)
     ŵ = 1.0 ./ [class_count[yi] for yi in y]
     weighted_matches = (ŷ .== y) .* ŵ
-    mask = .!(isinvalid.(weighted_matches))
-    return sum(skipinvalid(weighted_matches)) / sum(ŵ[mask])
+    return sum(weighted_matches) / sum(ŵ)
 end
 
-function call(::BACC, ŷm, ym, w)
-    ŷ, y, w = skipinvalid(ŷm, ym, w)
+function multi(::BACC, ŷ, y, w)
     levels_ = levels(y)
     ŵ = similar(w)
     @inbounds for i in eachindex(w)
@@ -117,7 +109,6 @@ metadata_measure(MatthewsCorrelation;
                  target_scitype           = FiniteMissingArr{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
                  supports_weights         = false)
 const MCC = MatthewsCorrelation
 @create_aliases MCC
@@ -155,7 +146,7 @@ function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     return mcc
 end
 
-call(m::MCC, ŷ, y) = _confmat(ŷ, y, warn=false) |> m
+multi(m::MCC, ŷ, y) = _confmat(ŷ, y, warn=false) |> m
 
 
 # ==========================================================================
@@ -179,7 +170,6 @@ metadata_measure(FScore;
                  target_scitype           = FiniteMissingArr{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
                  supports_weights         = false)
 
 @create_aliases FScore
@@ -210,7 +200,7 @@ function (score::FScore)(m::CM2)
 end
 
 # calling on arrays:
-call(m::FScore, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+multi(m::FScore, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
 # TruePositive and its cousins - struct and metadata declerations
@@ -234,14 +224,12 @@ metadata_measure.((FalsePositive, FalseNegative);
     prediction_type          = :deterministic,
     orientation              = :loss,
     aggregation              = Sum(),
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
     target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
@@ -249,7 +237,6 @@ metadata_measure.((TruePositive, TrueNegative);
     prediction_type          = :deterministic,
     orientation              = :score,
     aggregation              = Sum(),
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
@@ -257,7 +244,6 @@ metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
     target_scitype           = FiniteMissingArr{2},
     prediction_type          = :deterministic,
     orientation              = :score,
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 # adjustments:
@@ -373,7 +359,7 @@ _npv(m::CM2) = _tn(m) / (_tn(m) + _fn(m))
 
 # on arrays (ŷ, y):
 for M_ex in TRUE_POSITIVE_AND_COUSINS
-    @eval call(m::$M_ex, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+    @eval multi(m::$M_ex, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 end
 
 # since Base.precision exists (as single argument function) we
@@ -381,7 +367,7 @@ end
 Base.precision(m::CM2) = m |> Precision()
 function Base.precision(ŷ, y)
     _check(Precision(), ŷ, y)
-    call(Precision(), ŷ, y)
+    multi(Precision(), ŷ, y)
 end
 
 
@@ -444,7 +430,6 @@ metadata_measure(MulticlassFScore;
                  target_scitype           = FiniteMissingArr,
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 is_feature_dependent     = false,
                  supports_weights         = false,
                  supports_class_weights   = true)
 
@@ -1202,13 +1187,13 @@ end
 
 for M_ex in (:MulticlassTruePositive, :MulticlassTrueNegative,
           :MulticlassFalsePositive, :MulticlassFalseNegative)
-    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
+    @eval multi(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
 end
 
 for M_ex in (:MTPR, :MTNR, :MFPR, :MFNR, :MFDR, :MulticlassPrecision, :MNPV,
           :MulticlassFScore)
-    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
-    @eval call(m::$M_ex, ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
+    @eval multi(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
+    @eval multi(m::$M_ex, ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
         m(_confmat(ŷ, y, warn=false), class_w)
 end
 
