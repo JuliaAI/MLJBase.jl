@@ -1,9 +1,9 @@
 rng = StableRNG(666899)
 
 @testset "regressor measures" begin
-    y    = [1, 2, 3, 4]
-    yhat = [4, 3, 2, 1]
-    w = [1, 2, 4, 3]
+    y    = [1, 42,  2, 3, missing, 4]
+    yhat = [4, NaN, 3, 2, 42,      1]
+    w =    [1, 42,  2, 4, 42,      3]
     @test isapprox(mae(yhat, y), 2)
     @test isapprox(mae(yhat, y, w), (1*3 + 2*1 + 4*1 + 3*3)/4)
     @test isapprox(rms(yhat, y), sqrt(5))
