@@ -182,7 +182,7 @@ function value(measure, yhat, X, y, w)
 end
 
 
-# # DEFAULT EVALUATION INTERFACE
+# # UNIVERSAL CALLING INTERFACE
 
 #  is feature independent, weights not supported:
 value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)

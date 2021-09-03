@@ -87,15 +87,6 @@ macro wrap_loss(ex)
         throw(err_wrap(4))
     end
 
-    # define calling behaviour:
-    push!(program.args,
-          quote
-          call(m::$Loss_ex, yhat, y::Arr) =
-              MLJBase.value(m, yhat, nothing, y, nothing)
-          call(m::$Loss_ex, yhat, y::Arr, w::Arr{<:Real}) =
-              MLJBase.value(m, yhat, nothing, y, w)
-          end)
-
     esc(program)
 end
 
@@ -124,23 +115,20 @@ docstring(M::Type{<:SupervisedLoss})       = name(M)
 instances(M::Type{<:SupervisedLoss}) = [snakecase(string.(naked(M))), ]
 
 
-## DISTANCE BASED LOSS FUNCTIONS
+## CALLING - DISTANCE BASED LOSS FUNCTIONS
 
 MMI.prediction_type(::Type{<:DistanceLoss}) = :deterministic
 MMI.target_scitype(::Type{<:DistanceLoss}) = Union{Vec{Continuous},Vec{Count}}
 
-function value(measure::DistanceLoss, yhat, X, y, ::Nothing,
-                ::Val{false}, ::Val{true})
-    return LossFunctions.value(getfield(measure, :loss), y, yhat)
-end
+call(measure::DistanceLoss, yhat, y) =
+    LossFunctions.value(getfield(measure, :loss), y, yhat)
 
-function value(measure::DistanceLoss, yhat, X, y, w,
-                ::Val{false}, ::Val{true})
-    return w .* value(measure, yhat, X, y, nothing) ./ (sum(w)/length(y))
+function call(measure::DistanceLoss, yhat, y, w::ArrMissing{Real})
+    return w .* call(measure, yhat, y)
 end
 
 
-## MARGIN BASED LOSS FUNCTIONS
+## CALLING - MARGIN BASED LOSS FUNCTIONS
 
 MMI.prediction_type(::Type{<:MarginLoss}) = :probabilistic
 MMI.target_scitype(::Type{<:MarginLoss})  = AbstractArray{<:Finite{2}}
@@ -148,18 +136,14 @@ MMI.target_scitype(::Type{<:MarginLoss})  = AbstractArray{<:Finite{2}}
 # rescale [0, 1] -> [-1, 1]:
 _scale(p) = 2p - 1
 
-function value(measure::MarginLoss, yhat, X, y, ::Nothing,
-                ::Val{false}, ::Val{true})
-    check_pools(yhat, y)
+function call(measure::MarginLoss, yhat, y)
     probs_of_observed = broadcast(pdf, yhat, y)
     return (LossFunctions.value).(getfield(measure, :loss),
                                   1, _scale.(probs_of_observed))
 end
 
-function value(measure::MarginLoss, yhat, X, y, w,
-                ::Val{false}, ::Val{true})
-    return w .* value(measure, yhat, X, y, nothing) ./ (sum(w)/length(y))
-end
+call(measure::MarginLoss, yhat, y, w::ArrMissing{Real}) =
+    w .* call(measure, yhat, y)
 
 
 ## ADJUSTMENTS
