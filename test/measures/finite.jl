@@ -97,8 +97,8 @@ end
     @test @test_logs((:warn, r"The classes are un-ordered"),
                      recall(ŷ, y) == TP / (TP + FN))
 
-    ŷ = coerce(ŷ, OrderedFactor)
-    y = coerce(y, OrderedFactor)
+    ŷ = coerce(ŷ, Union{Missing,OrderedFactor})
+    y = coerce(y, Union{Missing,OrderedFactor})
 
     @test precision(ŷ, y)   == TP / (TP + FP)
     @test specificity(ŷ, y) == TN / (TN + FP)
