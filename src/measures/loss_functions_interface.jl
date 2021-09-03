@@ -164,10 +164,14 @@ _signature(::Type{<:QuantileLoss}) = "`QuantileLoss(; τ=0.7)`"
 
 ## ALIASES AND DOCSTRINGS
 
-const DOC_LOSS_FUNCTIONS = "For more detail, see "*
-    "the original LossFunctions.jl "*
-    "documentation **but "*
-    "note differences in the signature**. "
+const DOC_LOSS_FUNCTIONS =
+"""
+For more detail, see the original LossFunctions.jl documentation *but
+note differences in the signature.
+
+Losses from LossFunctions.jl do not support `missing` values. To use
+with `missing` values, replace `(ŷ, y)` with `skipinvalid(ŷ, y))`.
+"""
 
 for Loss_ex in DISTANCE_LOSSES
     eval(quote

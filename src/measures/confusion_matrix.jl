@@ -66,7 +66,7 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target.
 
 """
-function _confmat(ŷ::CatArrMissing{T,N}, y::CatArrMissing{T,N};
+function _confmat(ŷ::ArrMissing{T,N}, y::ArrMissing{T,N};
                   rev::Union{Nothing,Bool}=nothing,
                   perm::Union{Nothing,Vector{<:Integer}}=nothing,
                   warn::Bool=true) where {T,N}
@@ -88,15 +88,19 @@ function _confmat(ŷ::CatArrMissing{T,N}, y::CatArrMissing{T,N};
 
     # warning
     if rev === nothing && perm === nothing
+        S = nonmissingtype(elscitype(y))
         if warn &&
-            if nc==2 && !(scitype_union(y) >: OrderedFactor{2})
+            if nc==2 &&  !(S <: OrderedFactor)
                 @warn "The classes are un-ordered,\n" *
-                      "using: negative='$(levels_[1])' and positive='$(levels_[2])'.\n" *
-                      "To suppress this warning, consider coercing to OrderedFactor."
-            elseif !(scitype_union(y) >: OrderedFactor{nc})
+                    "using: negative='$(levels_[1])' "*
+                    "and positive='$(levels_[2])'.\n" *
+                    "To suppress this warning, consider coercing "*
+                    "to OrderedFactor."
+            elseif !(S <: OrderedFactor)
                 @warn "The classes are un-ordered,\n" *
                       "using order: $([l for l in levels_]).\n" *
-                      "To suppress this warning, consider coercing to OrderedFactor."
+                      "To suppress this warning, consider "*
+                      "coercing to OrderedFactor."
             end
         end
         rev  = false
