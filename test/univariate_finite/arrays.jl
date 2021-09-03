@@ -259,4 +259,6 @@ end
     @test_throws MLJBase.ERR_EMPTY_UNIVARIATE_FINITE classes(u2[1:1])
 end
 
+end
+
 true

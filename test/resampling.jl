@@ -455,7 +455,8 @@ end
     d = Distributions.fit(MLJBase.UnivariateFinite, y)
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
-    @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
+    @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈
+               d for fold in folds])
 end
 
 @testset_accelerated "sample weights in evaluation" accel begin
