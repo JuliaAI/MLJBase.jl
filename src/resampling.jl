@@ -3,10 +3,10 @@
 
 # not exported:
 const Measurable = Union{Supervised,
-                         AbstractProbabilisticSupervisedDetector,
-                         AbstractProbabilisticUnsupervisedDetector,
-                         AbstractDeterministicSupervisedDetector,
-                         AbstractDeterministicUnsupervisedDetector}
+                         ProbabilisticSupervisedDetector,
+                         ProbabilisticUnsupervisedDetector,
+                         DeterministicSupervisedDetector,
+                         DeterministicUnsupervisedDetector}
 
 
 # ==================================================================
