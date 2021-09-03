@@ -196,9 +196,6 @@ of such indices.
 
 """)
 
-_scale(x, w::Arr, i) = x*w[i]
-_scale(x, ::Nothing, i::Any) = x
-
 function call(m::RootMeanSquaredProportionalError,
                ŷ::ArrMissing{<:Real},
                y::ArrMissing{T},

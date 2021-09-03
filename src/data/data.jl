@@ -401,12 +401,14 @@ function skipinvalid(yhat, y)
     return yhat[mask], y[mask]
 end
 
-# function skipinvalid(yhat, y, w::Arr)
-#     mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-#     return yhat[mask], y[mask], w[mask]
-# end
+# TODO: refactor balanced accuracy to get rid of these:
 
-# function skipinvalid(yhat, y, w::Union{Nothing,AbstractDict})
-#     mask = .!(isinvalid.(yhat) .| isinvalid.(y))
-#     return yhat[mask], y[mask], w
-# end
+function _skipinvalid(yhat, y, w::Arr)
+    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
+    return yhat[mask], y[mask], w[mask]
+end
+
+function _skipinvalid(yhat, y, w::Union{Nothing,AbstractDict})
+    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
+    return yhat[mask], y[mask], w
+end

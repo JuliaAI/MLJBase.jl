@@ -200,6 +200,9 @@ value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
 # # helpers
 
+_scale(x, w::Arr, i) = x*w[i]
+_scale(x, ::Nothing, i::Any) = x
+
 function check_pools(ŷ, y)
     levels(y) == levels(ŷ[1]) ||
         error("Conflicting categorical pools found "*
@@ -225,7 +228,9 @@ include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")
 
+
 # # DEFAULT MEASURES
+
 default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS
@@ -237,21 +242,19 @@ default_measure(::Type{<:Deterministic},
 default_measure(::Type{<:Deterministic},
                 ::Type{<:Vec{<:Union{Missing,Finite}}}) = misclassification_rate
 
-# Probabilistic + Finite ==> Cross entropy
+# Probabilistic + Finite ==> log loss
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Finite}}}) = cross_entropy
+                ::Type{<:Vec{<:Union{Missing,Finite}}}) = log_loss
 
-# Probablistic + Continuous ==> Log score
+# Probablistic + Continuous ==> Log loss
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Continuous}}}) =
-                    infinite_log_score
+                ::Type{<:Vec{<:Union{Missing,Continuous}}}) = log_loss
+
 
 # Probablistic + Count ==> Log score
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Count}}}) = infinite_log_score
+                ::Type{<:Vec{<:Union{Missing,Count}}}) = log_loss
 
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Supervised = default_measure(M)
-
-

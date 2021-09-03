@@ -77,27 +77,23 @@ $INVARIANT_LABEL
 """,
 scitype=DOC_FINITE)
 
-# calling behavior:
+function call(::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
 
-function call(::BACC, ŷ, y)
-    class_count = Dist.countmap(y)
-    ŵ = 1.0 ./ [class_count[yi] for yi in y]
-    weighted_matches = (ŷ .== y) .* ŵ
-    mask = .!(ismissing.(weighted_matches))
-    return sum(weighted_matches) / sum(ŵ)
-end
+    ŷ, y, w = _skipinvalid(ŷm, ym, wm)
 
-function call(::BACC, ŷ, y, w::Arr{T}) where T <: Real
-    levels_ = levels(y)
-    ŵ = similar(w)
-    @inbounds for i in eachindex(w)
-        ŵ[i] = if isinvalid(y[i])
-            one(T)
-        else
-            w[i] / Sum()(w .* (y .== y[i]))
+    if w == nothing
+        n_given_class = StatsBase.countmap(y)
+        freq(i) = @inbounds n_given_class[y[i]]
+        ŵ = 1 ./ freq.(eachindex(y))
+    else # following sklearn, which is non-linear
+        ŵ = similar(w)
+        @inbounds for i in eachindex(w)
+            ŵ[i] = w[i] / sum(w .* (y .== y[i]))
         end
     end
-    return Sum()( (ŷ .== y) .* ŵ ) / Sum()(ŵ)
+    s = sum(ŵ)
+
+    return  sum((ŷ .== y) .* ŵ) / sum(ŵ)
 end
 
 

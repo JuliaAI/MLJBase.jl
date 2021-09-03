@@ -19,7 +19,8 @@ end
     y = categorical(['m', 'f', 'n', 'f', 'm', 'n', 'n', 'm', 'f'])
     ŷ = categorical(['f', 'f', 'm', 'f', 'n', 'm', 'n', 'm', 'f'])
     @test accuracy(ŷ, y) == 1-mcr(ŷ,y) ==
-            accuracy(MLJBase._confmat(ŷ, y, warn=false))  == 1-mcr(MLJBase._confmat(ŷ, y, warn=false))
+        accuracy(MLJBase._confmat(ŷ, y, warn=false))  ==
+        1-mcr(MLJBase._confmat(ŷ, y, warn=false))
     w = randn(rng,length(y))
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
@@ -43,7 +44,8 @@ end
        1.1, 1.8, 0.1, 1.2, 1.8, 1. , 0.1, 0.5, 0.6, 0.7, 0.6, 1.2, 0.6,
        1.2, 0.5, 0.5, 0.8, 0.2, 0.6, 1. , 0.3, 1. , 0.2, 1.1, 1.1, 1.1,
        0.6, 1.4, 1.2, 0.3, 1.1, 0.2, 0.5, 1.6, 0.3, 1. , 0.3, 0.9, 0.9,
-       0. , 0.6, 0.6, 0.4, 0.5, 0.4, 0.2, 0.9, 0.4]
+         0. , 0.6, 0.6, 0.4, 0.5, 0.4, 0.2, 0.9, 0.4]
+
     sk_bacc_w = 0.1581913163016446
     @test bacc(ŷ, y, w) ≈ sk_bacc_w
 
@@ -269,12 +271,13 @@ end
 end
 
 @testset "More binary metrics" begin
-    y = coerce(categorical([1, 2, 1, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2,
-                            2, 1, 2, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
-                            2, 2, 2]), OrderedFactor)
-    ŷ = coerce(categorical([1, 2, 2, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2,
-                            1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2,
-                            1, 2, 2]), OrderedFactor)
+    y = coerce([missing, 1, 2, 1, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2,
+                2, 1, 2, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
+                2, 2, 2, 1], Union{Missing,OrderedFactor})
+    ŷ = coerce([1, 1, 2, 2, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2,
+                1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2, 1, 2,
+                1, 2, 2, missing], Union{Missing,OrderedFactor})
+
     # check all constructors
     m = TruePositive()
     @test m(ŷ, y) == truepositive(ŷ, y)
@@ -316,7 +319,8 @@ end
     m = PPV()
     @test m(ŷ, y) == precision(ŷ, y) == ppv(ŷ, y)
     m = Recall()
-    @test m(ŷ, y) == tpr(ŷ, y) == recall(ŷ, y) == sensitivity(ŷ, y) == hit_rate(ŷ, y)
+    @test m(ŷ, y) == tpr(ŷ, y) == recall(ŷ, y) ==
+        sensitivity(ŷ, y) == hit_rate(ŷ, y)
     m = Specificity()
     @test m(ŷ, y) == tnr(ŷ, y) == specificity(ŷ, y) == selectivity(ŷ, y)
     # 'higher order'
@@ -342,12 +346,12 @@ end
 end
 
 @testset "More multiclass metrics" begin
-    y = coerce(categorical([1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
+    y = coerce(categorical([missing, 1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
                             2, 1, 0, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
-                            2, 2, 2]), Multiclass)
-    ŷ = coerce(categorical([2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
+                            2, 2, 2, 0]), Union{Missing,Multiclass})
+    ŷ = coerce(categorical([0, 2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
                             1, 1, 1, 2, 0, 1, 2, 1, 2, 2, 2, 1, 2,
-                            1, 2, 2]), Multiclass)
+                            1, 2, 2, missing]), Union{Missing,Multiclass})
     w = Dict(0=>1, 1=>2, 2=>3) #class_w
     # check all constructors
     m = MulticlassTruePositive()
