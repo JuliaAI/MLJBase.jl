@@ -1185,14 +1185,12 @@ _mfn(m::CM, return_type::Type{LittleDict}) =
      row_sum .-= diag(m.mat); LittleDict(m.labels, row_sum))
 
 function _mtn(m::CM, return_type::Type{Vector})
-    _sum  = sum(m.mat, dims=2)
-    _sum .= sum(m.mat) .- (_sum .+= sum(m.mat, dims=1)'.+ diag(m.mat))
+    _sum  = sum(m.mat) .- (_mtp(m,return_type) + _mfp(m,return_type) + _mfn(m,return_type))
     return vec(_sum)
 end
 
 function _mtn(m::CM, return_type::Type{LittleDict})
-    _sum  = sum(m.mat, dims=2)
-    _sum .= sum(m.mat) .- (_sum .+= sum(m.mat, dims=1)'.+ diag(m.mat))
+    _sum  = sum(m.mat) .- (_mtp(m,Vector) + _mfp(m,Vector) + _mfn(m,Vector))
     return LittleDict(m.labels, vec(_sum))
 end
 
