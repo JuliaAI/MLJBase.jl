@@ -717,14 +717,14 @@ end
 
         #resampler as a machine with class weights specified
         cweval = Dict(zip(levels(y), rand(length(levels(y)))));
-        resampler = Resampler(model=model, resampling=CV();
+        resampler = Resampler(model=model, resampling=CV(nfolds=2);
                               measure=MulticlassFScore(return_type=Vector),
                               class_weights=cweval, acceleration=accel)
         resampling_machine = machine(resampler, X, y, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1   = evaluate(resampling_machine).measurement[1]
         mach = machine(model, X, y, cache=cache)
-        e2   = evaluate!(mach, resampling=CV();
+        e2   = evaluate!(mach, resampling=CV(nfolds=2);
                          measure=MulticlassFScore(return_type=Vector),
                          class_weights=cweval,
                          acceleration=accel,
