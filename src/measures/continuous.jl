@@ -1,20 +1,18 @@
-# ===========================================================
-## DETERMINISTIC PREDICTIONS
+const InfiniteArrMissing = Union{
+    AbstractArray{<:Union{Missing,Continuous}},
+    AbstractArray{<:Union{Missing,Count}}}
 
 # -----------------------------------------------------------
 # MeanAbsoluteError
 
-struct MeanAbsoluteError <: Measure end
+struct MeanAbsoluteError <: Aggregated end
 
 metadata_measure(MeanAbsoluteError;
                  instances = ["mae", "mav", "mean_absolute_error",
                               "mean_absolute_value"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss),
 
 const MAE = MeanAbsoluteError
 const MAV = MeanAbsoluteError
@@ -27,43 +25,27 @@ body=
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
 """)
 
-function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = abs(y[i] - ŷ[i])
-        ret += dev
-    end
-    return ret / length(y)
-end
+call(::MeanAbsoluteError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    abs.(ŷ .- y) |> skipinvalid |> mean
 
-function (::MeanAbsoluteError)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                 w::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    check_dimensions(y, w)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = abs(y[i] - ŷ[i])
-        ret += w[i]*dev
-    end
-    return ret / length(y)
-end
+call(::MeanAbsoluteError,
+     ŷ::ArrMissing{<:Real},
+     y::ArrMissing{<:Real},
+     w::Arr{<:Real}) =
+         abs.(ŷ .- y) .* w |> skipinvalid |> mean
 
 # ----------------------------------------------------------------
 # RootMeanSquaredError
 
-struct RootMeanSquaredError <: Measure end
+struct RootMeanSquaredError <: Aggregated end
 
 metadata_measure(RootMeanSquaredError;
                  instances                = ["rms", "rmse",
                                              "root_mean_squared_error"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 aggregation              = RootMeanSquare())
 
 const RMS = RootMeanSquaredError
 @create_aliases RootMeanSquaredError
@@ -75,31 +57,19 @@ body=
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
 """)
 
-function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (y[i] - ŷ[i])^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+call(::RootMeanSquaredError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (y .- ŷ).^2 |> skipinvalid |> mean |> sqrt
 
-function (::RootMeanSquaredError)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                 w::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (y[i] - ŷ[i])^2
-        ret += w[i]*dev
-    end
-    return sqrt(ret / length(y))
-end
+call(::RootMeanSquaredError,
+     ŷ::ArrMissing{<:Real},
+     y::ArrMissing{<:Real},
+     w::Arr{<:Real}) =
+         (y .- ŷ).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # -------------------------------------------------------------------
 # LP
 
-struct LPLoss{T<:Real} <: Measure
+struct LPLoss{T<:Real} <: Unaggregated
     p::T
 end
 
@@ -107,12 +77,9 @@ LPLoss(; p=2.0) = LPLoss(p)
 
 metadata_measure(LPLoss;
                  instances = ["l1", "l2"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 reports_each_observation = true,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss)
 
 const l1 = LPLoss(1)
 const l2 = LPLoss(2)
@@ -124,32 +91,19 @@ Constructor signature: `LPLoss(p=2)`. Reports
 `|ŷ[i] - y[i]|^p` for every index `i`.
 """)
 
-function (m::LPLoss)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    return abs.((y - ŷ)).^(m.p)
-end
-
-function (m::LPLoss)(ŷ::Vec{<:Real}, y::Vec{<:Real},
-                w::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    check_dimensions(w, y)
-    return w .* abs.((y - ŷ)).^(m.p)
-end
+single(m::LPLoss, ŷ::Real, y::Real) =  abs(y - ŷ)^(m.p)
 
 # ----------------------------------------------------------------------------
 # RootMeanSquaredLogError
 
-struct RootMeanSquaredLogError <: Measure end
+struct RootMeanSquaredLogError <: Aggregated end
 
 metadata_measure(RootMeanSquaredLogError;
                  instances = ["rmsl", "rmsle", "root_mean_squared_log_error"],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = false)
+                 aggregation              = RootMeanSquare())
 
 const RMSL = RootMeanSquaredLogError
 @create_aliases RootMeanSquaredLogError
@@ -162,20 +116,19 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
 footer="See also [`rmslp1`](@ref).")
 
-function (::RootMeanSquaredLogError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (log(y[i]) - log(ŷ[i]))^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+call(::RootMeanSquaredLogError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (log.(y) - log.(ŷ)).^2 |> skipinvalid |> mean |> sqrt
+
+call(::RootMeanSquaredLogError,
+      ŷ::ArrMissing{<:Real},
+      y::ArrMissing{<:Real},
+      w::Arr{<:Real}) =
+          (log.(y) - log.(ŷ)).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
 
-struct RootMeanSquaredLogProportionalError{T<:Real} <: Measure
+struct RootMeanSquaredLogProportionalError{T<:Real} <: Aggregated
     offset::T
 end
 
@@ -184,13 +137,10 @@ RootMeanSquaredLogProportionalError(; offset=1.0) =
 
 metadata_measure(RootMeanSquaredLogProportionalError;
                  instances                = ["rmslp1", ],
-                 target_scitype           = Union{Vec{Continuous},Vec{Count}},
+                 target_scitype           = InfiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :loss,
-                 reports_each_observation = false,
-                 aggregation              = RootMeanSquare(),
-                 is_feature_dependent     = false,
-                 supports_weights         = false)
+                 aggregation              = RootMeanSquare())
 
 const RMSLP = RootMeanSquaredLogProportionalError
 @create_aliases RootMeanSquaredLogProportionalError
@@ -205,20 +155,18 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 """,
 footer="See also [`rmsl`](@ref). ")
 
-function (m::RMSLP)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
-    for i in eachindex(y)
-        dev = (log(y[i] + m.offset) - log(ŷ[i] + m.offset))^2
-        ret += dev
-    end
-    return sqrt(ret / length(y))
-end
+call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |>
+    skipinvalid |> mean |> sqrt
+
+call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}, w::Arr{<:Real}) =
+    (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 .* w |>
+    skipinvalid |> mean |> sqrt
 
 # --------------------------------------------------------------------------
 # RootMeanSquaredProportionalError
 
-struct RootMeanSquaredProportionalError{T<:Real} <: Measure
+struct RootMeanSquaredProportionalError{T<:Real} <: Aggregated
     tol::T
 end
 
@@ -227,15 +175,12 @@ RootMeanSquaredProportionalError(; tol=eps()) =
 
 metadata_measure(RootMeanSquaredProportionalError;
     instances                = ["rmsp", ],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
-    aggregation              = RootMeanSquare(),
-    is_feature_dependent     = false,
-    supports_weights         = false)
+    aggregation              = RootMeanSquare())
 
-const RMSP = RootMeanSquaredProportionalError
+      const RMSP = RootMeanSquaredProportionalError
 @create_aliases RMSP
 
 @create_docs(RootMeanSquaredProportionalError,
@@ -251,15 +196,19 @@ of such indices.
 
 """)
 
-function (m::RootMeanSquaredProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
+function call(m::RootMeanSquaredProportionalError,
+               ŷ::ArrMissing{<:Real},
+               y::ArrMissing{T},
+               w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
+    ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         ayi = abs(y[i])
         if ayi > m.tol
             dev = ((y[i] - ŷ[i]) / ayi)^2
             ret += dev
+            ret = _scale(ret, w, i)
             count += 1
         end
     end
@@ -269,7 +218,7 @@ end
 # -----------------------------------------------------------------------
 # MeanAbsoluteProportionalError
 
-struct MeanAbsoluteProportionalError{T} <: Measure
+struct MeanAbsoluteProportionalError{T} <: Aggregated
     tol::T
 end
 
@@ -277,14 +226,9 @@ MeanAbsoluteProportionalError(; tol=eps()) = MeanAbsoluteProportionalError(tol)
 
 metadata_measure(MeanAbsoluteProportionalError;
     instances                = ["mape", ],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
-    orientation              = :loss,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "Mean Absolute Proportional Error; "*
-                 "aliases: `mape=MAPE()`.")
+    orientation              = :loss)
 
 const MAPE = MeanAbsoluteProportionalError
 @create_aliases MAPE
@@ -300,17 +244,20 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """)
 
-function (m::MeanAbsoluteProportionalError)(ŷ::Vec{<:Real}, y::Vec{<:Real})
-    check_dimensions(ŷ, y)
-    ret = zero(eltype(y))
+function call(m::MeanAbsoluteProportionalError,
+              ŷ::ArrMissing{<:Real},
+              y::ArrMissing{T},
+              w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
+    ret = zero(T)
     count = 0
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         ayi = abs(y[i])
         if ayi > m.tol
         #if y[i] != zero(eltype(y))
             dev = abs((y[i] - ŷ[i]) / ayi)
-            #dev = abs((y[i] - ŷ[i]) / y[i])
             ret += dev
+            ret =_scale(ret, w, i)
             count += 1
         end
     end
@@ -320,17 +267,13 @@ end
 # -------------------------------------------------------------------------
 # LogCoshLoss
 
-struct LogCoshLoss <: Measure end
+struct LogCoshLoss <: Unaggregated end
 
 metadata_measure(LogCoshLoss;
     instances                = ["log_cosh", "log_cosh_loss"],
-    target_scitype           = Union{Vec{Continuous},Vec{Count}},
+    target_scitype           = InfiniteArrMissing,
     prediction_type          = :deterministic,
-    orientation              = :loss,
-    reports_each_observation = true,
-    is_feature_dependent     = false,
-    supports_weights         = false,
-    docstring                = "log cosh loss; aliases: `log_cosh`.")
+    orientation              = :loss)
 
 const LogCosh = LogCoshLoss
 @create_aliases LogCoshLoss
@@ -341,7 +284,4 @@ body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ")
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))
 
-function (log_cosh::LogCoshLoss)(ŷ::Vec{<:T}, y::Vec{<:T}) where T <:Real
-    check_dimensions(ŷ, y)
-    return _log_cosh.(ŷ - y)
-end
+single(::LogCoshLoss, ŷ::Real, y::Real) = _log_cosh(ŷ - y)

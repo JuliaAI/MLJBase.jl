@@ -63,9 +63,9 @@ macro test_mach_sequence(fit_ex, sequence_exs...)
         MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
         $fit_ex
         $seq = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
-        for s in $seq
-            println(s)
-        end
+        # for s in $seq
+        #     println(s)
+        # end
         @test $seq in [$(sequence_exs...)]
     end)
 end
@@ -83,9 +83,9 @@ macro test_model_sequence(fit_ex, sequence_exs...)
         $seq = map(MLJBase.flush!(MLJBase.MACHINE_CHANNEL)) do tup
             (tup[1], tup[2].model)
         end
-        for s in $seq
-            println(s)
-        end
+        # for s in $seq
+        #     println(s)
+        # end
         @test $seq in [$(sequence_exs...)]
     end)
 end

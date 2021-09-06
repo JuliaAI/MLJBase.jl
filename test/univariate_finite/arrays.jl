@@ -250,6 +250,15 @@ end
 
 end
 
+@testset "classes" begin
+    v = categorical(collect("abca"), ordered=true)
+    u1 = UnivariateFinite([v[1], v[2]], rand(5), augment=true)
+    @test classes(u1) == collect("abc")
+    u2 = [missing, u1...]
+    @test classes(u2) == collect("abc")
+    @test_throws MLJBase.ERR_EMPTY_UNIVARIATE_FINITE classes(u2[1:1])
+end
+
 end
 
 true

@@ -1,3 +1,36 @@
+const PREDICT_OPERATIONS_STRING = begin
+    strings = map(PREDICT_OPERATIONS) do op
+        "`"*string(op)*"`"
+    end
+    join(strings, ", ", ", or ")
+end
+const ERR_WEIGHTS_REAL =
+    ArgumentError("`weights` must be a `Real` vector. ")
+const ERR_WEIGHTS_LENGTH =
+    DimensionMismatch("`weights` and target "*
+                      "have different lengths. ")
+const ERR_WEIGHTS_DICT =
+    ArgumentError("`class_weights` must be a "*
+                  "dictionary with `Real` values. ")
+const ERR_WEIGHTS_CLASSES =
+    DimensionMismatch("The keys of `class_weights` "*
+                      "are not the same as the levels of the "*
+                      "target, `y`. Do `levels(y)` to check levels. ")
+const ERR_OPERATION_MEASURE_MISMATCH = DimensionMismatch(
+    "The number of operations and the number of measures are different. ")
+const ERR_INVALID_OPERATION = ArgumentError(
+    "Invalid `operation` or `operations`. "*
+    "An operation must be one of these: $PREDICT_OPERATIONS_STRING. ")
+_ambiguous_operation(model, measure) =
+    "`prediction_type($measure) == $(prediction_type(measure))` but "*
+    "`prediction_type($model) == $(prediction_type(model))`."
+err_ambiguous_operation(model, measure) = ArgumentError(
+    _ambiguous_operation(model, measure)*
+    "\nUnable to deduce an appropriate operation for $measure. "*
+    "Explicitly specify `operation=...` or `operations=...`. ")
+err_incompatible_prediction_types(model, measure) = ArgumentError(
+    _ambiguous_operation(model, measure))
+
 # ==================================================================
 ## MODEL TYPES THAT CAN BE EVALUATED
 
@@ -410,6 +443,7 @@ end
 
 const PerformanceEvaluation = NamedTuple{(:measure,
                                           :measurement,
+                                          :operation,
                                           :per_fold,
                                           :per_observation,
                                           :fitted_params_per_fold,
@@ -426,16 +460,18 @@ _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    data = hcat(e.measure, round3.(e.measurement),
+    data = hcat(e.measure, round3.(e.measurement), e.operation,
                 [round3.(v) for v in e.per_fold])
-    header = ["_.measure", "_.measurement", "_.per_fold"]
+    header = ["measure", "measurement", "operation", "per_fold"]
+    println(io, "PerformanceEvaluation object "*
+            "with these fields:")
+    println(io, "  measure, measurement, operation, per_fold,\n"*
+            "  per_observation, fitted_params_per_fold,\n"*
+            "  report_per_fold, train_test_pairs")
+    println(io, "Extract:")
     PrettyTables.pretty_table(io, data, header;
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
-    println(io, "_.per_observation = $(_short(e.per_observation))")
-    println(io, "_.fitted_params_per_fold = [ … ]")
-    println(io, "_.report_per_fold = [ … ]")
-    println(io, "_.train_test_rows = [ … ]")
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)
@@ -458,11 +494,11 @@ function actual_rows(rows, N, verbosity)
     return _rows
 end
 
-function _check_measure(measure, model, y, operation)
+function _check_measure(measure, operation, model, y)
 
     T = scitype(y)
 
-    T == Unknown && (return nothing)
+    T == Unknown && (return true)
     target_scitype(measure) == Unknown && (return true)
     prediction_type(measure) == :unknown && (return true)
 
@@ -473,23 +509,29 @@ function _check_measure(measure, model, y, operation)
             "\nscitype of target = $T but target_scitype($measure) = "*
             "$(target_scitype(measure))."*avoid))
 
-    if model isa Probabilistic
-        if operation == predict
-            if prediction_type(measure) != :probabilistic
-                if target_scitype(measure) <: AbstractVector{<:Finite}
-                    suggestion = "\nPerhaps you want to set operation="*
-                    "predict_mode. "
-                elseif target_scitype(measure) <: AbstractVector{<:Continuous}
-                    suggestion = "\nPerhaps you want to set operation="*
-                    "predict_mean or operation=predict_median. "
-                else
-                    suggestion = ""
-                end
-                throw(ArgumentError(
-                   "\n$model <: Probabilistic but prediction_type($measure) = "*
-                      ":$(prediction_type(measure)). "*suggestion*avoid))
-            end
+    incompatible = model isa Probabilistic &&
+        operation == predict &&
+        prediction_type(measure) != :probabilistic
+
+    if incompatible
+        if target_scitype(measure) <:
+            AbstractVector{<:Union{Missing,Finite}}
+            suggestion = "\nPerhaps you want to set `operation="*
+                "predict_mode` or need to "*
+                "specify multiple operations, "*
+                "one for each measure. "
+        elseif target_scitype(measure) <:
+            AbstractVector{<:Union{Missing,Continuous}}
+            suggestion = "\nPerhaps you want to set `operation="*
+                "predict_mean` or `operation=predict_median`, or "*
+                "specify multiple operations, "*
+                "one for each measure. "
+        else
+            suggestion = ""
         end
+        throw(ArgumentError(
+            "\n$model <: Probabilistic but prediction_type($measure) = "*
+            ":$(prediction_type(measure)). "*suggestion*avoid))
     end
 
     model isa Deterministic && prediction_type(measure) != :deterministic &&
@@ -501,13 +543,16 @@ function _check_measure(measure, model, y, operation)
 
 end
 
-_check_measures(measures, model, y, operation) =
-    all(m->_check_measure(m, model, y, operation), measures)
+_check_measures(measures, operations, model, y) = begin
+    all(eachindex(measures)) do j
+        _check_measure(measures[j], operations[j], model, y)
+    end
+end
 
-function _actual_measures(measures, mach)
+function _actual_measures(measures, model)
 
     if measures === nothing
-        candidate = default_measure(mach.model)
+        candidate = default_measure(model)
         candidate ===  nothing && error("You need to specify measure=... ")
         _measures = [candidate, ]
     elseif !(measures isa AbstractVector)
@@ -519,19 +564,6 @@ function _actual_measures(measures, mach)
     return _measures
 
 end
-
-const ERR_WEIGHTS_REAL =
-    ArgumentError("`weights` must be a `Real` vector. ")
-const ERR_WEIGHTS_LENGTH =
-    DimensionMismatch("`weights` and target "*
-                      "have different lengths. ")
-const ERR_WEIGHTS_DICT =
-    ArgumentError("`class_weights` must be a "*
-                  "dictionary with `Real` values. ")
-const ERR_WEIGHTS_CLASSES =
-    DimensionMismatch("The keys of `class_weights` "*
-                      "are not the same as the levels of the "*
-                      "target, y`. Do `levels(y)` to check levels. ")
 
 function _check_weights(weights, nrows)
     weights isa AbstractVector{<:Real} ||
@@ -549,29 +581,83 @@ function _check_class_weights(weights, levels)
     return true
 end
 
-function _process_weights_measures(weights,
-                                   class_weights,
-                                   measures,
-                                   mach,
-                                   operation,
-                                   verbosity,
-                                   check_measure)
-
-     _measures = _actual_measures(measures, mach)
+function _check_weights_measures(weights,
+                                 class_weights,
+                                 measures,
+                                 mach,
+                                 operations,
+                                 verbosity,
+                                 check_measure)
 
     if check_measure || !(weights isa Nothing) || !(class_weights isa Nothing)
         y = mach.args[2]()
     end
 
-    check_measure && _check_measures(_measures, mach.model, y, operation)
+    check_measure && _check_measures(measures, operations, mach.model, y)
 
     weights isa Nothing || _check_weights(weights, nrows(y))
 
     class_weights isa Nothing ||
         _check_class_weights(class_weights, levels(y))
 
-    return _measures
+end
 
+# here `operation` is what the user has specified, and `nothing` if
+# not specified:
+_actual_operations(operation, measures, args...) =
+    _actual_operations(fill(operation, length(measures)), measures, args...)
+function _actual_operations(operation::AbstractVector, measures, args...)
+    length(measures) === length(operation) ||
+        throw(ERR_OPERATION_MEASURE_MISMATCH)
+    all(operation) do op
+        op in eval.(PREDICT_OPERATIONS)
+    end || throw(ERR_INVALID_OPERATION)
+    return operation
+end
+function _actual_operations(operation::Nothing,
+                            measures,  # vector of measures
+                            model,
+                            verbosity)
+    map(measures) do m
+
+        prediction_type = MLJBase.prediction_type(m)
+        target_scitype = MLJBase.target_scitype(m)
+
+        if prediction_type === :unknown
+            return predict
+        end
+
+        if MLJBase.prediction_type(model) === :probabilistic
+            if prediction_type === :probabilistic
+                return predict
+            elseif prediction_type === :deterministic
+                if target_scitype <: AbstractArray{<:Union{Missing,Finite}}
+                    return predict_mode
+                elseif target_scitype <:
+                    AbstractArray{<:Union{Missing,Continuous,Count}}
+                    return predict_mean
+                else
+                    throw(err_ambiguous_operation(model, m))
+                end
+            else
+                throw(err_ambiguous_operation(model, m))
+            end
+        elseif MLJBase.prediction_type(model) === :deterministic
+            if prediction_type === :probabilistic
+                throw(err_incompatible_prediction_types(model, m))
+            elseif prediction_type === :deterministic
+                return predict
+            else
+                throw(err_ambiguous_operation(model, m))
+            end
+        else
+            if prediction_type === :interval
+                return predict
+            else
+                throw(err_ambiguous_operation(model, m))
+            end
+        end
+    end
 end
 
 function _warn_about_unsupported(trait, str, measures, weights, verbosity)
@@ -620,7 +706,7 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
               rows=nothing,
               weights=nothing,
               class_weights=nothing,
-              operation=predict,
+              operation=nothing,
               repeats=1,
               acceleration=default_resource(),
               force=false,
@@ -641,6 +727,17 @@ resampling strategies. If `resampling` is not an object of type
                    (101:200), (1:100)]
 
 gives two-fold cross-validation using the first 200 rows of data.
+
+The type of operation (`predict`, `predict_mode`, etc) to be
+associated with `measure` is automatically inferred from measure
+traits where possible. For example, `predict_mode` will be used for a
+`Multiclass` target, if `model` is probabilistic but `measure` is
+deterministic. The operations applied can be inspected from the
+`operation` field of the object returned. Alternatively, operations
+can be explicitly specified using `operation=...`. If `measure` is a
+vector, then `operation` must be a single operation, which will be
+associated with all measures, or a vector of the same length as
+`measure`.
 
 The resampling strategy is applied repeatedly (Monte Carlo resampling)
 if `repeats > 1`. For example, if `repeats = 10`, then `resampling =
@@ -694,9 +791,9 @@ untouched.
   confused with per-sample `weights` or with class weights used in
   training)
 
-- `operation` - `predict`, `predict_mean`, `predict_mode` or
-  `predict_median`; `predict` is the default but cannot be used with a
-  deterministic measure if `model isa Probabilistic`
+- `operation`/`operations` - One of $PREDICT_OPERATIONS_STRING, or a
+  vector of these of the same length as
+  `measure`/`measures`. Automatically inferred if left unspecified.
 
 - `repeats` - default is 1; set to a higher value for repeated
   (Monte Carlo) resampling
@@ -721,9 +818,12 @@ these properties:
 
 - `measure`: the vector of specified measures
 
-- `measurements`: the corresponding measurements, aggregated across the
+- `measurement`: the corresponding measurements, aggregated across the
   test folds using the aggregation method defined for each measure (do
   `aggregation(measure)` to inspect)
+
+- `operation`: for each measure, the operation applied; one of:
+  $PREDICT_OPERATIONS_STRING.
 
 - `per_fold`: a vector of vectors of individual test fold evaluations
   (one vector per measure)
@@ -746,7 +846,8 @@ function evaluate!(mach::Machine{<:Measurable};
                    measure=measures,
                    weights=nothing,
                    class_weights=nothing,
-                   operation=predict,
+                   operations=nothing,
+                   operation=operations,
                    acceleration=default_resource(),
                    rows=nothing,
                    repeats=1,
@@ -755,8 +856,8 @@ function evaluate!(mach::Machine{<:Measurable};
                    verbosity=1) where M
 
     # this method just checks validity of options, preprocess the
-    # weights and measures, and dispatches a strategy-specific
-    # `evaluate!`
+    # weights, measures, operations, and dispatches a
+    # strategy-specific `evaluate!`
 
     repeats > 0 || error("Need `repeats > 0`. ")
 
@@ -771,13 +872,20 @@ function evaluate!(mach::Machine{<:Measurable};
         end
     end
 
-    _measures = _process_weights_measures(weights,
-                                          class_weights,
-                                          measure,
-                                          mach,
-                                          operation,
-                                          verbosity,
-                                          check_measure)
+    _measures = _actual_measures(measure, mach.model)
+
+    _operations = _actual_operations(operation,
+                                     _measures,
+                                     mach.model,
+                                     verbosity)
+
+    _check_weights_measures(weights,
+                            class_weights,
+                            _measures,
+                            mach,
+                            _operations,
+                            verbosity,
+                            check_measure)
 
     _warn_about_unsupported(supports_weights,
                             "Sample", _measures, weights, verbosity)
@@ -787,7 +895,7 @@ function evaluate!(mach::Machine{<:Measurable};
     _acceleration= _process_accel_settings(acceleration)
 
     evaluate!(mach, resampling, weights, class_weights, rows, verbosity,
-              repeats, _measures, operation, _acceleration, force)
+              repeats, _measures, _operations, _acceleration, force)
 
 end
 
@@ -805,8 +913,6 @@ evaluate(model::Measurable, args...; cache=true, kwargs...) =
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by
 # fold number `k` over processes/threads.
-
-
 
 # Here `func` is always going to be `fit_and_extract_on_fold`; see later
 
@@ -956,7 +1062,7 @@ end
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
-                   measures, operation, acceleration, force)
+                   measures, operations, acceleration, force)
 
     # Note: `rows` and `repeats` are ignored here
 
@@ -977,7 +1083,10 @@ function evaluate!(mach::Machine, resampling, weights,
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
-        yhat = operation(mach, rows=test) # for "back-end" sampling
+        # build a dictionary of predictions keyed on the operations
+        # that appear (`predict`, `predict_mode`, etc):
+        yhat_given_operation =
+            Dict(op=>op(mach, rows=test) for op in unique(operations))
         if feature_dependencies_exist
             Xtest = selectrows(X, test)
         else
@@ -985,12 +1094,12 @@ function evaluate!(mach::Machine, resampling, weights,
         end
         ytest = selectrows(y, test)
 
-        measurements =  map(measures) do m
+        measurements =  map(measures, operations) do m, op
             wtest = measure_specific_weights(m,
                                              weights,
                                              class_weights,
                                              test)
-            value(m, yhat, Xtest, ytest, wtest)
+            value(m, yhat_given_operation[op], Xtest, ytest, wtest)
         end
 
         fp = fitted_params(mach)
@@ -1052,6 +1161,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     ret = (measure                = measures,
            measurement            = per_measure,
+           operation              = operations,
            per_fold               = per_fold,
            per_observation        = per_observation,
            fitted_params_per_fold = fitted_params_per_fold |> collect,
@@ -1204,14 +1314,20 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...; cache=resampler.cache)
 
-    _measures =
-        _process_weights_measures(resampler.weights,
-                                  resampler.class_weights,
-                                  resampler.measure,
-                                  mach,
-                                  resampler.operation,
-                                  verbosity,
-                                  resampler.check_measure)
+    _measures = _actual_measures(resampler.measure, resampler.model)
+
+    _operations = _actual_operations(resampler.operation,
+                                     _measures,
+                                     resampler.model,
+                                     verbosity)
+
+    _check_weights_measures(resampler.weights,
+                            resampler.class_weights,
+                            _measures,
+                            mach,
+                            _operations,
+                            verbosity,
+                            resampler.check_measure)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
@@ -1223,7 +1339,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
                   verbosity - 1,
                   resampler.repeats,
                   _measures,
-                  resampler.operation,
+                  _operations,
                   _acceleration,
                   false)
 
@@ -1267,6 +1383,7 @@ function MLJModelInterface.update(resampler::Resampler,
     train_test_rows = e.train_test_rows
 
     measures = e.measure
+    operations = e.operation
 
     # update the model:
     mach2 = _update!(mach, resampler.model)
@@ -1280,7 +1397,7 @@ function MLJModelInterface.update(resampler::Resampler,
                   verbosity - 1,
                   resampler.repeats,
                   measures,
-                  resampler.operation,
+                  operations,
                   acceleration,
                   false)
 

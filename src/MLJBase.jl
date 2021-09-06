@@ -43,7 +43,8 @@ import Dates
 # Distributed computing
 using Distributed
 using ComputationalResources
-using ComputationalResources: CPUProcesses
+import ComputationalResources: CPU1, CPUProcesses, CPUThreads
+
 using ProgressMeter
 import .Threads
 
@@ -94,6 +95,9 @@ export fit, update, update_data, transform, inverse_transform,
 # data operations
 export matrix, int, classes, decoder, table,
     nrows, selectrows, selectcols, select
+
+# re-export from ComputationalResources.jl:
+export CPU1, CPUProcesses, CPUThreads
 
 # re-exports from ScientificTypes
 export Unknown, Known, Finite, Infinite,
@@ -169,7 +173,14 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 export measures, metadata_measure
 
 # measure/measures.jl (excluding traits):
-export aggregate, default_measure, value
+export aggregate, default_measure, value, skipinvalid
+
+# measures/probabilistic:
+export cross_entropy, BrierScore, brier_score,
+    BrierLoss, brier_loss,
+    LogLoss, log_loss, LogScore, log_score,
+    SphericalScore, spherical_score,
+    auc, area_under_curve, roc_curve, roc
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
@@ -184,17 +195,11 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
 export confusion_matrix, confmat, ConfusionMatrix
 
 # measures/finite.jl:
-export cross_entropy, BrierScore, brier_score,
-    BrierLoss, brier_loss,
-    LogLoss, log_loss,
-    misclassification_rate, mcr, accuracy,
+export misclassification_rate, mcr, accuracy,
     balanced_accuracy, bacc, bac, BalancedAccuracy,
     matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
     MisclassificationRate, Accuracy, MCR, BACC, BAC,
     MatthewsCorrelation
-
-# measures/finite.jl -- Multiclass{2} (order independent):
-export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,

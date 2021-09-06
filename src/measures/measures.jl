@@ -1,3 +1,6 @@
+const PROPER_SCORING_RULES = "[Gneiting and Raftery (2007), \"Strictly"*
+    "Proper Scoring Rules, Prediction, and Estimation\""*
+    "](https://doi.org/10.1198/016214506000001437)"
 const DOC_FINITE =
     "`AbstractArray{<:Finite}` (multiclass classification)"
 const DOC_FINITE_BINARY =
@@ -8,12 +11,16 @@ const DOC_ORDERED_FACTOR_BINARY =
     "`AbstractArray{<:OrderedFactor{2}}` "*
     "(binary classification where choice of \"true\" effects the measure)"
 const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
-
-## TRAITS
+const DOC_COUNT = "`AbstractArray{Count}`"
+const DOC_INFINITE = "AbstractArray{<:Infinite}"
+const INVARIANT_LABEL =
+    "This metric is invariant to class reordering."
+const VARIANT_LABEL =
+    "This metric is *not* invariant to class re-ordering"
 
 is_measure_type(::Any) = false
 
-# The following traits, with fallbacks defined in
+# Each of the following traits, with fallbacks defined in
 # StatisticalTraits.jl, make sense for some or all measures:
 
 const MEASURE_TRAITS = [:name,
@@ -30,9 +37,93 @@ const MEASURE_TRAITS = [:name,
                         :docstring,
                         :distribution_type]
 
-## FOR BUILT-IN MEASURES (subtyping Measure)
+# # FOR BUILT-IN MEASURES (subtyping Measure)
 
 abstract type Measure <: MLJType end
+abstract type Aggregated <: Measure end
+abstract type Unaggregated <: Measure end
+
+StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
+StatisticalTraits.reports_each_observation(::Type{<:Unaggregated}) = true
+
+
+# # FALLBACK CHECKS
+
+extra_check(::Measure, args...) = nothing
+function _check(measure::Measure, yhat, y)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y)
+end
+function _check(measure::Measure, yhat, y, w)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure, yhat, y, w::Arr)
+    check_dimensions(yhat, y)
+    check_dimensions(y, w)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure, yhat::Arr{<:UnivariateFinite})
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y)
+end
+function _check(measure::Measure,
+                yhat::Arr{<:UnivariateFinite},
+                y,
+                w::Arr)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure,
+                yhat::Arr{<:UnivariateFinite},
+                y,
+                w::AbstractDict)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    check_pools(yhat, w)
+    extra_check(measure, yhat, y, w)
+end
+
+
+# # METHODS TO EVALUATE MEASURES
+
+# See measures/README.md for details
+
+single(::Unaggregated, η̂::Missing, η)          = missing
+single(::Unaggregated, η̂,          η::Missing) = missing
+
+const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
+
+# closure for broadcasting:
+single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
+
+call(measure::Unaggregated, yhat, y) = broadcast(single(measure), yhat, y)
+function call(measure::Unaggregated, yhat, y, w::Arr)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    return w .* unweighted
+end
+function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    w = @inbounds broadcast(η -> weight_given_class[η], y)
+    return w .* unweighted
+end
+
+# ## Top level
+
+function (measure::Measure)(args...)
+    _check(measure, args...)
+    call(measure, args...)
+end
+
+# # TRAITS
+
+# user-bespoke measures will subtype `Measure` directly and the
+# following will therefore not apply:
+StatisticalTraits.supports_weights(::Type{<:Union{Aggregated,Unaggregated}}) =
+    true
+
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
 
@@ -49,6 +140,8 @@ end
 
 # display:
 show_as_constructed(::Type{<:Measure}) = true
+show_compact(::Type{<:Measure}) = true
+Base.show(io::IO, m::Measure) = show(io, MIME("text/plain"), m)
 
 # info (see also src/init.jl):
 function ScientificTypes.info(M, ::Val{:measure_type})
@@ -58,15 +151,15 @@ end
 ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
 
 
-## AGGREGATION
+# # AGGREGATION
 
-(::Sum)(v) = sum(skipmissing(v))
+(::Sum)(v) = sum(skipinvalid(v))
 (::Sum)(v::LittleDict) = sum(values(v))
 
-(::Mean)(v) = mean(skipmissing(v))
+(::Mean)(v) = mean(skipinvalid(v))
 (::Mean)(v::LittleDict) = mean(values(v))
 
-(::RootMeanSquare)(v) = sqrt(mean(skipmissing(v).^2))
+(::RootMeanSquare)(v) = sqrt(mean(skipinvalid(v).^2))
 
 aggregate(v, measure) = aggregation(measure)(v)
 
@@ -75,7 +168,7 @@ const MeasureValue = Union{Real,Tuple{<:Real,<:Real}} # number or interval
 aggregate(x::MeasureValue, measure) = x
 
 
-## DISPATCH FOR EVALUATION
+# # UNIVERSAL CALLING SYNTAX
 
 # yhat - predictions (point or probabilisitic)
 # X - features
@@ -90,7 +183,7 @@ function value(measure, yhat, X, y, w)
 end
 
 
-## DEFAULT EVALUATION INTERFACE
+# # UNIVERSAL CALLING INTERFACE
 
 #  is feature independent, weights not supported:
 value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)
@@ -106,7 +199,10 @@ value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
 value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
-## helpers
+# # helpers
+
+_scale(x, w::Arr, i) = x*w[i]
+_scale(x, ::Nothing, i::Any) = x
 
 function check_pools(ŷ, y)
     levels(y) == levels(ŷ[1]) ||
@@ -115,42 +211,50 @@ function check_pools(ŷ, y)
     return nothing
 end
 
-function _skipmissing(yhat, y)
-    mask = .!(ismissing.(yhat) .| ismissing.(y))
-    return yhat[mask], y[mask]
+function check_pools(ŷ, w::AbstractDict)
+    Set(levels(ŷ[1])) == Set(keys(w)) ||
+        error("Conflicting categorical pools found "*
+              "in class weights and predictions. ")
+    return nothing
 end
 
-function _skipmissing(yhat, y, w)
-    mask = .!(ismissing.(yhat) .| ismissing.(y))
-    return yhat[mask], y[mask], w[mask]
-end
 
-## INCLUDE SPECIFIC MEASURES AND TOOLS
+# # INCLUDE SPECIFIC MEASURES AND TOOLS
 
 include("meta_utilities.jl")
-include("continuous.jl")
+include("roc.jl")
 include("confusion_matrix.jl")
+include("continuous.jl")
 include("finite.jl")
+include("probabilistic.jl")
 include("loss_functions_interface.jl")
 
-## DEFAULT MEASURES
+
+# # DEFAULT MEASURES
+
 default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS
 default_measure(::Type{<:Deterministic},
-                ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}}) = rms
+                ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
+                               Vec{<:Union{Missing,Count}}}}) = rms
 
 # Deterministic + Finite ==> Misclassification rate
 default_measure(::Type{<:Deterministic},
-                ::Type{<:Vec{<:Finite}}) = misclassification_rate
+                ::Type{<:Vec{<:Union{Missing,Finite}}}) = misclassification_rate
 
-# default_measure(::Type{Probabilistic},
-#                 ::Type{<:Union{Vec{<:Continuous},
-#                                Vec{<:Count}}}) = ???
-
-# Probabilistic + Finite ==> Cross entropy
+# Probabilistic + Finite ==> log loss
 default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Finite}}) = cross_entropy
+                ::Type{<:Vec{<:Union{Missing,Finite}}}) = log_loss
+
+# Probablistic + Continuous ==> Log loss
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:Vec{<:Union{Missing,Continuous}}}) = log_loss
+
+
+# Probablistic + Count ==> Log score
+default_measure(::Type{<:Probabilistic},
+                ::Type{<:Vec{<:Union{Missing,Count}}}) = log_loss
 
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
