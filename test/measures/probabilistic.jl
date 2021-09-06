@@ -112,7 +112,7 @@ end
     norms = [norm(probs[i,:]) for i in 1:size(probs, 1)]
     @test (pdf.(yhat2, y2) ./ norms) ≈  s(yhat2, y2)
     # non-performant version:
-    yhat4 = collect(yhat2)
+    yhat4 = [yhat2...]
     @test (pdf.(yhat2, y2) ./ norms) ≈  s(yhat4, y2)
 end
 
