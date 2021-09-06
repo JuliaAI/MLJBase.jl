@@ -51,8 +51,8 @@ end
         @test cm2[i,j] == ee(l2,i,j)
     end
     @test_logs (:warn, r"The classes are un") MLJBase._confmat(ŷ, y)
-    ŷc = coerce(ŷ, OrderedFactor)
-    yc = coerce(y, OrderedFactor)
+    ŷc = coerce(ŷ, Union{Missing,OrderedFactor})
+    yc = coerce(y, Union{Missing,OrderedFactor})
     @test MLJBase._confmat(ŷc, yc).mat == cm.mat
 
     y = categorical(['a','b','a','b'])
