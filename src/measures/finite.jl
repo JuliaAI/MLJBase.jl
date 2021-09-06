@@ -905,7 +905,12 @@ function _mtn(m::CM, return_type::Type{LittleDict})
     return LittleDict(m.labels, vec(_sum))
 end
 
-_mean(x::Arr{<:Real}) = mean(skipinvalid(x))
+@inline function _mean(x::Arr{<:Real})
+    for i in eachindex(x)
+        @inbounds x[i] = ifelse(isnan(x[i]), zero(eltype(x)), x[i])
+    end
+    return mean(x)
+end
 
 @inline function _class_w(level_m::Arr{<:String},
                           class_w::AbstractDict{<:Any, <:Real})
