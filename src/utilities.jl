@@ -99,11 +99,27 @@ function recursive_setproperty!(obj, ex::Expr, value)
 end
 
 """
-    check_dimension(X, Y)
+    check_dimensions(X, Y)
 
-Check that two vectors or matrices have matching dimensions
+Internal function to check two arrays have the same shape.
+
 """
-function check_dimensions(X::AbstractVecOrMat, Y::AbstractVecOrMat)
+@inline function check_dimensions(X, Y)
+    size(X)  == size(Y) ||
+        throw(DimensionMismatch(
+            "Encountered two objects with sizes $(size(X)) and "*
+            "$(size(Y)) which needed to match but don't. "))
+    return nothing
+end
+
+"""
+    check_same_nrows(X, Y)
+
+Internal function to check two objects, each a vector or a matrix,
+have the same number of rows.
+
+"""
+@inline function check_same_nrows(X, Y)
     size(X, 1) == size(Y, 1) ||
         throw(DimensionMismatch("The two objects don't have the same " *
                                 "number of rows."))
@@ -117,22 +133,26 @@ Internal function to return a vector or matrix with permuted rows given
 the permutation `perm`.
 """
 function _permute_rows(obj::AbstractVecOrMat, perm::Vector{Int})
-    check_dimensions(obj, perm)
+    check_same_nrows(obj, perm)
     obj isa AbstractVector && return obj[perm]
     obj[perm, :]
 end
 
 """
-shuffle_rows(X::AbstractVecOrMat, Y::AbstractVecOrMat; rng::AbstractRNG = Random.GLOBAL_RNG)
+    shuffle_rows(X::AbstractVecOrMat,
+                 Y::AbstractVecOrMat;
+                 rng::AbstractRNG=Random.GLOBAL_RNG)
 
-Return shuffled vectors or matrices using a random permutation of `X` and `Y`. An optional random 
-number generator can be specified using the `rng` argument.
+Return row-shuffled vectors or matrices using a random permutation of `X`
+and `Y`. An optional random number generator can be specified using
+the `rng` argument.
+
 """
 function shuffle_rows(
     X::AbstractVecOrMat, Y::AbstractVecOrMat;
     rng::AbstractRNG=Random.GLOBAL_RNG
 )
-    check_dimensions(X, Y)
+    check_same_nrows(X, Y)
     perm_length = size(X, 1)
     perm = randperm(rng, perm_length)
     return _permute_rows(X, perm), _permute_rows(Y, perm)
@@ -142,9 +162,9 @@ end
 init_rng(rng)
 
 Create an `AbstractRNG` from `rng`. If `rng` is a non-negative `Integer`, it returns a
-`MersenneTwister` random number generator seeded with `rng`; If `rng` is 
+`MersenneTwister` random number generator seeded with `rng`; If `rng` is
 an `AbstractRNG` object it returns `rng`, otherwise it throws an error.
-""" 
+"""
 function init_rng(rng)
     if (rng isa Integer && rng > 0)
         return Random.MersenneTwister(rng)

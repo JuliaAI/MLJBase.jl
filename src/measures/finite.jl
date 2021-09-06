@@ -1,223 +1,17 @@
-# ============================================================
-# PROBABILISTIC PREDICTIONS
-
-# -----------------------------------------------------
-# LogLoss
-
-struct LogLoss{R <: Real} <: Measure
-    tol::R
-end
-LogLoss(;eps=eps(), tol=eps) = LogLoss(tol)
-
-metadata_measure(LogLoss;
-                 instances                = ["log_loss", "cross_entropy"],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
-                 prediction_type          = :probabilistic,
-                 orientation              = :loss,
-                 reports_each_observation = true,
-                 is_feature_dependent     = false,
-                 supports_weights         = false,
-                 distribution_type        = UnivariateFinite)
-
-const CrossEntropy = LogLoss
-@create_aliases LogLoss
-
-@create_docs(LogLoss,
-body=
-"""
-Since the score is undefined in the case that the true observation is
-predicted to occur with probability zero, probablities are clipped
-between `tol` and `1-tol`, where `tol` is a constructor key-word
-argument.
-
-If `sᵢ` is the predicted probability for the true class `yᵢ` then
-the score for that example is given by
-
-    -log(clamp(sᵢ, tol), 1 - tol)
-
-A score is reported for every observation.
-""",
-scitype=DOC_FINITE)
-
-# workaround for https://github.com/JuliaLang/julia/issues/41939:
-@static if VERSION < v"1.1"
-    Base.clamp(::Missing, lo::Any, hi::Any) = missing
-end
-
-# for single observation:
-_cross_entropy(d::UnivariateFinite{S,V,R,P}, y, tol) where {S,V,R,P} =
-    -log(clamp(pdf(d, y), P(tol), P(1) - P(tol)))
-
-# multiple observations:
-function (c::LogLoss)(ŷ::Arr{<:UnivariateFinite,N},
-                      y::Arr{V,N}) where {V,N}
-    check_dimensions(ŷ, y)
-#    check_pools(ŷ, y)
-    return broadcast(_cross_entropy, ŷ, y, c.tol)
-end
-# performant in case of UnivariateFiniteArray:
-function (c::LogLoss)(ŷ::UnivariateFiniteArray{S,V,R,P,N},
-                      y::ArrMissing{V,N}) where {S,V,R,P,N}
-    check_dimensions(ŷ, y)
-#    check_pools(ŷ, y)
-    return -log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
-end
-
-# -----------------------------------------------------
-# BrierScore
-
-struct BrierScore <: Measure end
-
-metadata_measure(BrierScore;
-                 human_name = "Brier score (a.k.a. quadratic score)",
-                 instances                = ["brier_score",],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
-                 prediction_type          = :probabilistic,
-                 orientation              = :score,
-                 reports_each_observation = true,
-                 is_feature_dependent     = false,
-                 supports_weights         = true,
-                 distribution_type        = UnivariateFinite)
-
-@create_aliases BrierScore
-
-@create_docs(BrierScore,
-body=
-"""
-Convention as in $PROPER_SCORING_RULES: If `p(y)` is the predicted
-probability for a *single* observation `y`, and `C` all possible
-classes, then the corresponding Brier score for that observation is
-given by
-
-``2p(y) - \\left(\\sum_{η ∈ C} p(η)^2\\right) - 1``
-
-*Warning.* `BrierScore()` is a "score" in the sense that bigger is
-better (with `0` optimal, and all other values negative). In Brier's
-original 1950 paper, and many other places, it has the opposite sign,
-despite the name. Moreover, the present implementation does not treat
-the binary case as special, so that the score may differ, in that
-case, by a factor of two from usage elsewhere.
-""",
-scitype=DOC_FINITE)
-
-# calling on single observations (no checks):
-function _brier_score(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
-    levels = classes(d)
-    pvec = broadcast(pdf, d, levels)
-    offset = P(1) + sum(pvec.^2)
-    return P(2) * pdf(d, y) - offset
-end
-
-# calling on multiple observations:
-function (::BrierScore)(ŷ::Arr{<:UnivariateFinite,N},
-                        y::Arr{V,N},
-                        w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N}
-    check_dimensions(ŷ, y)
-    w === nothing || check_dimensions(w, y)
-
-    check_pools(ŷ, y)
-    unweighted = broadcast(_brier_score, ŷ, y)
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
-end
-
-# Performant version in case of UnivariateFiniteArray:
-function (::BrierScore)(
-    ŷ::UnivariateFiniteArray{S,V,R,P,N},
-    y::ArrMissing{V,N},
-    w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
-
-    check_dimensions(ŷ, y)
-    w === nothing || check_dimensions(w, y)
-
-    isempty(y) && return P(0)
-
-    check_pools(ŷ, y)
-
-    probs = pdf(ŷ, classes(first(ŷ)))
-    offset = P(1) .+ vec(sum(probs.^2, dims=2))
-
-    unweighted = P(2) .* broadcast(pdf, ŷ, y) .- offset
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
-end
-
-# -----------------------------------------------------
-# BrierLoss
-
-struct BrierLoss <: Measure end
-
-metadata_measure(BrierLoss;
-                 human_name = "Brier loss (a.k.a. quadratic loss)",
-                 instances                = ["brier_loss",],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
-                 prediction_type          = :probabilistic,
-                 orientation              = :score,
-                 reports_each_observation = true,
-                 is_feature_dependent     = false,
-                 supports_weights         = true,
-                 distribution_type        = UnivariateFinite)
-
-@create_aliases BrierLoss
-
-@create_docs(BrierLoss,
-body=
-"""
-If `p(y)` is the predicted probability for a *single*
-observation `y`, and `C` all possible classes, then the corresponding
-Brier score for that observation is given by
-
-``\\left(\\sum_{η ∈ C} p(η)^2\\right) - 2p(y) + 1``
-
-*Warning.* In Brier's original 1950 paper, what is implemented here is
-called a "loss". It is, however, a "score" in the contemporary use of
-that term: smaller is better (with `0` optimal, and all other values
-positive).  Note also the present implementation does not treat the
-binary case as special, so that the loss may differ, in that case, by
-a factor of two from usage elsewhere.
-""",
-scitype=DOC_FINITE)
-
-# calling on single observations (no checks):
-function _brier_loss(d::UnivariateFinite{S,V,R,P}, y) where {S,V,R,P}
-    levels = classes(d)
-    pvec = broadcast(pdf, d, levels)
-    offset = P(1) + sum(pvec.^2)
-    return P(2) * pdf(d, y) - offset
-end
-
-(m::BrierLoss)(ŷ::Arr{<:UnivariateFinite,N},
-               y::Arr{V,N},
-               w::Union{Nothing,Arr{<:Real,N}}=nothing) where {V,N} =
-                   - brier_score(ŷ, y, w)
-
-const INVARIANT_LABEL =
-    "This metric is invariant to class reordering."
-const VARIANT_LABEL =
-    "This metric is *not* invariant to class re-ordering"
-
-# =============================================================
-# DETERMINISTIC FINITE PREDICTIONS
+const FiniteArrMissing{N} = Union{
+    AbstractArray{<:Union{Missing,Multiclass{N}}},
+    AbstractArray{<:Union{Missing,OrderedFactor{N}}}}
 
 # ---------------------------------------------------
 # misclassification rate
 
-struct MisclassificationRate <: Measure end
+struct MisclassificationRate <: Aggregated end
 
 metadata_measure(MisclassificationRate;
                  instances  = ["misclassification_rate", "mcr"],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteArrMissing,
                  prediction_type          = :deterministic,
-                 orientation              = :loss,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :loss)
 
 const MCR = MisclassificationRate
 @create_aliases MCR
@@ -231,25 +25,20 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-(::MCR)(ŷ, y) where {V,N} =
-    mean(skipmissing(y .!= ŷ))
-(::MCR)(ŷ, y, w) where {V,N} =
-    mean(skipmissing((y .!= ŷ) .* w))
+call(::MCR, ŷ, y) where {V,N} = (y .!= ŷ) |> Mean()
+call(::MCR, ŷ, y, w) where {V,N} = (y .!= ŷ) .* w |> Mean()
 (::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
 # accuracy
 
-struct Accuracy <: Measure end
+struct Accuracy <: Aggregated end
 
 metadata_measure(Accuracy;
                  instances = ["accuracy",],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteArrMissing,
                  prediction_type          = :deterministic,
-                 orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
-                 supports_weights         = true),
+                 orientation              = :score)
 
 @create_aliases Accuracy
 
@@ -262,22 +51,19 @@ ground truth `y[i]` observations. $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-(::Accuracy)(args...) = 1.0 - misclassification_rate(args...)
+call(::Accuracy, args...) = 1.0 - call(misclassification_rate, args...)
 (::Accuracy)(m::ConfusionMatrixObject) = sum(diag(m.mat)) / sum(m.mat)
 
 # -----------------------------------------------------------
 # balanced accuracy
 
-struct BalancedAccuracy <: Measure end
+struct BalancedAccuracy <: Aggregated end
 
 metadata_measure(BalancedAccuracy;
                  instances = ["balanced_accuracy", "bacc", "bac"],
-                 target_scitype           = Arr{<:Union{Missing,Finite}},
+                 target_scitype           = FiniteArrMissing,
                  prediction_type          = :deterministic,
-                 orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
-                 supports_weights         = true)
+                 orientation              = :score)
 
 const BACC = BalancedAccuracy
 @create_aliases BACC
@@ -291,24 +77,23 @@ $INVARIANT_LABEL
 """,
 scitype=DOC_FINITE)
 
-# calling behavior:
+function call(::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
 
-function (::BACC)(ŷ, y)
-    class_count = Dist.countmap(y)
-    ŵ = 1.0 ./ [class_count[yi] for yi in y]
-    weighted_matches = (ŷ .== y) .* ŵ
-    mask = .!(ismissing.(weighted_matches))
-    return sum(skipmissing(weighted_matches)) / sum(ŵ[mask])
-end
+    ŷ, y, w = _skipinvalid(ŷm, ym, wm)
 
-function (::BACC)(ŷm, ym, w)
-    ŷ, y, w = skipinvalid(ŷm, ym, w)
-    levels_ = levels(y)
-    ŵ = similar(w)
-    @inbounds for i in eachindex(w)
-        ŵ[i] = w[i] / sum(w .* (y .== y[i]))
+    if w == nothing
+        n_given_class = StatsBase.countmap(y)
+        freq(i) = @inbounds n_given_class[y[i]]
+        ŵ = 1 ./ freq.(eachindex(y))
+    else # following sklearn, which is non-linear
+        ŵ = similar(w)
+        @inbounds for i in eachindex(w)
+            ŵ[i] = w[i] / sum(w .* (y .== y[i]))
+        end
     end
-    return sum( (ŷ .== y) .* ŵ ) / sum(ŵ)
+    s = sum(ŵ)
+
+    return  sum((ŷ .== y) .* ŵ) / sum(ŵ)
 end
 
 
@@ -318,15 +103,13 @@ end
 # ------------------------------------------------------------------
 # Matthew's correlation
 
-struct MatthewsCorrelation <: Measure end
+struct MatthewsCorrelation <: Aggregated end
 
 metadata_measure(MatthewsCorrelation;
                  instances = ["matthews_correlation", "mcc"],
-                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+                 target_scitype           = FiniteArrMissing{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
                  supports_weights         = false)
 const MCC = MatthewsCorrelation
 @create_aliases MCC
@@ -364,67 +147,7 @@ function (::MCC)(cm::ConfusionMatrixObject{C}) where C
     return mcc
 end
 
-(m::MCC)(ŷ, y) = _confmat(ŷ, y, warn=false) |> m
-
-# ---------------------------------------------------------
-# AreaUnderCurve
-
-#. Implementation drawn from
-# https://www.ibm.com/developerworks/community/blogs/jfp/entry/Fast_Computation_of_AUC_ROC_score?lang=en
-# but this link is now broken. Author contacted here:
-# https://www.kaggle.com/c/microsoft-malware-prediction/discussion/76013.
-
-struct AreaUnderCurve <: Measure end
-
-metadata_measure(AreaUnderCurve;
-                 human_name = "area under the ROC",
-                 instances = ["area_under_curve", "auc"],
-                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
-                 prediction_type          = :probabilistic,
-                 orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
-                 supports_weights         = false)
-
-const AUC = AreaUnderCurve
-@create_aliases AreaUnderCurve
-
-@create_docs(AreaUnderCurve,
-body=
-"""
-Returns the area under the ROC ([receiver operator
-characteristic](https://en.wikipedia.org/wiki/Receiver_operating_characteristic))
-$INVARIANT_LABEL
-""",
-scitpye = DOC_FINITE_BINARY)
-
-# core algorithm:
-function _auc(::Type{P}, ŷm, ym) where P<:Real # type of probabilities
-    ŷ, y    = skipinvalid(ŷm, ym)
-    lab_pos = classes(first(ŷ))[2] # 'positive' label
-    scores  = pdf.(ŷ, lab_pos)     # associated scores
-    y_sort  = y[sortperm(scores)]  # sort by scores
-    n       = length(y)
-    n_neg   = 0  # to keep of the number of negative preds
-    auc     = P(0)
-    @inbounds for i in 1:n
-        # y[i] == lab_p --> it's a positive label in the ground truth
-        # in that case increase the auc by the cumulative sum
-        # otherwise increase the number of negatives by 1
-        δ_auc, δ_neg = ifelse(y_sort[i] == lab_pos, (n_neg, 0), (0, 1))
-        auc   += δ_auc
-        n_neg += δ_neg
-    end
-    n_pos = n - n_neg
-    return auc / (n_neg * n_pos)
-end
-
-# calling behaviour:
-(::AUC)(ŷ::Arr{<:UnivariateFinite}, y) = _auc(Float64, ŷ, y)
-
-# performant version for UnivariateFiniteVector:
-(::AUC)(ŷ::Arr{<:UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
-    _auc(P, ŷ, y)
+call(m::MCC, ŷ, y) = _confmat(ŷ, y, warn=false) |> m
 
 
 # ==========================================================================
@@ -435,7 +158,7 @@ const CM2 = ConfusionMatrixObject{2}
 # --------------------------------------------------------------------------
 # FScore
 
-struct FScore{T<:Real} <: Measure
+struct FScore{T<:Real} <: Aggregated
     β::T
     rev::Union{Nothing,Bool}
 end
@@ -445,11 +168,9 @@ FScore(; β=1.0, rev=nothing) = FScore(β, rev)
 metadata_measure(FScore;
                  human_name = "F-Score",
                  instances = ["f1score",],
-                 target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+                 target_scitype           = FiniteArrMissing{2},
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
                  supports_weights         = false)
 
 @create_aliases FScore
@@ -480,7 +201,7 @@ function (score::FScore)(m::CM2)
 end
 
 # calling on arrays:
-(m::FScore)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+call(m::FScore, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 
 # -------------------------------------------------------------------------
 # TruePositive and its cousins - struct and metadata declerations
@@ -493,45 +214,37 @@ const TRUE_POSITIVE_AND_COUSINS =
 
 for M in TRUE_POSITIVE_AND_COUSINS
     ex = quote
-        struct $M <: Measure rev::Union{Nothing,Bool} end
+        struct $M <: Aggregated rev::Union{Nothing,Bool} end
         $M(; rev=nothing) = $M(rev)
     end
     eval(ex)
 end
 
 metadata_measure.((FalsePositive, FalseNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteArrMissing{2},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     aggregation              = Sum(),
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((FalsePositiveRate, FalseNegativeRate, FalseDiscoveryRate);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteArrMissing{2},
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((TruePositive, TrueNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteArrMissing{2},
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     aggregation              = Sum(),
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 metadata_measure.((TruePositiveRate, TrueNegativeRate, Precision,
                    NegativePredictiveValue);
-    target_scitype           = Arr{<:Union{Missing,Finite{2}}},
+    target_scitype           = FiniteArrMissing{2},
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
-    is_feature_dependent     = false,
     supports_weights         = false)
 
 # adjustments:
@@ -645,19 +358,22 @@ _npv(m::CM2) = _tn(m) / (_tn(m) + _fn(m))
 (::NPV)(m::CM2) = _npv(m)
 (::Precision)(m::CM2) = 1.0 - _fdr(m)
 
-# on vectors (ŷ, y):
+# on arrays (ŷ, y):
 for M_ex in TRUE_POSITIVE_AND_COUSINS
-    local M = eval(M_ex)
-    (m::M)(ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
+    @eval call(m::$M_ex, ŷ, y) = _confmat(ŷ, y; rev=m.rev) |> m
 end
 
-# special `precision` case (conflict with Base.precision):
+# since Base.precision exists (as single argument function) we
+# manually overload Base.precision:
 Base.precision(m::CM2) = m |> Precision()
-Base.precision(ŷ, y)   = _confmat(ŷ, y) |> Precision()
+function Base.precision(ŷ, y)
+    _check(Precision(), ŷ, y)
+    call(Precision(), ŷ, y)
+end
 
 
 # =================================================================
-#MULTICLASS AND ORDER INDEPENDENT
+# MULTICLASS AND ORDER INDEPENDENT
 
 const CM = ConfusionMatrixObject{N} where N
 
@@ -700,7 +416,7 @@ For more information, run `info(MulticlassFScore)`.
 """
 struct MulticlassFScore{T<:Real,
                         M<:MulticlassAvg,
-                        U<:Union{Vector, LittleDict}} <:Measure
+                        U<:Union{Vector, LittleDict}} <:Aggregated
     β::T
     average::M
     return_type::Type{U}
@@ -712,11 +428,9 @@ MulticlassFScore(; β=1.0, average=macro_avg, return_type=LittleDict) =
 metadata_measure(MulticlassFScore;
                  instances = ["macro_f1score", "micro_f1score",
                               "multiclass_f1score"],
-                 target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+                 target_scitype           = FiniteArrMissing,
                  prediction_type          = :deterministic,
                  orientation              = :score,
-                 reports_each_observation = false,
-                 is_feature_dependent     = false,
                  supports_weights         = false,
                  supports_class_weights   = true)
 
@@ -733,7 +447,7 @@ const multiclass_f1score = MulticlassFScore(average=macro_avg)
 for M in (:MulticlassTruePositive, :MulticlassTrueNegative,
           :MulticlassFalsePositive, :MulticlassFalseNegative)
     ex = quote
-        struct $M{U<:Union{Vector, LittleDict}} <: Measure
+        struct $M{U<:Union{Vector, LittleDict}} <: Aggregated
             return_type::Type{U}
         end
 #        $M(return_type::Type{U}) where {U} = $M(return_type)
@@ -752,7 +466,7 @@ for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
           :MulticlassFalseDiscoveryRate, :MulticlassPrecision,
           :MulticlassNegativePredictiveValue)
     ex = quote
-        struct $M{T<:MulticlassAvg, U<:Union{Vector, LittleDict}} <: Measure
+        struct $M{T<:MulticlassAvg, U<:Union{Vector, LittleDict}} <: Aggregated
             average::T
             return_type::Type{U}
         end
@@ -767,10 +481,9 @@ for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
 end
 
 metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     aggregation               = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false,
@@ -778,38 +491,34 @@ metadata_measure.((MulticlassFalsePositive, MulticlassFalseNegative);
 
 metadata_measure.((MulticlassFalsePositiveRate, MulticlassFalseNegativeRate,
                    MulticlassFalseDiscoveryRate);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :loss,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositive, MulticlassTrueNegative);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     aggregation              = Sum(),
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = false)
 
 metadata_measure.((MulticlassTrueNegativeRate, MulticlassNegativePredictiveValue);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)
 
 metadata_measure.((MulticlassTruePositiveRate, MulticlassPrecision);
-    target_scitype           = Arr{<:Union{Missing,Finite{N}}} where N,
+    target_scitype           = FiniteArrMissing,
     prediction_type          = :deterministic,
     orientation              = :score,
-    reports_each_observation = false,
     is_feature_dependent     = false,
     supports_weights         = false,
     supports_class_weights   = true)
@@ -1163,7 +872,7 @@ const MNPV                                 = MulticlassNegativePredictiveValue
 
 
 # -----------------------------------------------------
-## INTERNAL FUCNTIONS ON MULTICLASS CONFUSION MATRIX
+## INTERNAL FUNCTIONS ON MULTICLASS CONFUSION MATRIX
 
 _mtp(m::CM, return_type::Type{Vector}) = diag(m.mat)
 _mtp(m::CM, return_type::Type{LittleDict}) =
@@ -1411,9 +1120,8 @@ end
 
 (p::MulticlassPrecision)(m::CM) =
     _mc_helper_b(m, _mfdr, p.average, p.return_type)
-function (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real})
-    return _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
-end
+(p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real}) =
+    _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 
 @inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
                     average::NoAvg, return_type::Type{LittleDict})
@@ -1481,103 +1189,16 @@ function (f::MulticlassFScore)(m::CM, class_w::AbstractDict{<:Any, <:Real})
     return _fs_helper(m, class_w, f.β, f.average, f.return_type)
 end
 
-## Callables on vectors
+## Callables on arrays
 
-for M in (MulticlassTruePositive, MulticlassTrueNegative,
-          MulticlassFalsePositive, MulticlassFalseNegative)
-    (m::M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
+for M_ex in (:MulticlassTruePositive, :MulticlassTrueNegative,
+          :MulticlassFalsePositive, :MulticlassFalseNegative)
+    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
 end
 
-for M in (MTPR, MTNR, MFPR, MFNR, MFDR, MulticlassPrecision, MNPV,
-          MulticlassFScore)
-    @eval (m::$M)(ŷ, y) = m(_confmat(ŷ, y, warn=false))
-    @eval (m::$M)(ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
-                          m(_confmat(ŷ, y, warn=false), class_w)
+for M_ex in (:MTPR, :MTNR, :MFPR, :MFNR, :MFDR, :MulticlassPrecision, :MNPV,
+          :MulticlassFScore)
+    @eval call(m::$M_ex, ŷ, y) = m(_confmat(ŷ, y, warn=false))
+    @eval call(m::$M_ex, ŷ, y, class_w::AbstractDict{<:Any, <:Real}) =
+        m(_confmat(ŷ, y, warn=false), class_w)
 end
-
-
-## ROC COMPUTATION
-
-"""
-    _idx_unique_sorted(v)
-
-Internal function to return the index of unique elements in `v` under the
-assumption that the vector `v` is sorted in decreasing order.
-"""
-function _idx_unique_sorted(v::Vec{<:Real})
-    n    = length(v)
-    idx  = ones(Int, n)
-    p, h = 1, 1
-    cur  = v[1]
-    @inbounds while h < n
-        h     += 1                  # head position
-        cand   = v[h]               # candidate value
-        cand   < cur || continue    # is it new? otherwise skip
-        p     += 1                  # if new store it
-        idx[p] = h
-        cur    = cand               # and update the last seen value
-    end
-    p < n && deleteat!(idx, p+1:n)
-    return idx
-end
-
-"""
-    fprs, tprs, ts = roc_curve(ŷ, y) = roc(ŷ, y)
-
-Return the ROC curve for a two-class probabilistic prediction `ŷ` given the
-ground  truth `y`. The true positive rates, false positive rates over a range
-of thresholds `ts` are returned. Note that if there are `k` unique scores,
-there are correspondingly  `k` thresholds and `k+1` "bins" over which the FPR
-and TPR are constant:
-
-* `[0.0 - thresh[1]]`
-* `[thresh[1] - thresh[2]]`
-* ...
-* `[thresh[k] - 1]`
-
-consequently, `tprs` and `fprs` are of length `k+1` if `ts` is of length `k`.
-
-To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
-"""
-function roc_curve(ŷm, ym)
-    ŷ, y    = skipinvalid(ŷm, ym)
-    n       = length(y)
-    lab_pos = levels(y)[2]
-    scores  = pdf.(ŷ, lab_pos)
-    ranking = sortperm(scores, rev=true)
-
-    scores_sort = scores[ranking]
-    y_sort_bin  = (y[ranking] .== lab_pos)
-
-    idx_unique = _idx_unique_sorted(scores_sort)
-    thresholds = scores_sort[idx_unique]
-
-    # detailed computations with example:
-    # y = [  1   0   0   1   0   0   1]
-    # s = [0.5 0.5 0.2 0.2 0.1 0.1 0.1] thresh are 0.5 0.2, 0.1 // idx [1, 3, 5]
-    # ŷ = [  0   0   0   0   0   0   0] (0.5 - 1.0] # no pos pred
-    # ŷ = [  1   1   0   0   0   0   0] (0.2 - 0.5] # 2 pos pred
-    # ŷ = [  1   1   1   1   0   0   0] (0.1 - 0.2] # 4 pos pred
-    # ŷ = [  1   1   1   1   1   1   1] [0.0 - 0.1] # all pos pre
-
-    idx_unique_2 = idx_unique[2:end]   # [3, 5]
-    n_ŷ_pos      = idx_unique_2 .- 1   # [2, 4] implicit [0, 2, 4, 7]
-
-    cs   = cumsum(y_sort_bin)          # [1, 1, 1, 2, 2, 2, 3]
-    n_tp = cs[n_ŷ_pos]                 # [1, 2] implicit [0, 1, 2, 3]
-    n_fp = n_ŷ_pos .- n_tp             # [1, 2] implicit [0, 1, 2, 4]
-
-    # add end points
-    P = sum(y_sort_bin) # total number of true positives
-    N = n - P           # total number of true negatives
-
-    n_tp = [0, n_tp..., P] # [0, 1, 2, 3]
-    n_fp = [0, n_fp..., N] # [0, 1, 2, 4]
-
-    tprs = n_tp ./ P  # [0/3, 1/3, 2/3, 1]
-    fprs = n_fp ./ N  # [0/4, 1/4, 2/4, 1]
-
-    return fprs, tprs, thresholds
-end
-
-const roc = roc_curve

@@ -249,3 +249,17 @@ function Base.Broadcast.broadcasted(::typeof(mode),
     end
     return reshape(mode_flat, size(u))
 end
+
+## EXTENSION OF CLASSES TO ARRAYS OF UNIVARIATE FINITE
+
+# We already have `classes(::UnivariateFininiteArray)
+
+const ERR_EMPTY_UNIVARIATE_FINITE = ArgumentError(
+    "No `UnivariateFinite` object found from which to extract classes. ")
+
+function MMI.classes(::FullInterface,
+                     yhat::AbstractArray{<:Union{Missing,UnivariateFinite}})
+    i = findfirst(x->!ismissing(x), yhat)
+    i === nothing && throw(ERR_EMPTY_UNIVARIATE_FINITE)
+    return classes(yhat[i])
+end

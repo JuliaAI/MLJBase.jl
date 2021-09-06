@@ -360,3 +360,55 @@ MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
                             arg) = transform_(CategoricalArrays.pool(e), arg)
 MLJModelInterface.transform(e::CategoricalPool, arg) =
     transform_(e, arg)
+
+
+## SKIPPING MISSING AND NAN: skipinvalid
+
+const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
+    "Trying to aggregrate an empty collection of measurements. Perhaps all "*
+    "measuresments are `missing` or `NaN`. ")
+
+_isnan(x) = false
+_isnan(x::Number) = isnan(x)
+
+skipnan(x) = Iterators.filter(!_isnan, x)
+
+"""
+    skipinvalid(itr)
+
+Return an iterator over the elements in `itr` skipping `missing` and
+`NaN` values. Behaviour is similar to [`skipmissing`](@ref).
+
+    skipinvalid(A, B)
+
+For vectors `A` and `B` of the same length, return a tuple of vectors
+`(A[mask], B[mask])` where `mask[i]` is `true` if and only if `A[i]`
+and `B[i]` are both valid (non-`missing` and non-`NaN`). Can also
+called on other iterators of matching length, such as arrays, but
+always returns a vector. Does not remove `Missing` from the element
+types if present in the original iterators.
+"""
+@inline function skipinvalid(v)
+    ret = v |> skipmissing |> skipnan
+    isempty(ret) && throw(ERR_NOTHING_LEFT_TO_AGGREGATE)
+    return ret
+end
+
+isinvalid(x) = ismissing(x) || _isnan(x)
+
+function skipinvalid(yhat, y)
+    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
+    return yhat[mask], y[mask]
+end
+
+# TODO: refactor balanced accuracy to get rid of these:
+
+function _skipinvalid(yhat, y, w::Arr)
+    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
+    return yhat[mask], y[mask], w[mask]
+end
+
+function _skipinvalid(yhat, y, w::Union{Nothing,AbstractDict})
+    mask = .!(isinvalid.(yhat) .| isinvalid.(y))
+    return yhat[mask], y[mask], w
+end

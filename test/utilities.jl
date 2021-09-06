@@ -59,10 +59,10 @@ end
     x = randn(rng, 5)
     y = randn(rng, 5, 5)
     z = randn(rng, 5, 5)
-    @test MLJBase.check_dimensions(x, y) === nothing
-    @test MLJBase.check_dimensions(z, x) === nothing
-    @test MLJBase.check_dimensions(y, z) === nothing
-    @test_throws DimensionMismatch MLJBase.check_dimensions(x, randn(rng, 4))
+    @test MLJBase.check_same_nrows(x, y) === nothing
+    @test MLJBase.check_same_nrows(z, x) === nothing
+    @test MLJBase.check_same_nrows(y, z) === nothing
+    @test_throws DimensionMismatch MLJBase.check_same_nrows(x, randn(rng, 4))
 
     x = 1:5 |> collect
     y = 1:5 |> collect

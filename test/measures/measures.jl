@@ -8,6 +8,8 @@ import LossFunctions
 using StableRNGs
 using OrderedCollections: LittleDict
 
+rng  = StableRNGs.StableRNG(123)
+
 @testset "aggregation" begin
     v = rand(5)
     @test aggregate(v, mae) ≈ mean(v)
@@ -37,7 +39,33 @@ end
     @test reports_each_observation(auc) == false
     @test is_feature_dependent(auc) == false
 
-    @test MLJBase.distribution_type(BrierScore) == MLJBase.UnivariateFinite
+    @test MLJBase.distribution_type(auc) == MLJBase.UnivariateFinite
+end
+
+@testset "MLJBase.value" begin
+    yhat = randn(rng,5)
+    X = (weight=randn(rng,5), x1 = randn(rng,5))
+    y = randn(rng,5)
+    w = randn(rng,5)
+
+    @test MLJBase.value(mae, yhat, nothing, y, nothing) ≈ mae(yhat, y)
+    @test MLJBase.value(mae, yhat, nothing, y, w) ≈ mae(yhat, y, w)
+
+    spooky(yhat, y) = abs.(yhat - y) |> mean
+    @test MLJBase.value(spooky, yhat, nothing, y, nothing) ≈ mae(yhat, y)
+
+    cool(yhat, y, w) = abs.(yhat - y) .* w |> mean
+    MLJBase.supports_weights(::Type{typeof(cool)}) = true
+    @test MLJBase.value(cool, yhat, nothing, y, w) ≈ mae(yhat, y, w)
+
+    funky(yhat, X, y) = X.weight .* abs.(yhat - y) |> mean
+    MLJBase.is_feature_dependent(::Type{typeof(funky)}) = true
+    @test MLJBase.value(funky, yhat, X, y, nothing) ≈ mae(yhat, y, X.weight)
+
+    weird(yhat, X, y, w) = w .* X.weight .* abs.(yhat - y) |> mean
+    MLJBase.is_feature_dependent(::Type{typeof(weird)}) = true
+    MLJBase.supports_weights(::Type{typeof(weird)}) = true
+    @test MLJBase.value(weird, yhat, X, y, w) ≈ mae(yhat, y, X.weight .* w)
 end
 
 mutable struct DRegressor <: Deterministic end
@@ -56,22 +84,35 @@ mutable struct PClassifier <: Probabilistic end
 MLJBase.target_scitype(::Type{<:PClassifier}) =
     AbstractVector{<:Finite}
 
+mutable struct PRegressor <: Probabilistic end
+MLJBase.target_scitype(::Type{<:PRegressor}) =
+    AbstractVector{<:Continuous}
+
+mutable struct PCountRegressor <: Probabilistic end
+MLJBase.target_scitype(::Type{<:PCountRegressor}) =
+    AbstractVector{<:Count}
+
 @testset "default_measure" begin
     @test MLJBase.default_measure(DRegressor()) == rms
     @test MLJBase.default_measure(D2Regressor()) == rms
     @test MLJBase.default_measure(DClassifier()) == misclassification_rate
-    @test MLJBase.default_measure(PClassifier()) == cross_entropy
+    @test MLJBase.default_measure(PClassifier()) == log_loss
 
     @test MLJBase.default_measure(DRegressor) == rms
     @test MLJBase.default_measure(D2Regressor) == rms
     @test MLJBase.default_measure(DClassifier) == misclassification_rate
-    @test MLJBase.default_measure(PClassifier) == cross_entropy
+    @test MLJBase.default_measure(PClassifier) == log_loss
+
+    @test MLJBase.default_measure(PRegressor) == log_loss
+    @test MLJBase.default_measure(PCountRegressor) == log_loss
 end
 
+include("confusion_matrix.jl")
+include("roc.jl")
 include("continuous.jl")
 include("finite.jl")
+include("probabilistic.jl")
 include("loss_functions_interface.jl")
-include("confusion_matrix.jl")
 
 @testset "show method for measures" begin
     io = IOBuffer()
@@ -86,22 +127,6 @@ end
     @test MLJBase.Sum()(v) == 8
     @test MLJBase.RootMeanSquare()(v) ≈ sqrt((1 + 4 + 25)/3)
     @test_throws MLJBase.ERR_NOTHING_LEFT_TO_AGGREGATE MLJBase.Mean()(Float32[])
-end
-
-@testset "skipinvalid" begin
-    w = rand(5)
-    @test MLJBase.skipinvalid([1, 2, missing, 3, NaN], [missing, 5, 6, 7, 8]) ==
-        ([2, 3], [5, 7])
-    @test(
-        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
-                            [missing, 5, 6, 7, 8],
-                            w) ==
-        ([2, 3], [5, 7], w[[2,4]]))
-    @test(
-        MLJBase.skipinvalid([1, 2, missing, 3, NaN],
-                            [missing, 5, 6, 7, 8],
-                            nothing) ==
-        ([2, 3], [5, 7], nothing))
 end
 
 end

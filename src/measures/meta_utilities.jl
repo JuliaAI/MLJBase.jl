@@ -98,13 +98,12 @@ function metadata_measure(T; name::String="",
                           target_scitype=Unknown,
                           prediction_type::Symbol=:unknown,
                           orientation::Symbol=:unknown,
-                          reports_each_observation::Bool=true,
                           aggregation=Mean(),
                           is_feature_dependent::Bool=false,
-                          supports_weights::Bool=false,
+                          supports_weights::Bool=true,
                           supports_class_weights::Bool=false,
                           docstring::String="",
-                          distribution_type=missing)
+                          distribution_type=Unknown)
     pred_str        = "$prediction_type"
     orientation_str = "$orientation"
 #    dist = ifelse(ismissing(distribution_type), missing, "$distribution_type")
@@ -112,28 +111,29 @@ function metadata_measure(T; name::String="",
 
         # traits common with models:
         if !isempty($name)
-            MMI.name(::Type{<:$T}) = $name
+            StatisticalTraits.name(::Type{<:$T}) = $name
         end
         if !isempty($docstring)
-            MMI.docstring(::Type{<:$T}) = $docstring
+            StatisticalTraits.docstring(::Type{<:$T}) = $docstring
         end
-        MMI.target_scitype(::Type{<:$T}) = $target_scitype
-        MMI.prediction_type(::Type{<:$T}) = Symbol($pred_str)
-        MMI.supports_weights(::Type{<:$T}) = $supports_weights
+        StatisticalTraits.target_scitype(::Type{<:$T}) = $target_scitype
+        StatisticalTraits.prediction_type(::Type{<:$T}) = Symbol($pred_str)
+        StatisticalTraits.supports_weights(::Type{<:$T}) = $supports_weights
 
         # traits specific to measures:
         if !isempty($instances)
-            instances(::Type{<:$T}) = $instances
+            StatisticalTraits.instances(::Type{<:$T}) = $instances
         end
         if !isempty($human_name)
-            human_name(::Type{<:$T}) = $human_name
+            StatisticalTraits.human_name(::Type{<:$T}) = $human_name
         end
-        orientation(::Type{<:$T}) = Symbol($orientation_str)
-        reports_each_observation(::Type{<:$T}) = $reports_each_observation
-        aggregation(::Type{<:$T}) = $aggregation
-        is_feature_dependent(::Type{<:$T}) = $is_feature_dependent
-        supports_class_weights(::Type{<:$T}) = $supports_class_weights
-        distribution_type(::Type{<:$T}) = $distribution_type
+        StatisticalTraits.orientation(::Type{<:$T}) = Symbol($orientation_str)
+        StatisticalTraits.aggregation(::Type{<:$T}) = $aggregation
+        StatisticalTraits.is_feature_dependent(::Type{<:$T}) =
+            $is_feature_dependent
+        StatisticalTraits.supports_class_weights(::Type{<:$T}) =
+            $supports_class_weights
+        StatisticalTraits.distribution_type(::Type{<:$T}) = $distribution_type
 
     end
     parentmodule(T).eval(ex)

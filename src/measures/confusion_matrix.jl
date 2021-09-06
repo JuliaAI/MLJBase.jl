@@ -31,10 +31,23 @@ end
 # allow to access cm[i,j] but not set (it's immutable)
 Base.getindex(cm::ConfusionMatrixObject, inds...) = getindex(cm.mat, inds...)
 
+_levels(y1, y2) = vcat(levels(y1), levels(y2)) |> unique
+
+# simultaneous coercion of two vectors into categorical vectors having
+# the same pool:
+function _categorical(y1, y2)
+    L = _levels(y1, y2)
+    return categorical(y1, levels=L), categorical(y2, levels=L)
+end
+_categorical(y1::CategoricalArray{V1,N},
+             y2::CategoricalArray{V2,N}) where
+    {V, V1<:Union{Missing,V}, V2<:Union{Missing,V}, N} =
+    y1, y2
+
 """
     _confmat(ŷ, y; rev=false)
 
-A private method. General users should use `confmat` or other instance
+A private method. General users should use `confmat` or other instances
 of the measure type [`ConfusionMatrix`](@ref).
 
 Computes the confusion matrix given a predicted `ŷ` with categorical elements
@@ -66,13 +79,15 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target.
 
 """
-function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
+function _confmat(ŷraw::Union{Arr{V1,N}, CategoricalArray{V1,N}},
+                  yraw::Union{Arr{V2,N}, CategoricalArray{V2,N}};
                   rev::Union{Nothing,Bool}=nothing,
                   perm::Union{Nothing,Vector{<:Integer}}=nothing,
-                  warn::Bool=true) where {T,N}
+                  warn::Bool=true) where
+    {V,V1<:Union{Missing,V}, V2<:Union{Missing,V},N}
 
-    check_dimensions(ŷm, ym)
-    ŷ, y = skipinvalid(ŷm, ym)
+    # no-op if vectors already categorical arrays:
+    ŷ, y = _categorical(ŷraw, yraw)
 
     levels_ = levels(y)
     nc = length(levels_)
@@ -91,15 +106,19 @@ function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
 
     # warning
     if rev === nothing && perm === nothing
+        S = nonmissingtype(elscitype(y))
         if warn &&
-            if nc==2 && !(scitype_union(y) >: OrderedFactor{2})
+            if nc==2 &&  !(S <: OrderedFactor)
                 @warn "The classes are un-ordered,\n" *
-                      "using: negative='$(levels_[1])' and positive='$(levels_[2])'.\n" *
-                      "To suppress this warning, consider coercing to OrderedFactor."
-            elseif !(scitype_union(y) >: OrderedFactor{nc})
+                    "using: negative='$(levels_[1])' "*
+                    "and positive='$(levels_[2])'.\n" *
+                    "To suppress this warning, consider coercing "*
+                    "to OrderedFactor."
+            elseif !(S <: OrderedFactor)
                 @warn "The classes are un-ordered,\n" *
                       "using order: $([l for l in levels_]).\n" *
-                      "To suppress this warning, consider coercing to OrderedFactor."
+                      "To suppress this warning, consider "*
+                      "coercing to OrderedFactor."
             end
         end
         rev  = false
@@ -117,6 +136,7 @@ function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
     if isempty(perm)
         cmat = zeros(Int, nc, nc)
         @inbounds for i in eachindex(y)
+            (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
             cmat[int(ŷ[i]), int(y[i])] += 1
         end
         return ConfusionMatrixObject(cmat, string.(levels_))
@@ -126,6 +146,7 @@ function _confmat(ŷm::CatArrMissing{T,N}, ym::CatArrMissing{T,N};
     cmat = zeros(Int, nc, nc)
     iperm = invperm(perm)
     @inbounds for i in eachindex(y)
+        (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
         cmat[iperm[int(ŷ[i])], iperm[int(y[i])]] += 1
     end
     return ConfusionMatrixObject(cmat, string.(levels_[perm]))
@@ -196,7 +217,7 @@ end
 
 ## CONFUSION MATRIX AS MEASURE
 
-struct ConfusionMatrix <: Measure
+struct ConfusionMatrix <: Aggregated
     perm::Union{Nothing,Vector{<:Integer}}
 end
 
@@ -206,7 +227,8 @@ is_measure(::ConfusionMatrix) = true
 is_measure_type(::Type{ConfusionMatrix}) = true
 human_name(::Type{<:ConfusionMatrix}) = "confusion matrix"
 target_scitype(::Type{ConfusionMatrix}) =
-    AbstractVector{<:Union{Missing,Finite}}
+    Union{AbstractVector{<:Union{Missing,OrderedFactor}},
+          AbstractVector{<:Union{Missing,OrderedFactor}}}
 supports_weights(::Type{ConfusionMatrix}) = false
 prediction_type(::Type{ConfusionMatrix}) = :deterministic
 instances(::Type{<:ConfusionMatrix}) = ["confusion_matrix", "confmat"]
@@ -227,12 +249,12 @@ The ordering follows that of `levels(y)`.
 Use `ConfusionMatrix(perm=[2, 1])` to reverse the class order for binary
 data. For more than two classes, specify an appropriate permutation, as in
 `ConfusionMatrix(perm=[2, 3, 1])`.
+
 """,
 scitype=DOC_ORDERED_FACTOR_BINARY)
 
 # calling behaviour:
-(m::ConfusionMatrix)(ŷ, y) =
-    _confmat(ŷ, y, perm=m.perm)
+call(m::ConfusionMatrix, ŷ, y) = _confmat(ŷ, y, perm=m.perm)
 
 # overloading addition to make aggregation work:
 Base.round(m::MLJBase.ConfusionMatrixObject; kws...) = m
