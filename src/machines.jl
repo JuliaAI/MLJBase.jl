@@ -114,7 +114,7 @@ err_length_mismatch(model::Supervised) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
-check(model::Any, args...; kwargs) =
+check(model::Any, args...; kwargs...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
 
 function check(model::Model, args...; full=false)

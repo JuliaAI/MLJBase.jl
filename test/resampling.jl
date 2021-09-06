@@ -455,7 +455,8 @@ end
     d = Distributions.fit(MLJBase.UnivariateFinite, y)
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
-    @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈ d for fold in folds])
+    @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈
+               d for fold in folds])
 end
 
 @testset_accelerated "sample weights in evaluation" accel begin
@@ -716,14 +717,14 @@ end
 
         #resampler as a machine with class weights specified
         cweval = Dict(zip(levels(y), rand(length(levels(y)))));
-        resampler = Resampler(model=model, resampling=CV();
+        resampler = Resampler(model=model, resampling=CV(nfolds=2);
                               measure=MulticlassFScore(return_type=Vector),
                               class_weights=cweval, acceleration=accel)
         resampling_machine = machine(resampler, X, y, cache=false)
         fit!(resampling_machine, verbosity=verb)
         e1   = evaluate(resampling_machine).measurement[1]
         mach = machine(model, X, y, cache=cache)
-        e2   = evaluate!(mach, resampling=CV();
+        e2   = evaluate!(mach, resampling=CV(nfolds=2);
                          measure=MulticlassFScore(return_type=Vector),
                          class_weights=cweval,
                          acceleration=accel,
@@ -735,13 +736,13 @@ end
 
     @testset "warnings about measures not supporting weights" begin
         model = ConstantClassifier()
-        X = (x = [1, 2, 3, 4],)
-        y = categorical(["a", "b", "b", "b"])
-        class_weights = Dict("a"=>0.4, "b"=>0.6)
+        N = 100
+        X, y = make_moons(N)
+        class_weights = Dict(0=>0.4, 1=>0.6)
         @test_logs((:warn, r"Sample weights"),
                    evaluate(model, X, y,
                             resampling=Holdout(fraction_train=0.5),
-                            measure=auc, weights=ones(4)))
+                            measure=auc, weights=ones(N)))
         @test_logs((:warn, r"Class weights"),
                    evaluate(model, X, y,
                             resampling=Holdout(fraction_train=0.5),

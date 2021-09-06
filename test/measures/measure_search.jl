@@ -14,7 +14,8 @@ end
     end
 end
 
-task(m) = AbstractVector{<:Finite} <: m.target_scitype
+S = AbstractVector{Union{Missing,Multiclass{3}}}
+task(m) = S <: m.target_scitype
 
 ms = map(measures(task)) do m
     m.name
@@ -29,7 +30,7 @@ ms = map(measures(task)) do m
     m.name
 end
 
-@test !("LogLoss" in ms)
+@test !("Accuracy" in ms)
 @test "RootMeanSquaredError"  in ms
 
 ms = map(measures("Brier")) do  m
@@ -37,4 +38,5 @@ ms = map(measures("Brier")) do  m
 end
 
 @test Set(ms) == Set(["BrierLoss", "BrierScore"])
+
 true

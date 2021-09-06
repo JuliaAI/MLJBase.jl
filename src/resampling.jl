@@ -32,6 +32,17 @@ err_incompatible_prediction_types(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure))
 
 # ==================================================================
+## MODEL TYPES THAT CAN BE EVALUATED
+
+# not exported:
+const Measurable = Union{Supervised,
+                         ProbabilisticSupervisedDetector,
+                         ProbabilisticUnsupervisedDetector,
+                         DeterministicSupervisedDetector,
+                         DeterministicUnsupervisedDetector}
+
+
+# ==================================================================
 ## RESAMPLING STRATEGIES
 
 abstract type ResamplingStrategy <: MLJType end
@@ -457,7 +468,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "  measure, measurement, operation, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_pairs")
-    println(io, "extract:")
+    println(io, "Extract:")
     PrettyTables.pretty_table(io, data, header;
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
@@ -829,7 +840,7 @@ these properties:
    machine `mach` training in resampling
 
 """
-function evaluate!(mach::Machine{<:Supervised};
+function evaluate!(mach::Machine{<:Measurable};
                    resampling=CV(),
                    measures=nothing,
                    measure=measures,
@@ -842,7 +853,7 @@ function evaluate!(mach::Machine{<:Supervised};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1)
+                   verbosity=1) where M
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
@@ -896,7 +907,7 @@ wk_options...)`.  See the machine version `evaluate!` for the complete
 list of options.
 
 """
-evaluate(model::Supervised, args...; cache=true, kwargs...) =
+evaluate(model::Measurable, args...; cache=true, kwargs...) =
     evaluate!(machine(model, args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
@@ -1233,7 +1244,7 @@ are not to be confused with any weights bound to a `Resampler` instance
 in a machine, used for training the wrapped `model` when supported.
 
 """
-mutable struct Resampler{S} <: Supervised
+mutable struct Resampler{S} <: Model
     model
     resampling::S # resampling strategy
     measure

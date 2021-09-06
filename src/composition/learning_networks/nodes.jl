@@ -457,6 +457,8 @@ Statistics.median(X::AbstractNode) = node(v->median.(v), X)
 StatsBase.mode(X::AbstractNode)    = node(v->mode.(v), X)
 Base.log(X::AbstractNode) = node(v->log.(v), X)
 Base.exp(X::AbstractNode) = node(v->exp.(v), X)
+Base.first(X::AbstractNode) = node(first, X)
+Base.last(X::AbstractNode) = node(last, X)
 
 +(y1::AbstractNode, y2::AbstractNode) = node(+, y1, y2)
 +(y1, y2::AbstractNode) = node(+, y1, y2)

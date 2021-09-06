@@ -7,19 +7,20 @@ pm1(y) = Int8(2) .* (Int8.(MLJBase.int(y))) .- Int8(3)
 const MARGIN_LOSSES = MLJBase.MARGIN_LOSSES
 const DISTANCE_LOSSES = MLJBase.DISTANCE_LOSSES
 
+# using `WeightedSum` instead of `WeightedMean`; see
+# https://github.com/JuliaML/LossFunctions.jl/issues/149
+WeightedSum(w) = LossFunctions.AggMode.WeightedMean(w, normalize=false)
+
 @testset "LossFunctions.jl - binary" begin
     y = categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
     dyes = MLJBase.UnivariateFinite([yes, no], [0.6, 0.4])
     dno =  MLJBase.UnivariateFinite([yes, no], [0.3, 0.7])
     yhat = [dno, dno, dyes, dyes]
-    X = nothing
     w = [1, 2, 3, 4]
 
-    @test MLJBase.value(MLJBase.ZeroOneLoss(), yhat, X, y, nothing) ≈
-        [1, 1, 1, 0]
-    @test MLJBase.value(MLJBase.zero_one_loss, yhat, X, y, w) ≈
-        [1, 2, 3, 0] ./10 .* 4
+    @test MLJBase.ZeroOneLoss()(yhat, y) ≈ [1, 1, 1, 0]
+    @test MLJBase.zero_one_loss(yhat,y, w) ≈ [1, 2, 3, 0]
 
     N = 10
     y = categorical(rand(rng, ["yes", "no"], N), ordered=true)
@@ -31,17 +32,15 @@ const DISTANCE_LOSSES = MLJBase.DISTANCE_LOSSES
     yhat = MLJBase.UnivariateFinite([no, yes], p_vec, augment=true)
     yhatm = MLJBase._scale.(p_vec) # predictions for raw LossFunctions measure
     w = rand(rng, N)
-    X = nothing
 
     for M_ex in MARGIN_LOSSES
         m = eval(:(MLJBase.$M_ex()))
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈
-            LossFunctions.value(getfield(m, :loss), ym, yhatm) ≈
-            m(yhat, y)
-        @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
-            LossFunctions.value(getfield(m, :loss), ym, yhatm,
-                                LossFunctions.AggMode.WeightedMean(w)) ≈
-                                    mean(m(yhat, y, w))
+        @test m(yhat, y) ≈ LossFunctions.value(getfield(m, :loss), ym, yhatm)
+        @test MLJBase.Mean()(m(yhat, y, w)) ≈
+            LossFunctions.value(getfield(m, :loss),
+                                ym,
+                                yhatm,
+                                WeightedSum(w))/N
     end
 end
 
@@ -57,12 +56,11 @@ end
         m = eval(:(MLJBase.$M_ex()))
         m_ex = MLJBase.snakecase(M_ex)
         @test m == eval(:(MLJBase.$m_ex))
-        @test MLJBase.value(m, yhat, X, y, nothing) ≈
-            LossFunctions.value(getfield(m, :loss), y, yhat) ≈
-            m(yhat, y)
-        @test mean(MLJBase.value(m, yhat, X, y, w)) ≈
+        @test m(yhat, y) ≈
+            LossFunctions.value(getfield(m, :loss), y, yhat)
+        @test mean(m(yhat ,y, w)) ≈
             LossFunctions.value(getfield(m, :loss), y, yhat,
-                                LossFunctions.AggMode.WeightedMean(w)) ≈
-                                    mean(m(yhat ,y, w))
+                                WeightedSum(w))/N
+
     end
 end

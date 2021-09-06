@@ -1,5 +1,6 @@
 const LOCAL_MEASURE_TYPES = filter(x->x != SupervisedLoss,
-                                   subtypes(MLJBase.Measure))
+                                   vcat(subtypes(MLJBase.Unaggregated),
+                                        subtypes(MLJBase.Aggregated)))
 
 const LOSS_FUNCTIONS_MEASURE_TYPES =
     [eval(:($Loss)) for Loss in LOSS_FUNCTIONS]

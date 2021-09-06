@@ -21,8 +21,8 @@ import StatisticalTraits.snakecase
 # Interface
 using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
-    inverse_transform, fitted_params, predict,
-    predict_mode, predict_mean, predict_median, predict_joint,
+    inverse_transform, fitted_params, predict, predict_mode, 
+    predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
     params, training_losses
@@ -88,8 +88,8 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-    fitted_params, predict,
-    predict_mode, predict_mean, predict_median, predict_joint,
+    fitted_params, predict, predict_mode, predict_mean, 
+    predict_median, predict_joint,
     evaluate, clean!, training_losses
 
 # data operations
@@ -173,7 +173,14 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 export measures, metadata_measure
 
 # measure/measures.jl (excluding traits):
-export aggregate, default_measure, value
+export aggregate, default_measure, value, skipinvalid
+
+# measures/probabilistic:
+export cross_entropy, BrierScore, brier_score,
+    BrierLoss, brier_loss,
+    LogLoss, log_loss, LogScore, log_score,
+    SphericalScore, spherical_score,
+    auc, area_under_curve, roc_curve, roc
 
 # measures/continuous.jl:
 export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
@@ -188,17 +195,11 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
 export confusion_matrix, confmat, ConfusionMatrix
 
 # measures/finite.jl:
-export cross_entropy, BrierScore, brier_score,
-    BrierLoss, brier_loss,
-    LogLoss, log_loss,
-    misclassification_rate, mcr, accuracy,
+export misclassification_rate, mcr, accuracy,
     balanced_accuracy, bacc, bac, BalancedAccuracy,
     matthews_correlation, mcc, MCC, AUC, AreaUnderCurve,
     MisclassificationRate, Accuracy, MCR, BACC, BAC,
     MatthewsCorrelation
-
-# measures/finite.jl -- Multiclass{2} (order independent):
-export auc, area_under_curve, roc_curve, roc
 
 # measures/finite.jl -- OrderedFactor{2} (order dependent):
 export TruePositive, TrueNegative, FalsePositive, FalseNegative,
