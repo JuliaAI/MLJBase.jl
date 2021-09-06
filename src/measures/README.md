@@ -7,10 +7,15 @@ ŷ = rand(3) # predictions
 y = rand(3) # ground truth observations
 
 m = LPLoss(p=3)
-m(ŷ, y) 
+
+julia> m(ŷ, y)
+3-element Vector{Float64}:
+ 0.07060087052171798
+ 0.003020044780949528
+ 0.019067038457889922
 ```
 
-To call a measure without performing dimension or pool checks, one
+Recall that to call a measure without performing dimension or pool checks, one
 uses `MLJBase.call` instead:
 
 ```julia
@@ -23,6 +28,22 @@ implement `call`. A measure that reports a measurement for each
 observation , such as `LPLoss`, subtypes `Unaggregated` and only needs
 to implement an evaluation method for single observations called
 `single`.
+
+Recall also that if a measure reports each observation, it does so
+even in the case that weights are additionally specified:
+
+```julia
+w = rand(3) # per-observation weights
+
+julia> m(ŷ, y, rand(3))
+3-element Vector{Float64}:
+ 0.049333392516241206
+ 0.0017612002314472718
+ 0.003157450446692638
+ ```
+
+This behaviour differs from other places where weights can only be
+specified as part of an aggregation of multi-observation measurements.
 
 
 ### Unaggregated measures implement `single`
