@@ -31,6 +31,19 @@ end
 # allow to access cm[i,j] but not set (it's immutable)
 Base.getindex(cm::ConfusionMatrixObject, inds...) = getindex(cm.mat, inds...)
 
+_levels(y1, y2) = vcat(levels(y1), levels(y2)) |> unique
+
+# simultaneous coercion of two vectors into categorical vectors having
+# the same pool:
+function _categorical(y1, y2)
+    L = _levels(y1, y2)
+    return categorical(y1, levels=L), categorical(y2, levels=L)
+end
+_categorical(y1::CategoricalArray{V1,N},
+             y2::CategoricalArray{V2,N}) where
+    {V, V1<:Union{Missing,V}, V2<:Union{Missing,V}, N} =
+    y1, y2
+
 """
     _confmat(ŷ, y; rev=false)
 
@@ -66,10 +79,15 @@ there no way to specify an ordering different from `levels(y)`, where
 `y` is the target.
 
 """
-function _confmat(ŷ::ArrMissing{T,N}, y::ArrMissing{T,N};
+function _confmat(ŷraw::Union{Arr{V1,N}, CategoricalArray{V1,N}},
+                  yraw::Union{Arr{V2,N}, CategoricalArray{V2,N}};
                   rev::Union{Nothing,Bool}=nothing,
                   perm::Union{Nothing,Vector{<:Integer}}=nothing,
-                  warn::Bool=true) where {T,N}
+                  warn::Bool=true) where
+    {V,V1<:Union{Missing,V}, V2<:Union{Missing,V},N}
+
+    # no-op if vectors already categorical arrays:
+    ŷ, y = _categorical(ŷraw, yraw)
 
     levels_ = levels(y)
     nc = length(levels_)
