@@ -118,8 +118,12 @@ end
 end
 
 @testset "confusion matrix {n}" begin
-    y = coerce([0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2], Multiclass)
-    ŷ = coerce([0, 1, 0, 0, 0, 2, 1, 2, 0, 1, 1, 2], Multiclass)
+    y = coerce([1, 2, 0, 2, 1, 0, 0, 1, 2, 2, 2, 1, 2,
+                            2, 1, 0, 1, 1, 1, 2, 1, 2, 2, 1, 2, 1,
+                            2, 2, 2], Multiclass)
+    ŷ = coerce([2, 0, 2, 2, 2, 0, 1, 2, 1, 2, 0, 1, 2,
+                            1, 1, 1, 2, 0, 1, 2, 1, 2, 2, 2, 1, 2,
+                            1, 2, 2], Multiclass)
     class_w = Dict(0=>0,2=>2,1=>1)
     cm = MLJBase._confmat(ŷ, y, warn=false)
 
@@ -128,55 +132,83 @@ end
     # ┌─────────────┼─────────────┬─────────────┬─────────────┤
     # │  Predicted  │      0      │      1      │      2      │
     # ├─────────────┼─────────────┼─────────────┼─────────────┤
-    # │      0      │      2      │      1      │      2      │
+    # │      0      │      1      │      1      │      2      │
     # ├─────────────┼─────────────┼─────────────┼─────────────┤
-    # │      1      │      2      │      2      │      0      │
+    # │      1      │      2      │      4      │      4      │
     # ├─────────────┼─────────────┼─────────────┼─────────────┤
-    # │      2      │      0      │      1      │      2      │
+    # │      2      │      1      │      6      │      8      │
     # └─────────────┴─────────────┴─────────────┴─────────────┘
+
+    cm_tp   = [1; 4; 8]
+    cm_tn   = [22; 12; 8]
+    cm_fp   = [1+2; 2+4; 1+6]
+    cm_fn   = [2+1; 1+6; 2+4]
+    cm_prec = cm_tp ./ ( cm_tp + cm_fp  )
+    cm_rec  = cm_tp ./ ( cm_tp + cm_fn  )
+
+    # Check if is positive
+    m = MulticlassTruePositive(;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tp 
+    m = MulticlassTrueNegative(;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tn 
+    m = MulticlassFalsePositive(;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_fp 
+    m = MulticlassFalseNegative(;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_fn
+
+    # Check if is in [0,1]
+    m = MulticlassTruePositiveRate(average=no_avg;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tp ./ (cm_fn.+cm_tp) <= [1; 1; 1]
+    m = MulticlassTrueNegativeRate(average=no_avg;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tn ./ (cm_tn.+cm_fp) <= [1; 1; 1]
+    m = MulticlassFalsePositiveRate(average=no_avg;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == 1 .- cm_tn ./ (cm_tn.+cm_fp) <= [1; 1; 1]
+    m = MulticlassFalseNegativeRate(average=no_avg;return_type=Vector)
+    @test  [0; 0; 0] <= m(ŷ, y) == 1 .- cm_tp ./ (cm_fn.+cm_tp) <= [1; 1; 1]
 
     #`no_avg` and `LittleDict`
     @test collect(values(MulticlassPrecision(average=no_avg)(cm))) ≈
         collect(values(MulticlassPrecision(average=no_avg)(ŷ, y))) ≈
-        [0.4; 0.5; 2/3]
+        cm_prec
     @test MulticlassPrecision(average=macro_avg)(cm) ≈
-        MulticlassPrecision(average=macro_avg)(ŷ, y) ≈ mean([0.4; 0.5; 2/3])
+        MulticlassPrecision(average=macro_avg)(ŷ, y) ≈ mean(cm_prec)
     @test collect(keys(MulticlassPrecision(average=no_avg)(cm)))  ==
         collect(keys(MulticlassPrecision(average=no_avg)(ŷ, y))) ==
         ["0"; "1"; "2"]
     @test collect(values(MulticlassRecall(average=no_avg)(cm))) ≈
         collect(values(MulticlassRecall(average=no_avg)(ŷ, y))) ≈
-        [0.5; 0.5; 0.5]
+        cm_rec
     @test collect(values(MulticlassFScore(average=no_avg)(cm))) ≈
         collect(values(MulticlassFScore(average=no_avg)(ŷ, y))) ≈
-        [4/9; 0.5; 4/7]
+        2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec )
 
     #`no_avg` and `LittleDict` with class weights
     @test collect(values(MulticlassPrecision(average=no_avg)(cm, class_w))) ≈
         collect(values(MulticlassPrecision(average=no_avg)(ŷ, y, class_w))) ≈
-        [0.4; 0.5; 2/3] .* [0; 1; 2]
+        cm_prec .* [0; 1; 2]
     @test collect(values(MulticlassRecall(average=no_avg)(cm, class_w))) ≈
         collect(values(MulticlassRecall(average=no_avg)(ŷ, y, class_w))) ≈
-        [0.5; 0.5; 0.5] .* [0; 1; 2]
+        cm_rec .* [0; 1; 2]
     @test collect(values(MulticlassFScore(average=no_avg)(cm, class_w))) ≈
         collect(values(MulticlassFScore(average=no_avg)(ŷ, y, class_w))) ≈
-        [4/9; 0.5; 4/7] .* [0; 1; 2]
+        2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec ) .* [0; 1; 2]
 
     #`macro_avg` and `LittleDict`
     macro_prec = MulticlassPrecision(average=macro_avg)
     macro_rec  = MulticlassRecall(average=macro_avg)
 
-    @test macro_prec(cm)    ≈ macro_prec(ŷ, y)    ≈ mean([0.4, 0.5, 2/3])
-    @test macro_rec(cm)     ≈ macro_rec(ŷ, y)     ≈ mean([0.5; 0.5; 0.5])
-    @test macro_f1score(cm) ≈ macro_f1score(ŷ, y) ≈ mean([4/9; 0.5; 4/7])
+    @test macro_prec(cm)    ≈ macro_prec(ŷ, y)    ≈ mean(cm_prec)
+    @test macro_rec(cm)     ≈ macro_rec(ŷ, y)     ≈ mean(cm_rec)
+    @test macro_f1score(cm) ≈ macro_f1score(ŷ, y) ≈ mean(2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec ))
 
     #`micro_avg` and `LittleDict`
     micro_prec = MulticlassPrecision(average=micro_avg)
     micro_rec  = MulticlassRecall(average=micro_avg)
 
-    @test micro_prec(cm)    == micro_prec(ŷ, y)    == 0.5
-    @test micro_rec(cm)     == micro_rec(ŷ, y)     == 0.5
-    @test micro_f1score(cm) == micro_f1score(ŷ, y) == 0.5
+    @test micro_prec(cm)    == micro_prec(ŷ, y)    == sum(cm_tp) ./ sum(cm_fp.+cm_tp)
+    @test micro_rec(cm)     == micro_rec(ŷ, y)     == sum(cm_tp) ./ sum(cm_fn.+cm_tp)
+    @test micro_f1score(cm) == micro_f1score(ŷ, y) == 
+    2 ./ ( 1 ./ ( sum(cm_tp) ./ sum(cm_fp.+cm_tp) ) + 1 ./ ( sum(cm_tp) ./ sum(cm_fn.+cm_tp) ) )
 
     #`no_avg` and `Vector` with class weights
     vec_precision = MulticlassPrecision(return_type=Vector)
@@ -184,11 +216,11 @@ end
     vec_f1score   = MulticlassFScore(return_type=Vector)
 
     @test vec_precision(cm, class_w) ≈ vec_precision(ŷ, y, class_w) ≈
-        mean([0.4; 0.5; 2/3] .* [0; 1; 2])
+        mean(cm_prec .* [0; 1; 2])
     @test vec_recall(cm, class_w)    ≈ vec_recall(ŷ, y, class_w)    ≈
-        mean([0.5; 0.5; 0.5] .* [0; 1; 2])
+        mean(cm_rec .* [0; 1; 2])
     @test vec_f1score(cm, class_w)   ≈ vec_f1score(ŷ, y, class_w)   ≈
-        mean([4/9; 0.5; 4/7] .* [0; 1; 2])
+        mean(2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec ) .* [0; 1; 2])
 
     #`macro_avg` and `Vector`
     v_ma_prec = MulticlassPrecision(average=macro_avg,
@@ -196,26 +228,27 @@ end
     v_ma_rec  = MulticlassRecall(average=macro_avg, return_type=Vector)
     v_ma_f1   = MulticlassFScore(average=macro_avg, return_type=Vector)
 
-    @test v_ma_prec(cm) ≈ v_ma_prec(ŷ, y) ≈ mean([0.4, 0.5, 2/3])
-    @test v_ma_rec(cm)  ≈ v_ma_rec(ŷ, y)  ≈ mean([0.5; 0.5; 0.5])
-    @test v_ma_f1(cm)   ≈ v_ma_f1(ŷ, y)   ≈ mean([4/9; 0.5; 4/7])
+    @test v_ma_prec(cm) ≈ v_ma_prec(ŷ, y) ≈ mean(cm_prec)
+    @test v_ma_rec(cm)  ≈ v_ma_rec(ŷ, y)  ≈ mean(cm_rec)
+    @test v_ma_f1(cm)   ≈ v_ma_f1(ŷ, y)   ≈ mean(2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec ))
 
     #`macro_avg` and `Vector` with class weights
     @test v_ma_prec(cm, class_w) ≈ v_ma_prec(ŷ, y, class_w) ≈
-        mean([0.4, 0.5, 2/3] .* [0, 1, 2])
+        mean(cm_prec .* [0, 1, 2])
     @test v_ma_rec(cm, class_w)  ≈ v_ma_rec(ŷ, y, class_w)  ≈
-        mean([0.5; 0.5; 0.5] .* [0, 1, 2])
+        mean(cm_rec .* [0, 1, 2])
     @test v_ma_f1(cm, class_w)   ≈ v_ma_f1(ŷ, y, class_w)   ≈
-        mean([4/9; 0.5; 4/7] .* [0, 1, 2])
+        mean(2 ./ ( 1 ./ cm_prec + 1 ./ cm_rec ) .* [0, 1, 2])
 
     #`micro_avg` and `Vector`
     v_mi_prec = MulticlassPrecision(average=micro_avg, return_type=Vector)
     v_mi_rec  = MulticlassRecall(average=micro_avg, return_type=Vector)
     v_mi_f1   = MulticlassFScore(average=micro_avg, return_type=Vector)
 
-    @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == 0.5
-    @test v_mi_rec(cm)  == v_mi_rec(ŷ, y)  == 0.5
-    @test v_mi_f1(cm)   == v_mi_f1(ŷ, y)   == 0.5
+    @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == sum(cm_tp) ./ sum(cm_fp.+cm_tp)
+    @test v_mi_rec(cm)  == v_mi_rec(ŷ, y)  == sum(cm_tp) ./ sum(cm_fn.+cm_tp)
+    @test v_mi_f1(cm)   == v_mi_f1(ŷ, y)   == 
+    2 ./ ( 1 ./ ( sum(cm_tp) ./ sum(cm_fp.+cm_tp) ) + 1 ./ ( sum(cm_tp) ./ sum(cm_fn.+cm_tp) ) )
 end
 
 @testset "Metadata binary" begin
