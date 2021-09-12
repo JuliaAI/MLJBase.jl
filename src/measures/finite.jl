@@ -1123,38 +1123,29 @@ end
 (p::MulticlassPrecision)(m::CM, class_w::AbstractDict{<:Any, <:Real}) =
     _mc_helper_b(m, _mfdr, class_w, p.average, p.return_type)
 
-@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
+@inline function _fs_helper(m::CM, β::Real, mtp_val::Arr{<:Real}, mfp_val::Arr{<:Real}, mfn_val::Arr{<:Real},
                     average::NoAvg, return_type::Type{LittleDict})
     β2 = β^2
-    return LittleDict(m.labels, (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec))
+    return LittleDict(m.labels, (1 + β2) * mtp_val ./ ((1 + β2) * mtp_val + β2 * mfn_val + mfp_val))
 end
 
-@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
+@inline function _fs_helper(m::CM, β::Real, mtp_val::Arr{<:Real}, mfp_val::Arr{<:Real}, mfn_val::Arr{<:Real},
                     average::NoAvg, return_type::Type{Vector})
     β2 = β^2
-    return (1 + β2) .* (prec .* rec) ./ (β2 .* prec .+ rec)
+    return (1 + β2) * mtp_val ./ ((1 + β2) * mtp_val + β2 * mfn_val + mfp_val)
 end
 
-@inline function _fs_helper(m::CM, β::Real, rec::Arr{<:Real}, prec::Arr{<:Real},
-                    average::MacroAvg, return_type::Type{U}) where U
-    return _mean(_fs_helper(m, β, rec, prec, no_avg, Vector))
-end
-
-@inline function _fs_helper(m::CM, β::Real, rec::Real, prec::Real,
-                            average::MicroAvg, return_type::Type{U}) where U
-    β2 = β^2
-    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+@inline function _fs_helper(m::CM, β::Real, mtp_val::Arr{<:Real}, mfp_val::Arr{<:Real}, mfn_val::Arr{<:Real},
+                            average::MacroAvg, return_type::Type{U}) where U
+    return _mean(_fs_helper(m, β, mtp_val, mfp_val, mfn_val, no_avg, Vector))
 end
 
 function (f::MulticlassFScore)(m::CM)
-    if f.average == micro_avg
-        rec = MulticlassRecall(; average=f.average, return_type=Vector)(m)
-        f.β == 1.0 && return rec
-        return _fs_helper(m, f.β, rec, rec, f.average, f.return_type)
-    end
-    rec = MulticlassRecall(; average=no_avg, return_type=Vector)(m)
-    prec = MulticlassPrecision(; average=no_avg, return_type=Vector)(m)
-    return _fs_helper(m, f.β, rec, prec, f.average, f.return_type)
+    f.average == micro_avg && return MulticlassRecall(; average=micro_avg, f.return_type)(m)
+    mtp_val = _mtp(m, Vector)
+    mfp_val = _mfp(m, Vector)
+    mfn_val = _mfn(m, Vector)
+    return _fs_helper(m, f.β, mtp_val, mfp_val, mfn_val, f.average, f.return_type)
 end
 
 @inline function _fs_helper(m::CM, w::AbstractDict{<:Any, <:Real}, β::Real,
