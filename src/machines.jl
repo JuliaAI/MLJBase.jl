@@ -122,7 +122,7 @@ function check(model::Model, args...; full=false)
     nowarns = true
 
     F = fit_data_scitype(model)
-    (F >: Unkown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
+    (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
         return true
 
     S = Tuple{elscitype.(args)...}
