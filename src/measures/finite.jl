@@ -81,7 +81,7 @@ function call(::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
 
     ŷ, y, w = _skipinvalid(ŷm, ym, wm)
 
-    if w == nothing
+    if w === nothing
         n_given_class = StatsBase.countmap(y)
         freq(i) = @inbounds n_given_class[y[i]]
         ŵ = 1 ./ freq.(eachindex(y))
@@ -1141,7 +1141,7 @@ end
 end
 
 function (f::MulticlassFScore)(m::CM)
-    f.average == micro_avg && return MulticlassRecall(; average=micro_avg, f.return_type)(m)
+    f.average == micro_avg && return MulticlassRecall(; average=micro_avg, return_type=f.return_type)(m)
     mtp_val = _mtp(m, Vector)
     mfp_val = _mfp(m, Vector)
     mfn_val = _mfn(m, Vector)
