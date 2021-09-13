@@ -66,7 +66,7 @@ end
 
     x = 1:5 |> collect
     y = 1:5 |> collect
-    
+
     # In the following tests it is crucial to recreate a new `RNG` each time.
     perm = Random.randperm(StableRNG(11900), 5)
     @test MLJBase.shuffle_rows(x, y; rng=StableRNG(11900)) == (x[perm], y[perm])
@@ -127,6 +127,32 @@ end
     @test MLJBase.available_name(Utilities, :orange) == :orange2
     Utilities.eval(:(orange2 = 6))
     @test MLJBase.available_name(Utilities, :orange) == :orange3
+end
+
+@testset "generate_name!" begin
+    existing_names = Symbol[]
+    @test MLJBase.generate_name!(Vector{Int}, existing_names) ==
+        :vector
+    @test MLJBase.generate_name!(Vector{Float64}, existing_names) ==
+        :vector2
+    @test MLJBase.generate_name!(Vector{Float64},
+                                 existing_names,
+                                 only=Number) == :f
+    @test MLJBase.generate_name!(Vector{Float64},
+                                 existing_names,
+                                 only=Number) == :f2
+    @test MLJBase.generate_name!(Vector{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g
+    @test MLJBase.generate_name!(Vector{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g2
+    @test existing_names == [:vector, :vector2, :f, :f2, :g, :g2]
+
+    @test MLJBase.generate_name!(42, [], only=Array) == :f
+    @test MLJBase.generate_name!(42, [], only=Number, substitute=:g) == :int64
 end
 
 end # module

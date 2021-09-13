@@ -147,12 +147,15 @@ export machine, Machine, fit!, report, fit_only!
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition:
-export machines, sources, @from_network, @pipeline, Stack,
+export machines, sources, @from_network, @pipeline, Pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine,
     rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
     DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
-    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
+    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite,
+    DeterministicPipeline, ProbabilisticPipeline, IntervalPipeline,
+    UnsupervisedPipeline, StaticPipeline
+
 
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
@@ -366,6 +369,7 @@ include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
+include("composition/models/pipelines2.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
