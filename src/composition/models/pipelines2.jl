@@ -31,6 +31,18 @@ function individuate(v)
     return ret
 end
 
+function as_type(prediction_type::Symbol)
+    if prediction_type == :deterministic
+        return Deterministic
+    elseif prediction_type == :probabilistic
+        return Probabilistic
+    elseif prediction_type == :interval
+        return Interval
+    else
+        return Unsupervised
+    end
+end
+
 
 # # TYPES
 
@@ -184,7 +196,7 @@ function Pipeline(args...; prediction_type=nothing,
     if is_supervised
         supervised_is_last = last(components) === supervised_model
         if prediction_type !== nothing
-            super = super_type(prediction_type)
+            super = as_type(prediction_type)
             supervised_is_last && !(supervised_model isa super) &&
                 throw(err_prediction_type_conflict(e, prediction_type))
         elseif supervised_is_last
@@ -243,4 +255,99 @@ function Base.setproperty!(p::SomePipeline{<:NamedTuple{names,types}},
     @inbounds components[idx] = value
     named_components = NamedTuple{names,types}(Tuple(components))
     setfield!(p, :named_components, named_components)
+end
+
+
+# # LEARNING NETWORK MACHINE FOR PIPELINES
+
+# Here `model` is a function or `Unsupervised` model (possibly
+# `Static`).  This function wraps `model` in an appropriate `Node`,
+# `node`, and returns `(node, mode.machine)`.
+function node_and_machine(model, X)
+    if model isa Unsupervised
+        if model isa Static
+            mach = machine(model)
+        else
+            mach = machine(model, X)
+        end
+        return transform(mach, X), mach
+    else
+        n = node(model, X)
+        return n, n.machine
+    end
+end
+
+# `models_and_functions` can include both functions (static
+# operatations) and bona fide models (including `Static`
+# transformers). If `ys == nothing` the learning network is assumed to
+# be unsupervised. Otherwise: If `target === nothing`, then no target
+# transform is applied; if `target !== nothing` and `inverse ===
+# nothing`, then corresponding `transform` and `inverse_transform` are
+# applied; if neither `target` nor `inverse` are `nothing`, then both
+# `target` and `inverse` are assumed to be StaticTransformations, to
+# be applied respectively to `ys` and to the output of the
+# `models_and_functions` pipeline. Note that target inversion is
+# applied to the output of the *last* nodal machine in the pipeline,
+# corresponding to the last element of `models_and_functions`.
+
+# returns a learning network machine
+function pipeline_network_machine(super_type,
+                                  Xs,
+                                  ys,
+                                  ws,
+                                  target,
+                                  inverse,
+                                  invert_last,
+                                  operation,
+                                  models_and_functions...)
+
+    n = length(models_and_functions)
+
+    if ys !== nothing && target !== nothing
+        yt, target_machine = node_and_machine(target, ys)
+    else
+        yt  = ys
+    end
+
+    function tip_after_inversion(tip)
+        if target !== nothing
+            if inverse === nothing
+                return inverse_transform(target_machine, tip)
+            else
+                return node_and_machine(inverse, tip) |> first
+            end
+        end
+        return tip
+    end
+
+    if ws !== nothing
+        tail_args = (yt, ws)
+    else
+        tail_args = (yt,)
+    end
+
+    # initialize the tip (terminal node) of network:
+    tip = Xs  # last node added to network
+
+    for m in models_and_functions
+        if m isa Supervised
+            supervised_machine = machine(m, tip, tail_args...)
+            tip = operation(supervised_machine, tip)
+            invert_last ||
+                (tip = tip_after_inversion(tip))
+        else
+            tip = node_and_machine(m, tip) |> first
+        end
+    end
+
+    invert_last && (tip = tip_after_inversion(tip))
+
+    if super_type <: Unsupervised
+        return machine(super_type(), Xs; transform=tip)
+    elseif ws == nothing
+        return machine(super_type(), Xs, ys; predict=tip)
+    else
+        return machine(super_type(), Xs, ys, ws; predict=tip)
+    end
+
 end

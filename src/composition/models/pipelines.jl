@@ -130,8 +130,6 @@ end
 
 super_type(model::Model) = super_type(typeof(model))
 
-super_type(f) = Function
-
 # does expression processing, syntax and semantic
 # checks. is_probabilistic is `true`, `false` or `missing`.
 #function pipeline_preprocess(modl, ex, is_probabilistic::Union{Missing,Bool})
