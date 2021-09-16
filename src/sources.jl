@@ -135,7 +135,7 @@ end
 struct ErrorNode{E} <: AbstractNode
     exception::E
 end
-(n::ErrorNode)(; kwargs...) = throw(n.exception)
+(n::ErrorNode)(args...; kwargs...) = throw(n.exception)
 
 origins(::ErrorNode) = AbstractNode[]
 nodes(::ErrorNode) = AbstractNode[]
