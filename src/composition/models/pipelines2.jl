@@ -192,33 +192,33 @@ function Pipeline(args...; prediction_type=nothing,
 
     # To make final pipeline type determination, we need to determine
     # the corresonding abstract type (eg, `Probablistic`) here called
-    # `super`:
+    # `super_type`:
     if is_supervised
         supervised_is_last = last(components) === supervised_model
         if prediction_type !== nothing
-            super = as_type(prediction_type)
-            supervised_is_last && !(supervised_model isa super) &&
+            super_type = as_type(prediction_type)
+            supervised_is_last && !(supervised_model isa super_type) &&
                 throw(err_prediction_type_conflict(e, prediction_type))
         elseif supervised_is_last
             if operation != predict
-                super = Deterministic
+                super_type = Deterministic
             else
-                super = abstract_type(supervised_model)
+                super_type = abstract_type(supervised_model)
             end
         else
             A = abstract_type(supervised_model)
             A == Deterministic || operation !== predict ||
                 @info INFO_TREATING_AS_DETERMINISTIC
-            super = Deterministic
+            super_type = Deterministic
         end
     else
         prediction_type === nothing ||
             @warn WARN_IGNORING_PREDICTION_TYPE
-        super = is_static ? Static : Unsupervised
+        super_type = is_static ? Static : Unsupervised
     end
 
-    # dispatch on `super` to construct the appropriate type:
-    _pipeline(super, named_components, cache)
+    # dispatch on `super_type` to construct the appropriate type:
+    _pipeline(super_type, named_components, cache)
 end
 
 # where the method called in the last line will be one of these:
@@ -260,94 +260,98 @@ end
 
 # # LEARNING NETWORK MACHINE FOR PIPELINES
 
-# Here `model` is a function or `Unsupervised` model (possibly
-# `Static`).  This function wraps `model` in an appropriate `Node`,
-# `node`, and returns `(node, mode.machine)`.
-function node_and_machine(model, X)
-    if model isa Unsupervised
-        if model isa Static
-            mach = machine(model)
-        else
-            mach = machine(model, X)
-        end
-        return transform(mach, X), mach
-    else
-        n = node(model, X)
-        return n, n.machine
-    end
+# https://alan-turing-institute.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
+
+
+# ## Methods to extend a pipeline learning network
+
+# The "front" of a pipeline network, as we grow it, consists of a
+# `predict` and a `transform` node. Both can be changed but only the
+# "active" node is propagated.  Initially `transform` is active;
+# `predict` only becomes active when a supervised model is
+# encountered, and this change is permanent.
+# https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
+
+# `A == true` means `transform` is active
+struct Front{A,P<:AbstractNode,N<:AbstractNode}
+    predict::P
+    transform::N
+    Front(p::P, t::N, A) where {P,N} = new{A,P,N}(p, t)
+end
+active(f::Front{true})  = f.transform
+active(f::Front{false}) = f.predict
+
+function extend(front::Front{true}, component::Supervised, op, sources...)
+    a = active(front)
+    mach = machine(component, a, sources...)
+    Front(op(mach, a), transform(mach, a), false)
 end
 
-# `models_and_functions` can include both functions (static
-# operatations) and bona fide models (including `Static`
-# transformers). If `ys == nothing` the learning network is assumed to
-# be unsupervised. Otherwise: If `target === nothing`, then no target
-# transform is applied; if `target !== nothing` and `inverse ===
-# nothing`, then corresponding `transform` and `inverse_transform` are
-# applied; if neither `target` nor `inverse` are `nothing`, then both
-# `target` and `inverse` are assumed to be StaticTransformations, to
-# be applied respectively to `ys` and to the output of the
-# `models_and_functions` pipeline. Note that target inversion is
-# applied to the output of the *last* nodal machine in the pipeline,
-# corresponding to the last element of `models_and_functions`.
+function extend(front::Front{true}, component::Static, args...)
+    mach = machine(component)
+    Front(front.predict, transform(mach, active(front)), true)
+end
 
-# returns a learning network machine
+function extend(front::Front{false}, component::Static, args...)
+    mach = machine(component)
+    Front(transform(mach, active(front)), front.transform, false)
+end
+
+function extend(front::Front{true}, component::Unsupervised, args...)
+    a = active(front)
+    mach = machine(component, a)
+    Front(predict(mach, a), transform(mach, a), true)
+end
+
+function extend(front::Front{false}, component::Unsupervised, args...)
+    a = active(front)
+    mach = machine(component, a)
+    Front(transform(mach, a), front.transform, false)
+end
+
+# fallback assumes `component` is a callable object:
+extend(front::Front{true}, component, args...) =
+    Front(front.predict, node(component, active(front)), true)
+extend(front::Front{false}, component, args...) =
+    Front(node(component, active(front)), front.transform, false)
+
+
+# ## The learning network machine
+
+const ERR_INVERSION_NOT_SUPPORTED = ErrorException(
+    "Applying `inverse_transform` to a "*
+    "pipeline that does not support it")
+
 function pipeline_network_machine(super_type,
-                                  Xs,
-                                  ys,
-                                  ws,
-                                  target,
-                                  inverse,
-                                  invert_last,
                                   operation,
-                                  models_and_functions...)
+                                  components,
+                                  source0,
+                                  sources...)
 
-    n = length(models_and_functions)
+    # initialize the network front:
+    front = Front(source0, source0, true)
 
-    if ys !== nothing && target !== nothing
-        yt, target_machine = node_and_machine(target, ys)
-    else
-        yt  = ys
-    end
+    # closure to use in reduction:
+    _extend(front, component) = extend(front, component, operation, sources...)
 
-    function tip_after_inversion(tip)
-        if target !== nothing
-            if inverse === nothing
-                return inverse_transform(target_machine, tip)
-            else
-                return node_and_machine(inverse, tip) |> first
-            end
+    # reduce to get the `predict` and `transform` nodes:
+    final_front = foldl(_extend, components, init=front)
+    pnode, tnode = final_front.predict, final_front.transform
+
+    # backwards pass to get `inverse_transform` node:
+    if all(c -> c isa Unsupervised, components)
+        inode = source0
+        node = tnode
+        for i in eachindex(components)
+            mach = node.machine
+            inode = inverse_transform(mach, inode)
+            node =  first(mach.args)
         end
-        return tip
-    end
-
-    if ws !== nothing
-        tail_args = (yt, ws)
     else
-        tail_args = (yt,)
+        inode = ErrorNode(ERR_INVERSION_NOT_SUPPORTED)
     end
 
-    # initialize the tip (terminal node) of network:
-    tip = Xs  # last node added to network
-
-    for m in models_and_functions
-        if m isa Supervised
-            supervised_machine = machine(m, tip, tail_args...)
-            tip = operation(supervised_machine, tip)
-            invert_last ||
-                (tip = tip_after_inversion(tip))
-        else
-            tip = node_and_machine(m, tip) |> first
-        end
-    end
-
-    invert_last && (tip = tip_after_inversion(tip))
-
-    if super_type <: Unsupervised
-        return machine(super_type(), Xs; transform=tip)
-    elseif ws == nothing
-        return machine(super_type(), Xs, ys; predict=tip)
-    else
-        return machine(super_type(), Xs, ys, ws; predict=tip)
-    end
+    machine(super_type(), source0, sources...;
+            predict=pnode, transform=tnode, inverse_transform=inode)
 
 end

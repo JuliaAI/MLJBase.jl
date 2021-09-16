@@ -2,6 +2,10 @@ module TestPipelines2
 
 using MLJBase
 using Test
+using ..Models
+using StableRNGs
+
+rng = StableRNG(698790187)
 
 @testset "helpers" begin
     @test MLJBase.individuate([:x, :y, :x, :z, :y, :x]) ==
@@ -16,11 +20,15 @@ mutable struct MyTransformer2 <: Static
 end
 
 MLJBase.transform(transf::MyTransformer2, verbosity, X) =
-    selectcols(X, transf.ftr)
+    fill(:st, nrows(X))
 
 mutable struct MyDeterministic <: Deterministic
     x::Symbol
 end
+
+MLJBase.fit(::MyDeterministic, args...) = nothing, nothing, nothing
+MLJBase.transform(m::MyDeterministic, ::Any, Xnew) = fill(:dt, nrows(Xnew))
+MLJBase.predict(m::MyDeterministic, ::Any, Xnew) = fill(:dp, nrows(Xnew))
 
 mutable struct MyProbabilistic <: Probabilistic
     x::Symbol
@@ -29,6 +37,10 @@ end
 mutable struct MyUnsupervised <: Unsupervised
     x::Symbol
 end
+
+MLJBase.fit(::MyUnsupervised, args...) = nothing, nothing, nothing
+MLJBase.transform(m::MyUnsupervised, ::Any, Xnew) = fill(:ut, nrows(Xnew))
+MLJBase.predict(m::MyUnsupervised, ::Any, Xnew) = fill(:up, nrows(Xnew))
 
 mutable struct MyInterval <: Interval
     x::Symbol
@@ -144,6 +156,155 @@ end
     io = IOBuffer()
     pipe = Pipeline(x-> x^2, m, t, p)
     show(io, MIME("text/plain"), pipe)
+end
+
+@testset "Front and extend" begin
+    Xs = source(rand(3))
+    ys = source(rand(3))
+    front = MLJBase.Front(Xs, ys, false)
+    @test front.predict() == Xs()
+    @test front.transform() == ys()
+    @test MLJBase.active(front)() == Xs()
+
+    front = MLJBase.Front(Xs, Xs, true)
+    front = MLJBase.extend(front, u, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:ut, :ut, :ut]
+
+    front = MLJBase.extend(front, s, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:st, :st, :st]
+
+    front = MLJBase.extend(front, u, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:ut, :ut, :ut]
+
+    front = MLJBase.extend(front, d, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:dp, :dp, :dp]
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, x->string.(x), predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == string.([:dp, :dp, :dp])
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, u, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:ut, :ut, :ut]
+    @test tnode() == [:dt, :dt, :dt]
+end
+
+NN = 7
+X = MLJBase.table(rand(rng,NN, 3));
+y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);
+Xs = source(X); ys = source(y)
+
+broadcast_mode(v) = mode.(v)
+doubler(y) = 2*y
+
+@testset "pipeline_network_machine" begin
+    t = MLJBase.table
+    m = MLJBase.matrix
+    f = FeatureSelector()
+    h = OneHotEncoder()
+    k = KNNRegressor()
+    u = UnivariateStandardizer()
+    c = ConstantClassifier()
+
+    components = [f, h]
+    mach = MLJBase.pipeline_network_machine(
+        Unsupervised, predict, components, Xs)
+    tree = mach.fitresult.transform |> MLJBase.tree
+    @test mach.model isa UnsupervisedSurrogate
+    @test tree.operation == transform
+    @test tree.model == h
+    @test tree.arg1.operation == transform
+    @test tree.arg1.model == f
+    @test tree.arg1.arg1.source == Xs
+    @test tree.arg1.train_arg1.source == Xs
+    @test tree.train_arg1 == tree.arg1
+
+    components = [f, k]
+    mach = MLJBase.pipeline_network_machine(
+        Deterministic, predict, components, Xs, ys)
+    tree = mach.fitresult.predict |> MLJBase.tree
+    @test mach.model isa DeterministicSurrogate
+    @test tree.operation == predict
+    @test tree.model == k
+    @test tree.arg1.operation == transform
+    @test tree.arg1.model == f
+    @test tree.arg1.arg1.source == Xs
+    @test tree.arg1.train_arg1.source == Xs
+    @test tree.train_arg1 == tree.arg1
+    @test tree.train_arg2.source == ys
+
+    components = [m, t]
+    mach = MLJBase.pipeline_network_machine(
+        Unsupervised, predict, components, Xs)
+    tree = mach.fitresult.transform |> MLJBase.tree
+    @test mach.model isa UnsupervisedSurrogate
+    @test tree.operation == t
+    @test tree.model == nothing
+    @test tree.arg1.operation == m
+    @test tree.arg1.model == nothing
+    @test tree.arg1.arg1.source == Xs
+
+    # check a probablistic case:
+    components = [f, c]
+    mach = MLJBase.pipeline_network_machine(
+        Probabilistic, predict, components, Xs, ys)
+    @test mach.model isa ProbabilisticSurrogate
+
+    # check a static case:
+    components = [m, t]
+    mach = MLJBase.pipeline_network_machine(
+        Static, predict, components, Xs, ys)
+    @test mach.model isa StaticSurrogate
+
+    # An integration test...
+
+    # build a linear network for training:
+    components = [f, k]
+    mach = MLJBase.pipeline_network_machine(
+        Deterministic, predict, components, Xs, ys)
+
+    # build the same network by hand:
+    fM = machine(f, Xs)
+    Xt = transform(fM, Xs)
+    uM = machine(u, ys)
+    yt = transform(uM, ys)
+    kM = machine(k, Xt, yt)
+    zhat = predict(kM, Xt)
+    N2 = inverse_transform(uM, zhat)
+
+    # compare predictions
+    fit!(mach, verbosity=0);
+    fit!(N2, verbosity=0)
+    yhat = predict(mach, X);
+    @test yhat ≈ N2()
+    k.K = 3; f.features = [:x3,]
+    fit!(mach, verbosity=0);
+    fit!(N2, verbosity=0)
+    @test !(yhat ≈ predict(mach, X))
+    @test predict(mach, X) ≈ N2()
+    global hand_built = predict(mach, X);
+
 end
 
 end
