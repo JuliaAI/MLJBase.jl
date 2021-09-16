@@ -75,21 +75,25 @@ for T_ex in SUPPORTED_TYPES_FOR_PIPELINES
     P_ex = PIPELINE_TYPE_GIVEN_TYPE[T_ex]
     C_ex = COMPOSITE_TYPE_GIVEN_TYPE[T_ex]
     quote
-        mutable struct $P_ex{N<:NamedTuple} <: $C_ex
+        mutable struct $P_ex{N<:NamedTuple,operation} <: $C_ex
             named_components::N
             cache::Bool
+            $P_ex(operation, named_components::N, cache) where N =
+                new{N,operation}(named_components, cache)
         end
     end |> eval
 end
 
-# hack an alias for the union type, `SomePipeline{N}`:
+# hack an alias for the union type, `SomePipeline{N,operation}`:
 const _TYPE_EXS = map(values(PIPELINE_TYPE_GIVEN_TYPE)) do P_ex
-    Meta.parse("$(P_ex){N}")
+    Meta.parse("$(P_ex){N,operation}")
 end
 quote
-    const SomePipeline{N,O} =
+    const SomePipeline{N,operation} =
         Union{$(_TYPE_EXS...)}
 end |> eval
+
+_operation(p::SomePipeline{N,operation}) where {N,operation} = p.operation
 
 
 # # GENERIC CONSTRUCTOR
@@ -218,7 +222,7 @@ function Pipeline(args...; prediction_type=nothing,
     end
 
     # dispatch on `super_type` to construct the appropriate type:
-    _pipeline(super_type, named_components, cache)
+    _pipeline(super_type, operation, named_components, cache)
 end
 
 # where the method called in the last line will be one of these:
@@ -355,3 +359,5 @@ function pipeline_network_machine(super_type,
             predict=pnode, transform=tnode, inverse_transform=inode)
 
 end
+
+
