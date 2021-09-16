@@ -43,6 +43,9 @@ function as_type(prediction_type::Symbol)
     end
 end
 
+_instance(x) = x
+_instance(T::Type{<:Model}) = T()
+
 
 # # TYPES
 
@@ -93,7 +96,7 @@ quote
         Union{$(_TYPE_EXS...)}
 end |> eval
 
-_operation(p::SomePipeline{N,operation}) where {N,operation} = p.operation
+components(p::SomePipeline) = values(getfield(p, :named_components))
 
 
 # # GENERIC CONSTRUCTOR
@@ -127,10 +130,14 @@ const ERR_MIXED_PIPELINE_SPEC = ArgumentError(
     "components, as in `Pipeline(myfirstmodel=model1, mysecondmodel=model2)`. ")
 
 
-# Following checks `components` is a valid sequence, modifies `names`
-# to make them unique, and returns a named tuple using the abstract
-# component types. See the "Note on mutability" above.
+# The following combines its arguments into a named tuple, performing
+# a number of checks and modifications. Specifically, it checks
+# `components` as a is valid sequence, modifies `names` to make them
+# unique, and replaces the types appearing in the named tuple type
+# parameters with their abstract supertypes. See the "Note on
+# mutability" above.
 function pipe_named_tuple(names, components)
+
     isempty(names) && throw(ERR_EMPTY_PIPELINE)
 
     # make keys unique:
@@ -146,6 +153,7 @@ function pipe_named_tuple(names, components)
     # return the named tuple:
     types = abstract_type.(components)
     NamedTuple{names,Tuple{types...}}(components)
+
 end
 
 # in the public constructor components appear either in `args` (names
@@ -167,14 +175,19 @@ function Pipeline(args...; prediction_type=nothing,
     # construct the named tuple of components:
     if isempty(args)
         _names = keys(kwargs)
-        components = values(values(kwargs))
+        _components = values(values(kwargs))
     else
         _names = Symbol[]
         for c in args
             generate_name!(c, _names, only=Model)
         end
-        components = args
+        _components = args
     end
+
+    # in case some components are specified as model *types* instead
+    # of instances:
+    components = _instance.(_components)
+
     named_components = pipe_named_tuple(_names, components)
 
     # Is this a supervised pipeline?
@@ -262,7 +275,7 @@ function Base.setproperty!(p::SomePipeline{<:NamedTuple{names,types}},
 end
 
 
-# # LEARNING NETWORK MACHINE FOR PIPELINES
+# # LEARNING NETWORK MACHINES FOR PIPELINES
 
 # https://alan-turing-institute.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
 
@@ -361,3 +374,32 @@ function pipeline_network_machine(super_type,
 end
 
 
+# # FIT METHOD
+
+function MMI.fit(pipe::SomePipeline{N,operation},
+                 verbosity,
+                 arg0,
+                 args...) where {N,operation}
+
+    source0 = source(arg0)
+    sources = source.(args)
+
+    _components = components(pipe)
+
+    mach = pipeline_network_machine(abstract_type(pipe),
+                                    operation,
+                                    _components,
+                                    source0,
+                                    sources...)
+    return!(mach, pipe, verbosity)
+end
+
+function MMI.fit(pipe::StaticPipeline{N,operation},
+                 verbosity::Integer) where {N,operation}
+    _components = components(pipe)
+    mach = pipeline_network_machine(abstract_type(pipe),
+                                    operation,
+                                    _components,
+                                    source())
+    return!(mach, pipe, verbosity)
+end

@@ -211,7 +211,7 @@ end
 end
 
 NN = 7
-X = MLJBase.table(rand(rng,NN, 3));
+X = MLJBase.table(rand(rng, NN, 3));
 y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);
 Xs = source(X); ys = source(y)
 
@@ -227,19 +227,6 @@ doubler(y) = 2*y
     u = UnivariateStandardizer()
     c = ConstantClassifier()
 
-    components = [f, h]
-    mach = MLJBase.pipeline_network_machine(
-        Unsupervised, predict, components, Xs)
-    tree = mach.fitresult.transform |> MLJBase.tree
-    @test mach.model isa UnsupervisedSurrogate
-    @test tree.operation == transform
-    @test tree.model == h
-    @test tree.arg1.operation == transform
-    @test tree.arg1.model == f
-    @test tree.arg1.arg1.source == Xs
-    @test tree.arg1.train_arg1.source == Xs
-    @test tree.train_arg1 == tree.arg1
-
     components = [f, k]
     mach = MLJBase.pipeline_network_machine(
         Deterministic, predict, components, Xs, ys)
@@ -253,6 +240,19 @@ doubler(y) = 2*y
     @test tree.arg1.train_arg1.source == Xs
     @test tree.train_arg1 == tree.arg1
     @test tree.train_arg2.source == ys
+
+    components = [f, h]
+    mach = MLJBase.pipeline_network_machine(
+        Unsupervised, predict, components, Xs)
+    tree = mach.fitresult.transform |> MLJBase.tree
+    @test mach.model isa UnsupervisedSurrogate
+    @test tree.operation == transform
+    @test tree.model == h
+    @test tree.arg1.operation == transform
+    @test tree.arg1.model == f
+    @test tree.arg1.arg1.source == Xs
+    @test tree.arg1.train_arg1.source == Xs
+    @test tree.train_arg1 == tree.arg1
 
     components = [m, t]
     mach = MLJBase.pipeline_network_machine(
@@ -307,6 +307,128 @@ doubler(y) = 2*y
 
 end
 
+
+# # INTEGRATION TESTS
+
+@testset "integration 1" begin
+    # check a simple pipeline prediction agrees with prediction of
+    # hand-built learning network built earlier:
+    p = Pipeline(FeatureSelector,
+                 KNNRegressor,
+                 prediction_type=:deterministic)
+    p.knn_regressor.K = 3; p.feature_selector.features = [:x3,]
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test MLJBase.tree(mach.fitresult.predict).model.K == 3
+    MLJBase.tree(mach.fitresult.predict).arg1.model.features == [:x3, ]
+    @test predict(mach, X) ≈ hand_built
+
+    # test correct error thrown for inverse_transform:
+    @test_throws(MLJBase.ERR_INVERSION_NOT_SUPPORTED,
+                 inverse_transform(mach, 3))
 end
 
+@testset "integration 2" begin
+    # a simple probabilistic classifier pipeline:
+    X = MLJBase.table(rand(rng,7,3));
+    y = categorical(collect("ffmmfmf"));
+    Xs = source(X)
+    ys = source(y)
+    p = Pipeline(OneHotEncoder, ConstantClassifier)
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test p isa ProbabilisticComposite
+    pdf(predict(mach, X)[1], 'f') ≈ 4/7
+
+    # test invalid replacement of classifier with regressor throws
+    # informative error message:
+    p.constant_classifier = ConstantRegressor()
+    @test_logs((:error, r"^Problem"),
+           (:info, r"^Running type"),
+           (:warn, r"The scitype of"),
+           (:info, r"It seems"),
+           (:error, r"Problem"),
+               @test_throws Exception fit!(mach, verbosity=-1))
+end
+
+@testset "integration 3" begin
+    # test a simple deterministic classifier pipeline:
+    X = MLJBase.table(rand(rng,7,3))
+    y = categorical(collect("ffmmfmf"))
+    Xs = source(X)
+    ys = source(y)
+    p = Pipeline(OneHotEncoder, ConstantClassifier, broadcast_mode,
+                 prediction_type=:probabilistic)
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill('f', 7)
+
+    # test pipelines with weights:
+    w = map(y) do η
+        η == 'm' ? 100 : 1
+    end
+    mach = machine(p, X, y, w)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill('m', 7)
+end
+
+age = [23, 45, 34, 25, 67]
+X = (age = age,
+     gender = categorical(['m', 'm', 'f', 'm', 'f']))
+height = [67.0, 81.5, 55.6, 90.0, 61.1]
+
+mutable struct MyTransformer3 <: Static
+    ftr::Symbol
+end
+
+MLJBase.transform(transf::MyTransformer3, verbosity, X) =
+     selectcols(X, transf.ftr)
+
+@testset "integration 4" begin
+    #static transformers in pipelines
+    p99 = Pipeline(X -> coerce(X, :age=>Continuous),
+                   OneHotEncoder,
+                   MyTransformer3(:age))
+    mach = fit!(machine(p99, X), verbosity=0)
+    @test transform(mach, X) == float.(X.age)
+end
+
+@testset "integration 5" begin
+    # pure static pipeline:
+    p = Pipeline(X -> coerce(X, :age=>Continuous),
+                 MyTransformer3(:age))
+
+    mach = fit!(machine(p), verbosity=0) # no training arguments!
+    @test transform(mach, X) == X.age
+
+    # and another:
+    p = Pipeline(exp, log, x-> 2*x)
+    mach = fit!(machine(p), verbosity=0)
+    @test transform(mach, 20) ≈ 40
+end
+
+@testset "integration 6" begin
+    # operation different from predict:
+    p = Pipeline(OneHotEncoder,
+                 ConstantRegressor,
+                 operation=predict_mean)
+    @test p isa Deterministic
+    mach = fit!(machine(p, X, height), verbosity=0)
+    @test scitype(predict(mach, X)) == AbstractVector{Continuous}
+end
+
+@testset "integration 7" begin
+    # inverse transform:
+    p = Pipeline(UnivariateBoxCoxTransformer,
+                 UnivariateStandardizer)
+    xtrain = rand(rng, 10)
+    mach = machine(p, xtrain)
+    fit!(mach, verbosity=0)
+    x = rand(rng, 5)
+    y = transform(mach, x)
+    x̂ = inverse_transform(mach, y)
+    @test isapprox(x, x̂)
+end
+
+end
 true
