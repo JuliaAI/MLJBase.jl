@@ -361,9 +361,9 @@ include("composition/abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/machines.jl")
-@static if VERSION ≥ v"1.3.0-"
-    include("composition/learning_networks/arrows.jl")
-end
+# @static if VERSION ≥ v"1.3.0-"
+#     include("composition/learning_networks/arrows.jl")
+# end
 
 include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
