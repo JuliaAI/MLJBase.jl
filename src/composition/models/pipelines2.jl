@@ -191,6 +191,7 @@ PCA = @load PCA pkg=MultivariateStats add=true
 pipe1 = MLJBase.table |> ContinuousEncoder |> Standardizer
 pipe2 = PCA |> LinearRegressor
 pipe1 |> pipe2
+```
 
 ### Special operations
 
