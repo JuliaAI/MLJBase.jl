@@ -97,7 +97,7 @@ quote
 end |> eval
 
 components(p::SomePipeline) = values(getfield(p, :named_components))
-
+names(p::SomePipeline) = keys(getfield(p, :named_components))
 
 # # GENERIC CONSTRUCTOR
 
@@ -177,6 +177,15 @@ pipeline as shown in the following example:
 
     Pipeline(X->coerce(X, :age=>Continuous), OneHotEncoder, ConstantClassifier)
 
+### Special operations
+
+If all the `components` are invertible unsupervised models
+(transformers), then `inverse_transform` is implemented for the
+pipeline. If there are no supervised models, then `predict` is
+nevertheless implemented, assuming the last model (such as `KMeans`
+clustering) also implements it. Similarly, calling `transform` on a
+supervised pipeline calls `transform` on the supervised component.
+
 ### Optional key-word arguments
 
 - `prediction_type`  -
@@ -204,8 +213,12 @@ function Pipeline(args...; prediction_type=nothing,
                   cache=true,
                   kwargs...)
 
-    # in the public constructor components appear either in `args` (names
-    # automatically generated) or in `kwargs` (but not both):
+    # Components appear either as `args` (with names to be
+    # automatically generated) or in `kwargs`, but not both.
+
+    # This public constructor does checks and constructs a valid named
+    # tuple, `named_components`, to be passed onto a secondary
+    # constructor.
 
     isempty(args) || isempty(kwargs) ||
         throw(ERR_MIXED_PIPELINE_SPEC)
@@ -233,6 +246,20 @@ function Pipeline(args...; prediction_type=nothing,
     components = _instance.(_components)
 
     named_components = pipe_named_tuple(_names, components)
+
+    _pipeline(named_components, prediction_type, operation, cache)
+end
+
+function _pipeline(named_components::NamedTuple,
+                   prediction_type,
+                   operation,
+                   cache)
+
+    # This method assumes all arguments are valid and includes the
+    # logic that determines which concrete pipeline's constructor
+    # needs calling.
+
+    components = values(named_components)
 
     # Is this a supervised pipeline?
     idx = findfirst(components) do c
@@ -280,6 +307,7 @@ function Pipeline(args...; prediction_type=nothing,
 
     # dispatch on `super_type` to construct the appropriate type:
     _pipeline(super_type, operation, named_components, cache)
+    
 end
 
 # where the method called in the last line will be one of these:
