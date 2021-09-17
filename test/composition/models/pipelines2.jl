@@ -4,6 +4,7 @@ using MLJBase
 using Test
 using ..Models
 using StableRNGs
+using Tables
 
 rng = StableRNG(698790187)
 
@@ -438,6 +439,39 @@ end
     y = transform(mach, x)
     x̂ = inverse_transform(mach, y)
     @test isapprox(x, x̂)
+end
+
+# A dummy clustering model:
+mutable struct DummyClusterer <: Unsupervised
+    n::Int
+end
+DummyClusterer(; n=3) = DummyClusterer(n)
+function MLJBase.fit(model::DummyClusterer, verbosity::Int, X)
+    Xmatrix = Tables.matrix(X)
+    n = min(size(Xmatrix, 2), model.n)
+    centres = Xmatrix[1:n, :]
+    levels = categorical(1:n)
+    report = (centres=centres,)
+    fitresult = levels
+    return fitresult, nothing, report
+end
+MLJBase.transform(model::DummyClusterer, fitresult, Xnew) =
+    selectcols(Xnew, 1:length(fitresult))
+MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
+    [fill(fitresult[1], nrows(Xnew))...]
+
+@test "integration 8" begin
+    # calling predict on unsupervised pipeline
+    # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
+
+    N = 20
+    X = (a = rand(N), b = rand(N))
+
+    p = Pipeline(PCA, DummyClusterer)
+    mach = machine(p, X)
+    fit!(mach, verbosity=0)
+    y = predict(mach, X)
+    @test y == fill(categorical(1:2)[1], N)
 end
 
 @testset "syntactic sugar" begin
