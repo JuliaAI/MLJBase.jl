@@ -156,12 +156,13 @@ function pipe_named_tuple(names, components)
 
 end
 
-# in the public constructor components appear either in `args` (names
-# automatically generated) or in `kwargs` (but not both):
 function Pipeline(args...; prediction_type=nothing,
                   operation=predict,
                   cache=true,
                   kwargs...)
+
+    # in the public constructor components appear either in `args` (names
+    # automatically generated) or in `kwargs` (but not both):
 
     isempty(args) || isempty(kwargs) ||
         throw(ERR_MIXED_PIPELINE_SPEC)
@@ -298,31 +299,35 @@ end
 active(f::Front{true})  = f.transform
 active(f::Front{false}) = f.predict
 
-function extend(front::Front{true}, component::Supervised, op, sources...)
+function extend(front::Front{true},
+                component::Supervised,
+                cache,
+                op,
+                sources...)
     a = active(front)
-    mach = machine(component, a, sources...)
+    mach = machine(component, a, sources...; cache=cache)
     Front(op(mach, a), transform(mach, a), false)
 end
 
-function extend(front::Front{true}, component::Static, args...)
-    mach = machine(component)
+function extend(front::Front{true}, component::Static, cache, args...)
+    mach = machine(component; cache=cache)
     Front(front.predict, transform(mach, active(front)), true)
 end
 
-function extend(front::Front{false}, component::Static, args...)
-    mach = machine(component)
+function extend(front::Front{false}, component::Static, cache, args...)
+    mach = machine(component; cache=cache)
     Front(transform(mach, active(front)), front.transform, false)
 end
 
-function extend(front::Front{true}, component::Unsupervised, args...)
+function extend(front::Front{true}, component::Unsupervised, cache, args...)
     a = active(front)
-    mach = machine(component, a)
+    mach = machine(component, a; cache=cache)
     Front(predict(mach, a), transform(mach, a), true)
 end
 
-function extend(front::Front{false}, component::Unsupervised, args...)
+function extend(front::Front{false}, component::Unsupervised, cache, args...)
     a = active(front)
-    mach = machine(component, a)
+    mach = machine(component, a; cache=cache)
     Front(transform(mach, a), front.transform, false)
 end
 
@@ -340,6 +345,7 @@ const ERR_INVERSION_NOT_SUPPORTED = ErrorException(
     "pipeline that does not support it")
 
 function pipeline_network_machine(super_type,
+                                  cache,
                                   operation,
                                   components,
                                   source0,
@@ -349,7 +355,8 @@ function pipeline_network_machine(super_type,
     front = Front(source0, source0, true)
 
     # closure to use in reduction:
-    _extend(front, component) = extend(front, component, operation, sources...)
+    _extend(front, component) =
+        extend(front, component, cache, operation, sources...)
 
     # reduce to get the `predict` and `transform` nodes:
     final_front = foldl(_extend, components, init=front)
@@ -377,8 +384,8 @@ end
 # # FIT METHOD
 
 function MMI.fit(pipe::SomePipeline{N,operation},
-                 verbosity,
-                 arg0,
+                 verbosity::Integer,
+                 arg0=source(),
                  args...) where {N,operation}
 
     source0 = source(arg0)
@@ -387,19 +394,10 @@ function MMI.fit(pipe::SomePipeline{N,operation},
     _components = components(pipe)
 
     mach = pipeline_network_machine(abstract_type(pipe),
+                                    pipe.cache,
                                     operation,
                                     _components,
                                     source0,
                                     sources...)
-    return!(mach, pipe, verbosity)
-end
-
-function MMI.fit(pipe::StaticPipeline{N,operation},
-                 verbosity::Integer) where {N,operation}
-    _components = components(pipe)
-    mach = pipeline_network_machine(abstract_type(pipe),
-                                    operation,
-                                    _components,
-                                    source())
     return!(mach, pipe, verbosity)
 end

@@ -167,42 +167,42 @@ end
     @test MLJBase.active(front)() == Xs()
 
     front = MLJBase.Front(Xs, Xs, true)
-    front = MLJBase.extend(front, u, predict, ys)
+    front = MLJBase.extend(front, u, false, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == [:up, :up, :up]
     @test tnode() == [:ut, :ut, :ut]
 
-    front = MLJBase.extend(front, s, predict, ys)
+    front = MLJBase.extend(front, s, true, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == [:up, :up, :up]
     @test tnode() == [:st, :st, :st]
 
-    front = MLJBase.extend(front, u, predict, ys)
+    front = MLJBase.extend(front, u, true, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == [:up, :up, :up]
     @test tnode() == [:ut, :ut, :ut]
 
-    front = MLJBase.extend(front, d, predict, ys)
+    front = MLJBase.extend(front, d, true, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == [:dp, :dp, :dp]
     @test tnode() == [:dt, :dt, :dt]
 
-    front = MLJBase.extend(front, x->string.(x), predict, ys)
+    front = MLJBase.extend(front, x->string.(x), true, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == string.([:dp, :dp, :dp])
     @test tnode() == [:dt, :dt, :dt]
 
-    front = MLJBase.extend(front, u, predict, ys)
+    front = MLJBase.extend(front, u, true, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
@@ -229,7 +229,7 @@ doubler(y) = 2*y
 
     components = [f, k]
     mach = MLJBase.pipeline_network_machine(
-        Deterministic, predict, components, Xs, ys)
+        Deterministic, true, predict, components, Xs, ys)
     tree = mach.fitresult.predict |> MLJBase.tree
     @test mach.model isa DeterministicSurrogate
     @test tree.operation == predict
@@ -243,7 +243,7 @@ doubler(y) = 2*y
 
     components = [f, h]
     mach = MLJBase.pipeline_network_machine(
-        Unsupervised, predict, components, Xs)
+        Unsupervised, true, predict, components, Xs)
     tree = mach.fitresult.transform |> MLJBase.tree
     @test mach.model isa UnsupervisedSurrogate
     @test tree.operation == transform
@@ -256,7 +256,7 @@ doubler(y) = 2*y
 
     components = [m, t]
     mach = MLJBase.pipeline_network_machine(
-        Unsupervised, predict, components, Xs)
+        Unsupervised, true, predict, components, Xs)
     tree = mach.fitresult.transform |> MLJBase.tree
     @test mach.model isa UnsupervisedSurrogate
     @test tree.operation == t
@@ -268,13 +268,13 @@ doubler(y) = 2*y
     # check a probablistic case:
     components = [f, c]
     mach = MLJBase.pipeline_network_machine(
-        Probabilistic, predict, components, Xs, ys)
+        Probabilistic, true, predict, components, Xs, ys)
     @test mach.model isa ProbabilisticSurrogate
 
     # check a static case:
     components = [m, t]
     mach = MLJBase.pipeline_network_machine(
-        Static, predict, components, Xs, ys)
+        Static, true, predict, components, Xs, ys)
     @test mach.model isa StaticSurrogate
 
     # An integration test...
@@ -282,7 +282,7 @@ doubler(y) = 2*y
     # build a linear network for training:
     components = [f, k]
     mach = MLJBase.pipeline_network_machine(
-        Deterministic, predict, components, Xs, ys)
+        Deterministic, true, predict, components, Xs, ys)
 
     # build the same network by hand:
     fM = machine(f, Xs)
@@ -323,6 +323,11 @@ end
     MLJBase.tree(mach.fitresult.predict).arg1.model.features == [:x3, ]
     @test predict(mach, X) ≈ hand_built
 
+    # test cache is set correctly internally:
+    @test all(fitted_params(mach).machines) do m
+        MLJBase._cache_status(m)  == " caches data"
+    end
+
     # test correct error thrown for inverse_transform:
     @test_throws(MLJBase.ERR_INVERSION_NOT_SUPPORTED,
                  inverse_transform(mach, 3))
@@ -334,11 +339,16 @@ end
     y = categorical(collect("ffmmfmf"));
     Xs = source(X)
     ys = source(y)
-    p = Pipeline(OneHotEncoder, ConstantClassifier)
+    p = Pipeline(OneHotEncoder, ConstantClassifier, cache=false)
     mach = machine(p, X, y)
     fit!(mach, verbosity=0)
     @test p isa ProbabilisticComposite
     pdf(predict(mach, X)[1], 'f') ≈ 4/7
+
+    # test cache is set correctly internally:
+    @test all(fitted_params(mach).machines) do m
+        MLJBase._cache_status(m) == " does not cache data"
+    end
 
     # test invalid replacement of classifier with regressor throws
     # informative error message:
