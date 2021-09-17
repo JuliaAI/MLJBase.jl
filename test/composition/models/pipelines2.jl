@@ -440,5 +440,48 @@ end
     @test isapprox(x, x̂)
 end
 
+@testset "syntactic sugar" begin
+
+    # recall u, s, p, m, are defined way above
+
+    # unsupervised model |> static model:
+    pipe1 = u |> s
+    @test pipe1 == Pipeline(u, s)
+
+    # unsupervised model |> supervised model:
+    pipe2 = u |> p
+    @test pipe2 == Pipeline(u, p)
+
+    # pipe |> pipe:
+    hose = pipe1 |> pipe2
+    @test hose == Pipeline(u, s, u, p)
+
+    # pipe |> model:
+    @test Pipeline(u, s) |> p == Pipeline(u, s, p)
+
+    # model |> pipe:
+    @test u |> Pipeline(s, p) == Pipeline(u, s, p)
+
+    # pipe |> function:
+    @test Pipeline(u, s) |> m == Pipeline(u, s, m)
+
+    # function |> pipe:
+    @test m |> Pipeline(s, p) == Pipeline(m, s, p)
+
+    # model |> function:
+    @test u |> m == Pipeline(u, m)
+
+    # function |> model:
+    @test t |> u == Pipeline(t, u)
+
+    @test_logs((:info, MLJBase.INFO_AMBIGUOUS_CACHE),
+               Pipeline(u, cache=false) |> p)
+
+    # with types
+    @test PCA |> Standardizer() |> KNNRegressor ==
+        Pipeline(PCA(), Standardizer(), KNNRegressor())
 end
+
+end
+
 true

@@ -16,7 +16,7 @@
 # individuate([:x, :y, :x, :x]) = [:x, :y, :x2, :x3])
 function individuate(v)
     isempty(v) && return v
-    ret = [first(v),]
+    ret = Symbol[first(v),]
     for s in v[2:end]
         s in ret || (push!(ret, s); continue)
         n = 2
@@ -98,6 +98,7 @@ end |> eval
 
 components(p::SomePipeline) = values(getfield(p, :named_components))
 names(p::SomePipeline) = keys(getfield(p, :named_components))
+operation(p::SomePipeline{N,O}) where {N,O} = O
 
 # # GENERIC CONSTRUCTOR
 
@@ -159,6 +160,7 @@ end
 """
     Pipeline(component1, component2, ... , componentk; options...)
     Pipeline(name1=component1, name2=component2, ..., componentk; options...)
+    component1 |> component2 |> ... |> componentk
 
 Create an instance of composite model type which sequentially composes
 the specified components in order. This means `component1` receives
@@ -176,6 +178,19 @@ Ordinary functions (and other callables) may be inserted in the
 pipeline as shown in the following example:
 
     Pipeline(X->coerce(X, :age=>Continuous), OneHotEncoder, ConstantClassifier)
+
+### Syntactic sugar
+
+The `|>` operator is overloaded to construct pipelines out of models,
+functions, and existing pipelines:
+
+```julia
+LinearRegressor = @load LinearRegressor pkg=MLJLinearModels add=true
+PCA = @load PCA pkg=MultivariateStats add=true
+
+pipe1 = MLJBase.table |> ContinuousEncoder |> Standardizer
+pipe2 = PCA |> LinearRegressor
+pipe1 |> pipe2
 
 ### Special operations
 
@@ -307,7 +322,7 @@ function _pipeline(named_components::NamedTuple,
 
     # dispatch on `super_type` to construct the appropriate type:
     _pipeline(super_type, operation, named_components, cache)
-    
+
 end
 
 # where the method called in the last line will be one of these:
@@ -472,3 +487,41 @@ function MMI.fit(pipe::SomePipeline{N,operation},
                                     sources...)
     return!(mach, pipe, verbosity)
 end
+
+
+# # SYNTACTIC SUGAR
+
+const INFO_AMBIGUOUS_CACHE =
+    "Joining pipelines with conflicting `cache` values. Using `cache=false`. "
+
+import Base.(|>)
+const compose = (|>)
+
+Pipeline(p::SomePipeline) = p
+
+const FuzzyModel = Union{Model,Type{<:Model}}
+
+function compose(m1::FuzzyModel, m2::FuzzyModel)
+
+    # no-ops for pipelines:
+    p1 = Pipeline(m1)
+    p2 = Pipeline(m2)
+
+    _components = (components(p1)..., components(p2)...)
+    _names = (names(p1)..., names(p2)...)
+
+    named_components = pipe_named_tuple(_names, _components)
+
+    # `cache` is only `true` if `true` for both pipelines:
+    cache = false
+    if p1.cache && p2.cache
+        cache = true
+    elseif p1.cache ⊻ p2.cache
+        @info INFO_AMBIGUOUS_CACHE
+    end
+
+    _pipeline(named_components, nothing, operation(p2), cache)
+end
+
+compose(p1, p2::FuzzyModel) = compose(Pipeline(p1), p2)
+compose(p1::FuzzyModel, p2) = compose(p1, Pipeline(p2))
