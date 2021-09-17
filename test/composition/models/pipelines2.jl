@@ -460,7 +460,7 @@ MLJBase.transform(model::DummyClusterer, fitresult, Xnew) =
 MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     [fill(fitresult[1], nrows(Xnew))...]
 
-@test "integration 8" begin
+@testset "integration 8" begin
     # calling predict on unsupervised pipeline
     # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
