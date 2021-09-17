@@ -156,6 +156,49 @@ function pipe_named_tuple(names, components)
 
 end
 
+"""
+    Pipeline(component1, component2, ... , componentk; options...)
+    Pipeline(name1=component1, name2=component2, ..., componentk; options...)
+
+Create an instance of composite model type which sequentially composes
+the specified components in order. This means `component1` receives
+inputs, whose output is passed to `component2`, and so forth. A
+"component" is either a `Model` instance, a model type (converted
+immediately to its default instance) or any callable object.
+
+At most one of the components may be a supervised model, but this
+model can appear in any position.
+
+The `@pipeline` macro accepts key-word `options` discussed further
+below.
+
+Ordinary functions (and other callables) may be inserted in the
+pipeline as shown in the following example:
+
+    Pipeline(X->coerce(X, :age=>Continuous), OneHotEncoder, ConstantClassifier)
+
+### Optional key-word arguments
+
+- `prediction_type`  -
+  prediction type of the pipeline; possible values: `:deterministic`,
+  `:probabilistic`, `:interval` (default=`:deterministic` if not inferable)
+
+- `operation` - operation applied to the supervised component model,
+  when present; possible values: `predict`, `predict_mean`,
+  `predict_median`, `predict_mode` (default=`predict`)
+
+- `cache` - whether the internal machines created for component models
+  should cache model-specific representations of data. See [`machine`](@ref).
+
+!!! warning "Set `cache=false` to guarantee data anonymization"
+
+    This precaution applies to composite models, and only to those
+    implemented using learning networks.
+
+To build more complicated non-branching pipelines, refer to the MLJ
+manual sections on composing models.
+
+"""
 function Pipeline(args...; prediction_type=nothing,
                   operation=predict,
                   cache=true,
