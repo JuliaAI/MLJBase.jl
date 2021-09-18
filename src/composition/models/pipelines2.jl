@@ -159,7 +159,7 @@ end
 
 """
     Pipeline(component1, component2, ... , componentk; options...)
-    Pipeline(name1=component1, name2=component2, ..., name3=componentk; options...)
+    Pipeline(name1=component1, name2=component2, ..., namek=componentk; options...)
     component1 |> component2 |> ... |> componentk
 
 Create an instance of composite model type which sequentially composes
