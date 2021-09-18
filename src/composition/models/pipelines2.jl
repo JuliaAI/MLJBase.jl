@@ -159,7 +159,7 @@ end
 
 """
     Pipeline(component1, component2, ... , componentk; options...)
-    Pipeline(name1=component1, name2=component2, ..., componentk; options...)
+    Pipeline(name1=component1, name2=component2, ..., name3=componentk; options...)
     component1 |> component2 |> ... |> componentk
 
 Create an instance of composite model type which sequentially composes
@@ -167,6 +167,14 @@ the specified components in order. This means `component1` receives
 inputs, whose output is passed to `component2`, and so forth. A
 "component" is either a `Model` instance, a model type (converted
 immediately to its default instance) or any callable object.
+
+Names for the component fields are automatically generated unless
+explicitly specified, as in
+
+```
+Pipeline(endoder=ContinuousEncoder(drop_last=false),
+         stand=Standardizer())
+```
 
 At most one of the components may be a supervised model, but this
 model can appear in any position.
@@ -182,7 +190,7 @@ pipeline as shown in the following example:
 ### Syntactic sugar
 
 The `|>` operator is overloaded to construct pipelines out of models,
-functions, and existing pipelines:
+callables, and existing pipelines:
 
 ```julia
 LinearRegressor = @load LinearRegressor pkg=MLJLinearModels add=true
@@ -198,9 +206,10 @@ pipe1 |> pipe2
 If all the `components` are invertible unsupervised models
 (transformers), then `inverse_transform` is implemented for the
 pipeline. If there are no supervised models, then `predict` is
-nevertheless implemented, assuming the last model (such as `KMeans`
-clustering) also implements it. Similarly, calling `transform` on a
-supervised pipeline calls `transform` on the supervised component.
+nevertheless implemented, assuming the last component is a model that
+implements it (some clustering models). Similarly, calling `transform`
+on a supervised pipeline calls `transform` on the supervised
+component.
 
 ### Optional key-word arguments
 
