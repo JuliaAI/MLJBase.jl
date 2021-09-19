@@ -179,7 +179,7 @@ Pipeline(endoder=ContinuousEncoder(drop_last=false),
 At most one of the components may be a supervised model, but this
 model can appear in any position.
 
-The `@pipeline` macro accepts key-word `options` discussed further
+The `Pipeline` constructor accepts key-word `options` discussed further
 below.
 
 Ordinary functions (and other callables) may be inserted in the
