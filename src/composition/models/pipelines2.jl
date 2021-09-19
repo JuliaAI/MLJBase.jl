@@ -166,7 +166,9 @@ Create an instance of composite model type which sequentially composes
 the specified components in order. This means `component1` receives
 inputs, whose output is passed to `component2`, and so forth. A
 "component" is either a `Model` instance, a model type (converted
-immediately to its default instance) or any callable object.
+immediately to its default instance) or any callable object. Here the
+"output" of a model is what `predict` returns if it is `Supervised`,
+and what `transform` returns if it is `Unsupervised`.
 
 Names for the component fields are automatically generated unless
 explicitly specified, as in
@@ -175,9 +177,6 @@ explicitly specified, as in
 Pipeline(endoder=ContinuousEncoder(drop_last=false),
          stand=Standardizer())
 ```
-
-At most one of the components may be a supervised model, but this
-model can appear in any position.
 
 The `Pipeline` constructor accepts key-word `options` discussed further
 below.
@@ -200,6 +199,12 @@ pipe1 = MLJBase.table |> ContinuousEncoder |> Standardizer
 pipe2 = PCA |> LinearRegressor
 pipe1 |> pipe2
 ```
+
+At most one of the components may be a supervised model, but this
+model can appear in any position. A pipeline with a `Supervised`
+component is itself `Supervised` and implements the `predict`
+operation.  It is otherwise `Unsupervised` (possibly `Static`) and
+implements `transform`.
 
 ### Special operations
 
