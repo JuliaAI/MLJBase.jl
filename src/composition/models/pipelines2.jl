@@ -227,7 +227,8 @@ component.
   `predict_median`, `predict_mode` (default=`predict`)
 
 - `cache` - whether the internal machines created for component models
-  should cache model-specific representations of data. See [`machine`](@ref).
+  should cache model-specific representations of data (see
+  [`machine`](@ref)) (default=`true`)
 
 !!! warning "Set `cache=false` to guarantee data anonymization"
 
