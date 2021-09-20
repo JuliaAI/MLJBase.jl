@@ -230,10 +230,9 @@ component.
   should cache model-specific representations of data (see
   [`machine`](@ref)) (default=`true`)
 
-!!! warning "Set `cache=false` to guarantee data anonymization"
+!!! warning
 
-    This precaution applies to composite models, and only to those
-    implemented using learning networks.
+    Set `cache=false` to guarantee data anonymization.
 
 To build more complicated non-branching pipelines, refer to the MLJ
 manual sections on composing models.
