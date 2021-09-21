@@ -346,8 +346,6 @@ If `only` is specified, then the operation is restricted to those `M`
 for which `M isa only`. In all other cases the symbolic name is
 generated using `substitute` as the base symbol.
 
-If `M <: Union{Type,Function}` is false, it is replaced with `typeof(M)`.
-
 ```
 existing_names = []
 julia> generate_name!(Vector{Int}, existing_names)
@@ -364,6 +362,7 @@ julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
 
 julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
 :not_array2
+```
 
 """
 function generate_name!(M::DataType,
