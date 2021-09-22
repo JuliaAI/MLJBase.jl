@@ -15,7 +15,7 @@ composite model obtained by exporting a learning network with the
 specified `signature`.
 
 A learning network *signature* is a named tuple, such as
-`(predict=yhat, transfrom=W)`, specifying what nodes of the network
+`(predict=yhat, transform=W)`, specifying what nodes of the network
 are called to produce output of each operation represented by the
 keys, in an exported version of the network.
 
