@@ -1,10 +1,51 @@
-## LEARNING NETWORK MACHINES
+## SIGNATURES
 
-surrogate(::Type{<:Deterministic})  = Deterministic()
-surrogate(::Type{<:Probabilistic})  = Probabilistic()
-surrogate(::Type{<:Unsupervised}) = Unsupervised()
-surrogate(::Type{<:Static}) = Static()
+const DOC_SIGNATURES =
+"""
+A learning network *signature* is a named tuple that we define when
+constructing some learning network machine, `mach`. An example is
 
+    signature = `(predict=yhat, transform=W, loss=loss_node)`
+
+where `yhat`, `W` and `loss_node` are nodes in the network.
+
+If a key `k` is the name of an operation (such as `predict`) then
+`k(mach, X)` returns `n(X)` where `n` is the corresponding value (a
+node). In all other cases, the key-value pair `k => n()` (evaluated at
+`fit!` time) will be included in the named tuple returned by
+`fitted_params(mach)`. Values in the first case (`yhat` and `W` in the
+example) must have a unique origin, while those in the second
+(`loss_node`) need not.
+"""
+
+"""
+    call_non_operations(signature)
+
+Return an new named tuple which has as keys those keys of `signature`
+that are not operations. The corresponding values are replaced with
+the result of calling the original values with zero arguments. For
+example, if
+
+    signature = (predict=yhat, x=n, a=m)
+
+then return `(x=n(), a=m())`.
+
+$DOC_SIGNATURES
+
+"""
+function call_non_operations(signature)
+    _call(n) = deepcopy(n())
+    _keys = keys(signature)
+    _values = values(signature)
+    v = filter(zip(_keys, _values)|> collect) do (k, v)
+        !(k in OPERATIONS)
+    end
+    isempty(v) && return NamedTuple()
+    new_keys, new_values = collect(zip(v...))
+    return NamedTuple{new_keys}(_call.(new_values))
+end
+
+# TODO: add test for above method
 
 """
     model_supertype(signature)
@@ -13,11 +54,8 @@ Return, if this can be deduced, which of `Deterministic`,
 `Probabilistic` and `Unsupervised` is the appropriate supertype for a
 composite model obtained by exporting a learning network with the
 specified `signature`.
-
-A learning network *signature* is a named tuple, such as
-`(predict=yhat, transform=W)`, specifying what nodes of the network
-are called to produce output of each operation represented by the
-keys, in an exported version of the network.
+[
+$DOC_SIGNATURES
 
 If a supertype cannot be deduced, `nothing` is returned.
 
@@ -49,6 +87,44 @@ function model_supertype(signature)
     return nothing
 
 end
+
+# builds on `fitted_params(::AbstractNode)` defined in
+# composition/learning_networks/node.jl:
+MLJModelInterface.fitted_params(signature::NamedTuple) =
+    merge(fitted_params(glb(values(signature)...)),
+          call_non_operations(signature))
+
+
+## FITRESULTS FOR COMPOSITE MODELS
+
+mutable struct CompositeFitresult
+    signature
+    fitted_params
+    CompositeFitresult(signature) = new(signature)
+end
+signature(c::CompositeFitresult) = getfield(c, :signature)
+
+function update!(c::CompositeFitresult)
+    setfield!(c, :fitted_params, fitted_params(getfield(c, :signature)))
+end
+
+# So that `fitresult.predict` returns the predict node, etc:
+Base.propertynames(c::CompositeFitresult) = keys(getfield(c, :signature))
+Base.getproperty(c::CompositeFitresult, name::Symbol) =
+    getproperty(getfield(c, :signature), name)
+
+MLJModelInterface.fitted_params(c::CompositeFitresult) =
+    getfield(c, :fitted_params)
+
+# TODO: add test for above access methods
+
+
+# LEARNING NETWORK MACHINES
+
+surrogate(::Type{<:Deterministic})  = Deterministic()
+surrogate(::Type{<:Probabilistic})  = Probabilistic()
+surrogate(::Type{<:Unsupervised}) = Unsupervised()
+surrogate(::Type{<:Static}) = Static()
 
 caches_data_by_default(::Type{<:Surrogate}) = false
 
@@ -88,16 +164,14 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
-    for op in keys(signature)
-        op in OPERATIONS || throw(ArgumentError(
-            "`$op` is not an admissible operation. "))
-    end
+
+    # TODO: add checks on the values of the signature, ie that they are nodes.
 
     check_surrogate_machine(model, signature, _sources)
 
     mach = Machine(model, _sources...)
 
-    mach.fitresult = signature
+    mach.fitresult = CompositeFitresult(signature)
 
     return mach
 
@@ -125,17 +199,43 @@ function machine(_sources::Source...; pair_itr...)
 end
 
 """
-    N = glb(mach::Machine{<:Surrogate})
+    N = glb(mach::Machine{<:Union{Composite,Surrogate}})
 
 A greatest lower bound for the nodes appearing in the signature of
 `mach`.
+
+$DOC_SIGNATURES
 
 **Private method.**
 
 """
 glb(mach::Machine{<:Union{Composite,Surrogate}}) =
-    glb(values(mach.fitresult)...)
+    glb(values(signature(mach.fitresult))...)
 
+
+# """
+#     operations_only(signature)
+
+# Return an new named tuple skipping entries whose keys are not
+# operations. For example, if
+
+#     signature = (predict=yhat, x=7, a=5)
+
+# then return `(predict=yhat, )`.
+
+# """
+# function operations_only(signature)
+#     _keys = keys(signature)
+#     _values = values(signature)
+#     v = filter(zip(_keys, _values)|> collect) do (k, v)
+#         k in OPERATIONS
+#     end
+#     isempty(v) && return NamedTuple()
+#     new_keys, new_values = collect(zip(v...))
+#     return NamedTuple{new_keys}(new_values)
+# end
+
+# # TODO: add test for above method
 
 """
     fit!(mach::Machine{<:Surrogate};
@@ -144,31 +244,28 @@ glb(mach::Machine{<:Union{Composite,Surrogate}}) =
          verbosity=1,
          force=false))
 
-Train the complete learning network wrapped by the machine
-`mach`.
+Train the complete learning network wrapped by the machine `mach`.
 
 More precisely, if `s` is the learning network signature used to
-construct `mach`, then call `fit!(N)`, where `N = glb(values(s)...)`
-is a greatest lower bound on the nodes appearing in the signature. For
-example, if `s = (predict=yhat, transform=W)`, then call
-`fit!(glb(yhat, W))`. Here `glb` is `tuple` overloaded for nodes.
+construct `mach`, then call `fit!(N)`, where `N` is a greatest lower
+bound of the nodes appearing in the signature (values in the signature
+that are not `AbstractNode` are ignored). For example, if `s =
+(predict=yhat, transform=W)`, then call `fit!(glb(yhat, W))`.
 
 See also [`machine`](@ref)
 
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
-
     glb_node = glb(mach)
     fit!(glb_node; kwargs...)
-
+    update!(mach.fitresult) # builds fitted_params
     mach.state += 1
     mach.report = report(glb_node)
     return mach
-
 end
 
 MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
-    fitted_params(glb(mach))
+    fitted_params(mach.fitresult)
 
 
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
@@ -247,8 +344,8 @@ appearing in the `MLJBase.fit` signature, while `mach` is a learning
 network machine constructed using `model`. Not relevant when defining
 composite models using `@pipeline` or `@from_network`.
 
-For usage, see the example given below. Specificlly, the call does the
-following:
+For usage, see the example given below. Specifically, the call does
+the following:
 
 - Determines which hyper-parameters of `model` point to model
   instances in the learning network wrapped by `mach`, for recording
@@ -360,7 +457,7 @@ specified are replaced with empty source nodes.
 function Base.replace(mach::Machine{<:Surrogate},
                       pairs::Pair...; empty_unspecified_sources=false)
 
-    signature = mach.fitresult
+    signature = MLJBase.signature(mach.fitresult)
     interface_nodes = values(signature)
 
     W = glb(interface_nodes...)

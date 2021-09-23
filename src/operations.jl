@@ -132,7 +132,7 @@ for (operation, fallback) in [(:predict_mode, :mode),
         function $(operation)(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
                               fitresult,
                               Xnew)
-            if haskey(fitresult, $(QuoteNode(operation)))
+            if hasproperty(fitresult, $(QuoteNode(operation)))
                 return fitresult.$(operation)(Xnew)
             end
             return $(fallback).(predict(m, fitresult, Xnew))
