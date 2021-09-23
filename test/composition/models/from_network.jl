@@ -434,8 +434,8 @@ clust = DummyClusterer(n=2)
 m = machine(clust, W)
 yhat = predict(m, W)
 Wout = transform(m, W)
-fit!(glb(yhat, Wout), verbosity=0)
-mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+foo = first(yhat)
+mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout, foo=foo)
 
 @from_network mach begin
     mutable struct WrappedClusterer
@@ -446,8 +446,11 @@ end
 
 model = WrappedClusterer()
 mach = fit!(machine(model, X), verbosity=0)
+fit!(yhat)
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
+Θ = fitted_params(mach)
+@test Θ.foo == yhat() |> first
 
 
 ## EXPORTING A STATIC LEARNING NETWORK (NO TRAINING ARGUMENTS)

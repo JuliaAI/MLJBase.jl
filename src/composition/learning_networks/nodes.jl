@@ -418,7 +418,7 @@ end
 """
     glb(N1, N2, ...)
 
-Construct a node `N` with the behaviour `N() = (N1(), N2(),
+If `N1`, `N2`, ... arConstruct a node `N` with the behaviour `N() = (N1(), N2(),
 ...)`. That is, `glb` is `tuple` overloaded for nodes.
 
 Equivalent to `@tuple N1 N2 ...`

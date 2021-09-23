@@ -28,10 +28,11 @@ MLJBase.transform(model::DummyClusterer, fitresult, Xnew) =
 MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     [fill(fitresult[1], nrows(Xnew))...]
 
-@testset "wrapping a learning network in a machine" begin
 
-    N = 20
-    X = (a = rand(N), b = categorical(rand("FM", N)))
+N = 20
+X = (a = rand(N), b = categorical(rand("FM", N)))
+
+@testset "wrapping a learning network in a machine" begin
 
     # unsupervised:
     Xs = source(X)
@@ -41,40 +42,54 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     yhat = predict(m, W)
     Wout = transform(m, W)
 
+    # test of `fitted_params(::NamedTuple)':
+    fit!(Wout, verbosity=0)
+    s = (predict=yhat, transform=Wout, a=source(:a), b=source(:b))
+    Θ = fitted_params(s)
+    @test Θ.a == :a
+    @test Θ.b == :b
+
     mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
     fit!(mach, force=true, verbosity=0)
 
-    report(mach)
-    fitted_params(mach)
+    @test report(mach).machines == fitted_params(mach).machines
 
     # supervised
     y = rand("ab", N) |> categorical;
     ys = source(y)
     mm = machine(ConstantClassifier(), W, ys)
     yhat = predict(mm, W)
+    e = @node auc(yhat, ys)
+
     @test_throws Exception machine(predict=yhat)
-    mach = machine(Probabilistic(), Xs, ys; predict=yhat)
+    mach = machine(Probabilistic(), Xs, ys; predict=yhat, training_auc=e)
     @test mach.model isa Probabilistic
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
 
-    # supervised - predict_mode
+    # test extra fitted_param coming from `training_auc=e` above
     fit!(mach, verbosity=0)
+    err = auc(yhat(), y)
+    @test fitted_params(mach.fitresult).training_auc ≈ err
+    @test fitted_params(mach).training_auc == err
+
+    # supervised - predict_mode
     @test predict_mode(mach, X) == mode.(predict(mach, X))
-    @test predict(mach, rows=1:2) == predict(mach, rows=:)[1:2]
+    predict_mode(mach, rows=1:2) == predict_mode(mach, rows=:)[1:2]
 
     # evaluate a learning machine
     evaluate!(mach, measure=LogLoss(), verbosity=0)
 
     # supervised - predict_median, predict_mean
-    X, y = make_regression(20)
-    Xs = source(X); ys = source(y)
+    X1, y1 = make_regression(20)
+
+    Xs = source(X1); ys = source(y1)
     mm = machine(ConstantRegressor(), Xs, ys)
     yhat = predict(mm, Xs)
     mach = fit!(machine(Probabilistic(), Xs, ys; predict=yhat), verbosity=0)
-    @test predict_mean(mach, X) ≈ mean.(predict(mach, X))
-    @test predict_median(mach, X) ≈ median.(predict(mach, X))
+    @test predict_mean(mach, X1) ≈ mean.(predict(mach, X1))
+    @test predict_median(mach, X1) ≈ median.(predict(mach, X1))
 
 end
 
@@ -100,6 +115,7 @@ oakM = machine(oak, W, u)
 uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
+foo = first(yhat)
 
 @testset "replace method for learning network machines" begin
 
@@ -120,7 +136,7 @@ yhat = exp(zhat)
     mach2 = replace(mach, hot=>hot2, knn=>knn2,
                     ys=>source(ys.data);
                     empty_unspecified_sources=true)
-    ss = sources(glb(mach2.fitresult...))
+    ss = sources(glb(mach2))
     @test isempty(ss[1])
     mach2 = @test_logs((:warn, r"No replacement"),
                        replace(mach, hot=>hot2, knn=>knn2,

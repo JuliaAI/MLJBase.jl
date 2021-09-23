@@ -153,7 +153,8 @@ selector_model = FeatureSelector()
     fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
 
     # test data anonymity:
-    @test isempty(sources(fitresult[1])[1])
+    ss = sources(glb(values(MLJBase.signature(fitresult))...))
+    @test all(isempty, ss)
 
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
@@ -285,7 +286,12 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         m = machine(model.model, W)
         yhat = predict(m, W)
         Wout = transform(m, W)
-        mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+        foo = node(η -> first(η), yhat)
+        mach = machine(Unsupervised(),
+                       Xs;
+                       predict=yhat,
+                       transform=Wout,
+                       foo=foo)
         return!(mach, model, verbosity)
     end
     X, _ = make_regression(10, 5);
@@ -297,6 +303,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     r = report(mach)
     @test r.model.centres == MLJBase.matrix(X)[1:3,:]
     fp = fitted_params(mach)
+    @test fp.foo == predict(mach, rows=:)[1]
     levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
