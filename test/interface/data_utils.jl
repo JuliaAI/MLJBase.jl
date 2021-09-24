@@ -1,3 +1,5 @@
+rng = StableRNGs.StableRNG(123)
+
 @testset "categorical" begin
     x = 1:5
     @test MLJModelInterface.categorical(x) == categorical(x)
@@ -76,14 +78,14 @@ end
     B = rand(UInt8, (4, 5))
     names = Tuple(Symbol("x$i") for i in 1:size(B,2))
     tup =NamedTuple{names}(Tuple(B[:,i] for i in 1:size(B,2)))
-    @test matrix(TypedTables.Table(tup)) == B
+    @test matrix(Tables.rowtable(tup)) == B
     @test matrix(table(B)) == B
     @test matrix(table(B), transpose=true) == B'
 
     X  = (x1=rand(rng, 5), x2=rand(rng, 5))
 
-    @test table(X, prototype=TypedTables.Table(x1=[],
-                    x2=[])) == TypedTables.Table(X)
+    @test table(X, prototype=Tables.rowtable((x1=[], x2=[]))) ==
+        Tables.rowtable(X)
 
     T = table((x1=(1,2,3), x2=(:x, :y, :z)))
 
@@ -165,3 +167,5 @@ end
     tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
 end
+
+true

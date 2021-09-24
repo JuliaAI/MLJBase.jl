@@ -26,6 +26,9 @@ end
     using StableRNGs
 end
 
+import TypedTables
+using Tables
+
 function include_everywhere(filepath)
     include(filepath) # Load on Node 1 first, triggering any precompile
     if nprocs() > 1
@@ -49,12 +52,13 @@ print("\r                                           \r")
 end
 
 @testset "interface" begin
-     @test include("interface/interface.jl")
+    @test include("interface/interface.jl")
+    @test include("interface/data_utils.jl")
 end
 
 @testset "univariate finite" begin
-     @test include("univariate_finite/methods.jl")
-     @test include("univariate_finite/arrays.jl")
+    @test include("univariate_finite/methods.jl")
+    @test include("univariate_finite/arrays.jl")
 end
 
 @testset "measures" begin
