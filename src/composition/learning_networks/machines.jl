@@ -88,6 +88,8 @@ function model_supertype(signature)
 
 end
 
+operations(s::NamedTuple) = filter(in(OPERATIONS), keys(s))
+
 # builds on `fitted_params(::AbstractNode)` defined in
 # composition/learning_networks/node.jl:
 MLJModelInterface.fitted_params(signature::NamedTuple) =
@@ -139,7 +141,7 @@ const ERR_MUST_SPECIFY_SOURCES = ArgumentError(
     "`machine(surrogate_model, Xs, ...; kwargs...)`. ")
 
 function check_surrogate_machine(::Surrogate, signature, _sources)
-    isempty(signature) && throw(ERR_MUST_OPERATE)
+    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
     isempty(_sources) && throw(ERR_MUST_SPECIFY_SOURCES)
     return nothing
 end
@@ -147,7 +149,7 @@ end
 function check_surrogate_machine(::Union{Supervised,SupervisedAnnotator},
                                  signature,
                                  _sources)
-    isempty(signature) && throw(ERR_MUST_PREDICT)
+    isempty(operations(signature)) && throw(ERR_MUST_PREDICT)
     length(_sources) > 1 || throw(err_supervised_nargs())
     return nothing
 end
@@ -155,7 +157,7 @@ end
 function check_surrogate_machine(::Union{Unsupervised},
                                  signature,
                                  _sources)
-    isempty(signature) && throw(ERR_MUST_TRANSFORM)
+    isempty(operations(signature)) && throw(ERR_MUST_TRANSFORM)
     length(_sources) < 2 || throw(err_unsupervised_nargs())
     return nothing
 end
@@ -181,7 +183,7 @@ function machine(_sources::Source...; pair_itr...)
 
     signature = (; pair_itr...)
 
-    isempty(signature) && throw(ERR_MUST_OPERATE)
+    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
 
     T = model_supertype(signature)
     if T == nothing

@@ -67,6 +67,7 @@ X = (a = rand(N), b = categorical(rand("FM", N)))
     mach = machine(Probabilistic(), Xs, ys; predict=yhat, training_auc=e)
     @test mach.model isa Probabilistic
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
+    @test_throws ArgumentError machine(Probabilistic(), Xs, ys; training_auc=e)
 
     # test extra fitted_param coming from `training_auc=e` above
     fit!(mach, verbosity=0)
