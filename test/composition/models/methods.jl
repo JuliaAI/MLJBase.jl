@@ -309,6 +309,54 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
 end
 
 
+## NETWORK WITH MULTIPLE SAVED NODES / REFIT 
+mutable struct TwoStages <: DeterministicComposite
+    model1
+    model2
+    model3
+end
+
+function MLJBase.fit(m::TwoStages, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(m.model1, Xs, ys)
+    mach2 = machine(m.model2, Xs, ys)
+    ypred1 = MLJBase.predict(mach1, Xs)
+    ypred2 = MLJBase.predict(mach2, Xs)
+    Y = MLJBase.table(hcat(ypred1, ypred2))
+    mach3 = machine(m.model3, Y, ys)
+    ypred3 = MLJBase.predict(mach3, Y)
+    μpred = node(x->mean(x), ypred3)
+    σpred = node((x, μ)->mean((x.-μ).^2), ypred3, μpred)
+    mach = machine(Deterministic(), Xs, ys; predict=ypred3, μpred=μpred, σpred=σpred)
+    return!(mach, m, verbosity)
+end
+
+@testset "Test exported-network with multiple saved nodes and refit" begin
+    X, y = make_regression(100, 3)
+    model3 = FooBarRegressor(lambda=1)
+    twostages = TwoStages(FooBarRegressor(lambda=0.1), FooBarRegressor(lambda=10), model3)
+    mach = machine(twostages, X, y)
+    fit!(mach, verbosity=0)
+    fp = fitted_params(mach)
+    # All machines have been fitted once
+    @test fp.machines[1].state == fp.machines[2].state == fp.machines[3].state == 1
+    # Retrieve current values of interest
+    μpred = fp.μpred
+    σpred = fp.σpred
+    # Change model3 and refit
+    model3.lambda = 10
+    fit!(mach, verbosity=0)
+    fp = fitted_params(mach)
+    # Machines 1,2 have been fitted once and machine 3 twice
+    @test fp.machines[1].state == fp.machines[2].state == 1
+    @test fp.machines[3].state == 2
+    # The new values have been updated
+    @test fp.μpred != μpred
+    @test fp.σpred != σpred
+
+end
+
 ## COMPOSITE WITH COMPONENT MODELS STORED IN NTUPLE
 
 # `modelnames` is a tuple of `Symbol`s, one for each `model` in `models`:
