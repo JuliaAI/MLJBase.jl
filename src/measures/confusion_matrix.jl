@@ -107,7 +107,7 @@ function _confmat(ŷraw::Union{Arr{V1,N}, CategoricalArray{V1,N}},
     # warning
     if rev === nothing && perm === nothing
         S = nonmissingtype(elscitype(y))
-        if warn &&
+        if warn
             if nc==2 &&  !(S <: OrderedFactor)
                 @warn "The classes are un-ordered,\n" *
                     "using: negative='$(levels_[1])' "*
