@@ -5,10 +5,10 @@
 
 caches_data_by_default(::Type{<:Composite}) = true
 
-# builds on `fitted_params(::NamedTuple)` defined in
+# builds on `fitted_params(::CompositeFitresult)` defined in
 # composition/learning_networks/machines.jl:
 fitted_params(::Union{Composite,Surrogate}, fitresult::CompositeFitresult) =
-    fitted_params(fitresult)
+    fitted_params(glb(fitresult))
 
 # legacy code (fitresult a Node):
 fitted_params(::Union{Composite,Surrogate},
@@ -52,7 +52,7 @@ function update(model::M,
     end
 
     fit!(glb_node; verbosity=verbosity)
-    update!(fitresult) # rebuilds the fitted_params
+    update!(fitresult) # updates report_additions
 
     # anonymize data again:
     for s in sources
@@ -65,7 +65,10 @@ function update(model::M,
              network_model_names=cache.network_model_names,
              old_model = deepcopy(model))
 
-    return fitresult, cache, report(glb_node)
+    return (fitresult,
+            cache,
+            merge(report(glb_node),
+                  report_additions(fitresult)))
 
 end
 

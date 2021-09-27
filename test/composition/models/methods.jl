@@ -302,14 +302,16 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
     @test r.model.centres == MLJBase.matrix(X)[1:3,:]
+    @test r.foo == predict(mach, rows=:)[1]
     fp = fitted_params(mach)
-    @test fp.foo == predict(mach, rows=:)[1]
+    @test :model in keys(fp)
     levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
 
 
-## NETWORK WITH MULTIPLE SAVED NODES / REFIT 
+## NETWORK WITH MULTIPLE NODES REPORTING STATE/ REFIT
+
 mutable struct TwoStages <: DeterministicComposite
     model1
     model2
@@ -328,33 +330,40 @@ function MLJBase.fit(m::TwoStages, verbosity, X, y)
     ypred3 = MLJBase.predict(mach3, Y)
     μpred = node(x->mean(x), ypred3)
     σpred = node((x, μ)->mean((x.-μ).^2), ypred3, μpred)
-    mach = machine(Deterministic(), Xs, ys; predict=ypred3, μpred=μpred, σpred=σpred)
+    mach = machine(Deterministic(),
+                   Xs,
+                   ys;
+                   predict=ypred3,
+                   μpred=μpred,
+                   σpred=σpred)
     return!(mach, m, verbosity)
 end
 
 @testset "Test exported-network with multiple saved nodes and refit" begin
     X, y = make_regression(100, 3)
     model3 = FooBarRegressor(lambda=1)
-    twostages = TwoStages(FooBarRegressor(lambda=0.1), FooBarRegressor(lambda=10), model3)
+    twostages = TwoStages(FooBarRegressor(lambda=0.1),
+                          FooBarRegressor(lambda=10), model3)
     mach = machine(twostages, X, y)
     fit!(mach, verbosity=0)
-    fp = fitted_params(mach)
+    rep = report(mach)
     # All machines have been fitted once
-    @test fp.machines[1].state == fp.machines[2].state == fp.machines[3].state == 1
+    @test rep.machines[1].state ==
+        rep.machines[2].state ==
+        rep.machines[3].state == 1
     # Retrieve current values of interest
-    μpred = fp.μpred
-    σpred = fp.σpred
+    μpred = rep.μpred
+    σpred = rep.σpred
     # Change model3 and refit
     model3.lambda = 10
     fit!(mach, verbosity=0)
-    fp = fitted_params(mach)
+    rep = report(mach)
     # Machines 1,2 have been fitted once and machine 3 twice
-    @test fp.machines[1].state == fp.machines[2].state == 1
-    @test fp.machines[3].state == 2
+    @test rep.machines[1].state == rep.machines[2].state == 1
+    @test rep.machines[3].state == 2
     # The new values have been updated
-    @test fp.μpred != μpred
-    @test fp.σpred != σpred
-
+    @test rep.μpred != μpred
+    @test rep.σpred != σpred
 end
 
 ## COMPOSITE WITH COMPONENT MODELS STORED IN NTUPLE

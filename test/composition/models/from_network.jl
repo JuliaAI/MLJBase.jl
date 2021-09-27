@@ -449,8 +449,8 @@ mach = fit!(machine(model, X), verbosity=0)
 fit!(yhat)
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
-Θ = fitted_params(mach)
-@test Θ.foo == yhat() |> first
+rep = report(mach)
+@test rep.foo == yhat() |> first
 
 
 ## EXPORTING A STATIC LEARNING NETWORK (NO TRAINING ARGUMENTS)

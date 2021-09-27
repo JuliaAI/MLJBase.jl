@@ -90,33 +90,30 @@ end
 
 operations(s::NamedTuple) = filter(in(OPERATIONS), keys(s))
 
-# builds on `fitted_params(::AbstractNode)` defined in
-# composition/learning_networks/node.jl:
-MLJModelInterface.fitted_params(signature::NamedTuple) =
-    merge(fitted_params(glb(values(signature)...)),
-          call_non_operations(signature))
-
 
 ## FITRESULTS FOR COMPOSITE MODELS
 
 mutable struct CompositeFitresult
     signature
-    fitted_params
-    CompositeFitresult(signature) = new(signature)
+    glb
+    report_additions
+    function CompositeFitresult(signature)
+        glb = MLJBase.glb(values(signature)...)
+        new(signature, glb)
+    end
 end
 signature(c::CompositeFitresult) = getfield(c, :signature)
+glb(c::CompositeFitresult) = getfield(c, :glb)
+report_additions(c::CompositeFitresult) = getfield(c, :report_additions)
 
-function update!(c::CompositeFitresult)
-    setfield!(c, :fitted_params, fitted_params(getfield(c, :signature)))
-end
+update!(c::CompositeFitresult) =
+    setfield!(c, :report_additions, call_non_operations(signature(c)))
 
-# So that `fitresult.predict` returns the predict node, etc:
-Base.propertynames(c::CompositeFitresult) = keys(getfield(c, :signature))
+# To accommodate pre-existing design (operations.jl) arrange
+# that `fitresult.predict` returns the predict node, etc:
+Base.propertynames(c::CompositeFitresult) = keys(signature(c))
 Base.getproperty(c::CompositeFitresult, name::Symbol) =
-    getproperty(getfield(c, :signature), name)
-
-MLJModelInterface.fitted_params(c::CompositeFitresult) =
-    getfield(c, :fitted_params)
+    getproperty(signature(c), name)
 
 # TODO: add test for above access methods
 
@@ -211,8 +208,7 @@ $DOC_SIGNATURES
 **Private method.**
 
 """
-glb(mach::Machine{<:Union{Composite,Surrogate}}) =
-    glb(values(signature(mach.fitresult))...)
+glb(mach::Machine{<:Union{Composite,Surrogate}}) = glb(mach.fitresult)
 
 
 # """
@@ -260,14 +256,14 @@ See also [`machine`](@ref)
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb_node = glb(mach)
     fit!(glb_node; kwargs...)
-    update!(mach.fitresult) # builds fitted_params
+    update!(mach.fitresult) # updates `report_additions`
     mach.state += 1
-    mach.report = report(glb_node)
+    mach.report = merge(report(glb_node), report_additions(mach.fitresult))
     return mach
 end
 
 MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
-    fitted_params(mach.fitresult)
+    fitted_params(glb(mach))
 
 
 ## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
@@ -281,7 +277,6 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 function network_model_names(model::M,
                              mach::Machine{<:Surrogate}) where M<:Model
 
-    signature = mach.fitresult
     network_model_ids = objectid.(MLJBase.models(glb(mach)))
 
     names = propertynames(model)

@@ -8,7 +8,6 @@ using Tables
 using StableRNGs
 rng = StableRNG(616161)
 
-
 # A dummy clustering model:
 mutable struct DummyClusterer <: Unsupervised
     n::Int
@@ -45,7 +44,7 @@ X = (a = rand(N), b = categorical(rand("FM", N)))
     # test of `fitted_params(::NamedTuple)':
     fit!(Wout, verbosity=0)
     s = (predict=yhat, transform=Wout, a=source(:a), b=source(:b))
-    Θ = fitted_params(s)
+    Θ = MLJBase.call_non_operations(s)
     @test Θ.a == :a
     @test Θ.b == :b
 
@@ -69,11 +68,10 @@ X = (a = rand(N), b = categorical(rand("FM", N)))
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys; training_auc=e)
 
-    # test extra fitted_param coming from `training_auc=e` above
+    # test extra report items coming from `training_auc=e` above
     fit!(mach, verbosity=0)
     err = auc(yhat(), y)
-    @test fitted_params(mach.fitresult).training_auc ≈ err
-    @test fitted_params(mach).training_auc == err
+    @test report(mach).training_auc ≈ err
 
     # supervised - predict_mode
     @test predict_mode(mach, X) == mode.(predict(mach, X))
@@ -116,7 +114,6 @@ oakM = machine(oak, W, u)
 uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
-foo = first(yhat)
 
 @testset "replace method for learning network machines" begin
 
