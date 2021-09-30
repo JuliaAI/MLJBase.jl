@@ -114,6 +114,7 @@ show_compact(::Type) = false
 
 show_as_constructed(object) = show_as_constructed(typeof(object))
 show_compact(object) = show_compact(typeof(object))
+show_handle(object) = false
 
 # simplified string rep of an Type:
 function simple_repr(T)
@@ -137,9 +138,9 @@ end
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
-    repr = simple_repr(typeof(object))
-    str = "$repr $(handle(object))"
-    if !isempty(propertynames(object))
+    str = simple_repr(typeof(object))
+    show_handle(object) && (str *= " $(handle(object))")
+    if false # !isempty(propertynames(object))
         printstyled(IOContext(stream, :color=> SHOW_COLOR),
                     str, bold=false, color=:blue)
     else
@@ -189,7 +190,7 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
             k == n_names || print(stream, ",")
         end
         print(stream, ")")
-        if current_depth == 0
+        if current_depth == 0 && show_handle(object)
             description = " $(handle(object))"
             printstyled(IOContext(stream, :color=> SHOW_COLOR),
                         description, bold=false, color=:blue)
