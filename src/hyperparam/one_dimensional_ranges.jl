@@ -1,6 +1,6 @@
 ## PARAMETER RANGES
 
-abstract type ParamRange{T} <: MLJType end
+abstract type ParamRange{T} end
 
 Base.isempty(::ParamRange) = false
 
@@ -28,14 +28,28 @@ struct NominalRange{T,N} <: ParamRange{T}
 end
 
 function Base.show(stream::IO,
-                   ::MIME"text/plain",
-                   r::ParamRange{T}) where T
-    if r.field isa Expr
-        fstr = ":($(r.field))"
+#                   ::MIME"text/plain",
+                   r::NumericRange{T}) where T
+    fstr = string(r.field)
+    repr = "NumericRange($(r.lower) ≤ $fstr ≤ $(r.upper); "*
+        "origin=$(r.origin), unit=$(r.unit))"
+    if r.scale isa Symbol
+        r.scale !== :linear && (repr *= " on $(r.scale) scale")
     else
-        fstr = ":$(r.field)"
+        repr *= " on non-linear scale"
     end
-    repr = "$(typeof(r).name)($T, $fstr, ... )"
+    print(stream, repr)
+    return nothing
+end
+
+function Base.show(stream::IO,
+#                   ::MIME"text/plain",
+                   r::NominalRange{T}) where T
+    fstr = string(r.field)
+    values_str = join(string.(r.values), ", ")
+    suffix = length(r.values) > 3 ? ", ..." : ""
+    values_str *= suffix
+    repr = "NominalRange($fstr = $values_str)"
     print(stream, repr)
     return nothing
 end
