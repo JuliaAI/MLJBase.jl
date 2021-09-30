@@ -106,7 +106,7 @@ end
 
     @test precision(ŷ, y)   == TP / (TP + FP)
     @test specificity(ŷ, y) == TN / (TN + FP)
-    @test f1score(ŷ, y)     ==
+    @test f1score(ŷ, y) ≈
         2.0 / (1.0 / recall(ŷ, y) + 1.0 / precision(ŷ, y))
 
     recall_rev = Recall(rev=true)
@@ -117,7 +117,7 @@ end
     specificity_rev = Specificity(rev=true)
     @test specificity_rev(ŷ, y) == TP / (TP + FN)
     f1score_rev = FScore(rev=true)
-    @test f1score_rev(ŷ, y) ==
+    @test f1score_rev(ŷ, y) ≈
         2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
 end
 
@@ -371,7 +371,7 @@ end
     @test recall(ŷ, y) == sk_rec # m.recall_score(y, yhat, pos_label=2)
     sk_f05 = 0.625
     f05 = FScore(β=0.5)
-    @test f05(ŷ, y) == sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
+    @test f05(ŷ, y) ≈ sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
 
     # reversion mechanism
     sk_prec_rev = 0.5454545454545454

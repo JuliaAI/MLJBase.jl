@@ -212,9 +212,10 @@ footer="Constructor signature: `FScore(β=1.0, rev=false)`. ")
 function (score::FScore)(m::CM2)
     β = score.β
     β2   = β^2
-    prec = precision(m)
-    rec  = recall(m)
-    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+    tp = _tp(m)
+    fn = _fn(m)
+    fp = _fp(m)
+    return (1 + β2) * tp / ((1 + β2)*tp + β2*fn + fp)
 end
 
 # calling on arrays:
