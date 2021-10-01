@@ -36,7 +36,7 @@ function Base.show(stream::IO,
     if r.scale isa Symbol
         r.scale !== :linear && (repr *= " on $(r.scale) scale")
     else
-        repr *= " on non-linear scale"
+        repr = "transformed "*repr
     end
     print(stream, repr)
     return nothing
@@ -46,10 +46,8 @@ function Base.show(stream::IO,
 #                   ::MIME"text/plain",
                    r::NominalRange{T}) where T
     fstr = string(r.field)
-    values_str = join(string.(r.values), ", ")
-    suffix = length(r.values) > 3 ? ", ..." : ""
-    values_str *= suffix
-    repr = "NominalRange($fstr = $values_str)"
+    seqstr = sequence_string(collect(r.values))
+    repr = "NominalRange($fstr = $seqstr)"
     print(stream, repr)
     return nothing
 end
