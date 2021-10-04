@@ -8,11 +8,11 @@ const err_wrong_target_scitype(actual_scitype) = ArgumentError(
     "by a model with `$actual_scitype` targets. ")
 
 # mode:
-predict_mode(m::Probabilistic, fitresult, Xnew) =
+predict_mode(m, fitresult, Xnew) =
     mode.(predict(m, fitresult, Xnew))
 
 # mean:
-predict_mean(m::Probabilistic, fitresult, Xnew) =
+predict_mean(m, fitresult, Xnew) =
     predict_mean(m, fitresult, Xnew, target_scitype(m))
 predict_mean(m, fitresult, Xnew, ::Any) =
     mean.(predict(m, fitresult, Xnew))
@@ -20,7 +20,7 @@ predict_mean(m, fitresult, Xnew, ::Type{<:BadMeanTypes}) =
     throw(err_wrong_target_scitype(Finite))
 
 # median:
-predict_median(m::Probabilistic, fitresult, Xnew) =
+predict_median(m, fitresult, Xnew) =
     predict_median(m, fitresult, Xnew, target_scitype(m))
 predict_median(m, fitresult, Xnew, ::Any) =
     median.(predict(m, fitresult, Xnew))
