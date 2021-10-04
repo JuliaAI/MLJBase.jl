@@ -132,8 +132,7 @@ function check(model::Model, args...; full=false)
     end
 end
 
-function check(model::Supervised, args... ; full=false)
-
+function check_supervised(model, args...; full)
     nowarns = true
 
     nargs = length(args)
@@ -165,7 +164,7 @@ function check(model::Supervised, args... ; full=false)
 
 end
 
-function check(model::Unsupervised, args...; full=false)
+function check_unsupervised(model, args...; full)
     nowarns = true
 
     nargs = length(args)
@@ -183,7 +182,21 @@ function check(model::Unsupervised, args...; full=false)
     return nowarns
 end
 
+function check(model::Union{Supervised, SupervisedAnnotator}, args... ; full=false)
+    check_supervised(model, args...; full)
+end
 
+function check(model::Unsupervised, args...; full=false)
+    check_unsupervised(model, args...; full)
+end
+
+function check(model::UnsupervisedAnnotator, args... ; full = false)
+    if length(args) <= 1
+        check_unsupervised(model, args...; full)
+    else
+        check_supervised(model, args...; full)
+    end
+end
 
 """
     machine(model, args...; cache=true)
