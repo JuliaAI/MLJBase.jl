@@ -178,6 +178,8 @@ function init_rng(rng)
     end
     return rng
 end
+
+
 ## FOR PRETTY PRINTING
 
 # of coloumns:
@@ -217,6 +219,44 @@ function short_string(v::Vector)
     end
     return "[$middle]"
 end
+
+"""
+    sequence_string(itr, n=3)
+
+Return a "sequence" string from the first `n` elements generated
+by `itr`.
+
+    sequence_string(1:10, 3)
+
+**Private method.**
+
+"""
+function sequence_string(itr::Itr, n=3) where Itr
+    n > 1 || throw(ArgumentError("Cutoff must be at least 2. "))
+    I = Base.IteratorSize(Itr)
+    I isa Base.HasLength ||
+        I isa Base.HasShape ||
+        I isa IsInfinite ||
+        throw(Argumenterror("Unsupported iterator. "))
+    vals = typeof(first(itr))[]
+    i = 0
+    earlystop = false
+    for x in itr
+        i += 1
+        if i === n + 1
+            earlystop = true
+            break
+        else
+            push!(vals, x)
+        end
+    end
+    ret = join(vals, ", ")
+    earlystop && (ret *= ", ...")
+    return ret
+end
+
+
+## UNWINDING ITERATORS
 
 """
     unwind(iterators...)

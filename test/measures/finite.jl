@@ -25,30 +25,37 @@ end
     @test accuracy(ŷ, y, w) == 1-mcr(ŷ,y,w)
 
     ## balanced accuracy
-    y = categorical([3, 4, 1, 1, 1, 4, 1, 3, 3, 1, 2, 3, 1, 3, 3, 3, 2, 4, 3, 2, 1, 3,
-       3, 1, 1, 1, 2, 4, 1, 4, 4, 4, 1, 1, 4, 4, 3, 1, 2, 2, 3, 4, 2, 1,
-       2, 2, 3, 2, 2, 3, 1, 2, 3, 4, 1, 2, 4, 2, 1, 4, 3, 2, 3, 3, 3, 1,
-       3, 1, 4, 3, 1, 2, 3, 1, 2, 2, 4, 4, 1, 3, 2, 1, 4, 3, 3, 1, 3, 1,
-       2, 2, 2, 2, 2, 3, 2, 1, 1, 4, 2, 2])
-    ŷ = categorical([2, 3, 2, 1, 2, 2, 3, 3, 2, 4, 2, 3, 2, 4, 3, 4, 4, 2, 1, 3, 3, 3,
-       3, 3, 2, 4, 4, 3, 4, 4, 1, 2, 3, 2, 4, 1, 2, 3, 1, 4, 2, 2, 1, 2,
-       3, 2, 2, 4, 3, 2, 2, 2, 1, 2, 2, 1, 3, 1, 4, 1, 2, 1, 2, 4, 3, 2,
-       4, 3, 2, 4, 4, 2, 4, 3, 2, 3, 1, 2, 1, 2, 1, 2, 3, 1, 1, 3, 4, 2,
-       4, 4, 2, 1, 3, 2, 2, 4, 1, 1, 4, 1])
-    sk_bacc = 0.17493386243386244
+    y = categorical([
+        3, 4, 1, 1, 1, 4, 1, 3, 3, 1, 2, 3, 1, 3, 3, 3, 2, 4, 3, 2, 1, 3,
+        3, 1, 1, 1, 2, 4, 1, 4, 4, 4, 1, 1, 4, 4, 3, 1, 2, 2, 3, 4, 2, 1,
+        2, 2, 3, 2, 2, 3, 1, 2, 3, 4, 1, 2, 4, 2, 1, 4, 3, 2, 3, 3, 3, 1,
+        3, 1, 4, 3, 1, 2, 3, 1, 2, 2, 4, 4, 1, 3, 2, 1, 4, 3, 3, 1, 3, 1,
+        2, 2, 2, 2, 2, 3, 2, 1, 1, 4, 2, 2])
+    ŷ = categorical([
+        2, 3, 2, 1, 2, 2, 3, 3, 2, 4, 2, 3, 2, 4, 3, 4, 4, 2, 1, 3, 3, 3,
+        3, 3, 2, 4, 4, 3, 4, 4, 1, 2, 3, 2, 4, 1, 2, 3, 1, 4, 2, 2, 1, 2,
+        3, 2, 2, 4, 3, 2, 2, 2, 1, 2, 2, 1, 3, 1, 4, 1, 2, 1, 2, 4, 3, 2,
+        4, 3, 2, 4, 4, 2, 4, 3, 2, 3, 1, 2, 1, 2, 1, 2, 3, 1, 1, 3, 4, 2,
+        4, 4, 2, 1, 3, 2, 2, 4, 1, 1, 4, 1])
+    w = [
+        0.5, 1.4, 0.6, 1. , 0.1, 0.5, 1.2, 0.2, 1.8, 0.3, 0.6, 2.2, 0.1,
+        1.4, 0.2, 0.4, 0.6, 2.1, 0.7, 0.2, 0.9, 0.4, 0.7, 0.3, 0.1, 1.7,
+        0.2, 0.7, 1.2, 1. , 0.9, 0.4, 0.5, 0.5, 0.5, 1. , 0.3, 0.1, 0.2,
+        0. , 2.2, 0.8, 0.9, 0.8, 1.3, 0.2, 0.4, 0.7, 1. , 0.7, 1.7, 0.7,
+        1.1, 1.8, 0.1, 1.2, 1.8, 1. , 0.1, 0.5, 0.6, 0.7, 0.6, 1.2, 0.6,
+        1.2, 0.5, 0.5, 0.8, 0.2, 0.6, 1. , 0.3, 1. , 0.2, 1.1, 1.1, 1.1,
+        0.6, 1.4, 1.2, 0.3, 1.1, 0.2, 0.5, 1.6, 0.3, 1. , 0.3, 0.9, 0.9,
+        0. , 0.6, 0.6, 0.4, 0.5, 0.4, 0.2, 0.9, 0.4]
+    sk_bacc = 0.17493386243386244 # note: sk-learn reverses ŷ and y
     @test bacc(ŷ, y) ≈ sk_bacc
-    w = [0.5, 1.4, 0.6, 1. , 0.1, 0.5, 1.2, 0.2, 1.8, 0.3, 0.6, 2.2, 0.1,
-       1.4, 0.2, 0.4, 0.6, 2.1, 0.7, 0.2, 0.9, 0.4, 0.7, 0.3, 0.1, 1.7,
-       0.2, 0.7, 1.2, 1. , 0.9, 0.4, 0.5, 0.5, 0.5, 1. , 0.3, 0.1, 0.2,
-       0. , 2.2, 0.8, 0.9, 0.8, 1.3, 0.2, 0.4, 0.7, 1. , 0.7, 1.7, 0.7,
-       1.1, 1.8, 0.1, 1.2, 1.8, 1. , 0.1, 0.5, 0.6, 0.7, 0.6, 1.2, 0.6,
-       1.2, 0.5, 0.5, 0.8, 0.2, 0.6, 1. , 0.3, 1. , 0.2, 1.1, 1.1, 1.1,
-       0.6, 1.4, 1.2, 0.3, 1.1, 0.2, 0.5, 1.6, 0.3, 1. , 0.3, 0.9, 0.9,
-         0. , 0.6, 0.6, 0.4, 0.5, 0.4, 0.2, 0.9, 0.4]
-
+    sk_adjusted_bacc =  -0.10008818342151675
+    @test BalancedAccuracy(adjusted=true)(ŷ, y) ≈ sk_adjusted_bacc
     sk_bacc_w = 0.1581913163016446
     @test bacc(ŷ, y, w) ≈ sk_bacc_w
+    sk_adjusted_bacc_w = -0.1224115782644738
+    @test BalancedAccuracy(adjusted=true)(ŷ, y, w) ≈ sk_adjusted_bacc_w
 
+    ## matthews correlation
     sk_mcc = -0.09759509982785947
     @test mcc(ŷ, y) == matthews_correlation(ŷ, y) ≈ sk_mcc
     # invariance with respect to permutation ?
@@ -102,7 +109,7 @@ end
 
     @test precision(ŷ, y)   == TP / (TP + FP)
     @test specificity(ŷ, y) == TN / (TN + FP)
-    @test f1score(ŷ, y)     ==
+    @test f1score(ŷ, y) ≈
         2.0 / (1.0 / recall(ŷ, y) + 1.0 / precision(ŷ, y))
 
     recall_rev = Recall(rev=true)
@@ -113,7 +120,7 @@ end
     specificity_rev = Specificity(rev=true)
     @test specificity_rev(ŷ, y) == TP / (TP + FN)
     f1score_rev = FScore(rev=true)
-    @test f1score_rev(ŷ, y) ==
+    @test f1score_rev(ŷ, y) ≈
         2.0 / (1.0 / recall_rev(ŷ, y) + 1.0 / precision_rev(ŷ, y))
 end
 
@@ -148,11 +155,11 @@ end
 
     # Check if is positive
     m = MulticlassTruePositive(;return_type=Vector)
-    @test  [0; 0; 0] <= m(ŷ, y) == cm_tp 
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tp
     m = MulticlassTrueNegative(;return_type=Vector)
-    @test  [0; 0; 0] <= m(ŷ, y) == cm_tn 
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_tn
     m = MulticlassFalsePositive(;return_type=Vector)
-    @test  [0; 0; 0] <= m(ŷ, y) == cm_fp 
+    @test  [0; 0; 0] <= m(ŷ, y) == cm_fp
     m = MulticlassFalseNegative(;return_type=Vector)
     @test  [0; 0; 0] <= m(ŷ, y) == cm_fn
 
@@ -207,7 +214,7 @@ end
 
     @test micro_prec(cm)    == micro_prec(ŷ, y)    == sum(cm_tp) ./ sum(cm_fp.+cm_tp)
     @test micro_rec(cm)     == micro_rec(ŷ, y)     == sum(cm_tp) ./ sum(cm_fn.+cm_tp)
-    @test micro_f1score(cm) == micro_f1score(ŷ, y) == 
+    @test micro_f1score(cm) == micro_f1score(ŷ, y) ==
     2 ./ ( 1 ./ ( sum(cm_tp) ./ sum(cm_fp.+cm_tp) ) + 1 ./ ( sum(cm_tp) ./ sum(cm_fn.+cm_tp) ) )
 
     #`no_avg` and `Vector` with class weights
@@ -247,7 +254,7 @@ end
 
     @test v_mi_prec(cm) == v_mi_prec(ŷ, y) == sum(cm_tp) ./ sum(cm_fp.+cm_tp)
     @test v_mi_rec(cm)  == v_mi_rec(ŷ, y)  == sum(cm_tp) ./ sum(cm_fn.+cm_tp)
-    @test v_mi_f1(cm)   == v_mi_f1(ŷ, y)   == 
+    @test v_mi_f1(cm)   == v_mi_f1(ŷ, y)   ==
     2 ./ ( 1 ./ ( sum(cm_tp) ./ sum(cm_fp.+cm_tp) ) + 1 ./ ( sum(cm_tp) ./ sum(cm_fn.+cm_tp) ) )
 end
 
@@ -367,7 +374,7 @@ end
     @test recall(ŷ, y) == sk_rec # m.recall_score(y, yhat, pos_label=2)
     sk_f05 = 0.625
     f05 = FScore(β=0.5)
-    @test f05(ŷ, y) == sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
+    @test f05(ŷ, y) ≈ sk_f05 # m.fbeta_score(y, yhat, 0.5, pos_label=2)
 
     # reversion mechanism
     sk_prec_rev = 0.5454545454545454

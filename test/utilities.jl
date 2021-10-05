@@ -66,7 +66,7 @@ end
 
     x = 1:5 |> collect
     y = 1:5 |> collect
-    
+
     # In the following tests it is crucial to recreate a new `RNG` each time.
     perm = Random.randperm(StableRNG(11900), 5)
     @test MLJBase.shuffle_rows(x, y; rng=StableRNG(11900)) == (x[perm], y[perm])
@@ -127,6 +127,13 @@ end
     @test MLJBase.available_name(Utilities, :orange) == :orange2
     Utilities.eval(:(orange2 = 6))
     @test MLJBase.available_name(Utilities, :orange) == :orange3
+end
+
+@testset "sequence_string" begin
+    @test MLJBase.sequence_string(1:10, 2) == "1, 2, ..."
+    @test MLJBase.sequence_string(1:10) == "1, 2, 3, ..."
+    @test MLJBase.sequence_string(1:3) == "1, 2, 3"
+    @test MLJBase.sequence_string(1:2) == "1, 2"
 end
 
 end # module

@@ -117,23 +117,7 @@ err_length_mismatch(model::Supervised) = DimensionMismatch(
 check(model::Any, args...; kwargs...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
 
-function check(model::Model, args...; full=false)
-
-    nowarns = true
-
-    F = fit_data_scitype(model)
-    (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
-        return true
-
-    S = Tuple{elscitype.(args)...}
-    if !(S <: F)
-        @warn warn_generic_scitype_mismatch(S, F)
-        nowarns = false
-    end
-end
-
-function check(model::Supervised, args... ; full=false)
-
+function check_supervised(model, full, args...)
     nowarns = true
 
     nargs = length(args)
@@ -165,7 +149,7 @@ function check(model::Supervised, args... ; full=false)
 
 end
 
-function check(model::Unsupervised, args...; full=false)
+function check_unsupervised(model, full, args...)
     nowarns = true
 
     nargs = length(args)
@@ -183,7 +167,35 @@ function check(model::Unsupervised, args...; full=false)
     return nowarns
 end
 
+function check(model::Model, args...; full=false)
+    nowarns = true
 
+    F = fit_data_scitype(model)
+    (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
+        return true
+
+    S = Tuple{elscitype.(args)...}
+    if !(S <: F)
+        @warn warn_generic_scitype_mismatch(S, F)
+        nowarns = false
+    end
+end
+
+function check(model::Union{Supervised, SupervisedAnnotator}, args... ; full = false)
+    check_supervised(model, full, args...)
+end
+
+function check(model::Unsupervised, args...; full=false)
+    check_unsupervised(model, full, args...)
+end
+
+function check(model::UnsupervisedAnnotator, args... ; full = false)
+    if length(args) <= 1
+        check_unsupervised(model, full, args...)
+    else
+        check_supervised(model, full, args...)
+    end
+end
 
 """
     machine(model, args...; cache=true)
