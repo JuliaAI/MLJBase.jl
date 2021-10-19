@@ -119,6 +119,7 @@ include("loss_functions_interface.jl")
     for meta in measures()
         m = eval(Meta.parse("$(meta.name)()"))
         show(io, MIME("text/plain"), m)
+        show(io, m)
     end
 end
 

@@ -395,7 +395,7 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
     st = scitype(y)
     if !(st <: AbstractArray{<:Finite})
         throw(ArgumentError(
-            "Supplied target has scitpye $st but stratified " *
+            "Supplied target has scitype $st but stratified " *
             "cross-validation applies only to classification problems. "
         ))
     end
@@ -469,9 +469,12 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_pairs")
     println(io, "Extract:")
+    show_color = MLJBase.SHOW_COLOR
+    color_off()
     PrettyTables.pretty_table(io, data, header;
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l)
+    show_color ? color_on() : color_off()
 end
 
 function Base.show(io::IO, e::PerformanceEvaluation)

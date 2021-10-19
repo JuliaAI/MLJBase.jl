@@ -115,12 +115,17 @@ origins(s::Source) = [s,]
 
 # show within other objects:
 function Base.show(stream::IO, object::AbstractNode)
-    repr = simple_repr(typeof(object))
-    str = "$repr $(handle(object))"
-    printstyled(IOContext(stream, :color=> SHOW_COLOR),
+    str = simple_repr(typeof(object))
+    show_handle(object) && (str *= " $(handle(object))")
+    if false
+        printstyled(IOContext(stream, :color=> SHOW_COLOR),
                     str, bold=false, color=:blue)
+    else
+        print(stream, str)
+    end
     return nothing
 end
+show_handle(::Source) = true
 
 # show when alone:
 function Base.show(stream::IO, ::MIME"text/plain", source::Source)
@@ -128,7 +133,6 @@ function Base.show(stream::IO, ::MIME"text/plain", source::Source)
     print(stream, " \u23CE `$(elscitype(source))`")
     return nothing
 end
-
 
 ## SPECIAL NODE TO THROW EXCEPTION WHEN CALLED
 
