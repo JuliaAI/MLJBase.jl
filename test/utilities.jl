@@ -155,6 +155,7 @@ struct FooBar{A} end
 
     @test MLJBase.generate_name!(42, [], only=Array) == :f
     @test MLJBase.generate_name!(42, [], only=Number, substitute=:g) == :int64
+end
 
 @testset "sequence_string" begin
     @test MLJBase.sequence_string(1:10, 2) == "1, 2, ..."
