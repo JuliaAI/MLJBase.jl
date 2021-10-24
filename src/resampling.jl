@@ -774,7 +774,7 @@ The `acceleration` keyword argument is used to specify the compute resource (a
 subtype of `ComputationalResources.AbstractResource`) that will be used to
 accelerate/parallelize the resampling operation.
 
-Although evaluate! is mutating, `mach.model` and `mach.args` are
+Although `evaluate!` is mutating, `mach.model` and `mach.args` are
 untouched.
 
 ### Summary of key-word arguments
