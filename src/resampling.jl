@@ -217,13 +217,13 @@ end
 # ----------------------------------------------------------------
 # Cross-validation (TimeSeriesCV)
 """
-tscv = TimeSeriesCV(; nfolds=4)
+    tscv = TimeSeriesCV(; nfolds=4)
 
 Cross-validation resampling strategy, for use in `evaluate!`,
 `evaluate` and tuning, when observations are chronological and not
 expected to be independent.
 
-train_test_pairs(tscv, rows)
+    train_test_pairs(tscv, rows)
 
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices), where each `train` and `test` is a sub-vector
