@@ -89,7 +89,7 @@ end
 
 # hack an alias for the union type, `SomePipeline{N,operation}`:
 const _TYPE_EXS = map(values(PIPELINE_TYPE_GIVEN_TYPE)) do P_ex
-    Meta.parse("$(P_ex){N,operation}")
+    :($P_ex{N,operation})
 end
 quote
     const SomePipeline{N,operation} =
@@ -105,7 +105,7 @@ operation(p::SomePipeline{N,O}) where {N,O} = O
 const PRETTY_PREDICTION_OPTIONS =
     join([string("`:", opt, "`") for opt in PREDICTION_TYPE_OPTIONS],
          ", ",
-         " and ")
+         ", and ")
 const ERR_TOO_MANY_SUPERVISED = ArgumentError(
     "More than one supervised model in a pipeline is not permitted")
 const ERR_EMPTY_PIPELINE = ArgumentError(
@@ -113,7 +113,7 @@ const ERR_EMPTY_PIPELINE = ArgumentError(
 err_prediction_type_conflict(supervised_model, prediction_type) =
     ArgumentError("The pipeline's last component model has type "*
                   "`$(typeof(supervised_model))`, which conflicts "*
-                  "the declaration "*
+                  "with the declaration "*
                   "`prediction_type=$prediction_type`. ")
 const INFO_TREATING_AS_DETERMINISTIC =
     "Treating pipeline as a `Deterministic` predictor.\n"*
@@ -127,13 +127,13 @@ const WARN_IGNORING_PREDICTION_TYPE =
     "`prediction_type=$(prediction_type)`. "
 const ERR_MIXED_PIPELINE_SPEC = ArgumentError(
     "Either specify all pipeline components without names, as in "*
-    "`Pipeline(model1, model2)` or all specify names for all "*
+    "`Pipeline(model1, model2)` or specify names for all "*
     "components, as in `Pipeline(myfirstmodel=model1, mysecondmodel=model2)`. ")
 
 
 # The following combines its arguments into a named tuple, performing
 # a number of checks and modifications. Specifically, it checks
-# `components` as a is valid sequence, modifies `names` to make them
+# `components` is a valid sequence, modifies `names` to make them
 # unique, and replaces the types appearing in the named tuple type
 # parameters with their abstract supertypes. See the "Note on
 # mutability" above.
@@ -162,13 +162,13 @@ end
     Pipeline(name1=component1, name2=component2, ..., namek=componentk; options...)
     component1 |> component2 |> ... |> componentk
 
-Create an instance of composite model type which sequentially composes
+Create an instance of a composite model type which sequentially composes
 the specified components in order. This means `component1` receives
 inputs, whose output is passed to `component2`, and so forth. A
 "component" is either a `Model` instance, a model type (converted
 immediately to its default instance) or any callable object. Here the
 "output" of a model is what `predict` returns if it is `Supervised`,
-and what `transform` returns if it is `Unsupervised`.
+or what `transform` returns if it is `Unsupervised`.
 
 Names for the component fields are automatically generated unless
 explicitly specified, as in
@@ -178,7 +178,7 @@ Pipeline(endoder=ContinuousEncoder(drop_last=false),
          stand=Standardizer())
 ```
 
-The `Pipeline` constructor accepts key-word `options` discussed further
+The `Pipeline` constructor accepts keyword `options` discussed further
 below.
 
 Ordinary functions (and other callables) may be inserted in the
@@ -316,7 +316,7 @@ function _pipeline(named_components::NamedTuple,
         if prediction_type !== nothing
             super_type = as_type(prediction_type)
             supervised_is_last && !(supervised_model isa super_type) &&
-                throw(err_prediction_type_conflict(e, prediction_type))
+                throw(err_prediction_type_conflict(supervised_model, prediction_type))
         elseif supervised_is_last
             if operation != predict
                 super_type = Deterministic
@@ -353,7 +353,7 @@ end
 # # PROPERTY ACCESS
 
 err_pipeline_bad_property(p, name) = ErrorException(
-    "type $(typeof(p)) has no property $name")
+    "pipeline has no component `$name`")
 
 Base.propertynames(p::SomePipeline{<:NamedTuple{names}}) where names =
     (names..., :cache)
