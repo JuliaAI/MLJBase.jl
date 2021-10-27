@@ -208,9 +208,9 @@ implements `transform`.
 
 ### Special operations
 
-If all the `components` are invertible unsupervised models
-(transformers), then `inverse_transform` is implemented for the
-pipeline. If there are no supervised models, then `predict` is
+If all the `components` are invertible unsupervised models (ie,
+implement `inverse_transform`) then `inverse_transform` is implemented
+for the pipeline. If there are no supervised models, then `predict` is
 nevertheless implemented, assuming the last component is a model that
 implements it (some clustering models). Similarly, calling `transform`
 on a supervised pipeline calls `transform` on the supervised
