@@ -121,7 +121,7 @@ end
     @test_logs((:warn, MLJBase.WARN_IGNORING_PREDICTION_TYPE),
                Pipeline(m, t, u, prediction_type=:deterministic))
     @test_throws(MLJBase.err_prediction_type_conflict(d, :probabilistic),
-                 Pipeline(m, t, d, prediction_type=:probablisitic))
+                 Pipeline(m, t, d, prediction_type=:probabilistic))
 
 end
 
