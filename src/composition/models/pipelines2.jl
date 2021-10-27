@@ -316,7 +316,8 @@ function _pipeline(named_components::NamedTuple,
         if prediction_type !== nothing
             super_type = as_type(prediction_type)
             supervised_is_last && !(supervised_model isa super_type) &&
-                throw(err_prediction_type_conflict(supervised_model, prediction_type))
+                throw(err_prediction_type_conflict(supervised_model,
+                                                   prediction_type))
         elseif supervised_is_last
             if operation != predict
                 super_type = Deterministic
@@ -385,10 +386,16 @@ end
 # ## Methods to extend a pipeline learning network
 
 # The "front" of a pipeline network, as we grow it, consists of a
-# `predict` and a `transform` node. Both can be changed but only the
-# "active" node is propagated.  Initially `transform` is active;
-# `predict` only becomes active when a supervised model is
-# encountered, and this change is permanent.
+# "predict" and a "transform" node. Once the pipeline is complete
+# (after a series of `extend` operations - see below) the "transform"
+# node is what is used to deliver the output of `transform(pipe)` in
+# the exported model, and the "predict" node is what will be used to
+# deliver the output of `op(pipe)` where `op` is the declared or
+# inferred `operation` - typically `predict` or `predict_mode`. Both
+# nodes can be changed by `extend` but only the "active" node is
+# propagated.  Initially "transform" is active and "predict" only becomes
+# active when a supervised model is encountered; this change is
+# permanent.
 # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
 # `A == true` means `transform` is active

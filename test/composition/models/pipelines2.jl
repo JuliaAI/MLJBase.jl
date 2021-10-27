@@ -50,7 +50,7 @@ end
 d = MyDeterministic(:d)
 p = MyProbabilistic(:p)
 u = MyUnsupervised(:u)
-s = MyTransformer2(:s)
+s = MyTransformer2(:s) # Static
 i = MyInterval(:i)
 m = MLJBase.matrix
 t = MLJBase.table
@@ -120,6 +120,8 @@ end
                  Pipeline(u=u, s=s, prediction_type=:ostrich))
     @test_logs((:warn, MLJBase.WARN_IGNORING_PREDICTION_TYPE),
                Pipeline(m, t, u, prediction_type=:deterministic))
+    @test_throws(MLJBase.err_prediction_type_conflict(d, :probabilistic),
+                 Pipeline(m, t, d, prediction_type=:probablisitic))
 
 end
 
@@ -151,6 +153,13 @@ end
     # or using MLJBase's recursive getproperty:
     MLJBase.recursive_setproperty!(pipe, :(my_unsupervised.ftr), :bonzai)
     @test pipe.my_unsupervised.ftr ==  :bonzai
+
+    # more errors:
+    @test_throws(MLJBase.err_pipeline_bad_property(pipe, :mount_fuji),
+                 pipe.mount_fuji)
+    @test_throws(MLJBase.err_pipeline_bad_property(pipe, :mount_fuji),
+                 pipe.mount_fuji = 42)
+
 end
 
 @testset "show" begin
@@ -208,6 +217,13 @@ end
     fit!(pnode, verbosity=0)
     fit!(tnode, verbosity=0)
     @test pnode() == [:ut, :ut, :ut]
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, s, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:st, :st, :st]
     @test tnode() == [:dt, :dt, :dt]
 end
 
@@ -515,6 +531,10 @@ end
     @test PCA |> Standardizer() |> KNNRegressor ==
         Pipeline(PCA(), Standardizer(), KNNRegressor())
 end
+
+@testset "miscelleneous coverage" begin
+    @test MLJBase.as_type(:unsupervised) == Unsupervised
+end 
 
 end
 
