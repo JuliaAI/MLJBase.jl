@@ -374,10 +374,10 @@ end
 """
     generate_name!(M, existing_names; only=Union{Function,Type}, substitute=:f)
 
-Given a type `M` (e.g., `MyHugeInteger{N}`) return a symbolic,
+Given a type `M` (e.g., `MyEvenInteger{N}`) return a symbolic,
 snake-case, representation of the type name (such as
-`my_huge_integer`). The symbol is pushed to `existing_names`, which must be
-an `AbstractVector` to which a `Symbol` can be pushed.
+`my_even_integer`). The symbol is pushed to `existing_names`, which
+must be an `AbstractVector` to which a `Symbol` can be pushed.
 
 If the snake-case representation already exists in `existing_names` a
 suitable integer is appended to the name.
