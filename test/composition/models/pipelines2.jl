@@ -130,10 +130,10 @@ end
     @test propertynames(pipe) ===
         (:f, :my_unsupervised, :my_unsupervised2, :my_transformer2, :cache)
 
-    # getindex:
-    pipe.my_unsupervised == u
-    pipe.my_unsupervised2 == u
-    pipe.cache = true
+    # getproperty:
+    @test pipe.my_unsupervised == u
+    @test pipe.my_unsupervised2 == u
+    @test pipe.cache == true
 
     # replacing a component with one whose abstract supertype is the same
     # or smaller:
