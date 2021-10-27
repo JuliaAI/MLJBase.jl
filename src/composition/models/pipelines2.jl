@@ -390,12 +390,10 @@ end
 # (after a series of `extend` operations - see below) the "transform"
 # node is what is used to deliver the output of `transform(pipe)` in
 # the exported model, and the "predict" node is what will be used to
-# deliver the output of `op(pipe)` where `op` is the declared or
-# inferred `operation` - typically `predict` or `predict_mode`. Both
-# nodes can be changed by `extend` but only the "active" node is
-# propagated.  Initially "transform" is active and "predict" only becomes
-# active when a supervised model is encountered; this change is
-# permanent.
+# deliver the output of `predict(pipe). Both nodes can be changed by
+# `extend` but only the "active" node is propagated.  Initially
+# "transform" is active and "predict" only becomes active when a
+# supervised model is encountered; this change is permanent.
 # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
 # `A == true` means `transform` is active

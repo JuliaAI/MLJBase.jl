@@ -21,7 +21,7 @@ import StatisticalTraits.snakecase
 # Interface
 using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
-    inverse_transform, fitted_params, predict, predict_mode, 
+    inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
@@ -88,7 +88,7 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-    fitted_params, predict, predict_mode, predict_mean, 
+    fitted_params, predict, predict_mode, predict_mean,
     predict_median, predict_joint,
     evaluate, clean!, training_losses
 
