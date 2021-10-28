@@ -38,6 +38,10 @@ _exported_type(::Probabilistic) = :ProbabilisticComposite
 _exported_type(::Deterministic) = :DeterministicComposite
 _exported_type(::Unsupervised) = :UnsupervisedComposite
 _exported_type(::Static) = :StaticComposite
+_exported_type(::ProbabilisticUnsupervisedDetector) = :ProbabilisticUnsupervisedDetectorComposite
+_exported_type(::ProbabilisticSupervisedDetector) = :ProbabilisticSupervisedDetectorComposite
+_exported_type(::DeterministicUnsupervisedDetector) = :DeterministicUnsupervisedDetectorComposite
+_exported_type(::DeterministicSupervisedDetector) = :DeterministicSupervisedDetectorComposite
 
 function eval_and_reassign(modl, ex)
     s = gensym()
