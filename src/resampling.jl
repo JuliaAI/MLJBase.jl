@@ -35,12 +35,7 @@ err_incompatible_prediction_types(model, measure) = ArgumentError(
 ## MODEL TYPES THAT CAN BE EVALUATED
 
 # not exported:
-const Measurable = Union{Supervised,
-                         ProbabilisticSupervisedDetector,
-                         ProbabilisticUnsupervisedDetector,
-                         DeterministicSupervisedDetector,
-                         DeterministicUnsupervisedDetector}
-
+const Measurable = Union{Supervised, Annotator}
 
 # ==================================================================
 ## RESAMPLING STRATEGIES
