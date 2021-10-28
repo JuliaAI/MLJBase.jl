@@ -34,14 +34,9 @@ net_error(k::Int) = throw(ArgumentError("Learning network export error $k. "))
 _insert_subtyping(ex, subtype_ex) =
     Expr(:(<:), ex, subtype_ex)
 
-_exported_type(::Probabilistic) = :ProbabilisticComposite
-_exported_type(::Deterministic) = :DeterministicComposite
-_exported_type(::Unsupervised) = :UnsupervisedComposite
-_exported_type(::Static) = :StaticComposite
-_exported_type(::ProbabilisticUnsupervisedDetector) = :ProbabilisticUnsupervisedDetectorComposite
-_exported_type(::ProbabilisticSupervisedDetector) = :ProbabilisticSupervisedDetectorComposite
-_exported_type(::DeterministicUnsupervisedDetector) = :DeterministicUnsupervisedDetectorComposite
-_exported_type(::DeterministicSupervisedDetector) = :DeterministicSupervisedDetectorComposite
+# create the exported type symbol, e.g. abstract_type(T) == Unsupervised
+# would result in :UnsupervisedComposite
+_exported_type(T::Model) = Symbol(abstract_type(T), :Composite)
 
 function eval_and_reassign(modl, ex)
     s = gensym()
