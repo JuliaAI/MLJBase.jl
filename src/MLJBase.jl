@@ -146,17 +146,14 @@ export machine, Machine, fit!, report, fit_only!
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
-# composition:
+# composition (surrogates and composites are exported in composition):
 export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
-    nrows_at_source, machine,
-    rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
-    DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
-    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
+    nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
+    Node, AbstractNode
 
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
