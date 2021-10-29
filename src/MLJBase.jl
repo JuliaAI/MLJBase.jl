@@ -21,7 +21,7 @@ import StatisticalTraits.snakecase
 # Interface
 using MLJModelInterface
 import MLJModelInterface: fit, update, update_data, transform,
-    inverse_transform, fitted_params, predict, predict_mode, 
+    inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
@@ -88,7 +88,7 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-    fitted_params, predict, predict_mode, predict_mean, 
+    fitted_params, predict, predict_mode, predict_mean,
     predict_median, predict_joint,
     evaluate, clean!, training_losses
 
@@ -150,7 +150,7 @@ export make_blobs, make_moons, make_circles, make_regression
 export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
-    Node, AbstractNode
+    Node, AbstractNode, Pipeline
 
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
@@ -355,14 +355,15 @@ include("composition/abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/machines.jl")
-@static if VERSION ≥ v"1.3.0-"
-    include("composition/learning_networks/arrows.jl")
-end
+# @static if VERSION ≥ v"1.3.0-"
+#     include("composition/learning_networks/arrows.jl")
+# end
 
 include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
+include("composition/models/pipelines2.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")

@@ -129,6 +129,34 @@ end
     @test MLJBase.available_name(Utilities, :orange) == :orange3
 end
 
+struct FooBar{A} end
+
+@testset "generate_name!" begin
+    existing_names = Symbol[]
+    @test MLJBase.generate_name!(FooBar{Int}, existing_names) ==
+        :foo_bar
+    @test MLJBase.generate_name!(FooBar{Float64}, existing_names) ==
+        :foo_bar2
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number) == :f
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number) == :f2
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g2
+    @test existing_names == [:foo_bar, :foo_bar2, :f, :f2, :g, :g2]
+
+    @test MLJBase.generate_name!(42, [], only=Array) == :f
+    @test MLJBase.generate_name!(42, [], only=Number, substitute=:g) == :int64
+end
+
 @testset "sequence_string" begin
     @test MLJBase.sequence_string(1:10, 2) == "1, 2, ..."
     @test MLJBase.sequence_string(1:10) == "1, 2, 3, ..."

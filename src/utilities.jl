@@ -370,3 +370,64 @@ function available_name(modl, name)
     end
     return new_name
 end
+
+"""
+    generate_name!(M, existing_names; only=Union{Function,Type}, substitute=:f)
+
+Given a type `M` (e.g., `MyEvenInteger{N}`) return a symbolic,
+snake-case, representation of the type name (such as
+`my_even_integer`). The symbol is pushed to `existing_names`, which
+must be an `AbstractVector` to which a `Symbol` can be pushed.
+
+If the snake-case representation already exists in `existing_names` a
+suitable integer is appended to the name.
+
+If `only` is specified, then the operation is restricted to those `M`
+for which `M isa only`. In all other cases the symbolic name is
+generated using `substitute` as the base symbol.
+
+```
+existing_names = []
+julia> generate_name!(Vector{Int}, existing_names)
+:vector
+
+julia> generate_name!(Vector{Int}, existing_names)
+:vector2
+
+julia> generate_name!(AbstractFloat, existing_names)
+:abstract_float
+
+julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
+:not_array
+
+julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
+:not_array2
+```
+
+"""
+function generate_name!(M::DataType,
+                        existing_names;
+                        only=Any,
+                        substitute=:f)
+    if M <: only
+        str = split(string(M), '{') |> first
+        candidate = split(str, '.') |> last |> snakecase |> Symbol
+    else
+        candidate = substitute
+    end
+
+    candidate in existing_names ||
+        (push!(existing_names, candidate); return candidate)
+    n = 2
+    new_candidate = candidate
+    while true
+        new_candidate = string(candidate, n) |> Symbol
+        new_candidate in existing_names || break
+        n += 1
+    end
+    push!(existing_names, new_candidate)
+    return new_candidate
+end
+
+generate_name!(model, existing_names; kwargs...) =
+    generate_name!(typeof(model), existing_names; kwargs...)

@@ -95,27 +95,6 @@ end
 
 ## PREPROCESSING
 
-# `M` is a model type and the return value a `Symbol`. The
-# `existing_names` gets updated.
-function generate_name!(M::DataType, existing_names)
-    str = split(string(M), '{') |> first
-    candidate = split(str, '.') |> last |> snakecase |> Symbol
-    candidate in existing_names ||
-        (push!(existing_names, candidate); return candidate)
-    n = 2
-    new_candidate = candidate
-    while true
-        new_candidate = string(candidate, n) |> Symbol
-        new_candidate in existing_names || break
-        n += 1
-    end
-    push!(existing_names, new_candidate)
-    return new_candidate
-end
-
-generate_name!(model::Model, existing_names) =
-    generate_name!(typeof(model), existing_names)
-
 pipe_alert(message) = throw(ArgumentError("@pipeline error.\n"*
                                      string(message)))
 pipe_alert(k::Int) = throw(ArgumentError("@pipeline error $k. "))
@@ -181,7 +160,7 @@ function pipeline_preprocess(modl, exs...)
 
     function add_model(ex)
         model_, model = eval_and_reassign(modl, ex)
-        fieldname_ = generate_name!(model, fieldnames_)
+        fieldname_ = generate_name!(model, fieldnames_, only=Model)
         push!(models_and_functions_, model_)
         push!(models_and_functions, model)
         push!(models_, model_)
@@ -355,7 +334,7 @@ function pipeline_preprocess(modl, exs...)
     # check consistency of user-defined prediction_type and infer
     # final super type:
     if is_supervised
-        if pred_type != nothing
+        if pred_type !== nothing
             super = super_type(pred_type)
             supervised_is_last && !(supervised_model isa super) &&
                 pipe_alert("The pipeline's last component model has type "*
@@ -375,7 +354,7 @@ function pipeline_preprocess(modl, exs...)
             super = Deterministic
         end
     else
-        if pred_type != nothing
+        if pred_type !== nothing
             @warn "Pipeline appears to have no supervised "*
             "component models. Ignoring declaration "*
             "`prediction_type=$(pred_type)`. "
