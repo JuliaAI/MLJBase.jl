@@ -201,3 +201,9 @@ function nominal_range(::Type{T}, field,
                values::AbstractVector{<:Signed}) where T<: Signed
     return NominalRange{T,length(values)}(field, Tuple(values))
 end
+
+#specific def for T<:Function (Allows conversion btw functions)
+function nominal_range(::Type{T}, field,
+                values::AbstractVector{<:Function}) where T<: Function
+    return NominalRange{Function,length(values)}(field, Tuple(values))
+end
