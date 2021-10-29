@@ -212,13 +212,13 @@ end
 # ----------------------------------------------------------------
 # Cross-validation (TimeSeriesCV)
 """
-tscv = TimeSeriesCV(; nfolds=4)
+    tscv = TimeSeriesCV(; nfolds=4)
 
 Cross-validation resampling strategy, for use in `evaluate!`,
 `evaluate` and tuning, when observations are chronological and not
 expected to be independent.
 
-train_test_pairs(tscv, rows)
+    train_test_pairs(tscv, rows)
 
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices), where each `train` and `test` is a sub-vector
@@ -769,7 +769,7 @@ The `acceleration` keyword argument is used to specify the compute resource (a
 subtype of `ComputationalResources.AbstractResource`) that will be used to
 accelerate/parallelize the resampling operation.
 
-Although evaluate! is mutating, `mach.model` and `mach.args` are
+Although `evaluate!` is mutating, `mach.model` and `mach.args` are
 untouched.
 
 ### Summary of key-word arguments
@@ -796,10 +796,10 @@ untouched.
 - `repeats` - default is 1; set to a higher value for repeated
   (Monte Carlo) resampling
 
- - `acceleration` - parallelization option; currently supported
-   options are instances of `CPU1` (single-threaded computation)
-   `CPUThreads` (multi-threaded computation) and `CPUProcesses`
-   (multi-process computation); default is `default_resource()`.
+- `acceleration` - parallelization option; currently supported
+  options are instances of `CPU1` (single-threaded computation)
+  `CPUThreads` (multi-threaded computation) and `CPUProcesses`
+  (multi-process computation); default is `default_resource()`.
 
 - `force` - default is `false`; set to `true` for force cold-restart
   of each training event
@@ -831,11 +831,11 @@ these properties:
   `reports_each_observation(measure)` is true, which is otherwise
   reported `missing`
 
--`fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
+- `fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
   machine `mach` trained during resampling.
 
 - `report_per_fold`: a vector containing `report(mach)` for each
-   machine `mach` training in resampling
+  machine `mach` training in resampling
 
 """
 function evaluate!(mach::Machine{<:Measurable};
