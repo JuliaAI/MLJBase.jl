@@ -238,7 +238,7 @@ function sequence_string(itr::Itr, n=3) where Itr
         I isa Base.HasShape ||
         I isa IsInfinite ||
         throw(Argumenterror("Unsupported iterator. "))
-    vals = typeof(first(itr))[]
+    vals = []
     i = 0
     earlystop = false
     for x in itr
