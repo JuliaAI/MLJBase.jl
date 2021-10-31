@@ -162,6 +162,8 @@ end
     @test MLJBase.sequence_string(1:10) == "1, 2, 3, ..."
     @test MLJBase.sequence_string(1:3) == "1, 2, 3"
     @test MLJBase.sequence_string(1:2) == "1, 2"
+    @test MLJBase.sequence_string([sin, cos, tan, asin]) ==
+        "sin, cos, tan, ..."
 end
 
 end # module

@@ -241,7 +241,8 @@ end
 Return a "sequence" string from the first `n` elements generated
 by `itr`.
 
-    sequence_string(1:10, 3)
+    julia> MLJBase.sequence_string(1:10, 4)
+    "1, 2, 3, 4, ..."
 
 **Private method.**
 
@@ -253,7 +254,7 @@ function sequence_string(itr::Itr, n=3) where Itr
         I isa Base.HasShape ||
         I isa IsInfinite ||
         throw(Argumenterror("Unsupported iterator. "))
-    vals = []
+    vals = String[]
     i = 0
     earlystop = false
     for x in itr
@@ -262,7 +263,7 @@ function sequence_string(itr::Itr, n=3) where Itr
             earlystop = true
             break
         else
-            push!(vals, x)
+            push!(vals, string(x))
         end
     end
     ret = join(vals, ", ")
