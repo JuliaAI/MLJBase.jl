@@ -52,6 +52,15 @@ function Base.show(stream::IO,
     return nothing
 end
 
+WARN_INFERRING_TYPE =
+    "Inferring the hyper-parameter type from the given "*
+    "model instance as the parameter is of type `Any`."
+
+WARN_AMBIGUOUS_UNION =
+    "The inferred hyper-parameter type is ambiguous, because "*
+    "the type union contains multiple real subtypes, using "*
+    "the first subtype to create the parameter range."
+
 """
     r = range(model, :hyper; values=nothing)
 
@@ -105,10 +114,18 @@ function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
 
     if model isa Model
         T = recursive_getpropertytype(model, field)
+        if T === Any
+            @warn WARN_INFERRING_TYPE
+            T = typeof(recursive_getproperty(model, field))
+        end
     else
         T = model
     end
-    if T <: Real && values === nothing
+    union_types = Base.uniontypes(T)
+    possible_types = filter(t -> t <: Real, union_types)
+    n_real = length(possible_types)
+    if n_real > 0 && values === nothing
+        n_real > 1 && @warn WARN_AMBIGUOUS_UNION 
         return numeric_range(T, D, field, lower, upper, origin, unit, scale)
     else
         return nominal_range(T, field, values)
