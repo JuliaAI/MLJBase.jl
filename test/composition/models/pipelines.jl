@@ -593,8 +593,4 @@ mach = fit!(machine(p, X, y), verbosity=0)
 
 end
 
-
-## OPERATION KEYWORD
-
-
 true
