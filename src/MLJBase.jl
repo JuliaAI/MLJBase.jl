@@ -150,7 +150,7 @@ export make_blobs, make_moons, make_circles, make_regression
 export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
-    Node, AbstractNode
+    Node, AbstractNode, Pipeline, SupervisedPipeline, UnsupervisedPipeline
 
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
