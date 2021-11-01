@@ -104,8 +104,7 @@ function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
                             "unit=..."))
 
     if model isa Model
-        value = recursive_getproperty(model, field)
-        T = typeof(value)
+        T = recursive_getpropertytype(model, field)
     else
         T = model
     end
@@ -200,10 +199,4 @@ end
 function nominal_range(::Type{T}, field,
                values::AbstractVector{<:Signed}) where T<: Signed
     return NominalRange{T,length(values)}(field, Tuple(values))
-end
-
-#specific def for T<:Function (Allows conversion btw functions)
-function nominal_range(::Type{T}, field,
-                values::AbstractVector{<:Function}) where T<: Function
-    return NominalRange{Function,length(values)}(field, Tuple(values))
 end
