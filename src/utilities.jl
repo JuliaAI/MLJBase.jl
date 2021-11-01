@@ -63,6 +63,21 @@ function recursive_getproperty(obj, ex::Expr)
     return recursive_getproperty(recursive_getproperty(obj, subex), field)
 end
 
+recursive_getpropertytype(obj, property::Symbol) = typeof(getproperty(obj, property))
+recursive_getpropertytype(obj::T, property::Symbol) where T <: Model = begin
+    model_type = typeof(obj)
+    property_names = fieldnames(model_type)
+    property_types = model_type.types
+    for (t, n) in zip(property_types, property_names)
+        n == property && return t
+    end
+    error("Property $property not found")
+end
+function recursive_getpropertytype(obj, ex::Expr)
+    subex, field = reduce_nested_field(ex)
+    return recursive_getpropertytype(recursive_getproperty(obj, subex), field)
+end
+
 """
     recursively_setproperty!(object, nested_name::Expr, value)
 
