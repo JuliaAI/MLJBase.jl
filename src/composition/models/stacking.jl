@@ -245,16 +245,28 @@ trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
 testrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
 
+throw_if_missing(y) = any(ismissing.(y)) && error("Stack models cannot use labels with missing values")
 
-pre_judge_transform(ŷ::Node, ::Type{<:ProbabilisticTypes}, ::Type{<:AbstractArray{<:Union{Missing,Finite}}}) =
+pre_judge_transform(ŷ::Node,
+                    ::Type{<:ProbabilisticTypes},
+                    ::Type{<:AbstractArray{<:Union{Missing, Finite}}}) = begin
+    throw_if_missing(ŷ)
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
+end
 
-pre_judge_transform(ŷ::Node, ::Type{<:ProbabilisticTypes}, ::Type{<:AbstractArray{<:Continuous}}) =
+pre_judge_transform(ŷ::Node,
+                     ::Type{<:ProbabilisticTypes},
+                     ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
+    throw_if_missing(ŷ)
     node(ŷ->mean.(ŷ), ŷ)
+end
 
-pre_judge_transform(ŷ::Node, ::Type{<:DeterministicTypes}, ::Type{<:AbstractArray{<:Continuous}}) =
+pre_judge_transform(ŷ::Node,
+                     ::Type{<:DeterministicTypes},
+                     ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
+    throw_if_missing(ŷ)
     ŷ
-
+end
 
 function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
