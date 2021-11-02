@@ -2,6 +2,9 @@
 ################ Structures ################
 ############################################
 
+const ProbabilisticTypes = Union{Probabilistic, MLJModelInterface.ProbabilisticDetector}
+const DeterministicTypes = Union{Deterministic, MLJModelInterface.DeterministicDetector}
+const SupportedTypes = Union{DeterministicTypes, ProbabilisticTypes}
 
 function glb(types...)
     # If a lower bound is in the types then it is greatest
@@ -27,7 +30,7 @@ end
 
 
 mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: DeterministicComposite
-   models::Vector{Supervised}
+   models::Vector{SupportedTypes}
    metalearner::Deterministic
    resampling
    function DeterministicStack(modelnames, models, metalearner, resampling)
@@ -37,7 +40,7 @@ mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: Determ
 end
 
 mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: ProbabilisticComposite
-    models::Vector{Supervised}
+    models::Vector{SupportedTypes}
     metalearner::Probabilistic
     resampling
     function ProbabilisticStack(modelnames, models, metalearner, resampling)
@@ -149,7 +152,7 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
         stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
     else
         throw(ArgumentError("The metalearner should be a subtype
-                    of $(Union{Deterministic, Probabilistic})"))
+        of $(Union{Deterministic, Probabilistic})"))
     end
     # Issuing clean! statement
     message = MMI.clean!(stack)
@@ -243,13 +246,13 @@ testrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
 
 
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
+pre_judge_transform(ŷ::Node, ::Type{<:ProbabilisticTypes}, ::Type{<:AbstractArray{<:Union{Missing,Finite}}}) =
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) =
+pre_judge_transform(ŷ::Node, ::Type{<:ProbabilisticTypes}, ::Type{<:AbstractArray{<:Continuous}}) =
     node(ŷ->mean.(ŷ), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) =
+pre_judge_transform(ŷ::Node, ::Type{<:DeterministicTypes}, ::Type{<:AbstractArray{<:Continuous}}) =
     ŷ
 
 
