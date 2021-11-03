@@ -46,45 +46,57 @@ print("Loading some models for testing...")
 include_everywhere("_models/models.jl")
 print("\r                                           \r")
 
-@testset "misc" begin
-   @test include("utilities.jl")
-   @test include("static.jl")
+# enable conditional testing of modules by providing test_args
+# e.g. `Pkg.test("MLJBase", test_args=["misc"])`
+RUN_ALL_TESTS = isempty(ARGS)
+macro conditional_testset(name, expr)
+    name = string(name)
+    esc(quote 
+        if RUN_ALL_TESTS || $name in ARGS
+            @testset $name $expr
+        end
+    end)
 end
 
-@testset "interface" begin
+@conditional_testset "misc" begin
+    @test include("utilities.jl")
+    @test include("static.jl")
+end
+
+@conditional_testset "interface" begin
     @test include("interface/interface.jl")
     @test include("interface/data_utils.jl")
 end
 
-@testset "univariate finite" begin
+@conditional_testset "univariate finite" begin
     @test include("univariate_finite/methods.jl")
     @test include("univariate_finite/arrays.jl")
 end
 
-@testset "measures" begin
+@conditional_testset "measures" begin
     @test include("measures/measures.jl")
     @test include("measures/measure_search.jl")
 end
 
-@testset "resampling" begin
+@conditional_testset "resampling" begin
     @test include("resampling.jl")
 end
 
-@testset "data" begin
+@conditional_testset "data" begin
     @test include("data/data.jl")
     @test include("data/datasets.jl")
     @test include("data/datasets_synthetic.jl")
 end
 
-@testset "sources" begin
+@conditional_testset "sources" begin
     @test include("sources.jl")
 end
 
-@testset "machines" begin
+@conditional_testset "machines" begin
     @test include("machines.jl")
 end
 
-@testset "composition - learning_networks" begin
+@conditional_testset "composition_learning_networks" begin
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/machines.jl")
@@ -92,7 +104,7 @@ end
         @test include("composition/learning_networks/arrows.jl")
 end
 
-@testset "composition - models" begin
+@conditional_testset "composition_models" begin
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")
@@ -102,11 +114,11 @@ end
     @test include("composition/models/static_transformers.jl")
 end
 
-@testset "operations.jl" begin
+@conditional_testset "operations" begin
     @test include("operations.jl")
 end
 
-@testset "hyperparam" begin
+@conditional_testset "hyperparam" begin
     @test include("hyperparam/one_dimensional_ranges.jl")
     @test include("hyperparam/one_dimensional_range_methods.jl")
 end
