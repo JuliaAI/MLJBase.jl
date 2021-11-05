@@ -56,10 +56,9 @@ WARN_INFERRING_TYPE =
     "Inferring the hyper-parameter type from the given "*
     "model instance as the parameter is of type `Any`."
 
-WARN_AMBIGUOUS_UNION =
+ERROR_AMBIGUOUS_UNION =
     "The inferred hyper-parameter type is ambiguous, because "*
-    "the type union contains multiple real subtypes, using "*
-    "the first subtype to create the parameter range."
+    "the union type contains multiple real subtypes."
 
 """
     r = range(model, :hyper; values=nothing)
@@ -121,12 +120,11 @@ function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
     else
         T = model
     end
-    union_types = Base.uniontypes(T)
-    possible_types = filter(t -> t <: Real, union_types)
-    n_real = length(possible_types)
-    if n_real > 0 && values === nothing
-        n_real > 1 && @warn WARN_AMBIGUOUS_UNION 
-        return numeric_range(T, D, field, lower, upper, origin, unit, scale)
+    possible_types = filter(t -> t <: Real, Base.uniontypes(T))
+    n_possible_types = length(possible_types)
+    if n_possible_types > 0 && values === nothing
+        n_possible_types > 1 && error(ERROR_AMBIGUOUS_UNION) 
+        return numeric_range(first(possible_types), D, field, lower, upper, origin, unit, scale)
     else
         return nominal_range(T, field, values)
     end
