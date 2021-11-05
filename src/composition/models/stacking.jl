@@ -152,7 +152,7 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
         stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
     else
         throw(ArgumentError("The metalearner should be a subtype
-        of $(Union{Deterministic, Probabilistic})"))
+                    of $(Union{Deterministic, Probabilistic})"))
     end
     # Issuing clean! statement
     message = MMI.clean!(stack)
@@ -245,26 +245,21 @@ trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
 testrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
 
-throw_if_missing(y) = any(ismissing.(y)) && error("Stack models cannot use labels with missing values")
-
 pre_judge_transform(ŷ::Node,
                     ::Type{<:ProbabilisticTypes},
                     ::Type{<:AbstractArray{<:Union{Missing, Finite}}}) = begin
-    throw_if_missing(ŷ)
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 end
 
 pre_judge_transform(ŷ::Node,
                      ::Type{<:ProbabilisticTypes},
                      ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
-    throw_if_missing(ŷ)
     node(ŷ->mean.(ŷ), ŷ)
 end
 
 pre_judge_transform(ŷ::Node,
                      ::Type{<:DeterministicTypes},
                      ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
-    throw_if_missing(ŷ)
     ŷ
 end
 
