@@ -58,7 +58,9 @@ WARN_INFERRING_TYPE =
 
 ERROR_AMBIGUOUS_UNION =
     "The inferred hyper-parameter type is ambiguous, because "*
-    "the union type contains multiple real subtypes."
+    "the union type contains multiple real subtypes. You can "*
+    "specify the correct type as first argument of `range`, as"*
+    " in the example, `range(Int, :dummy, lower=1, upper=10)`."
 
 """
     r = range(model, :hyper; values=nothing)
