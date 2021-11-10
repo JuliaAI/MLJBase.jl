@@ -36,6 +36,10 @@ mutable struct A21
     a212
 end
 
+@testset "prepend" begin
+    MLJBase.prepend(:x, :(y.z.w)) == :(x.y.z.w)
+end
+
 @testset "recursive getproperty, setproperty!" begin
     m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),))
 
