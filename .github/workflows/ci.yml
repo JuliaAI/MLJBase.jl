@@ -4,7 +4,7 @@ on:
     branches:
       - master
       - dev
-      - for-a-0-point-19-release
+      - for-0-point-19-release
   push:
     branches:
       - master
