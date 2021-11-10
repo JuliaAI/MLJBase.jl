@@ -247,19 +247,19 @@ testrows(X::AbstractNode, folds::AbstractNode, nfold) =
 
 pre_judge_transform(ŷ::Node,
                     ::Type{<:ProbabilisticTypes},
-                    ::Type{<:AbstractArray{<:Union{Missing, Finite}}}) = begin
+                    ::Type{<:AbstractArray{<:Finite}}) = begin
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 end
 
 pre_judge_transform(ŷ::Node,
                      ::Type{<:ProbabilisticTypes},
-                     ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
+                     ::Type{<:AbstractArray{<:Continuous}}) = begin
     node(ŷ->mean.(ŷ), ŷ)
 end
 
 pre_judge_transform(ŷ::Node,
                      ::Type{<:DeterministicTypes},
-                     ::Type{<:AbstractArray{<:Union{Missing, Continuous}}}) = begin
+                     ::Type{<:AbstractArray{<:Continuous}}) = begin
     ŷ
 end
 
