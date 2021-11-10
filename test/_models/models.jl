@@ -7,6 +7,7 @@ const MMI = MLJModelInterface
 
 include("Constant.jl")
 include("DecisionTree.jl")
+include("Detector.jl")
 include("NearestNeighbors.jl")
 include("MultivariateStats.jl")
 include("Transformers.jl")
