@@ -44,7 +44,7 @@ end
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=CV(;nfolds=3),
                     models...)
-    
+
     results = model_evaluation((stack=mystack, models...), X, y)
     @test argmin(results) == 1
 
@@ -57,6 +57,7 @@ end
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=CV(;nfolds=3),
                     models...)
+
     # Testing attribute access of the stack
     @test propertynames(mystack) == (:resampling, :metalearner, :constant, 
                                     :decisiontree, :ridge_lambda, :ridge)
@@ -130,6 +131,41 @@ end
     fit!(mach, verbosity=0)
     @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
 
+end
+
+@testset "Testing Stacked Detectors on Finite target" begin
+    X, y = make_blobs(;rng=rng, shuffle=false, centers=2)
+    y = coerce(y, OrderedFactor)
+
+    probabilistic_models = (unsupervised=DummyProbabilisticUnsupervisedDetector(),
+                            supervised=DummyProbabilisticSupervisedDetector())
+
+    deterministic_models = (unsupervised=DummyDeterministicUnsupervisedDetector(),
+                            supervised=DummyDeterministicSupervisedDetector())
+
+    unsupervised_models = (probabilistic=DummyProbabilisticUnsupervisedDetector(),
+                           deterministic=DummyDeterministicUnsupervisedDetector())
+
+    supervised_models = (probabilistic=DummyProbabilisticSupervisedDetector(),
+                         deterministic=DummyDeterministicSupervisedDetector())
+
+    models = [probabilistic_models, deterministic_models, unsupervised_models, supervised_models]
+
+    for (i, m) in enumerate(models)
+        mystack = Stack(;metalearner=DecisionTreeClassifier(),
+            resampling=StratifiedCV(;nfolds=3),
+            probabilistic_models...)
+
+        # input and target scitype is the same for all outlier models
+        @test target_scitype(mystack) == target_scitype(first(m))
+        @test input_scitype(mystack) == input_scitype(first(m))
+
+        mach = machine(mystack, X, y)
+        fit!(mach, verbosity=0)
+
+        # based on the metalearner
+        @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
+    end
 end
 
 @testset "Stack constructor valid argument checks" begin
