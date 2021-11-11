@@ -106,11 +106,14 @@ end
 
 @testset "warnings and errors" begin
     # unambiguous union should work
-    @test range(Union{Nothing, Float64}, :any, lower=1, upper=10) == range(Float64, :any, lower=1, upper=10)
+    @test range(Union{Nothing, Float64}, :any, lower=1, upper=10) ==
+        range(Float64, :any, lower=1, upper=10)
     # ambiguous union should fail
-    @test_throws range(Union{Float32, Float64}, :any, lower=1, upper=10)
+    @test_throws(MLJBase.ERROR_AMBIGUOUS_UNION,
+                 range(Union{Float32, Float64}, :any, lower=1, upper=10))
     # untyped parameters should warn if inferred
-    @test_logs (:warn, MLJBase.WARN_INFERRING_TYPE) range(any1, :any, lower=1, upper=10)
+    @test_logs((:warn, MLJBase.WARN_INFERRING_TYPE),
+               range(any1, :any, lower=1, upper=10))
 end
 
 end
