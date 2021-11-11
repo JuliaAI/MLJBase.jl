@@ -87,7 +87,8 @@ for T_ex in SUPPORTED_TYPES_FOR_PIPELINES
     end |> eval
 end
 
-# hack an alias for the union type, `SomePipeline{N,operation}`:
+# hack an alias for the union type, `SomePipeline{N,operation}` (not
+# exported):
 const _TYPE_EXS = map(values(PIPELINE_TYPE_GIVEN_TYPE)) do P_ex
     :($P_ex{N,operation})
 end
@@ -96,9 +97,16 @@ quote
         Union{$(_TYPE_EXS...)}
 end |> eval
 
+# not exported:
+const SupervisedPipeline{N,operation} =
+    Union{DeterministicPipeline{N,operation},
+          ProbabilisticPipeline{N,operation},
+          IntervalPipeline{N,operation}}
+
 components(p::SomePipeline) = values(getfield(p, :named_components))
 names(p::SomePipeline) = keys(getfield(p, :named_components))
 operation(p::SomePipeline{N,O}) where {N,O} = O
+
 
 # # GENERIC CONSTRUCTOR
 
@@ -545,3 +553,48 @@ end
 
 compose(p1, p2::FuzzyModel) = compose(Pipeline(p1), p2)
 compose(p1::FuzzyModel, p2) = compose(p1, Pipeline(p2))
+
+
+# # TRAINING LOSSES
+
+# ## Helpers
+
+function supervised_component_name(pipe::SupervisedPipeline)
+    idx = findfirst(model -> model isa Supervised, components(pipe))
+    return names(pipe)[idx]
+end
+
+function supervised_component(pipe::SupervisedPipeline)
+    name = supervised_component_name(pipe)
+    named_components = getfield(pipe, :named_components)
+    return getproperty(named_components, name)
+end
+
+model_type(::Machine{M}) where M = M
+function supervised(machines)
+    model_types = model_type.(machines)
+    idx = findfirst(M -> M <: Supervised, model_types)
+    return machines[idx]
+end
+
+
+# ## Traits
+
+# We cannot provide the following trait at the level of types because
+# the pipeline type does not know the precise type of the supervised
+# component, only its `abstract_type`. See comment at top of page.
+supports_training_losses(pipe::SupervisedPipeline) =
+    supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
+
+function training_losses(pipe::SupervisedPipeline, pipe_report)
+    mach = supervised(pipe_report.machines)
+    _report = report(mach)
+    return training_losses(mach.model, _report)
+end
+
+# This trait cannot be defined at the level of types (see previous comment):
+function iteration_parameter(pipe::SupervisedPipeline)
+    model = supervised_component(pipe)
+    name =  supervised_component_name(pipe)
+    MLJBase.prepend(name, iteration_parameter(model))
+end

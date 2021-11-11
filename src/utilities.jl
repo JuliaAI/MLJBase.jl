@@ -47,6 +47,24 @@ function reduce_nested_field(ex)
 end
 
 """
+    prepend(s::Symbol, s::Symbol)
+
+For prepending symbols in expressions like `:(y.w)` and `:(x1.x2.x3)`.
+
+julia> compose(:x, :y)
+:(x.y)
+
+julia> compose(:x, :(y.z))
+:(x.y.z)
+
+julia> compose(:w, ans)
+:(w.x.y.z)
+
+"""
+prepend(s::Symbol, t::Symbol) = Expr(:(.), s, QuoteNode(t))
+prepend(s::Symbol, ex::Expr) = Expr(:(.), prepend(s, ex.args[1]), ex.args[2])
+
+"""
     recursive_getproperty(object, nested_name::Expr)
 
 Call getproperty recursively on `object` to extract the value of some

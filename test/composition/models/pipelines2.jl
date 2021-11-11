@@ -30,6 +30,9 @@ end
 MLJBase.fit(::MyDeterministic, args...) = nothing, nothing, nothing
 MLJBase.transform(m::MyDeterministic, ::Any, Xnew) = fill(:dt, nrows(Xnew))
 MLJBase.predict(m::MyDeterministic, ::Any, Xnew) = fill(:dp, nrows(Xnew))
+MLJBase.supports_training_losses(::Type{<:MyDeterministic}) = true
+MLJBase.iteration_parameter(::Type{<:MyDeterministic}) = :x
+MLJBase.training_losses(::MyDeterministic, report) = ones(3)
 
 mutable struct MyProbabilistic <: Probabilistic
     x::Symbol
@@ -322,6 +325,20 @@ doubler(y) = 2*y
     @test predict(mach, X) ≈ N2()
     global hand_built = predict(mach, X);
 
+end
+
+@testset "training_losses" begin
+    model = MyDeterministic(:bla)
+    pipe = Standardizer() |> model
+
+    # test helpers:
+    @test MLJBase.supervised_component_name(pipe) == :my_deterministic
+    @test MLJBase.supervised_component(pipe) == model
+
+    @test supports_training_losses(pipe)
+    _, _, rp = MLJBase.fit(pipe, 0, X, y)
+    @test training_losses(pipe, rp) == ones(3)
+    @test iteration_parameter(pipe) == :(my_deterministic.x)
 end
 
 
