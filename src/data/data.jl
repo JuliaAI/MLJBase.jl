@@ -364,10 +364,6 @@ MLJModelInterface.transform(e::CategoricalPool, arg) =
 
 ## SKIPPING MISSING AND NAN: skipinvalid
 
-const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
-    "Trying to aggregrate an empty collection of measurements. Perhaps all "*
-    "measuresments are `missing` or `NaN`. ")
-
 _isnan(x) = false
 _isnan(x::Number) = isnan(x)
 
@@ -387,12 +383,9 @@ and `B[i]` are both valid (non-`missing` and non-`NaN`). Can also
 called on other iterators of matching length, such as arrays, but
 always returns a vector. Does not remove `Missing` from the element
 types if present in the original iterators.
+
 """
-@inline function skipinvalid(v)
-    ret = v |> skipmissing |> skipnan
-    isempty(ret) && throw(ERR_NOTHING_LEFT_TO_AGGREGATE)
-    return ret
-end
+skipinvalid(v) = v |> skipmissing |> skipnan
 
 isinvalid(x) = ismissing(x) || _isnan(x)
 
