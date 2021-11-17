@@ -66,6 +66,41 @@ call(::RootMeanSquaredError,
      w::Arr{<:Real}) =
          (y .- ŷ).^2 .* w |> skipinvalid |> mean |> sqrt
 
+# -------------------------------------------------------------------------
+# R-squared (coefficient of determination)
+
+struct RSquared <: Aggregated end
+
+metadata_measure(RSquared;
+    instances               = ["rsq", "rsquared"],
+    target_scitype          = InfiniteArrMissing,
+    prediction_type         = :deterministic,
+    orientation             = :loss,
+    aggregation             = RSquared()
+)
+
+const RSQ = RSquared
+@create_aliases RSquared
+
+@create_docs(RSquared,
+body=
+"""
+The R² (also known as R-squared or coefficient of determination) is very suitable for interpreting regression analysis (Chicco et al., [2021](https://doi.org/10.7717/peerj-cs.623)).
+This is because R² is a percentage whereas MSE and RMSE have arbitrary ranges.
+
+Let ``\\overline{y}`` denote the mean of ``y``, then
+
+``\\text{R^2} = 1 - \\frac{∑ (\\hat{y} - y)^2}{∑ \\overline{y} - y)^2}.``
+""",
+footer="")
+
+function call(::RSquared, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real})
+    num = (ŷ .- y).^2 |> skipinvalid |> sum
+    mean_y = mean(y)
+    denom = (mean_y .- y).^2 |> skipinvalid |> sum
+    return 1 - (num / denom)
+end
+
 # -------------------------------------------------------------------
 # LP
 
@@ -180,7 +215,7 @@ metadata_measure(RootMeanSquaredProportionalError;
     orientation              = :loss,
     aggregation              = RootMeanSquare())
 
-      const RMSP = RootMeanSquaredProportionalError
+const RMSP = RootMeanSquaredProportionalError
 @create_aliases RMSP
 
 @create_docs(RootMeanSquaredProportionalError,
