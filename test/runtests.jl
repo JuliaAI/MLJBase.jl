@@ -110,6 +110,7 @@ end
     @test include("composition/models/inspection.jl")
     @test include("composition/models/pipelines.jl")
     @test include("composition/models/pipelines2.jl")
+    @test include("composition/models/target_transformed_model.jl")
     @test include("composition/models/stacking.jl")
     @test include("composition/models/_wrapped_function.jl")
     @test include("composition/models/static_transformers.jl")

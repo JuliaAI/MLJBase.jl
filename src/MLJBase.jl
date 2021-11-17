@@ -154,6 +154,8 @@ export machines, sources, @from_network, @pipeline, Stack,
     ProbabilisticPipeline, DeterministicPipeline, UnsupervisedPipeline,
     StaticPipeline, IntervalPipeline
 
+export TargetTransformed
+
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 
@@ -366,6 +368,7 @@ include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/pipelines2.jl")
+include("composition/models/target_transformed_model.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
