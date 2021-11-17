@@ -69,8 +69,6 @@ call(::RootMeanSquaredError,
 # -------------------------------------------------------------------------
 # R-squared (coefficient of determination)
 
-foo(x) = x
-
 struct RSquared <: Aggregated end
 
 metadata_measure(RSquared;
@@ -108,7 +106,7 @@ function call(::RSquared,
     )
     num = (ŷ .- y).^2 .* w |> skipinvalid |> sum
     mean_y = mean(y)
-    denom = (mean_y .- y).^2 |> skipinvalid |> sum
+    denom = (mean_y .- y).^2 .* w |> skipinvalid |> sum
     return 1 - (num / denom)
 end
 
