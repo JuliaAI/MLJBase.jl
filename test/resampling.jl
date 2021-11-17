@@ -105,7 +105,7 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
 end
 
 @testset "_feature_dependencies_exist" begin
-    measures = Any[rms, log_loss, brier_score]
+    measures = Any[rms, rsq, log_loss, brier_score]
     @test !MLJBase._feature_dependencies_exist(measures)
     my_feature_dependent_loss(ŷ, X, y) =
         sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);

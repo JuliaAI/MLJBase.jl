@@ -69,6 +69,8 @@ call(::RootMeanSquaredError,
 # -------------------------------------------------------------------------
 # R-squared (coefficient of determination)
 
+foo(x) = x
+
 struct RSquared <: Aggregated end
 
 metadata_measure(RSquared;
@@ -91,11 +93,21 @@ This is because R² is a percentage whereas MSE and RMSE have arbitrary ranges.
 Let ``\\overline{y}`` denote the mean of ``y``, then
 
 ``\\text{R^2} = 1 - \\frac{∑ (\\hat{y} - y)^2}{∑ \\overline{y} - y)^2}.``
-""",
-footer="")
+""")
 
 function call(::RSquared, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real})
     num = (ŷ .- y).^2 |> skipinvalid |> sum
+    mean_y = mean(y)
+    denom = (mean_y .- y).^2 |> skipinvalid |> sum
+    return 1 - (num / denom)
+end
+
+function call(::RSquared,
+        ŷ::ArrMissing{<:Real},
+        y::ArrMissing{<:Real},
+        w::Arr{<:Real}
+    )
+    num = (ŷ .- y).^2 .* w |> skipinvalid |> sum
     mean_y = mean(y)
     denom = (mean_y .- y).^2 |> skipinvalid |> sum
     return 1 - (num / denom)
