@@ -1,5 +1,5 @@
-# wrapper `TargetTransformed`
-# "TT" is shorthand for "TargetTransformed"
+# wrapper `TransformedTargetModel`
+# "TT" is shorthand for "TransformedTargetModel"
 
 # # TYPES
 
@@ -16,7 +16,7 @@ const TT_SUPPORTED_ATOMS = (
 
 const TT_TYPE_GIVEN_ATOM =
     Dict(atom =>
-         Symbol("TargetTransformed$atom") for atom in TT_SUPPORTED_ATOMS)
+         Symbol("TransformedTargetModel$atom") for atom in TT_SUPPORTED_ATOMS)
 
 # ...which must have appropriate supertype:
 
@@ -80,7 +80,7 @@ const WARN_MISSING_INVERSE =
     "returned on a scale different from the training target. "
 
 """
-    TargetTransformed(model; target=nothing, inverse=nothing, cache=true)
+    TransformedTargetModel(model; target=nothing, inverse=nothing, cache=true)
 
 Wrap the supervised or semi-supervised `model` in a transformation of
 the target variable.
@@ -117,18 +117,18 @@ with predictions returned on the original scale:
 ```
 @load RidgeRegressor pkg=MLJLinearModels
 model = RidgeRegressor()
-tmodel = TargetTransformed(model, target=Standardizer())
+tmodel = TransformedTargetModel(model, target=Standardizer())
 ```
 
 A model that instead applies a static `log` transformation to the data, again
 returning predictions to the original scale:
 
 ```
-tmodel2 = TargetTransformed(model, target=y->log.(y), inverse=z->exp.(y))
+tmodel2 = TransformedTargetModel(model, target=y->log.(y), inverse=z->exp.(y))
 ```
 
 """
-function TargetTransformed(args...;
+function TransformedTargetModel(args...;
                            model=nothing,
                            target=nothing,
                            inverse=nothing,

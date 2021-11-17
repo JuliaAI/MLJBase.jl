@@ -1,4 +1,4 @@
-module TestTargetTransformed
+module TestTransformedTargetModel
 
 using MLJBase
 using Test
@@ -14,36 +14,36 @@ whitener = UnivariateStandardizer()
 
 @testset "constructor and clean!" begin
 
-    model = @test_logs TargetTransformed(atom, target=whitener)
+    model = @test_logs TransformedTargetModel(atom, target=whitener)
     @test model.model == atom
     @test model.inverse == nothing
     @test model.target == whitener
     @test model.cache
 
-    model = @test_logs TargetTransformed(model=atom, target=whitener)
+    model = @test_logs TransformedTargetModel(model=atom, target=whitener)
     @test model.model == atom
     @test model.inverse == nothing
 
     model = @test_logs(
-        TargetTransformed(atom, target=whitener, inverse=identity))
+        TransformedTargetModel(atom, target=whitener, inverse=identity))
     @test model.model == atom
     @test model.inverse == identity
 
     @test_throws(MLJBase.ERR_MODEL_UNSPECIFIED,
-                 TargetTransformed(target=whitener))
+                 TransformedTargetModel(target=whitener))
 
     @test_throws(MLJBase.ERR_TOO_MANY_ARGUMENTS,
-                 TargetTransformed(atom, whitener))
+                 TransformedTargetModel(atom, whitener))
 
     @test_throws(MLJBase.err_tt_unsupported(whitener),
-                 TargetTransformed(whitener, target=whitener))
+                 TransformedTargetModel(whitener, target=whitener))
 
     model = @test_logs((:warn, MLJBase.WARN_IDENTITY_INVERSE),
-                       TargetTransformed(p_atom, target=whitener))
+                       TransformedTargetModel(p_atom, target=whitener))
     @test model.inverse == identity
 
     model = @test_logs((:warn, MLJBase.WARN_MISSING_INVERSE),
-                       TargetTransformed(atom, target=y->log.(y)))
+                       TransformedTargetModel(atom, target=y->log.(y)))
     @test model.inverse == identity
 
 end
@@ -81,27 +81,27 @@ avg_nonlinear = g(mean(f(y))) # = g(mean(z))
     @test predict(atom, fr, X) ≈ fill(avg, 5)
 
     # Test wrapping using f and g:
-    model = TargetTransformed(atom, target=f, inverse=g)
+    model = TransformedTargetModel(atom, target=f, inverse=g)
     fr1, _, _ = MMI.fit(model, 0, X, y)
     @test predict(model, fr1, X) ≈ fill(avg_nonlinear, 5)
 
     # Test wrapping using a `Static` transformer:
-    model = TargetTransformed(atom, target=Nonlinear())
+    model = TransformedTargetModel(atom, target=Nonlinear())
     fr1, _, _ = MMI.fit(model, 0, X, y)
     @test predict(model, fr1, X) ≈ fill(avg_nonlinear, 5)
 
     # Test wrapping using a non-static `Unsupervised` model:
-    model = TargetTransformed(atom, target=whitener)
+    model = TransformedTargetModel(atom, target=whitener)
     fr1, _, _ = MMI.fit(model, 0, X, y)
     @test predict(model, fr1, X) ≈ fill(avg, 5) # whitener is linear
 
     # Test with `inverse=identity`:
-    model = TargetTransformed(atom, target=Nonlinear(), inverse=identity)
+    model = TransformedTargetModel(atom, target=Nonlinear(), inverse=identity)
     fr1, _, _ = MMI.fit(model, 0, X, y)
     @test predict(model, fr1, X) ≈ fill(mean(z), 5)
 
     # Test a probablistic model:
-    model = TargetTransformed(p_atom, target=whitener, inverse=identity)
+    model = TransformedTargetModel(p_atom, target=whitener, inverse=identity)
     fr1, _, _ = MMI.fit(model, 0, X, y)
     yhat = predict(model, fr1, X)
     @test isapprox(first(yhat).μ, 0, atol=1e-15)
@@ -110,7 +110,7 @@ end
 MMI.iteration_parameter(::Type{DeterministicConstantRegressor}) = :n
 
 @testset "traits" begin
-    model = TargetTransformed(atom, target=Nonlinear())
+    model = TransformedTargetModel(atom, target=Nonlinear())
     @test input_scitype(model) == input_scitype(atom)
     @test target_scitype(model) == target_scitype(atom)
     @test is_wrapper(model)
@@ -118,7 +118,7 @@ MMI.iteration_parameter(::Type{DeterministicConstantRegressor}) = :n
 end
 
 @testset "integration" begin
-    model = TargetTransformed(atom, target=Nonlinear())
+    model = TransformedTargetModel(atom, target=Nonlinear())
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
     @test predict(mach, X) ≈ fill(avg_nonlinear, 5)
