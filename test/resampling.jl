@@ -359,7 +359,7 @@ end
     for cache in [true, false]
         model = Models.DeterministicConstantRegressor()
         mach = machine(model, X, y, cache=cache)
-        result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
+        result = evaluate!(mach, resampling=cv, measure=[rms, rsq, rmslp1],
                            acceleration=accel, verbosity=verb)
 
         @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]

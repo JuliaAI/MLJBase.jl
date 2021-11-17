@@ -77,8 +77,7 @@ metadata_measure(RSquared;
     instances               = ["rsq", "rsquared"],
     target_scitype          = InfiniteArrMissing,
     prediction_type         = :deterministic,
-    orientation             = :loss,
-    aggregation             = RSquared()
+    orientation             = :loss
 )
 
 const RSQ = RSquared
