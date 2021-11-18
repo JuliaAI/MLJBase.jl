@@ -93,7 +93,7 @@ end
 Helper function to write the metadata for a single measure.
 The meaning of some of the keywords is as follows:
 - `orientation`: Orientation of the metric.
-    Use `:loss` when lower is better (root mean square) and `:score` when higher is better.
+    Use `:loss` when lower is better and `:score` when higher is better.
     For example, set `:loss` for root mean square and `:score` for area under the ROC curve.
 - `aggregation`: Aggregation method for scores.
     For example, when doing 3-fold cross-validation, the aggregation specifies how to combine
