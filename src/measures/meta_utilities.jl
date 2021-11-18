@@ -96,7 +96,8 @@ The meaning of some of the keywords is as follows:
     Use `:loss` when lower is better (root mean square) and `:score` when higher is better.
     For example, set `:loss` for root mean square and `:score` for area under the ROC curve.
 - `aggregation`: Aggregation method for scores.
-    For example, when doing 3-fold cross-validation, the aggregation how to combine these scores.
+    For example, when doing 3-fold cross-validation, the aggregation specifies how to combine
+    these scores.
 """
 function metadata_measure(T; name::String="",
                           human_name="",
