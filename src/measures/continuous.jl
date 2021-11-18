@@ -75,8 +75,7 @@ metadata_measure(RSquared;
     instances               = ["rsq", "rsquared"],
     target_scitype          = InfiniteArrMissing,
     prediction_type         = :deterministic,
-    orientation             = :loss
-)
+    orientation             = :score)
 
 const RSQ = RSquared
 @create_aliases RSquared
@@ -84,8 +83,7 @@ const RSQ = RSquared
 @create_docs(RSquared,
 body=
 """
-The R² (also known as R-squared or coefficient of determination) is very suitable for interpreting regression analysis (Chicco et al., [2021](https://doi.org/10.7717/peerj-cs.623)).
-This is because R² is a percentage whereas MSE and RMSE have arbitrary ranges.
+The R² (also known as R-squared or coefficient of determination) is suitable for interpreting linear regression analysis (Chicco et al., [2021](https://doi.org/10.7717/peerj-cs.623)).
 
 Let ``\\overline{y}`` denote the mean of ``y``, then
 
@@ -96,17 +94,6 @@ function call(::RSquared, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real})
     num = (ŷ .- y).^2 |> skipinvalid |> sum
     mean_y = mean(y)
     denom = (mean_y .- y).^2 |> skipinvalid |> sum
-    return 1 - (num / denom)
-end
-
-function call(::RSquared,
-        ŷ::ArrMissing{<:Real},
-        y::ArrMissing{<:Real},
-        w::Arr{<:Real}
-    )
-    num = (ŷ .- y).^2 .* w |> skipinvalid |> sum
-    mean_y = mean(y)
-    denom = (mean_y .- y).^2 .* w |> skipinvalid |> sum
     return 1 - (num / denom)
 end
 
