@@ -110,6 +110,7 @@ function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
     return w .* unweighted
 end
 
+
 # ## Top level
 
 function (measure::Measure)(args...)
