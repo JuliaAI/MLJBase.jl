@@ -133,10 +133,10 @@ overloading:
     of true positives). Default is `Mean()`. Must subtype
     `StatisticalTraits.AggregationMode`. It is used to:
 
-   - aggregrate measurements in resampling (eg, cross-validiation)
+   - aggregate measurements in resampling (e.g., cross-validation)
 
    - aggregating per-observation measurements returned by `single` in
-    the fallback definition of `call` for `Unaggregated` measures
+     the fallback definition of `call` for `Unaggregated` measures
     (such as area under the ROC curve).
 
 - `supports_weights`: Whether the measure can be called with
@@ -148,7 +148,7 @@ overloading:
 
 - `human_name`: Ordinary name of measure. Used in the full
   auto-generated docstring, which begins "A measure type for
-  $human_name ...". Eg, the `human_name` for `TruePositive` is `number
+  \$human_name ...". Eg, the `human_name` for `TruePositive` is `number
   of true positives. Default is snake-case version of type name, with
   underscores replaced by spaces; so `MeanAbsoluteError` becomes "mean
   absolute error".
