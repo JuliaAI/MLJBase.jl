@@ -72,10 +72,11 @@ call(::RootMeanSquaredError,
 struct RSquared <: Aggregated end
 
 metadata_measure(RSquared;
-    instances               = ["rsq", "rsquared"],
-    target_scitype          = InfiniteArrMissing,
-    prediction_type         = :deterministic,
-    orientation             = :score)
+                 instances               = ["rsq", "rsquared"],
+                 target_scitype          = InfiniteArrMissing,
+                 prediction_type         = :deterministic,
+                 orientation             = :score,
+                 supports_weights        = false)
 
 const RSQ = RSquared
 @create_aliases RSquared
