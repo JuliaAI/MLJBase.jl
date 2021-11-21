@@ -36,7 +36,7 @@ _insert_subtyping(ex, subtype_ex) =
 
 # create the exported type symbol, e.g. abstract_type(T) == Unsupervised
 # would result in :UnsupervisedComposite
-_exported_type(T::Model) = Symbol(abstract_type(T), :Composite)
+_exported_type(T::Model) = Symbol(nameof(abstract_type(T)), :Composite)
 
 function eval_and_reassign(modl, ex)
     s = gensym()
