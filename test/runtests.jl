@@ -5,7 +5,7 @@ using MLJBase
 if !MLJBase.TESTING
     error("To test MLJBase, the environment variable "*
           "`TEST_MLJBASE` must be set to `\"true\"`\n"*
-          "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"")
+          "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"`")
 end
 
 @info "nprocs() = $(nprocs())"

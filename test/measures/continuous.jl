@@ -11,6 +11,7 @@ rng = StableRNG(666899)
     @test isapprox(mae(yhat, y, w), (1*3 + 2*1 + 4*1 + 3*3)/4)
     @test isapprox(rms(yhat, y), sqrt(5))
     @test isapprox(rms(yhat, y, w), sqrt((1*3^2 + 2*1^2 + 4*1^2 + 3*3^2)/4))
+    @test rsq(yhat, y) == -3
     @test isapprox(mean(skipinvalid(l1(yhat, y))), 2)
     @test isapprox(mean(skipinvalid(l1(yhat, y, w))), mae(yhat, y, w))
     @test isapprox(mean(skipinvalid(l2(yhat, y))), 5)

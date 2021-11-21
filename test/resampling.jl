@@ -105,7 +105,7 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
 end
 
 @testset "_feature_dependencies_exist" begin
-    measures = Any[rms, log_loss, brier_score]
+    measures = Any[rms, rsq, log_loss, brier_score]
     @test !MLJBase._feature_dependencies_exist(measures)
     my_feature_dependent_loss(ŷ, X, y) =
         sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);
@@ -359,7 +359,7 @@ end
     for cache in [true, false]
         model = Models.DeterministicConstantRegressor()
         mach = machine(model, X, y, cache=cache)
-        result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
+        result = evaluate!(mach, resampling=cv, measure=[rms, rsq, rmslp1],
                            acceleration=accel, verbosity=verb)
 
         @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]

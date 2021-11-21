@@ -90,7 +90,73 @@ end
 """
     metadata_measure(T; kw...)
 
-Helper function to write the metadata for a single measure.
+Helper function to write the metadata (trait definitions) for a single
+measure.
+
+### Compulsory keyword arguments
+
+- `target_scitype`: The allowed scientific type of `y` in `measure(ŷ,
+  y, ...)`. This is typically some abstract array. E.g, in single
+  target variable regression this is typically
+  `AbstractArray{<:Union{Missing,Continuous}}`. For a binary
+  classification metric insensitive to class order, this would
+  typically be `Union{AbstractArray{<:Union{Missing,Multiclass{2}}},
+  AbstractArray{<:Union{Missing,OrderedFactor{2}}}}`, which has the
+  alias `FiniteArrMissing`.
+
+- `orientation`: Orientation of the measure.  Use `:loss` when lower is
+    better and `:score` when higher is better.  For example, set
+    `:loss` for root mean square and `:score` for area under the ROC
+    curve.
+
+- `prediction_type`: Refers to `ŷ` in `measure(ŷ, y, ...)` and should
+  be one of: `:deterministic` (`ŷ` has same type as `y`),
+  `:probabilistic` or `:interval`.
+
+
+#### Optional keyword arguments
+
+The following have meaningful defaults but may still require
+overloading:
+
+- `instances`: A vector of strings naming the built-in instances of
+  the measurement type provided by the implementation, which are
+  usually just common aliases for the default instance. E.g., for
+  `RSquared` has the `instances = ["rsq", "rsquared"]` which are both
+  defined as `RSquared()` in the implementation. `MulticlassFScore`
+  has the `instances = ["macro_f1score", "micro_f1score",
+  "multiclass_f1score"]`, where `micro_f1score =
+  MulticlassFScore(average=micro_avg)`, etc.  Default is `String[]`.
+
+- `aggregation`: Aggregation method for measurements, typically
+        `Mean()` (for, e.g., mean absolute error) or `Sum()` (for number
+    of true positives). Default is `Mean()`. Must subtype
+    `StatisticalTraits.AggregationMode`. It is used to:
+
+   - aggregate measurements in resampling (e.g., cross-validation)
+
+   - aggregating per-observation measurements returned by `single` in
+     the fallback definition of `call` for `Unaggregated` measures
+    (such as area under the ROC curve).
+
+- `supports_weights`: Whether the measure can be called with
+  per-observation weights `w`, as in `l2(ŷ, y, w)`. Default is `true`.
+
+- `supports_class_weights`: Whether the measure can be called with a
+  class weight dictionary `w`, as in `micro_f1score(ŷ, y, w)`. Default
+  is `true`. Default is `false`.
+
+- `human_name`: Ordinary name of measure. Used in the full
+  auto-generated docstring, which begins "A measure type for
+  \$human_name ...". Eg, the `human_name` for `TruePositive` is `number
+  of true positives. Default is snake-case version of type name, with
+  underscores replaced by spaces; so `MeanAbsoluteError` becomes "mean
+  absolute error".
+
+- `docstring`: An abbreviated docstring, displayed by
+  `info(measure)`. Fallback uses `human_name` and lists the
+  `instances`.
+
 """
 function metadata_measure(T; name::String="",
                           human_name="",
