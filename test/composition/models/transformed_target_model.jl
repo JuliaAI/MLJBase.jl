@@ -115,6 +115,10 @@ MMI.iteration_parameter(::Type{DeterministicConstantRegressor}) = :n
     @test target_scitype(model) == target_scitype(atom)
     @test is_wrapper(model)
     @test iteration_parameter(model) == :(model.n)
+    @test package_name(model) == "MLJBase"
+    @test occursin("2229d", package_uuid(model))
+    @test package_license(model) == "MIT"
+    @test package_url(model) == "https://github.com/JuliaAI/MLJBase.jl"
 end
 
 @testset "integration" begin
@@ -127,6 +131,30 @@ end
     @test fitted_params(mach).model.fitresult ≈ mean(z)
 end
 
+mutable struct FooModel46 <: Deterministic
+    epochs
+end
+
+MMI.fit(::FooModel46, verbosity, X, y) =
+    nothing, nothing, (training_losses=ones(length(y)),)
+MMI.predict(::FooModel46, fitresult, Xnew) = ones(nrows(Xnew))
+MMI.supports_training_losses(::Type{<:FooModel46}) = true
+MMI.iteration_parameter(::Type{<:FooModel46}) = :epochs
+MMI.training_losses(::FooModel46, report) = report.training_losses
+
+X = rand(5)
+y = rand(5)
+
+@testset "training_losses" begin
+    atom = FooModel46(10)
+    model = TransformedTargetModel(atom, target=Nonlinear())
+    @test supports_training_losses(model)
+    @test iteration_parameter(model) == :(model.epochs)
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=0)
+    rep = report(mach)
+    @test rep.model.training_losses == ones(5)
+    @test training_losses(mach) == ones(5)
 end
 
 true
