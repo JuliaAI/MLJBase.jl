@@ -85,7 +85,7 @@ const WARN_MISSING_INVERSE =
 Wrap the supervised or semi-supervised `model` in a transformation of
 the target variable.
 
-Here `target` is either:
+Here `target` one of the following:
 
 - The `Unsupervised` model that is to transform the training target.
   By default (`inverse=nothing`) the parameters learned by this
@@ -93,8 +93,6 @@ Here `target` is either:
   `model`, which means `target` must implement the `inverse_transform`
   method. If this is not the case, specify `inverse=identity` to
   suppress inversion.
-
-*or*
 
 - A callable object for transforming the target, such as `y ->
   log.(y)`. In this case a callable `inverse`, such as `z -> exp.(z)`,
@@ -120,7 +118,7 @@ model = RidgeRegressor()
 tmodel = TransformedTargetModel(model, target=Standardizer())
 ```
 
-A model that instead applies a static `log` transformation to the data, again
+A model that applies a static `log` transformation to the data, again
 returning predictions to the original scale:
 
 ```
