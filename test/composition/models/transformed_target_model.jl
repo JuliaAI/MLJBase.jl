@@ -157,4 +157,6 @@ y = rand(5)
     @test training_losses(mach) == ones(5)
 end
 
+end
+
 true
