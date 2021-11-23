@@ -1,5 +1,9 @@
 ## Adding new measures
 
+This document assumes familiarity with the traits provided for
+measures. For a summary, query the docstring for
+`MLJBase.metadata_measures`.
+
 A measure is ordinarily called on data directly, as in
 
 ```julia
@@ -15,7 +19,7 @@ julia> m(ŷ, y)
  0.019067038457889922
 ```
 
-Recall that to call a measure without performing dimension or pool checks, one
+To call a measure without performing dimension or pool checks, one
 uses `MLJBase.call` instead:
 
 ```julia
