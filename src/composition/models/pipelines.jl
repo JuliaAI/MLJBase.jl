@@ -447,6 +447,15 @@ function pipeline_(modl, exs...)
 
 end
 
+const DEPWARN_PIPELINE =
+    "The `@pipeline` macro is deprecated. For pipelines without "*
+    "target transformations use pipe syntax, as in "*
+    "`ContinuousEncoder() |> Standardizer() |> my_classifier`. "*
+    "For details, query the `Pipeline` docstring. "*
+    "To wrap a supervised model in a target transformation, use "*
+    "`TransformedTargetModel`, as in "*
+    "`TransformedTargetModel(my_regressor, target=Standardizer())`"
+
 """
     @pipeline model1 model2 ... modelk
 
@@ -501,7 +510,7 @@ an `inverse` must also be given:
 - `invert_last`  -  set to `true` to delay target
   inversion to end of pipeline (default=`true`)
 
-- `prediction_type`  - 
+- `prediction_type`  -
   prediction type of the pipeline; possible values: `:deterministic`,
   `:probabilistic`, `:interval` (default=`:deterministic` if not inferable)
 
@@ -516,6 +525,8 @@ See also: [`@from_network`](@ref)
 
 """
 macro pipeline(exs...)
+
+    Base.depwarn(DEPWARN_PIPELINE, :pipeline)
 
     pipetype_ = pipeline_(__module__, exs...)
 

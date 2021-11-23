@@ -51,7 +51,7 @@ print("\r                                           \r")
 RUN_ALL_TESTS = isempty(ARGS)
 macro conditional_testset(name, expr)
     name = string(name)
-    esc(quote 
+    esc(quote
         if RUN_ALL_TESTS || $name in ARGS
             @testset $name $expr
         end

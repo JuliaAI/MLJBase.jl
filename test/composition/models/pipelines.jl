@@ -442,7 +442,8 @@ exs = [h, c, u]
 
 # test a simple pipeline prediction agrees with prediction of
 # hand-built learning network built earlier:
-p = @pipeline(FeatureSelector, KNNRegressor,
+p = @pipeline(FeatureSelector,
+              KNNRegressor,
               target=UnivariateStandardizer,
               prediction_type=:deterministic)
 p.knn_regressor.K = 3; p.feature_selector.features = [:x3,]
