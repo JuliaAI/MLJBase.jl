@@ -19,7 +19,30 @@ import Base.instances # considered a trait for measures
 import StatisticalTraits.snakecase
 
 # Interface
-using MLJModelInterface
+
+# HACK: When https://github.com/JuliaAI/MLJModelInterface.jl/issues/124
+# is resolved:
+# Uncomment next line and delete "Hack Block"
+# using MLJModelInterface
+#####################
+# Hack Block begins #
+#####################
+exported_names(m::Module) =
+    filter!(x -> Base.isexported(m, x),
+            Base.names(m; all=true, imported=true))
+import MLJModelInterface
+for name in exported_names(MLJModelInterface)
+    name in [:UnivariateFinite,
+             :augmented_transform,
+             :info] && continue
+    quote
+        import MLJModelInterface.$name
+    end |> eval
+end
+###################
+# Hack Block ends #
+###################
+
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
@@ -55,6 +78,7 @@ import StatsBase: fit!, mode, countmap
 import Missings: levels
 using Missings
 import Distributions
+using CategoricalDistributions
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
@@ -348,10 +372,6 @@ include("utilities.jl")
 include("show.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
-
-include("univariate_finite/types.jl")
-include("univariate_finite/methods.jl")
-include("univariate_finite/arrays.jl")
 
 include("sources.jl")
 include("machines.jl")

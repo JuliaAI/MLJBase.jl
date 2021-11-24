@@ -68,11 +68,6 @@ end
     @test include("interface/data_utils.jl")
 end
 
-@conditional_testset "univariate finite" begin
-    @test include("univariate_finite/methods.jl")
-    @test include("univariate_finite/arrays.jl")
-end
-
 @conditional_testset "measures" begin
     @test include("measures/measures.jl")
     @test include("measures/measure_search.jl")
