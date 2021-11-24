@@ -51,7 +51,7 @@ print("\r                                           \r")
 RUN_ALL_TESTS = isempty(ARGS)
 macro conditional_testset(name, expr)
     name = string(name)
-    esc(quote 
+    esc(quote
         if RUN_ALL_TESTS || $name in ARGS
             @testset $name $expr
         end
@@ -108,8 +108,8 @@ end
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")
+    @test include("composition/models/deprecated.jl")
     @test include("composition/models/pipelines.jl")
-    @test include("composition/models/pipelines2.jl")
     @test include("composition/models/transformed_target_model.jl")
     @test include("composition/models/stacking.jl")
     @test include("composition/models/_wrapped_function.jl")

@@ -1,41 +1,245 @@
-module TestPipelines
+module TestPipelines2
 
 using MLJBase
-using ..Models
 using Test
-using Statistics
-using ScientificTypes
+using ..Models
 using StableRNGs
+using Tables
 
 rng = StableRNG(698790187)
 
-struct MyTransformer2 <: Static
+@testset "helpers" begin
+    @test MLJBase.individuate([:x, :y, :x, :z, :y, :x]) ==
+        [:x, :y, :x2, :z, :y2, :x3]
+end
+
+
+# # DUMMY MODELS
+
+mutable struct MyTransformer2 <: Static
     ftr::Symbol
 end
 
-const verb = 0 # verbosity
-
 MLJBase.transform(transf::MyTransformer2, verbosity, X) =
-    selectcols(X, transf.ftr)
+    fill(:st, nrows(X))
+
+mutable struct MyDeterministic <: Deterministic
+    x::Symbol
+end
+
+MLJBase.fit(::MyDeterministic, args...) = nothing, nothing, nothing
+MLJBase.transform(m::MyDeterministic, ::Any, Xnew) = fill(:dt, nrows(Xnew))
+MLJBase.predict(m::MyDeterministic, ::Any, Xnew) = fill(:dp, nrows(Xnew))
+MLJBase.supports_training_losses(::Type{<:MyDeterministic}) = true
+MLJBase.iteration_parameter(::Type{<:MyDeterministic}) = :x
+MLJBase.training_losses(::MyDeterministic, report) = ones(3)
+
+mutable struct MyProbabilistic <: Probabilistic
+    x::Symbol
+end
+
+mutable struct MyUnsupervised <: Unsupervised
+    x::Symbol
+end
+
+MLJBase.fit(::MyUnsupervised, args...) = nothing, nothing, nothing
+MLJBase.transform(m::MyUnsupervised, ::Any, Xnew) = fill(:ut, nrows(Xnew))
+MLJBase.predict(m::MyUnsupervised, ::Any, Xnew) = fill(:up, nrows(Xnew))
+
+mutable struct MyInterval <: Interval
+    x::Symbol
+end
+
+d = MyDeterministic(:d)
+p = MyProbabilistic(:p)
+u = MyUnsupervised(:u)
+s = MyTransformer2(:s) # Static
+i = MyInterval(:i)
+m = MLJBase.matrix
+t = MLJBase.table
+
+@testset "pipe_named_tuple" begin
+    @test_throws MLJBase.ERR_EMPTY_PIPELINE MLJBase.pipe_named_tuple((),())
+    @test_throws(MLJBase.ERR_TOO_MANY_SUPERVISED,
+                 MLJBase.pipe_named_tuple((:foo, :foo, :foo), (d, u, p)))
+    _names      = (:trf, :fun, :fun, :trf, :clf)
+    components = (u,    m,    t,    u,    d)
+    @test MLJBase.pipe_named_tuple(_names, components) ==
+        NamedTuple{(:trf, :fun, :fun2, :trf2, :clf),
+                   Tuple{Unsupervised,
+                         Any,
+                         Any,
+                         Unsupervised,
+                         Deterministic}}(components)
+end
+
+@testset "public constructor" begin
+    # un-named components:
+    @test Pipeline(m, t, u) isa UnsupervisedPipeline
+    @test Pipeline(m, t, u, p) isa ProbabilisticPipeline
+    @test Pipeline(m, t, u, p, operation=predict_mean) isa DeterministicPipeline
+    @test Pipeline(u, p, u, operation=predict_mean) isa DeterministicPipeline
+    @test Pipeline(m, t) isa StaticPipeline
+    @test Pipeline(m, t, s) isa StaticPipeline
+    @test Pipeline(m, t, s, d) isa DeterministicPipeline
+    @test Pipeline(m, t, i) isa IntervalPipeline
+    @test_logs((:info, MLJBase.INFO_TREATING_AS_DETERMINISTIC),
+               @test Pipeline(m, t, u, p, u) isa DeterministicPipeline)
+    @test_logs((:info, MLJBase.INFO_TREATING_AS_DETERMINISTIC),
+               @test Pipeline(m, t, u, i, u) isa DeterministicPipeline)
+
+    # if "hidden" supervised model is already deterministic,
+    # no need for warning:
+    @test_logs @test Pipeline(m, t, u, d, u) isa DeterministicPipeline
+
+    # named components:
+    @test_throws MLJBase.ERR_USING_TARGET_KWARG Pipeline(target=u)
+    @test Pipeline(c1=m, c2=t, c3=u) isa UnsupervisedPipeline
+    @test Pipeline(c1=m, c2=t, c3=u, c5=p) isa ProbabilisticPipeline
+    @test Pipeline(c1=m, c2=t) isa StaticPipeline
+    @test Pipeline(c1=m, c2=t, c6=s) isa StaticPipeline
+    @test Pipeline(c1=m, c2=t, c6=s, c7=d) isa DeterministicPipeline
+    @test Pipeline(c1=m, c2=t, c8=i) isa IntervalPipeline
+    @test_logs((:info, MLJBase.INFO_TREATING_AS_DETERMINISTIC),
+               @test Pipeline(c1=m, c2=t, c3=u, c5=p, c4=u) isa
+               DeterministicPipeline)
+    @test(Pipeline(c1=m, c2=t, c3=u, c5=p, c4=u, prediction_type=:interval) isa
+          IntervalPipeline)
+    @test(Pipeline(c1=m, c2=t, c3=u, c5=p, c4=u,
+                   prediction_type=:probabilistic) isa
+          ProbabilisticPipeline)
+    @test_logs((:info, MLJBase.INFO_TREATING_AS_DETERMINISTIC),
+               @test Pipeline(c1=m, c2=t, c3=u, c8=i, c4=u) isa
+               DeterministicPipeline)
+    # if "hidden" supervised model is already deterministic,
+    # no need for warning:
+    @test_logs(@test Pipeline(c1=m, c2=t, c3=u, c7=d, c4=u) isa
+               DeterministicPipeline)
+
+    # errors and warnings:
+    @test_throws MLJBase.ERR_MIXED_PIPELINE_SPEC Pipeline(m, mymodel=p)
+    @test_throws(MLJBase.ERR_INVALID_OPERATION,
+                 Pipeline(u, s, operation=cos))
+    @test_throws(MLJBase.ERR_INVALID_PREDICTION_TYPE,
+                 Pipeline(u=u, s=s, prediction_type=:ostrich))
+    @test_logs((:warn, MLJBase.WARN_IGNORING_PREDICTION_TYPE),
+               Pipeline(m, t, u, prediction_type=:deterministic))
+    @test_throws(MLJBase.err_prediction_type_conflict(d, :probabilistic),
+                 Pipeline(m, t, d, prediction_type=:probabilistic))
+
+end
+
+@testset "property access" begin
+    pipe = Pipeline(m, u, u, s)
+
+    # property names:
+    @test propertynames(pipe) ===
+        (:f, :my_unsupervised, :my_unsupervised2, :my_transformer2, :cache)
+
+    # getproperty:
+    @test pipe.my_unsupervised == u
+    @test pipe.my_unsupervised2 == u
+    @test pipe.cache == true
+
+    # replacing a component with one whose abstract supertype is the same
+    # or smaller:
+    pipe.my_unsupervised = s
+    @test pipe.my_unsupervised == s
+
+    # attempting to replace a component with one whose abstract supertype
+    # is bigger:
+    @test_throws MethodError pipe.my_transformer2 = u
+
+    # mutating the components themeselves:
+    pipe.my_unsupervised.ftr = :z
+    @test pipe.my_unsupervised.ftr == :z
+
+    # or using MLJBase's recursive getproperty:
+    MLJBase.recursive_setproperty!(pipe, :(my_unsupervised.ftr), :bonzai)
+    @test pipe.my_unsupervised.ftr ==  :bonzai
+
+    # more errors:
+    @test_throws(MLJBase.err_pipeline_bad_property(pipe, :mount_fuji),
+                 pipe.mount_fuji)
+    @test_throws(MLJBase.err_pipeline_bad_property(pipe, :mount_fuji),
+                 pipe.mount_fuji = 42)
+
+end
+
+@testset "show" begin
+    io = IOBuffer()
+    pipe = Pipeline(x-> x^2, m, t, p)
+    show(io, MIME("text/plain"), pipe)
+end
+
+@testset "Front and extend" begin
+    Xs = source(rand(3))
+    ys = source(rand(3))
+    front = MLJBase.Front(Xs, ys, false)
+    @test front.predict() == Xs()
+    @test front.transform() == ys()
+    @test MLJBase.active(front)() == Xs()
+
+    front = MLJBase.Front(Xs, Xs, true)
+    front = MLJBase.extend(front, u, false, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:ut, :ut, :ut]
+
+    front = MLJBase.extend(front, s, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:st, :st, :st]
+
+    front = MLJBase.extend(front, u, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:up, :up, :up]
+    @test tnode() == [:ut, :ut, :ut]
+
+    front = MLJBase.extend(front, d, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:dp, :dp, :dp]
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, x->string.(x), true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == string.([:dp, :dp, :dp])
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, u, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:ut, :ut, :ut]
+    @test tnode() == [:dt, :dt, :dt]
+
+    front = MLJBase.extend(front, s, true, predict, ys)
+    pnode, tnode = front.predict, front.transform
+    fit!(pnode, verbosity=0)
+    fit!(tnode, verbosity=0)
+    @test pnode() == [:st, :st, :st]
+    @test tnode() == [:dt, :dt, :dt]
+end
 
 NN = 7
-X = MLJBase.table(rand(rng,NN, 3));
+X = MLJBase.table(rand(rng, NN, 3));
 y = 2X.x1 - X.x2 + 0.05*rand(rng,NN);
 Xs = source(X); ys = source(y)
 
 broadcast_mode(v) = mode.(v)
 doubler(y) = 2*y
 
-@testset "pipeline helpers" begin
-    @test MLJBase.super_type(KNNRegressor()) == Deterministic
-    @test MLJBase.super_type(ConstantClassifier()) == Probabilistic
-    @test MLJBase.super_type(Standardizer()) == Unsupervised
-    @test MLJBase.super_type(:deterministic) == Deterministic
-    @test MLJBase.super_type(:probabilistic) == Probabilistic
-    @test MLJBase.super_type(:something) == Unsupervised
-end
-
-@testset "linear_learning_network" begin
+@testset "pipeline_network_machine" begin
     t = MLJBase.table
     m = MLJBase.matrix
     f = FeatureSelector()
@@ -44,25 +248,10 @@ end
     u = UnivariateStandardizer()
     c = ConstantClassifier()
 
-    models = [f, h]
-    mach = MLJBase.linear_learning_network_machine(
-        Unsupervised, Xs, nothing, nothing, nothing, nothing,
-        true, predict, models...)
-    tree= mach.fitresult.transform |> MLJBase.tree
-    @test mach.model isa UnsupervisedSurrogate
-    @test tree.operation == transform
-    @test tree.model == h
-    @test tree.arg1.operation == transform
-    @test tree.arg1.model == f
-    @test tree.arg1.arg1.source == Xs
-    @test tree.arg1.train_arg1.source == Xs
-    @test tree.train_arg1 == tree.arg1
-
-    models = [f, k]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, nothing, nothing,
-        true, predict, models...)
-    tree= mach.fitresult.predict |> MLJBase.tree
+    components = [f, k]
+    mach = MLJBase.pipeline_network_machine(
+        Deterministic, true, predict, components, Xs, ys)
+    tree = mach.fitresult.predict |> MLJBase.tree
     @test mach.model isa DeterministicSurrogate
     @test tree.operation == predict
     @test tree.model == k
@@ -73,11 +262,23 @@ end
     @test tree.train_arg1 == tree.arg1
     @test tree.train_arg2.source == ys
 
-    models = [m, t]
-    mach = MLJBase.linear_learning_network_machine(
-        Unsupervised, Xs, nothing, nothing, nothing, nothing,
-        true, predict, models...)
-    tree= mach.fitresult.transform |> MLJBase.tree
+    components = [f, h]
+    mach = MLJBase.pipeline_network_machine(
+        Unsupervised, true, predict, components, Xs)
+    tree = mach.fitresult.transform |> MLJBase.tree
+    @test mach.model isa UnsupervisedSurrogate
+    @test tree.operation == transform
+    @test tree.model == h
+    @test tree.arg1.operation == transform
+    @test tree.arg1.model == f
+    @test tree.arg1.arg1.source == Xs
+    @test tree.arg1.train_arg1.source == Xs
+    @test tree.train_arg1 == tree.arg1
+
+    components = [m, t]
+    mach = MLJBase.pipeline_network_machine(
+        Unsupervised, true, predict, components, Xs)
+    tree = mach.fitresult.transform |> MLJBase.tree
     @test mach.model isa UnsupervisedSurrogate
     @test tree.operation == t
     @test tree.model == nothing
@@ -85,148 +286,24 @@ end
     @test tree.arg1.model == nothing
     @test tree.arg1.arg1.source == Xs
 
-    # with learned target transformation:
-    models = [f, k]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, u, nothing,
-        true, predict, models...)
-    tree= mach.fitresult.predict |> MLJBase.tree
-    @test mach.model isa DeterministicSurrogate
-    @test tree.operation == inverse_transform
-    @test tree.model == u
-    @test tree.arg1.operation == predict
-    @test tree.arg1.model == k
-    @test tree.arg1.arg1.operation == transform
-    @test tree.arg1.arg1.model == f
-    @test tree.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.train_arg1 == tree.arg1.arg1
-    @test tree.arg1.train_arg2.operation == transform
-    @test tree.arg1.train_arg2.model == u
-    @test tree.arg1.train_arg2.arg1.source == ys
-    @test tree.arg1.train_arg2.train_arg1.source == ys
-    @test tree.train_arg1.source == ys
-
-    # with static target transformation:
-    models = [f, k]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
-        MLJBase.WrappedFunction(exp),
-        true, predict, models...)
-    tree= mach.fitresult.predict |> MLJBase.tree
-    @test mach.model isa DeterministicSurrogate
-    @test tree.operation == transform
-    @test tree.model.f == exp
-    @test tree.arg1.operation == predict
-    @test tree.arg1.model == k
-    @test tree.arg1.arg1.operation == transform
-    @test tree.arg1.arg1.model == f
-    @test tree.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.train_arg1 == tree.arg1.arg1
-    @test tree.arg1.train_arg2.operation == transform
-    @test tree.arg1.train_arg2.model.f == log
-    @test tree.arg1.train_arg2.arg1.source == ys
-
-    # with supervised model not at end and static target transformation:
-    models = [f, c, broadcast_mode]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
-        MLJBase.WrappedFunction(exp),
-        true, predict, models...)
-    tree= mach.fitresult.predict |> MLJBase.tree
-    @test mach.model isa DeterministicSurrogate
-    @test tree.operation == transform
-    @test tree.model.f == exp
-    @test tree.arg1.operation == broadcast_mode
-    @test tree.arg1.model == nothing
-    @test tree.arg1.arg1.operation == predict
-    @test tree.arg1.arg1.model == c
-    @test tree.arg1.arg1.arg1.operation == transform
-    @test tree.arg1.arg1.arg1.model == f
-    @test tree.arg1.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1 == tree.arg1.arg1.arg1
-    @test tree.arg1.arg1.train_arg2.operation == transform
-    @test tree.arg1.arg1.train_arg2.model.f == log
-    @test tree.arg1.arg1.train_arg2.arg1.source == ys
-
-    # with supervised model not at end and with learned target transformation:
-    models = [f, c, broadcast_mode]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, u, nothing,
-        true, predict, models...)
-    tree = mach.fitresult.predict |> MLJBase.tree
-    @test mach.model isa DeterministicSurrogate
-    @test tree.operation == inverse_transform
-    @test tree.model == u
-    @test tree.arg1.operation == broadcast_mode
-    @test tree.arg1.model == nothing
-    @test tree.arg1.arg1.operation == predict
-    @test tree.arg1.arg1.model == c
-    @test tree.arg1.arg1.arg1.operation == transform
-    @test tree.arg1.arg1.arg1.model == f
-    @test tree.arg1.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1 == tree.arg1.arg1.arg1
-    @test tree.arg1.arg1.train_arg2.operation == transform
-    @test tree.arg1.arg1.train_arg2.model == u
-    @test tree.arg1.arg1.train_arg2.arg1.source == ys
-    @test tree.arg1.arg1.train_arg2.train_arg1.source == ys
-    @test tree.train_arg1.source == ys
-
-    # test of invert_last=false - learned target transformation:
-    models = [k, doubler]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, u, nothing,
-        false, predict, models...)
-    tree = mach.fitresult.predict |> MLJBase.tree
-    @test tree.operation == doubler
-    @test tree.arg1.operation == inverse_transform
-    @test tree.arg1.arg1.operation == predict
-    @test tree.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.arg1.train_arg2.operation == transform
-    @test tree.arg1.arg1.train_arg2.arg1.source == ys
-    @test tree.arg1.arg1.train_arg2.train_arg1.source == ys
-    @test tree.arg1.train_arg1.source == ys
-
-    # test of invert_last=false - static target transformation:
-    models = [k, doubler]
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, MLJBase.WrappedFunction(log),
-        MLJBase.WrappedFunction(exp),
-        false, predict, models...)
-    tree = mach.fitresult.predict |> MLJBase.tree
-    @test tree.operation == doubler
-    @test tree.model == nothing
-    @test tree.arg1.operation == transform
-    @test tree.arg1.model.f == exp
-    @test tree.arg1.arg1.operation == predict
-    @test tree.arg1.arg1.arg1.source == Xs
-    @test tree.arg1.arg1.train_arg1.source == Xs
-    @test tree.arg1.arg1.train_arg2.operation == transform
-    @test tree.arg1.arg1.train_arg2.model.f == log
-    @test tree.arg1.arg1.train_arg2.arg1.source == ys
-
     # check a probablistic case:
-    models = [f, c]
-    mach = MLJBase.linear_learning_network_machine(
-        Probabilistic, Xs, ys, nothing, u, nothing,
-        true, predict, models...)
+    components = [f, c]
+    mach = MLJBase.pipeline_network_machine(
+        Probabilistic, true, predict, components, Xs, ys)
     @test mach.model isa ProbabilisticSurrogate
 
     # check a static case:
-    models = [m, t]
-    mach = MLJBase.linear_learning_network_machine(
-        Static, Xs, ys, nothing, nothing, nothing,
-        true, predict, models...)
+    components = [m, t]
+    mach = MLJBase.pipeline_network_machine(
+        Static, true, predict, components, Xs, ys)
     @test mach.model isa StaticSurrogate
 
+    # An integration test...
+
     # build a linear network for training:
-    mach = MLJBase.linear_learning_network_machine(
-        Deterministic, Xs, ys, nothing, u, nothing,
-        true, predict, f, k)
+    components = [f, k]
+    mach = MLJBase.pipeline_network_machine(
+        Deterministic, true, predict, components, Xs, ys)
 
     # build the same network by hand:
     fM = machine(f, Xs)
@@ -238,12 +315,12 @@ end
     N2 = inverse_transform(uM, zhat)
 
     # compare predictions
-    fit!(mach, verbosity=verb);
+    fit!(mach, verbosity=0);
     fit!(N2, verbosity=0)
     yhat = predict(mach, X);
     @test yhat ≈ N2()
     k.K = 3; f.features = [:x3,]
-    fit!(mach, verbosity=verb);
+    fit!(mach, verbosity=0);
     fit!(N2, verbosity=0)
     @test !(yhat ≈ predict(mach, X))
     @test predict(mach, X) ≈ N2()
@@ -251,345 +328,231 @@ end
 
 end
 
+@testset "training_losses" begin
+    model = MyDeterministic(:bla)
+    pipe = Standardizer() |> model
 
-## PIPELINE_PREPROCESS
+    # test helpers:
+    @test MLJBase.supervised_component_name(pipe) == :my_deterministic
+    @test MLJBase.supervised_component(pipe) == model
 
-F = FeatureSelector()
-H = OneHotEncoder()
-K = KNNRegressor()
-C = ConstantClassifier()
-U = UnivariateStandardizer()
-
-m = :(MLJBase.matrix)
-t = :(MLJBase.table)
-f = :(F)
-h = :(H)
-k = :(K)
-c = :(C)
-e = :(target=exp)
-l = :(inverse=log)
-u = :(target=U)
-p = :(prediction_type=:deterministic)
-v = :(invert_last=true)
-
-exs = [f, m, t, h, k, u, p, v]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test string(out[1])[1:8]  == "Pipeline"
-@test out[2] ==  [:feature_selector, :one_hot_encoder,
-                  :knn_regressor, :target]
-@test eval.(out[3]) == [F, H, K, U]
-@test eval.(out[4]) ==
-    [Unsupervised, Unsupervised, Deterministic, Unsupervised]
-@test eval.(out[5]) == [F, MLJBase.matrix, MLJBase.table, H, K]
-@test eval.(out[6]) == U
-@test eval.(out[7]) == nothing
-@test out[8] == true
-@test out[9] == predict
-@test out[10] == Deterministic
-@test haskey(out[11], :supports_weights)
-
-exs =  [f, m, t, h, k, e, l, p, v]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[2] == [:feature_selector, :one_hot_encoder, :knn_regressor,
-                 :target, :inverse]
-@test eval.(out[3]) == [F, H, K, MLJBase.WrappedFunction(exp),
-                 MLJBase.WrappedFunction(log)]
-@test eval.(out[4]) == [Unsupervised, Unsupervised,
-                        Deterministic, Unsupervised, Unsupervised]
-@test eval.(out[5]) == [F, MLJBase.matrix, MLJBase.table, H, K]
-@test eval.(out[6]) == MLJBase.WrappedFunction(exp)
-@test eval.(out[7]) == MLJBase.WrappedFunction(log)
-@test out[10] == Deterministic
-
-# invert_last = false:
-exs = [k, :(doubler), u]
-out = @test_logs((:info, r"Treating pipeline as"),
-                 MLJBase.pipeline_preprocess(TestPipelines, exs...))
-@test out[8] == false
-
-exs = [m, t, :(MyTransformer2(:age))]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[10] == Static
-
-exs = [f, m, t, h, k, u, p, :(name=MyPipe)]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[1] == :MyPipe
-
-exs = [f, m, t, h, k, u, p, :(name="MyPipe2")]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[1] == :MyPipe2
-
-exs = [f, m, t, h, k, u, p, :(name=:MyPipe3)]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[1] == :MyPipe3
-
-# auto-detect probablistic predictions:
-exs = [f, m, t, h, c]
-out = MLJBase.pipeline_preprocess(TestPipelines, exs...)
-@test out[10] == Probabilistic
-
-# prediction_type=:probabilistic declared but no supervised models
-exs = [f, m, t, h, :(prediction_type=:probabilistic)]
-@test_logs (:warn, r"Pipeline appears to have no") begin
-    MLJBase.pipeline_preprocess(TestPipelines, exs...)
+    @test supports_training_losses(pipe)
+    _, _, rp = MLJBase.fit(pipe, 0, X, y)
+    @test training_losses(pipe, rp) == ones(3)
+    @test iteration_parameter(pipe) == :(my_deterministic.x)
 end
 
-exs = [f, m, t, h, k, u]
-@test_logs (:info, r"Treating") begin
-    MLJBase.pipeline_preprocess(TestPipelines, exs...)
+
+# # INTEGRATION TESTS
+
+@testset "integration 1" begin
+    # check a simple pipeline prediction agrees with prediction of
+    # hand-built learning network built earlier:
+    p = Pipeline(FeatureSelector,
+                 KNNRegressor,
+                 prediction_type=:deterministic)
+    p.knn_regressor.K = 3; p.feature_selector.features = [:x3,]
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test MLJBase.tree(mach.fitresult.predict).model.K == 3
+    MLJBase.tree(mach.fitresult.predict).arg1.model.features == [:x3, ]
+    @test predict(mach, X) ≈ hand_built
+
+    # test cache is set correctly internally:
+    @test all(fitted_params(mach).machines) do m
+        MLJBase._cache_status(m)  == " caches data"
+    end
+
+    # test correct error thrown for inverse_transform:
+    @test_throws(MLJBase.ERR_INVERSION_NOT_SUPPORTED,
+                 inverse_transform(mach, 3))
 end
 
-# unsupported operation:
-exs = [h, k, :(operation=transform)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-exs = [h, k, :(operation=:predict)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
+@testset "integration 2" begin
+    # a simple probabilistic classifier pipeline:
+    X = MLJBase.table(rand(rng,7,3));
+    y = categorical(collect("ffmmfmf"));
+    Xs = source(X)
+    ys = source(y)
+    p = Pipeline(OneHotEncoder, ConstantClassifier, cache=false)
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test p isa ProbabilisticComposite
+    pdf(predict(mach, X)[1], 'f') ≈ 4/7
 
-# pipe_line error 3:
-exs =  Symbol[]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
+    # test cache is set correctly internally:
+    @test all(fitted_params(mach).machines) do m
+        MLJBase._cache_status(m) == " does not cache data"
+    end
 
-# target is a function but no inverse=...:
-exs =  [f, m, t, h, k, e, p]
-@test_throws(ArgumentError,
-MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# inverse but no target:
-exs =  [f, k, l, p]
-@test_throws(ArgumentError,
-MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# target specified but no component is supervised:
-exs =  [f, h, u]
-@test_throws(ArgumentError,
-MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# pipe_line error 8:
-exs = [f, m, t, h, k, u, p, :("mary"=true)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# target has wrong form:
-exs = [f, m, t, h, k, u, p, :(target=KNNRegressor)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-exs = [f, m, t, h, k, u, p, :(target=KNNRegressor())]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-exs = [f, m, t, h, k, u, p, :(target="junk")]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# inverse not a function:
-exs =  [f, m, t, h, k, e, p, :(inverse=Standardizer())]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# bad name for pipeline:
-exs = [f, m, t, h, k, u, p, :(name=true)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# existing name:
-exs = [f, m, t, h, k, u, :(name=Int)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# bad prediction_type:
-exs = [f, m, t, h, k, u, :(prediction_type=:junk)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# invalid key-word
-exs = [f, m, t, h, k, u, :(junk=:junk)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# non-expression:
-exs = [f, m, t, h, k, u, :("junk")]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# junk expression:
-exs = [f, m, t, h, k, u, :(sin(2))]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# datatype that's not a model:
-exs = [f, m, t, h, k, u, :Int]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-# More than one component of the pipeline is a supervised model:
-exs = [f, m, t, h, k, u, k]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-exs = [f, m, k, :(prediction_type=:probabilistic)]
-@test_throws(ArgumentError,
-             MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-exs = [h, c, u]
-@test_logs((:info, r"Treating"),
-           (:warn, r"Pipeline is applying"),
-           MLJBase.pipeline_preprocess(TestPipelines, exs...))
-
-
-## SIMPLE SUPERVISED PIPELINE WITH TARGET TRANSFORM
-
-# test a simple pipeline prediction agrees with prediction of
-# hand-built learning network built earlier:
-p = @pipeline(FeatureSelector, KNNRegressor,
-              target=UnivariateStandardizer,
-              prediction_type=:deterministic)
-p.knn_regressor.K = 3; p.feature_selector.features = [:x3,]
-mach = machine(p, X, y)
-fit!(mach, verbosity=verb)
-@test MLJBase.tree(mach.fitresult.predict).arg1.model.K == 3
-MLJBase.tree(mach.fitresult.predict).arg1.arg1.model.features == [:x3, ]
-@test predict(mach, X) ≈ hand_built
-
-# test a simple probabilistic classifier pipeline:
-X = MLJBase.table(rand(rng,7,3));
-y = categorical(collect("ffmmfmf"));
-Xs = source(X)
-ys = source(y)
-p = @pipeline OneHotEncoder ConstantClassifier
-mach = machine(p, X, y)
-fit!(mach, verbosity=verb)
-@test p isa ProbabilisticComposite
-pdf(predict(mach, X)[1], 'f') ≈ 4/7
-
-# test invalid replacement of classifier with regressor throws
-# informative error message:
-p.constant_classifier = ConstantRegressor()
-@test_logs((:error, r"^Problem"),
+    # test invalid replacement of classifier with regressor throws
+    # informative error message:
+    p.constant_classifier = ConstantRegressor()
+    @test_logs((:error, r"^Problem"),
            (:info, r"^Running type"),
            (:warn, r"The scitype of"),
            (:info, r"It seems"),
            (:error, r"Problem"),
-           @test_throws Exception fit!(mach, verbosity=-1))
-
-# test a simple deterministic classifier pipeline:
-X = MLJBase.table(rand(rng,7,3))
-y = categorical(collect("ffmmfmf"))
-Xs = source(X)
-ys = source(y)
-p = @pipeline(OneHotEncoder, ConstantClassifier, broadcast_mode,
-              prediction_type=:probabilistic)
-mach = machine(p, X, y)
-fit!(mach, verbosity=verb)
-@test predict(mach, X) == fill('f', 7)
-
-# test pipelines with weights:
-w = map(y) do η
-    η == 'm' ? 100 : 1
+               @test_throws Exception fit!(mach, verbosity=-1))
 end
-mach = machine(p, X, y, w)
-fit!(mach, verbosity=verb)
-@test predict(mach, X) == fill('m', 7)
 
-# test a pipeline with static transformation of target:
-NN = 100
-X = (x1=rand(rng,NN), x2=rand(rng,NN), x3=categorical(rand(rng,"abc", NN)));
-y = 1000*abs.(2X.x1 - X.x2 + 0.05*rand(rng,NN))
-# by hand:
-Xs =source(X); ys = source(y)
-hot = OneHotEncoder()
-hot_=machine(hot, Xs)
-W = transform(hot_, Xs)
-sel = FeatureSelector(features=[:x1,:x3__a])
-sel_ = machine(sel, W)
-Wsmall = transform(sel_, W)
-z = log(ys)
-knn = KNNRegressor(K=4)
-knn_ = machine(knn, Wsmall, z)
-zhat = predict(knn_, Wsmall)
-yhat = exp(zhat)
-fit!(yhat, verbosity=0)
-pred1 = yhat();
-# with pipeline:
-p = @pipeline(OneHotEncoder,
-              FeatureSelector,
-              KNNRegressor,
-              target=v->log.(v),
-              inverse=v->exp.(v),
-              prediction_type=:deterministic)
-p.feature_selector.features = [:x1, :x3__a]
-p.knn_regressor.K = 4
-p_ = machine(p, X, y)
-fit!(p_, verbosity=0)
-pred2 = predict(p_, X);
-@test pred1 ≈ pred2
+@testset "integration 3" begin
+    # test a simple deterministic classifier pipeline:
+    X = MLJBase.table(rand(rng,7,3))
+    y = categorical(collect("ffmmfmf"))
+    Xs = source(X)
+    ys = source(y)
+    p = Pipeline(OneHotEncoder, ConstantClassifier, broadcast_mode,
+                 prediction_type=:probabilistic)
+    mach = machine(p, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill('f', 7)
 
-# and another:
+    # test pipelines with weights:
+    w = map(y) do η
+        η == 'm' ? 100 : 1
+    end
+    mach = machine(p, X, y, w)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill('m', 7)
+end
+
 age = [23, 45, 34, 25, 67]
 X = (age = age,
      gender = categorical(['m', 'm', 'f', 'm', 'f']))
 height = [67.0, 81.5, 55.6, 90.0, 61.1]
-p = @pipeline(X -> coerce(X, :age=>Continuous),
-              OneHotEncoder,
-              KNNRegressor(K=3),
-              target = UnivariateStandardizer,
-              prediction_type = :probabilistic)
-fit!(machine(p, X, height), verbosity=0)
 
+mutable struct MyTransformer3 <: Static
+    ftr::Symbol
+end
 
-## STATIC TRANSFORMERS IN PIPELINES
+MLJBase.transform(transf::MyTransformer3, verbosity, X) =
+     selectcols(X, transf.ftr)
 
-p99 = @pipeline(X -> coerce(X, :age=>Continuous),
-                OneHotEncoder,
-                MyTransformer2(:age))
+@testset "integration 4" begin
+    #static transformers in pipelines
+    p99 = Pipeline(X -> coerce(X, :age=>Continuous),
+                   OneHotEncoder,
+                   MyTransformer3(:age))
+    mach = fit!(machine(p99, X), verbosity=0)
+    @test transform(mach, X) == float.(X.age)
+end
 
-mach = fit!(machine(p99, X), verbosity=0)
+@testset "integration 5" begin
+    # pure static pipeline:
+    p = Pipeline(X -> coerce(X, :age=>Continuous),
+                 MyTransformer3(:age))
 
-@test transform(mach, X) == float.(X.age)
+    mach = fit!(machine(p), verbosity=0) # no training arguments!
+    @test transform(mach, X) == X.age
 
+    # and another:
+    p = Pipeline(exp, log, x-> 2*x)
+    mach = fit!(machine(p), verbosity=0)
+    @test transform(mach, 20) ≈ 40
+end
 
-## PURE STATIC PIPLINES
+@testset "integration 6" begin
+    # operation different from predict:
+    p = Pipeline(OneHotEncoder,
+                 ConstantRegressor,
+                 operation=predict_mean)
+    @test p isa Deterministic
+    mach = fit!(machine(p, X, height), verbosity=0)
+    @test scitype(predict(mach, X)) == AbstractVector{Continuous}
+end
 
-p = @pipeline(X -> coerce(X, :age=>Continuous),
-                MyTransformer2(:age))
+@testset "integration 7" begin
+    # inverse transform:
+    p = Pipeline(UnivariateBoxCoxTransformer,
+                 UnivariateStandardizer)
+    xtrain = rand(rng, 10)
+    mach = machine(p, xtrain)
+    fit!(mach, verbosity=0)
+    x = rand(rng, 5)
+    y = transform(mach, x)
+    x̂ = inverse_transform(mach, y)
+    @test isapprox(x, x̂)
+end
 
-# no training arguments!
-mach = fit!(machine(p), verbosity=0)
-@test transform(mach, X) == X.age
+# A dummy clustering model:
+mutable struct DummyClusterer <: Unsupervised
+    n::Int
+end
+DummyClusterer(; n=3) = DummyClusterer(n)
+function MLJBase.fit(model::DummyClusterer, verbosity::Int, X)
+    Xmatrix = Tables.matrix(X)
+    n = min(size(Xmatrix, 2), model.n)
+    centres = Xmatrix[1:n, :]
+    levels = categorical(1:n)
+    report = (centres=centres,)
+    fitresult = levels
+    return fitresult, nothing, report
+end
+MLJBase.transform(model::DummyClusterer, fitresult, Xnew) =
+    selectcols(Xnew, 1:length(fitresult))
+MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
+    [fill(fitresult[1], nrows(Xnew))...]
 
-p = @pipeline exp log x-> 2*x
-mach = fit!(machine(p), verbosity=0)
-@test transform(mach, 20) ≈ 40
+@testset "integration 8" begin
+    # calling predict on unsupervised pipeline
+    # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
+    N = 20
+    X = (a = rand(N), b = rand(N))
 
-## OPERATION DIFFERENT FROM PREDICT
+    p = Pipeline(PCA, DummyClusterer)
+    mach = machine(p, X)
+    fit!(mach, verbosity=0)
+    y = predict(mach, X)
+    @test y == fill(categorical(1:2)[1], N)
+end
 
-p = @pipeline(OneHotEncoder,
-              ConstantRegressor,
-              operation=predict_mean)
+@testset "syntactic sugar" begin
 
-@test p isa Deterministic
+    # recall u, s, p, m, are defined way above
 
-mach = fit!(machine(p, X, height), verbosity=0)
-@test scitype(predict(mach, X)) == AbstractVector{Continuous}
+    # unsupervised model |> static model:
+    pipe1 = u |> s
+    @test pipe1 == Pipeline(u, s)
 
+    # unsupervised model |> supervised model:
+    pipe2 = u |> p
+    @test pipe2 == Pipeline(u, p)
 
-## USE OF INVERT_LAST
+    # pipe |> pipe:
+    hose = pipe1 |> pipe2
+    @test hose == Pipeline(u, s, u, p)
 
-X = (x1 = float.(1:10),)
-y = X.x1
+    # pipe |> model:
+    @test Pipeline(u, s) |> p == Pipeline(u, s, p)
 
-p = @pipeline(KNNRegressor(K=1), doubler, target=UnivariateStandardizer,
-              prediction_type=:deterministic)
+    # model |> pipe:
+    @test u |> Pipeline(s, p) == Pipeline(u, s, p)
 
-mach = fit!(machine(p, X, y), verbosity=0)
-@test predict(mach, X) ≈ doubler(y)
+    # pipe |> function:
+    @test Pipeline(u, s) |> m == Pipeline(u, s, m)
 
-p = @pipeline(KNNRegressor(K=1), doubler, target=UnivariateStandardizer,
-              invert_last=true, prediction_type=:deterministic)
-mach = fit!(machine(p, X, y), verbosity=0)
-@test !(predict(mach, X) ≈ doubler(y))
+    # function |> pipe:
+    @test m |> Pipeline(s, p) == Pipeline(m, s, p)
+
+    # model |> function:
+    @test u |> m == Pipeline(u, m)
+
+    # function |> model:
+    @test t |> u == Pipeline(t, u)
+
+    @test_logs((:info, MLJBase.INFO_AMBIGUOUS_CACHE),
+               Pipeline(u, cache=false) |> p)
+
+    # with types
+    @test PCA |> Standardizer() |> KNNRegressor ==
+        Pipeline(PCA(), Standardizer(), KNNRegressor())
+end
+
+@testset "miscelleneous coverage" begin
+    @test MLJBase.as_type(:unsupervised) == Unsupervised
+end 
 
 end
 
