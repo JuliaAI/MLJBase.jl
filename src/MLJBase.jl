@@ -130,6 +130,10 @@ export Unknown, Known, Finite, Infinite,
 export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
 
+# re-exports from CategoricalDistributions:
+export CategoricalUnivariateFiniteArray, UnivariateFiniteVector
+
+
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
 
@@ -151,9 +155,6 @@ export flat_values, recursive_setproperty!,
 
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
-
-# univariate_finite/
-export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # datasets.jl:
 export load_boston, load_ames, load_iris, load_sunspots,
