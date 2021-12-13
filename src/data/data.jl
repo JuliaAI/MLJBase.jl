@@ -326,40 +326,9 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
-_err_missing_class(c) =  throw(DomainError(
-    "Value `$c` not in pool"))
-
-
-function transform_(pool, x)
-    ismissing(x) && return missing
-    x in levels(pool) || _err_missing_class(x)
-    return pool[get(pool, x)]
-end
-
-transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
-
-"""
-    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
-
-Transform the specified object `X` into a categorical version, using
-the pool contained in `e`. Here `X` is a raw value (an element of
-`levels(e)`) or an `AbstractArray` of such values.
-
-```julia
-v = categorical(["x", "y", "y", "x", "x"])
-julia> transform(v, "x")
-CategoricalValue{String,UInt32} "x"
-
-julia> transform(v[1], ["x" "x"; missing "y"])
-2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
- "x"       "x"
- missing   "y"
-
-"""
-MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
-                            arg) = transform_(CategoricalArrays.pool(e), arg)
-MLJModelInterface.transform(e::CategoricalPool, arg) =
-    transform_(e, arg)
+MLJModelInterface.transform(
+    e::Union{CategoricalArray,CategoricalValue,CategoricalPool},
+    arg) = CategoricalDistributions.transform(e, arg)
 
 
 ## SKIPPING MISSING AND NAN: skipinvalid
