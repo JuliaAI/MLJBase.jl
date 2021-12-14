@@ -70,13 +70,13 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     @test z2.origin == 10^6
     @test z2.unit == 10^5
     @test z2.upper  == Inf
-    @test z2.scale == :log
+    @test z2.scale == :log10
 
     z3 = range(dummy_model, :K, upper=-10, origin=-10^6, unit=10^5)
     @test z3.origin == -10^6
     @test z3.unit == 10^5
     @test z3.lower  == -Inf
-    @test z3.scale == :logminus
+    @test z3.scale == :log10minus
 
     z4 = range(super_model, :lambda, lower=1, upper=10)
     @test z4.origin == 5.5
