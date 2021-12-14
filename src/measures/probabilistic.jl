@@ -429,7 +429,7 @@ const L2ProperScoringRules = Union{LogScore,
 function extra_check(measure::L2ProperScoringRules, yhat, args...)
 
     D = nonmissing(eltype(yhat))
-    D <: Distributions.Distribution ||
+    D <: Distributions.Distribution || D <: UnivariateFinite ||
         (D = typeof(findfirst(x->!isinvalid(x), yhat)))
     D <: Union{Nothing, WITH_L2NORM...} ||
         throw(err_l2_norm(measure))
