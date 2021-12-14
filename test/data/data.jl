@@ -123,7 +123,7 @@ end
         Cens = Int32[0, 0, 1],
         weights = [1,2,5])
 
-    w, y, X =  unpack(channing,
+    w, y, X, rest =  unpack(channing,
                   ==(:weights),
                   ==(:Exit),
                   x -> x != :Time;
@@ -134,6 +134,7 @@ end
     @test w == selectcols(channing, :weights)
     @test y == selectcols(channing, :Exit)
     @test X == selectcols(channing, [:Sex, :Entry, :Cens])
+    @test rest === selectcols(channing, :Time)
     @test scitype_union(y) <: Continuous
     @test scitype_union(selectcols(X, :Cens)) <: Multiclass
 
@@ -162,12 +163,10 @@ end
 
     # shuffling:
     small = (x=collect(1:5), y = collect("abcde"))
-    x, y = unpack(small, ==(:x), ==(:y); shuffle=true, rng=1)
-    @test x == [5, 1, 4, 2, 3]
-    @test y == ['e', 'a', 'd', 'b', 'c']
-    x, y = unpack(small, ==(:x), ==(:y); rng=1)
-    @test x == [5, 1, 4, 2, 3]
-    @test y == ['e', 'a', 'd', 'b', 'c']
+    x, y, w = unpack(small, ==(:x), ==(:y); rng=StableRNG(123))
+    @test x == [3, 1, 5, 2, 4]
+    @test y == ['c', 'a', 'e', 'b', 'd']
+    @test isempty(w)
     @test unpack(small, ==(:x), ==(:y); shuffle=true, rng=StableRNG(66)) ==
         unpack(small, ==(:x), ==(:y); rng=StableRNG(66))
 end
