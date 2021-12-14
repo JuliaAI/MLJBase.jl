@@ -80,7 +80,8 @@ Assuming `values` is not specified, define a one-dimensional
 that `r` is not directly iteratable but `iterator(r, n)`is an iterator
 of length `n`. To generate random elements from `r`, instead apply
 `rand` methods to `sampler(r)`. The supported scales are `:linear`,`
-:log`, `:logminus`, `:log10`, `:log2`, or a callable object.
+:log`, `:logminus`, `:log10`, `:log10minus`, `:log2`, or a callable
+object.
 
 Note that `r` is not directly iterable, but `iterator(r, n)` is, for
 given resolution (length) `n`.
@@ -94,9 +95,9 @@ behaviour is determined by the value of the specified type.
 A nested hyperparameter is specified using dot notation (see above).
 
 If `scale` is unspecified, it is set to `:linear`, `:log`,
-`:logminus`, or `:linear`, according to whether the interval `(lower,
-upper)` is bounded, right-unbounded, left-unbounded, or doubly
-unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
+`:log10minus`, or `:linear`, according to whether the interval
+`(lower, upper)` is bounded, right-unbounded, left-unbounded, or
+doubly unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
 allowed.
 
 If `values` is specified, the other keyword arguments are ignored and
@@ -179,12 +180,12 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         else
             B = LeftUnbounded
-            scale === nothing && (scale = :logminus)
+            scale === nothing && (scale = :log10minus)
         end
     else
         if upper === Inf
             B = RightUnbounded
-            scale === nothing && (scale = :log)
+            scale === nothing && (scale = :log10)
         else
             B = Bounded
             scale === nothing && (scale = :linear)
