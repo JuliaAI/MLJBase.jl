@@ -150,57 +150,73 @@ function partition(rows::AbstractVector, fractions::Real...;
 end
 
 """
-
-    t1, t2, ...., tk = unpack(table, f1, f2, ... fk;
-                             wrap_singles=false,
-                             shuffle=false,
-                             rng::Union{AbstractRNG,Int,Nothing}=nothing)
+    unpack(table, f1, f2, ... fk;
+           wrap_singles=false,
+           shuffle=false,
+           rng::Union{AbstractRNG,Int,Nothing}=nothing,
+           coerce_options...)
 
 Horizontally split any Tables.jl compatible `table` into smaller
-tables (or vectors) `t1, t2, ..., tk` by making column selections
-**without replacement** by successively applying the columnn name
-filters `f1`, `f2`, ..., `fk`. A *filter* is any object `f` such that
+tables or vectors by making column selections determined by the
+predicates `f1`, `f2`, ..., `fk`. Selection from the column names is
+without replacement. A *predicate* is any object `f` such that
 `f(name)` is `true` or `false` for each column `name::Symbol` of
-`table`. For example, use the filter `_ -> true` to pick up all
-remaining columns of the table.
+`table`.
+
+Returns a tuple of tables/vectors with length one greater than the
+number of supplied predicates, with the last component including all
+previously unselected columns.
+
+```
+julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
+2×4 DataFrame
+ Row │ x      y     z        w
+     │ Int64  Char  Float64  String
+─────┼──────────────────────────────
+   1 │     1  a        10.0  A
+   2 │     2  b        20.0  B
+
+Z, XY, W = unpack(table, ==(:z), !=(:w))
+julia> Z
+2-element Vector{Float64}:
+ 10.0
+ 20.0
+
+julia> XY
+2×2 DataFrame
+ Row │ x      y
+     │ Int64  Char
+─────┼─────────────
+   1 │     1  a
+   2 │     2  b
+
+julia> W  # the column(s) left over
+2-element Vector{String}:
+ "A"
+ "B"
+```
 
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
 
-Scientific type conversions can be optionally specified (note
-semicolon):
-
-    unpack(table, t...; col1=>scitype1, col2=>scitype2, ... )
+If `coerce_options` are specified then `table` is first replaced
+with `coerce(table, coerce_options)`. See
+[`ScientificTypes.coerce`](@ref) for details.
 
 If `shuffle=true` then the rows of `table` are first shuffled, using
 the global RNG, unless `rng` is specified; if `rng` is an integer, it
 specifies the seed of an automatically generated Mersenne twister. If
 `rng` is specified then `shuffle=true` is implicit.
 
-### Example
-
-```
-julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
-julia> Z, XY = unpack(table, ==(:z), !=(:w);
-               :x=>Continuous, :y=>Multiclass)
-julia> XY
-2×2 DataFrame
-│ Row │ x       │ y            │
-│     │ Float64 │ Categorical… │
-├─────┼─────────┼──────────────┤
-│ 1   │ 1.0     │ 'a'          │
-│ 2   │ 2.0     │ 'b'          │
-
-julia> Z
-2-element Array{Float64,1}:
- 10.0
- 20.0
-```
 """
-function unpack(X, tests...;
+function unpack(X, predicates...;
                 wrap_singles=false,
                 shuffle=nothing,
                 rng=nothing, pairs...)
+
+    # add a final predicate to unpack all remaining columns into to
+    # the last return value:
+    predicates = (predicates..., _ -> true)
 
     shuffle, rng = shuffle_and_rng(shuffle, rng)
 
@@ -214,18 +230,12 @@ function unpack(X, tests...;
 
     unpacked = Any[]
     names_left = schema(Xfixed).names |> collect
-    history = ""
-    counter = 1
-    for c in tests
+
+    for c in predicates
         names = filter(c, names_left)
         filter!(!in(names), names_left)
-        history *= "selection $counter: $names\n remaining: $names_left\n"
-        isempty(names) &&
-            error("Empty column selection encountered at selection $counter"*
-                  "\n$history")
         length(names) == 1 && !wrap_singles && (names = names[1])
         push!(unpacked, selectcols(Xfixed, names))
-        counter += 1
     end
     return Tuple(unpacked)
 end
