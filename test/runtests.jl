@@ -95,8 +95,6 @@ end
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/machines.jl")
-    # VERSION ≥ v"1.3.0-" &&
-    #     @test include("composition/learning_networks/arrows.jl")
 end
 
 @conditional_testset "composition_models" begin
