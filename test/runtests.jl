@@ -105,7 +105,6 @@ end
     @test include("composition/models/pipelines.jl")
     @test include("composition/models/transformed_target_model.jl")
     @test include("composition/models/stacking.jl")
-    @test include("composition/models/_wrapped_function.jl")
     @test include("composition/models/static_transformers.jl")
 end
 
