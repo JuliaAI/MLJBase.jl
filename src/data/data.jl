@@ -80,23 +80,32 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
     return tuple(split_rows...)
 end
 
+const ERR_PARTITION_UNSUPPORTED = ArgumentError(
+    "Function `partition` only supports "*
+    "AbstractVector, AbstractMatrix or containers implementing the "*
+    "Tables interface.")
+const ERR_PARTITION_DIMENSION_MISMATCH = DimensionMismatch(
+    "Expected a tuple of objects with a common length. ")
+
+__nrows(X) = Tables.istable(X) ? nrows(X) : throw(ERR_PARTITION_UNSUPPORTED)
+__nrows(X::Union{AbstractMatrix,AbstractVector}) = nrows(X)
+
 """
     partition(X, fractions...;
               shuffle=nothing,
               rng=Random.GLOBAL_RNG,
-              stratify=nothing)
+              stratify=nothing,
+              multi=false)
 
-Splits the vector or matrix `X` into a tuple of vectors or matrices
-whose vertical concatentation is `X`. The number of rows in each
-componenent of the return value is determined by the corresponding
-`fractions` of `length(nrows(X))`, where valid fractions are in (0,1)
-and sum up to less than one. The last fraction is not provided, as it
-is inferred from the preceding ones.
+Splits the vector, matrix or table `X` into a tuple of objects of the
+same type, whose vertical concatenation is `X`. The number of rows in
+each component of the return value is determined by the
+corresponding `fractions` of `length(nrows(X))`, where valid fractions
+are floats between 0 and 1 whose sum is less than one. The last
+fraction is not provided, as it is inferred from the preceding ones.
 
-`X` can also be any object which implements the `Tables.jl` interface
-according to `Tables.istable`.
-
-So, for example,
+For "synchronized" partitioning of multiple objects, use the
+`multi=true` option described below.
 
     julia> partition(1:1000, 0.8)
     ([1,...,800], [801,...,1000])
@@ -107,37 +116,55 @@ So, for example,
     julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
     ([1 6], [2 7; 3 8], [4 9; 5 10])
 
-    X, _ = make_regression()          # a table
-    Xtrain, Xtest = partition(X, 0.8) # the table split on rows
+    X, y = make_blobs() # a table and vector
+    Xtrain, Xtest = partition(X, 0.8, stratify=y)
+
+    (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=true)
+
 
 ## Keywords
 
-* `shuffle=nothing`:        if set to  `true`, shuffles the rows before taking fractions.
-* `rng=Random.GLOBAL_RNG`:  specifies the random number generator to be used, can be an integer
-                            seed. If specified, and `shuffle === nothing` is interpreted as true.
-* `stratify=nothing`:       if a vector is specified, the partition will match the stratification
-                            of the given vector. In that case, `shuffle` cannot be `false`.
-"""
-function partition(X, fractions...; kwargs...)
-    if X isa AbstractMatrix || Tables.istable(X)
-        # Generic method for all matrices and tables.  Partition its rows and
-        # apply `selectrows` to each partition.
-        return tuple((selectrows(X, p) for p in partition(1:nrows(X), fractions...; kwargs...))...)
-    else
-        throw(ArgumentError("Function `partition` only supports AbstractVector, " *
-                            "AbstractMatrix or containers implementing the Tables interface."))
-    end
-end
+* `shuffle=nothing`: if set to `true`, shuffles the rows before taking
+  fractions.
 
-function partition(rows::AbstractVector, fractions::Real...;
-                   shuffle::Union{Nothing,Bool}=nothing, rng=Random.GLOBAL_RNG,
-                   stratify::Union{Nothing,AbstractVector}=nothing)
-    # if rows is a unitrange, collect it
-    rows = collect(rows)
+* `rng=Random.GLOBAL_RNG`: specifies the random number generator to be
+  used, can be an integer seed. If specified, and `shuffle ===
+  nothing` is interpreted as true.
+
+* `stratify=nothing`: if a vector is specified, the partition will
+  match the stratification of the given vector. In that case,
+  `shuffle` cannot be `false`.
+
+* `multi=false`: if `true` then `X` is expected to be a `tuple` of
+  objects sharing a common length, which are each partitioned
+  separately using the same specified `fractions` *and* the same row
+  shuffling. Returns a tuple of partitions (a tuple of tuples).
+
+"""
+function partition(X, fractions::Real...;
+                   shuffle::Union{Nothing,Bool}=nothing,
+                   rng=Random.GLOBAL_RNG,
+                   stratify::Union{Nothing,AbstractVector}=nothing,
+                   multi=false)
+
     # check the fractions
     if !all(e -> 0 < e < 1, fractions) || sum(fractions) >= 1
-        throw(DomainError(fractions, "Fractions must be in (0, 1) with sum < 1."))
+        throw(DomainError(fractions,
+                          "Fractions must be in (0, 1) with sum < 1."))
     end
+
+    # determinen `n_rows`:
+    if X isa Tuple && multi
+        isempty(X) && return tuple(fill((), length(fractions) + 1)...)
+        x = first(X)
+        n_rows = __nrows(x)
+        all(X[2:end]) do x
+            nrows(x) === n_rows
+        end || throw(ERR_PARTITION_DIMENSION_MISMATCH)
+    else
+        n_rows = __nrows(X)
+    end
+
     # check the rng & adjust shuffling
     if rng isa Integer
         rng = MersenneTwister(rng)
@@ -145,9 +172,24 @@ function partition(rows::AbstractVector, fractions::Real...;
     if rng != Random.GLOBAL_RNG && shuffle === nothing
         shuffle = true
     end
+    rows = collect(1:n_rows)
     shuffle !== nothing && shuffle && shuffle!(rng, rows)
-    return _partition(rows, collect(fractions), stratify)
+
+    # determine the partition of `rows`:
+    row_partition = _partition(rows, collect(fractions), stratify)
+    return _partition(X, row_partition)
 end
+
+function _partition(X, row_partition)
+#    _X = Tables.istable(X) ? X : collect(X)
+    return tuple((selectrows(X, p) for p in row_partition)...)
+end
+
+_partition(X::Tuple, row_partition) =
+    map(x->_partition(x, row_partition), X)
+
+
+# # UNPACK
 
 """
     unpack(table, f1, f2, ... fk;
