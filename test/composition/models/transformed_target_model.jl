@@ -14,6 +14,8 @@ whitener = UnivariateStandardizer()
 
 @testset "constructor and clean!" begin
 
+    @test_logs TransformedTargetModel(atom,
+                                              target=UnivariateStandardizer)
     model = @test_logs TransformedTargetModel(atom, target=whitener)
     @test model.model == atom
     @test model.inverse == nothing

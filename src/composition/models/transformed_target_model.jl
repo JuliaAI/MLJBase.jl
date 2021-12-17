@@ -74,7 +74,8 @@ const WARN_IDENTITY_INVERSE =
     "Setting `inverse=identity` to suppress inverse transformations "*
     "of predictions. "
 const WARN_MISSING_INVERSE =
-    "Specified `target` is not a model and so presumed to be callable. "*
+    "Specified `target` is not a model instance or type "*
+    "and so is assumed callable (eg, is a function). "*
     "I am setting `inverse=identity` as no `inverse` specified. This means "*
     "predictions of the (semi)supervised model will be "*
     "returned on a scale different from the training target. "
@@ -153,6 +154,8 @@ function TransformedTargetModel(args...;
     return metamodel
 end
 
+_is_model_type(m) = m isa Type && m <: Model
+
 function clean!(model::SomeTT)
     message = ""
     if prediction_type(model.model) !== :deterministic &&
@@ -160,7 +163,8 @@ function clean!(model::SomeTT)
         model.inverse = identity
         message *= WARN_IDENTITY_INVERSE
     end
-    if !(model.target isa Model) && model.inverse === nothing
+    if !(model.target isa Model) &&
+        !_is_model_type(model.target) && model.inverse === nothing
         model.inverse = identity
         message *= WARN_MISSING_INVERSE
     end
@@ -172,7 +176,7 @@ end
 
 function MMI.fit(model::SomeTT, verbosity, X, y, other...)
 
-    target = model.target
+    _target = model.target
     inverse = model.inverse
     atom = model.model
     cache = model.cache
@@ -180,6 +184,8 @@ function MMI.fit(model::SomeTT, verbosity, X, y, other...)
     Xs = source(X)
     ys = source(y)
     others = source.(other)
+
+    target = _is_model_type(_target) ? _target() : _target
 
     if target isa Model
         if target isa Static
