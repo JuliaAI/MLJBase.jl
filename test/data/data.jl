@@ -9,6 +9,7 @@ using ScientificTypes
 
 using Random
 using StableRNGs
+import StableRNGs.StableRNG
 
 rng = StableRNG(55511)
 
@@ -52,7 +53,10 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
         ((a = [3, 1, 5], b = [8, 6, 10]), (a = [2], b = [7]), (a = [4], b = [9]))
 
     # Not a vector/matrix/table
-    @test_throws ArgumentError partition(1)
+    @test_throws MLJBase.ERR_PARTITION_UNSUPPORTED partition(1, 0.4)
+
+    # bad `fractions`:
+    @test_throws DomainError partition(1:10, 1.5)
 
     # with stratification
     y = ones(Int, 1000)
@@ -112,6 +116,17 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
     s1, s2 = partition(eachindex(y), 0.7, stratify=y, shuffle=true)
     @test !issorted(s1)
     @test !issorted(s2)
+
+    # parallel partitions:
+    X = rand(20, 2)
+    y = rand(20)
+    Xtrain, Xtest, Xvalid = partition(X, 0.1, 0.3, rng=StableRNG(123))
+    ytrain, ytest, yvalid = partition(y, 0.1, 0.3, rng=StableRNG(123))
+    @test partition((X, y), 0.1, 0.3, rng=StableRNG(123), multi=true) ==
+        ((Xtrain, Xtest, Xvalid), (ytrain, ytest, yvalid))
+    y = rand(21)
+    @test_throws(MLJBase.ERR_PARTITION_DIMENSION_MISMATCH,
+                 partition((X, y), 0.2, multi=true))
 end
 
 @testset "unpack" begin
