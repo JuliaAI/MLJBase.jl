@@ -216,6 +216,7 @@ istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 _formula(stream::IO, X::AbstractNode, indent) =
     (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
 _formula(stream::IO, X::Source, depth, indent) = show(stream, X)
+_formula(stream::IO, X::ErrorNode, depth, indent) = show(stream, X)
 function _formula(stream, X::Node, depth, indent)
     operation_name = string(typeof(X.operation).name.mt.name)
     anti = max(length(operation_name) - INDENT)

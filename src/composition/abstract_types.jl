@@ -39,11 +39,6 @@ for T in surrogate_types
     MLJModelInterface.load_path(::Type{T}) = string("MLJBase.", T)
 end
 
-# aliases for legacy code:
-const DeterministicNetwork = DeterministicComposite
-const ProbabilisticNetwork = ProbabilisticComposite
-const UnsupervisedNetwork = UnsupervisedComposite
-
 export MLJType, Model, Surrogate, Composite
 for T in vcat(MMI.ABSTRACT_MODEL_SUBTYPES, COMPOSITE_TYPES, SURROGATE_TYPES)
     @eval(export $T)

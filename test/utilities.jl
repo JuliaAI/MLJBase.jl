@@ -36,6 +36,10 @@ mutable struct A21
     a212
 end
 
+@testset "prepend" begin
+    MLJBase.prepend(:x, :(y.z.w)) == :(x.y.z.w)
+end
+
 @testset "recursive getproperty, setproperty!" begin
     m = (a1 = (a11 = 10, a12 = 20), a2 = (a21 = (a211 = 30, a212 = 40),))
 
@@ -66,7 +70,7 @@ end
 
     x = 1:5 |> collect
     y = 1:5 |> collect
-    
+
     # In the following tests it is crucial to recreate a new `RNG` each time.
     perm = Random.randperm(StableRNG(11900), 5)
     @test MLJBase.shuffle_rows(x, y; rng=StableRNG(11900)) == (x[perm], y[perm])
@@ -127,6 +131,43 @@ end
     @test MLJBase.available_name(Utilities, :orange) == :orange2
     Utilities.eval(:(orange2 = 6))
     @test MLJBase.available_name(Utilities, :orange) == :orange3
+end
+
+struct FooBar{A} end
+
+@testset "generate_name!" begin
+    existing_names = Symbol[]
+    @test MLJBase.generate_name!(FooBar{Int}, existing_names) ==
+        :foo_bar
+    @test MLJBase.generate_name!(FooBar{Float64}, existing_names) ==
+        :foo_bar2
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number) == :f
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number) == :f2
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g
+    @test MLJBase.generate_name!(FooBar{Float64},
+                                 existing_names,
+                                 only=Number,
+                                 substitute=:g) == :g2
+    @test existing_names == [:foo_bar, :foo_bar2, :f, :f2, :g, :g2]
+
+    @test MLJBase.generate_name!(42, [], only=Array) == :f
+    @test MLJBase.generate_name!(42, [], only=Number, substitute=:g) == :int64
+end
+
+@testset "sequence_string" begin
+    @test MLJBase.sequence_string(1:10, 2) == "1, 2, ..."
+    @test MLJBase.sequence_string(1:10) == "1, 2, 3, ..."
+    @test MLJBase.sequence_string(1:3) == "1, 2, 3"
+    @test MLJBase.sequence_string(1:2) == "1, 2"
+    @test MLJBase.sequence_string([sin, cos, tan, asin]) ==
+        "sin, cos, tan, ..."
 end
 
 end # module

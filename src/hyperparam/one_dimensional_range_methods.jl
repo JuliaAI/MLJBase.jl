@@ -28,6 +28,9 @@ inverse_transform(::SCALE, ::Val{:log}, x) = exp(x)
 transform(::SCALE, ::Val{:logminus}, x) = log(-x)
 inverse_transform(::SCALE, ::Val{:logminus}, x) = -exp(x)
 
+transform(::SCALE, ::Val{:log10minus}, x) = log10(-x)
+inverse_transform(::SCALE, ::Val{:log10minus}, x) = -10^x
+
 transform(::SCALE, ::Val{:log10}, x) = log10(x)
 inverse_transform(::SCALE, ::Val{:log10}, x) = 10^x
 
@@ -269,10 +272,18 @@ end
 
 ### Numeric case
 
-struct NumericSampler{T,D<:Distributions.Sampleable,S} <: MLJType
+struct NumericSampler{T,D<:Distributions.Sampleable,S}
     distribution::D
     scale::S
     NumericSampler(::Type{T}, d::D, s::S) where {T,D,S} = new{T,D,S}(d,s)
+end
+
+function Base.show(stream::IO,
+                   s::NumericSampler{T,D}) where {T,D}
+    repr = "NumericSampler{$T,$D}}"
+    s.scale isa Symbol || (repr = "transformed "*repr)
+    print(stream, repr)
+    return nothing
 end
 
 # constructor for distribution *instances*:
@@ -387,6 +398,15 @@ struct NominalSampler{T,N,D<:Distributions.Sampleable} <: MLJType
     values::NTuple{N,T}
     NominalSampler(::Type{T}, d::D, values::NTuple{N,T}) where {T,N,D} =
         new{T,N,D}(d, values)
+end
+
+function Base.show(stream::IO,
+                   s::NominalSampler{T,N,D}) where {T,N,D}
+    samples = round3.(s.values)
+    seqstr = sequence_string(s.values)
+    repr = "NominalSampler($seqstr)"
+    print(stream, repr)
+    return nothing
 end
 
 # constructor for probability vectors:

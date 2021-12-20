@@ -110,6 +110,7 @@ function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
     return w .* unweighted
 end
 
+
 # ## Top level
 
 function (measure::Measure)(args...)
@@ -251,11 +252,19 @@ default_measure(::Type{<:Probabilistic},
 default_measure(::Type{<:Probabilistic},
                 ::Type{<:Vec{<:Union{Missing,Continuous}}}) = log_loss
 
-
 # Probablistic + Count ==> Log score
 default_measure(::Type{<:Probabilistic},
                 ::Type{<:Vec{<:Union{Missing,Count}}}) = log_loss
 
+default_measure(::Type{<:MMI.ProbabilisticDetector},
+                ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}) = area_under_curve
+
+default_measure(::Type{<:MMI.DeterministicDetector},
+                ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}) = balanced_accuracy
+
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Supervised = default_measure(M)
+
+default_measure(M::Type{<:Annotator}) = default_measure(M, target_scitype(M))
+default_measure(::M) where M <: Annotator = default_measure(M)

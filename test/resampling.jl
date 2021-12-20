@@ -4,7 +4,7 @@ using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
-using Tables: table
+import Tables
 
 @everywhere begin
     using .Models
@@ -105,7 +105,7 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
 end
 
 @testset "_feature_dependencies_exist" begin
-    measures = Any[rms, log_loss, brier_score]
+    measures = Any[rms, rsq, log_loss, brier_score]
     @test !MLJBase._feature_dependencies_exist(measures)
     my_feature_dependent_loss(ŷ, X, y) =
         sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);
@@ -359,7 +359,7 @@ end
     for cache in [true, false]
         model = Models.DeterministicConstantRegressor()
         mach = machine(model, X, y, cache=cache)
-        result = evaluate!(mach, resampling=cv, measure=[rms, rmslp1],
+        result = evaluate!(mach, resampling=cv, measure=[rms, rsq, rmslp1],
                            acceleration=accel, verbosity=verb)
 
         @test result.per_fold[1] ≈ [1/2, 3/4, 1/2, 3/4, 1/2]
@@ -486,7 +486,7 @@ end
 
 @testset_accelerated "class weights in evaluation" accel begin
     x = [1,2,3,4,5,6,7]
-    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
+    X, y = Tables.table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
     model = Models.DeterministicConstantClassifier()
     mach = machine(model, X, y)
     cv=CV(nfolds = 2)
@@ -709,7 +709,7 @@ end
     end
 
     x = [1,2,3,4,5,6,7]
-    X, y = table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
+    X, y = Tables.table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
     model = Models.DeterministicConstantClassifier()
     class_w = Dict(zip(levels(y), rand(length(levels(y)))))
 

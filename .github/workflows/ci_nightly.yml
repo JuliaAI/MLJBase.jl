@@ -2,12 +2,12 @@ name: CI (Julia nightly)
 on:
   pull_request:
     branches:
-      - master
-      - dev
+      # - master
+      # - dev
   push:
     branches:
-      - master
-      - dev
+      # - master
+      # - dev
     tags: '*'
 env:
   TEST_MLJBASE: "true"

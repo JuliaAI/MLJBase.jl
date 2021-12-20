@@ -57,7 +57,10 @@ call(::Accuracy, args...) = 1.0 - call(misclassification_rate, args...)
 # -----------------------------------------------------------
 # balanced accuracy
 
-struct BalancedAccuracy <: Aggregated end
+struct BalancedAccuracy <: Aggregated
+    adjusted::Bool
+end
+BalancedAccuracy(; adjusted=false) = BalancedAccuracy(adjusted)
 
 metadata_measure(BalancedAccuracy;
                  instances = ["balanced_accuracy", "bacc", "bac"],
@@ -72,12 +75,20 @@ const BACC = BalancedAccuracy
 body=
 """
 Balanced accuracy compensates standard [`Accuracy`](@ref) for class imbalance.
-See [https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data](https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data).
+See [https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data](https://en.wikipedia.org/wiki/Precision_and_recall#Imbalanced_data). 
+
+Setting `adjusted=true` rescales the score in the way prescribed in
+[L. Mosley (2013): A balanced approach to the multi-class imbalance
+problem. PhD thesis, Iowa State
+University](https://lib.dr.iastate.edu/etd/13537/). In the binary
+case, the adjusted balanced accuracy is also known as *Youden’s J
+statistic*, or *informedness*.
+
 $INVARIANT_LABEL
 """,
 scitype=DOC_FINITE)
 
-function call(::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
+function call(m::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
 
     ŷ, y, w = _skipinvalid(ŷm, ym, wm)
 
@@ -92,8 +103,14 @@ function call(::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
         end
     end
     s = sum(ŵ)
-
-    return  sum((ŷ .== y) .* ŵ) / sum(ŵ)
+    score = sum((ŷ .== y) .* ŵ) / sum(ŵ)
+    if m.adjusted
+        n_classes = length(levels(y))
+        chance = 1 / n_classes
+        score -= chance
+        score /= 1 - chance
+    end
+    return score
 end
 
 
@@ -195,9 +212,10 @@ footer="Constructor signature: `FScore(β=1.0, rev=false)`. ")
 function (score::FScore)(m::CM2)
     β = score.β
     β2   = β^2
-    prec = precision(m)
-    rec  = recall(m)
-    return (1 + β2) * (prec * rec) / (β2 * prec + rec)
+    tp = _tp(m)
+    fn = _fn(m)
+    fp = _fp(m)
+    return (1 + β2) * tp / ((1 + β2)*tp + β2*fn + fp)
 end
 
 # calling on arrays:

@@ -19,9 +19,32 @@ import Base.instances # considered a trait for measures
 import StatisticalTraits.snakecase
 
 # Interface
-using MLJModelInterface
+
+# HACK: When https://github.com/JuliaAI/MLJModelInterface.jl/issues/124
+# is resolved:
+# Uncomment next line and delete "Hack Block"
+# using MLJModelInterface
+#####################
+# Hack Block begins #
+#####################
+exported_names(m::Module) =
+    filter!(x -> Base.isexported(m, x),
+            Base.names(m; all=true, imported=true))
+import MLJModelInterface
+for name in exported_names(MLJModelInterface)
+    name in [:UnivariateFinite,
+             :augmented_transform,
+             :info] && continue
+    quote
+        import MLJModelInterface.$name
+    end |> eval
+end
+###################
+# Hack Block ends #
+###################
+
 import MLJModelInterface: fit, update, update_data, transform,
-    inverse_transform, fitted_params, predict, predict_mode, 
+    inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
@@ -55,6 +78,7 @@ import StatsBase: fit!, mode, countmap
 import Missings: levels
 using Missings
 import Distributions
+using CategoricalDistributions
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
@@ -88,7 +112,7 @@ export @mlj_model, metadata_pkg, metadata_model
 
 # model api
 export fit, update, update_data, transform, inverse_transform,
-    fitted_params, predict, predict_mode, predict_mean, 
+    fitted_params, predict, predict_mode, predict_mean,
     predict_median, predict_joint,
     evaluate, clean!, training_losses
 
@@ -105,6 +129,10 @@ export Unknown, Known, Finite, Infinite,
     Binary, ColorImage, GrayImage, Image, Table
 export scitype, scitype_union, elscitype, nonmissing, trait
 export coerce, coerce!, autotype, schema, info
+
+# re-exports from CategoricalDistributions:
+export CategoricalUnivariateFiniteArray, UnivariateFiniteVector
+
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
@@ -128,9 +156,6 @@ export flat_values, recursive_setproperty!,
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
 
-# univariate_finite/
-export average, UnivariateFiniteArray, UnivariateFiniteVector
-
 # datasets.jl:
 export load_boston, load_ames, load_iris, load_sunspots,
        load_reduced_ames, load_crabs, load_smarket,
@@ -146,17 +171,18 @@ export machine, Machine, fit!, report, fit_only!
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
-# composition:
+# composition (surrogates and composites are exported in composition):
 export machines, sources, @from_network, @pipeline, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
-    nrows_at_source, machine,
-    rebind!, nodes, freeze!, thaw!, Node, AbstractNode,
-    DeterministicSurrogate, ProbabilisticSurrogate, UnsupervisedSurrogate,
-    DeterministicComposite, ProbabilisticComposite, UnsupervisedComposite
+    nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
+    Node, AbstractNode, Pipeline,
+    ProbabilisticPipeline, DeterministicPipeline, UnsupervisedPipeline,
+    StaticPipeline, IntervalPipeline
+
+export TransformedTargetModel
 
 # aliases to the above,  kept for backwards compatibility:
 export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
@@ -189,7 +215,8 @@ export mav, mae, mape, rms, rmsl, rmslp1, rmsp, l1, l2, log_cosh,
     RMS, rmse, RootMeanSquaredError, root_mean_squared_error,
     RootMeanSquaredLogError, RMSL, root_mean_squared_log_error, rmsl, rmsle,
     RootMeanSquaredLogProportionalError, rmsl1, RMSLP,
-    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss
+    MAPE, MeanAbsoluteProportionalError, log_cosh_loss, LogCosh, LogCoshLoss,
+    RSquared, rsq, rsquared
 
 # measures/confusion_matrix.jl:
 export confusion_matrix, confmat, ConfusionMatrix
@@ -347,10 +374,6 @@ include("show.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 
-include("univariate_finite/types.jl")
-include("univariate_finite/methods.jl")
-include("univariate_finite/arrays.jl")
-
 include("sources.jl")
 include("machines.jl")
 
@@ -358,14 +381,13 @@ include("composition/abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/machines.jl")
-@static if VERSION ≥ v"1.3.0-"
-    include("composition/learning_networks/arrows.jl")
-end
 
 include("composition/models/methods.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
+include("composition/models/deprecated.jl")
 include("composition/models/pipelines.jl")
+include("composition/models/transformed_target_model.jl")
 include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")

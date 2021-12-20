@@ -11,22 +11,12 @@ MMI.matrix(::FI, ::Val{:table}, X; kw...) = Tables.matrix(X; kw...)
 # ------------------------------------------------------------------------
 # int
 
-MMI.int(::FI, x) = throw(
-    DomainError(x, "Can only convert categorical elements to integers. "))
-
-MMI.int(::FI, x::Missing)       = missing
-MMI.int(::FI, x::AbstractArray) = int.(x)
-
-# first line is no good because it promotes type to larger integer type:
-# MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
-MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.refcode(x)
+MMI.int(::FI, x; args...) = CategoricalDistributions.int(x; args...)
 
 # ------------------------------------------------------------------------
 # classes
 
-MMI.classes(::FI, p::CategoricalPool) = [p[i] for i in 1:length(p)]
-MMI.classes(::FI, x::CategoricalValue) = classes(CategoricalArrays.pool(x))
-MMI.classes(::FI, v::CategoricalArray) = classes(CategoricalArrays.pool(v))
+MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
 
 # ------------------------------------------------------------------------
 # schema
@@ -36,15 +26,7 @@ MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
 # ------------------------------------------------------------------------
 # decoder
 
-struct CategoricalDecoder{V,R}
-    classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
-end
-
-MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
-
-(d::CategoricalDecoder{V,R})(i::Integer) where {V,R} =
-    CategoricalValue{V,R}(d.classes[i])
-(d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
+MMI.decoder(::FI, x) = CategoricalDistributions.decoder(x)
 
 # ------------------------------------------------------------------------
 # table
@@ -78,7 +60,7 @@ function MMI.nrows(::FI, ::Val{:table}, X)
     if Tables.rowaccess(X)
         rows = Tables.rows(X)
         return _nrows_rat(Base.IteratorSize(typeof(rows)), rows)
-        
+
     else
         cols = Tables.columns(X)
         return _nrows_cat(cols)
@@ -140,5 +122,5 @@ isdataframe(X) = typename(X) == "AbstractDataFrame"
 # ----------------------------------------------------------------
 # univariate finite
 
-# see src/univariate_finite/
-
+MMI.UnivariateFinite(::FI, b...; kwargs...) =
+    CategoricalDistributions.UnivariateFinite(b...; kwargs...)

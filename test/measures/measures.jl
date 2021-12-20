@@ -119,6 +119,7 @@ include("loss_functions_interface.jl")
     for meta in measures()
         m = eval(Meta.parse("$(meta.name)()"))
         show(io, MIME("text/plain"), m)
+        show(io, m)
     end
 end
 
@@ -126,7 +127,7 @@ end
     v =[1, 2, missing, 5, NaN]
     @test MLJBase.Sum()(v) == 8
     @test MLJBase.RootMeanSquare()(v) ≈ sqrt((1 + 4 + 25)/3)
-    @test_throws MLJBase.ERR_NOTHING_LEFT_TO_AGGREGATE MLJBase.Mean()(Float32[])
+    @test MLJBase.Mean()(Union{Missing,Float32}[]) |> isnan
 end
 
 end

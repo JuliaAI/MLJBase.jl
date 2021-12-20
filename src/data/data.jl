@@ -80,23 +80,32 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
     return tuple(split_rows...)
 end
 
+const ERR_PARTITION_UNSUPPORTED = ArgumentError(
+    "Function `partition` only supports "*
+    "AbstractVector, AbstractMatrix or containers implementing the "*
+    "Tables interface.")
+const ERR_PARTITION_DIMENSION_MISMATCH = DimensionMismatch(
+    "Expected a tuple of objects with a common length. ")
+
+__nrows(X) = Tables.istable(X) ? nrows(X) : throw(ERR_PARTITION_UNSUPPORTED)
+__nrows(X::Union{AbstractMatrix,AbstractVector}) = nrows(X)
+
 """
     partition(X, fractions...;
               shuffle=nothing,
               rng=Random.GLOBAL_RNG,
-              stratify=nothing)
+              stratify=nothing,
+              multi=false)
 
-Splits the vector or matrix `X` into a tuple of vectors or matrices
-whose vertical concatentation is `X`. The number of rows in each
-componenent of the return value is determined by the corresponding
-`fractions` of `length(nrows(X))`, where valid fractions are in (0,1)
-and sum up to less than one. The last fraction is not provided, as it
-is inferred from the preceding ones.
+Splits the vector, matrix or table `X` into a tuple of objects of the
+same type, whose vertical concatenation is `X`. The number of rows in
+each component of the return value is determined by the
+corresponding `fractions` of `length(nrows(X))`, where valid fractions
+are floats between 0 and 1 whose sum is less than one. The last
+fraction is not provided, as it is inferred from the preceding ones.
 
-`X` can also be any object which implements the `Tables.jl` interface
-according to `Tables.istable`.
-
-So, for example,
+For "synchronized" partitioning of multiple objects, use the
+`multi=true` option described below.
 
     julia> partition(1:1000, 0.8)
     ([1,...,800], [801,...,1000])
@@ -107,37 +116,55 @@ So, for example,
     julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
     ([1 6], [2 7; 3 8], [4 9; 5 10])
 
-    X, _ = make_regression()          # a table
-    Xtrain, Xtest = partition(X, 0.8) # the table split on rows
+    X, y = make_blobs() # a table and vector
+    Xtrain, Xtest = partition(X, 0.8, stratify=y)
+
+    (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=true)
+
 
 ## Keywords
 
-* `shuffle=nothing`:        if set to  `true`, shuffles the rows before taking fractions.
-* `rng=Random.GLOBAL_RNG`:  specifies the random number generator to be used, can be an integer
-                            seed. If specified, and `shuffle === nothing` is interpreted as true.
-* `stratify=nothing`:       if a vector is specified, the partition will match the stratification
-                            of the given vector. In that case, `shuffle` cannot be `false`.
-"""
-function partition(X, fractions...; kwargs...)
-    if X isa AbstractMatrix || Tables.istable(X)
-        # Generic method for all matrices and tables.  Partition its rows and
-        # apply `selectrows` to each partition.
-        return tuple((selectrows(X, p) for p in partition(1:nrows(X), fractions...; kwargs...))...)
-    else
-        throw(ArgumentError("Function `partition` only supports AbstractVector, " *
-                            "AbstractMatrix or containers implementing the Tables interface."))
-    end
-end
+* `shuffle=nothing`: if set to `true`, shuffles the rows before taking
+  fractions.
 
-function partition(rows::AbstractVector, fractions::Real...;
-                   shuffle::Union{Nothing,Bool}=nothing, rng=Random.GLOBAL_RNG,
-                   stratify::Union{Nothing,AbstractVector}=nothing)
-    # if rows is a unitrange, collect it
-    rows = collect(rows)
+* `rng=Random.GLOBAL_RNG`: specifies the random number generator to be
+  used, can be an integer seed. If specified, and `shuffle ===
+  nothing` is interpreted as true.
+
+* `stratify=nothing`: if a vector is specified, the partition will
+  match the stratification of the given vector. In that case,
+  `shuffle` cannot be `false`.
+
+* `multi=false`: if `true` then `X` is expected to be a `tuple` of
+  objects sharing a common length, which are each partitioned
+  separately using the same specified `fractions` *and* the same row
+  shuffling. Returns a tuple of partitions (a tuple of tuples).
+
+"""
+function partition(X, fractions::Real...;
+                   shuffle::Union{Nothing,Bool}=nothing,
+                   rng=Random.GLOBAL_RNG,
+                   stratify::Union{Nothing,AbstractVector}=nothing,
+                   multi=false)
+
     # check the fractions
     if !all(e -> 0 < e < 1, fractions) || sum(fractions) >= 1
-        throw(DomainError(fractions, "Fractions must be in (0, 1) with sum < 1."))
+        throw(DomainError(fractions,
+                          "Fractions must be in (0, 1) with sum < 1."))
     end
+
+    # determinen `n_rows`:
+    if X isa Tuple && multi
+        isempty(X) && return tuple(fill((), length(fractions) + 1)...)
+        x = first(X)
+        n_rows = __nrows(x)
+        all(X[2:end]) do x
+            nrows(x) === n_rows
+        end || throw(ERR_PARTITION_DIMENSION_MISMATCH)
+    else
+        n_rows = __nrows(X)
+    end
+
     # check the rng & adjust shuffling
     if rng isa Integer
         rng = MersenneTwister(rng)
@@ -145,62 +172,93 @@ function partition(rows::AbstractVector, fractions::Real...;
     if rng != Random.GLOBAL_RNG && shuffle === nothing
         shuffle = true
     end
+    rows = collect(1:n_rows)
     shuffle !== nothing && shuffle && shuffle!(rng, rows)
-    return _partition(rows, collect(fractions), stratify)
+
+    # determine the partition of `rows`:
+    row_partition = _partition(rows, collect(fractions), stratify)
+    return _partition(X, row_partition)
 end
 
-"""
+function _partition(X, row_partition)
+#    _X = Tables.istable(X) ? X : collect(X)
+    return tuple((selectrows(X, p) for p in row_partition)...)
+end
 
-    t1, t2, ...., tk = unpack(table, f1, f2, ... fk;
-                             wrap_singles=false,
-                             shuffle=false,
-                             rng::Union{AbstractRNG,Int,Nothing}=nothing)
+_partition(X::Tuple, row_partition) =
+    map(x->_partition(x, row_partition), X)
+
+
+# # UNPACK
+
+"""
+    unpack(table, f1, f2, ... fk;
+           wrap_singles=false,
+           shuffle=false,
+           rng::Union{AbstractRNG,Int,Nothing}=nothing,
+           coerce_options...)
 
 Horizontally split any Tables.jl compatible `table` into smaller
-tables (or vectors) `t1, t2, ..., tk` by making column selections
-**without replacement** by successively applying the columnn name
-filters `f1`, `f2`, ..., `fk`. A *filter* is any object `f` such that
+tables or vectors by making column selections determined by the
+predicates `f1`, `f2`, ..., `fk`. Selection from the column names is
+without replacement. A *predicate* is any object `f` such that
 `f(name)` is `true` or `false` for each column `name::Symbol` of
-`table`. For example, use the filter `_ -> true` to pick up all
-remaining columns of the table.
+`table`.
+
+Returns a tuple of tables/vectors with length one greater than the
+number of supplied predicates, with the last component including all
+previously unselected columns.
+
+```
+julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
+2×4 DataFrame
+ Row │ x      y     z        w
+     │ Int64  Char  Float64  String
+─────┼──────────────────────────────
+   1 │     1  a        10.0  A
+   2 │     2  b        20.0  B
+
+Z, XY, W = unpack(table, ==(:z), !=(:w))
+julia> Z
+2-element Vector{Float64}:
+ 10.0
+ 20.0
+
+julia> XY
+2×2 DataFrame
+ Row │ x      y
+     │ Int64  Char
+─────┼─────────────
+   1 │     1  a
+   2 │     2  b
+
+julia> W  # the column(s) left over
+2-element Vector{String}:
+ "A"
+ "B"
+```
 
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
 
-Scientific type conversions can be optionally specified (note
-semicolon):
-
-    unpack(table, t...; col1=>scitype1, col2=>scitype2, ... )
+If `coerce_options` are specified then `table` is first replaced
+with `coerce(table, coerce_options)`. See
+[`ScientificTypes.coerce`](@ref) for details.
 
 If `shuffle=true` then the rows of `table` are first shuffled, using
 the global RNG, unless `rng` is specified; if `rng` is an integer, it
 specifies the seed of an automatically generated Mersenne twister. If
 `rng` is specified then `shuffle=true` is implicit.
 
-### Example
-
-```
-julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
-julia> Z, XY = unpack(table, ==(:z), !=(:w);
-               :x=>Continuous, :y=>Multiclass)
-julia> XY
-2×2 DataFrame
-│ Row │ x       │ y            │
-│     │ Float64 │ Categorical… │
-├─────┼─────────┼──────────────┤
-│ 1   │ 1.0     │ 'a'          │
-│ 2   │ 2.0     │ 'b'          │
-
-julia> Z
-2-element Array{Float64,1}:
- 10.0
- 20.0
-```
 """
-function unpack(X, tests...;
+function unpack(X, predicates...;
                 wrap_singles=false,
                 shuffle=nothing,
                 rng=nothing, pairs...)
+
+    # add a final predicate to unpack all remaining columns into to
+    # the last return value:
+    predicates = (predicates..., _ -> true)
 
     shuffle, rng = shuffle_and_rng(shuffle, rng)
 
@@ -214,18 +272,12 @@ function unpack(X, tests...;
 
     unpacked = Any[]
     names_left = schema(Xfixed).names |> collect
-    history = ""
-    counter = 1
-    for c in tests
+
+    for c in predicates
         names = filter(c, names_left)
         filter!(!in(names), names_left)
-        history *= "selection $counter: $names\n remaining: $names_left\n"
-        isempty(names) &&
-            error("Empty column selection encountered at selection $counter"*
-                  "\n$history")
         length(names) == 1 && !wrap_singles && (names = names[1])
         push!(unpacked, selectcols(Xfixed, names))
-        counter += 1
     end
     return Tuple(unpacked)
 end
@@ -326,47 +378,12 @@ corestrict(X, f, i) = corestrict(f, i)(X)
 
 ## TRANSFORMING BETWEEN CATEGORICAL ELEMENTS AND RAW VALUES
 
-_err_missing_class(c) =  throw(DomainError(
-    "Value `$c` not in pool"))
-
-
-function transform_(pool, x)
-    ismissing(x) && return missing
-    x in levels(pool) || _err_missing_class(x)
-    return pool[get(pool, x)]
-end
-
-transform_(pool, X::AbstractArray) = broadcast(x -> transform_(pool, x), X)
-
-"""
-    transform(e::Union{CategoricalElement,CategoricalArray,CategoricalPool},  X)
-
-Transform the specified object `X` into a categorical version, using
-the pool contained in `e`. Here `X` is a raw value (an element of
-`levels(e)`) or an `AbstractArray` of such values.
-
-```julia
-v = categorical(["x", "y", "y", "x", "x"])
-julia> transform(v, "x")
-CategoricalValue{String,UInt32} "x"
-
-julia> transform(v[1], ["x" "x"; missing "y"])
-2×2 CategoricalArray{Union{Missing, Symbol},2,UInt32}:
- "x"       "x"
- missing   "y"
-
-"""
-MLJModelInterface.transform(e::Union{CategoricalArray, CategoricalValue},
-                            arg) = transform_(CategoricalArrays.pool(e), arg)
-MLJModelInterface.transform(e::CategoricalPool, arg) =
-    transform_(e, arg)
+MLJModelInterface.transform(
+    e::Union{CategoricalArray,CategoricalValue,CategoricalPool},
+    arg) = CategoricalDistributions.transform(e, arg)
 
 
 ## SKIPPING MISSING AND NAN: skipinvalid
-
-const ERR_NOTHING_LEFT_TO_AGGREGATE = ErrorException(
-    "Trying to aggregrate an empty collection of measurements. Perhaps all "*
-    "measuresments are `missing` or `NaN`. ")
 
 _isnan(x) = false
 _isnan(x::Number) = isnan(x)
@@ -387,12 +404,9 @@ and `B[i]` are both valid (non-`missing` and non-`NaN`). Can also
 called on other iterators of matching length, such as arrays, but
 always returns a vector. Does not remove `Missing` from the element
 types if present in the original iterators.
+
 """
-@inline function skipinvalid(v)
-    ret = v |> skipmissing |> skipnan
-    isempty(ret) && throw(ERR_NOTHING_LEFT_TO_AGGREGATE)
-    return ret
-end
+skipinvalid(v) = v |> skipmissing |> skipnan
 
 isinvalid(x) = ismissing(x) || _isnan(x)
 

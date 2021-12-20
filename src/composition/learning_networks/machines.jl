@@ -425,24 +425,6 @@ function return!(mach::Machine{<:Surrogate},
 
 end
 
-
-#legacy code:
-function (mach::Machine{<:Surrogate})()
-    Base.depwarn("Calling a learning network machine `mach` "*
-                 "with no arguments, as in"*
-                 "`mach()`, is "*
-                 "deprecated and could lead "*
-                 "to unexpected behaviour for `Composite` models "*
-                 "with hyper-parameters that are not models. "*
-                 "Instead of `fit!(mach, verbosity=verbosity); return mach()` "*
-                 "use `return!(mach, model, verbosity)`, "*
-                 "where `model` is the `Model` instance appearing in your "*
-                 "`MLJBase.fit` signature. Query the `return!` doc-string "*
-                 "for details. ",
-                 nothing)
-
-    return!(mach, nothing, nothing)
-end
 network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
 
