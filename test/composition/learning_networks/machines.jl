@@ -31,12 +31,20 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
 N = 20
 X = (a = rand(N), b = categorical(rand("FM", N)))
 
-@testset "call_report_nodes" begin
-    @test MLJBase.call_report_nodes((predict=source(:yhat), )) == NamedTuple()
-    s = (transform=source(:transform),
-         report=(a=source(:a), b=source(:b)),
-         predict=source(:yhat))
-    R = MLJBase.call_report_nodes(s)
+@testset "signature helpers" begin
+    @test MLJBase._call(NamedTuple()) == NamedTuple()
+    a = source(:a)
+    b = source(:b)
+    W = source(:W)
+    yhat = source(:yhat)
+    s = (transform=W,
+         report=(a=a, b=b),
+         predict=yhat)
+    @test MLJBase._report_part(s) == (a=a, b=b)
+    @test MLJBase._operation_part(s) == (transform=W, predict=yhat)
+    @test MLJBase._nodes(s) == (W, yhat, a, b)
+    @test MLJBase._operations(s) == (:transform, :predict)
+    R = MLJBase._call(MLJBase._report_part(s))
     @test R.a == :a
     @test R.b == :b
 end
@@ -144,6 +152,7 @@ oakM = machine(oak, W, u)
 uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
+enode = @node mae(ys, yhat)
 
 @testset "replace method for learning network machines" begin
 
@@ -160,7 +169,9 @@ yhat = exp(zhat)
     knn2 = deepcopy(knn)
 
     # duplicate a learning network machine:
-    mach  = machine(Deterministic(), Xs, ys; predict=yhat)
+    mach  = machine(Deterministic(), Xs, ys;
+                    predict=yhat,
+                    report=(mae=enode,))
     mach2 = replace(mach, hot=>hot2, knn=>knn2,
                     ys=>source(ys.data);
                     empty_unspecified_sources=true)
@@ -173,6 +184,8 @@ yhat = exp(zhat)
     fit!(mach, verbosity=0)
     fit!(mach2, verbosity=0)
     @test predict(mach, X) ≈ predict(mach2, X)
+    @test MLJBase.report_additions(mach.fitresult).mae ≈
+        MLJBase.report_additions(mach2.fitresult).mae
 
     @test mach2.args[1]() == Xs()
     @test mach2.args[2]() == ys()

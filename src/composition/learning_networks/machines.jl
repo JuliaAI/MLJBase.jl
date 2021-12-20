@@ -2,8 +2,10 @@
 
 const DOC_SIGNATURES =
 """
-A learning network *signature* is a named tuple that we define when
-constructing a learning network machine, `mach`. Examples are
+A learning network *signature* is an intermediate object defined when
+a user constructs a learning network machine, `mach`. They are named
+tuples whose values are the nodes consitituting interface points
+between the network and the machine.  Examples are
 
     (predict=yhat, )
     (transform=Xsmall,)
@@ -25,35 +27,31 @@ whose keys are arbitrary, and whose values are nodes of the
 network. For each such key-value pair `k=n`, the value returned by
 `n()` is included in the named tuple `report(mach)`, with
 corresponding key `k`. So, in the third example above,
-`report(mach).loss` then returns the value of `loss_node()`.
+`report(mach).loss` will return the value of `loss_node()`.
 
 """
 
-"""
-    call_report_nodes(signature)
+function _operation_part(signature)
+    ops = filter(in(OPERATIONS), keys(signature))
+    return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
+end
+function _report_part(signature)
+    :report in keys(signature) || return NamedTuple()
+    return signature.report
+end
 
-Return `NamedTuple()` if `:report` is not a key of
-`signature`. Othewise, expecting `signature.report` to be some named
-tuple `(k1=n1, k2=n2, ..., kn=nn)`, return the named tuple `(k1=n1(),
-k2=n2(), ..., kn=nn())`
+_operations(signature) = keys(_operation_part(signature))
 
-For example, if
+function _nodes(signature)
+    return (values(_operation_part(signature))...,
+            values(_report_part(signature))...)
+end
 
-    signature = (predict=yhat, report=(x=n, a=m))
-
-then return `(x=n(), a=m())`.
-
-$DOC_SIGNATURES
-
-"""
-function call_report_nodes(signature)
+function _call(nt::NamedTuple)
     _call(n) = deepcopy(n())
-    _keys = keys(signature)
-    _values = values(signature)
-    :report in _keys || return NamedTuple()
-    nt = signature.report
-    new_keys, new_values = keys(nt), values(nt)
-    return NamedTuple{new_keys}(_call.(new_values))
+    _keys = keys(nt)
+    _values = values(nt)
+    return NamedTuple{_keys}(_call.(_values))
 end
 
 """
@@ -76,7 +74,7 @@ will not error but it will not a give meaningful return value either.
 """
 function model_supertype(signature)
 
-    operations = keys(signature)
+    operations = _operations(signature)
 
     length(intersect(operations, (:predict_mean, :predict_median))) == 1 &&
         return Deterministic
@@ -97,8 +95,6 @@ function model_supertype(signature)
 
 end
 
-operations(s::NamedTuple) = filter(in(OPERATIONS), keys(s))
-
 
 # # FITRESULTS FOR COMPOSITE MODELS
 
@@ -107,12 +103,7 @@ mutable struct CompositeFitresult
     glb
     report_additions
     function CompositeFitresult(signature)
-        ops = operations(signature)
-        vals = tuple([getproperty(signature, op) for op in ops]...)
-        if :report in keys(signature)
-            vals = tuple(vals..., values(signature.report)...)
-        end
-        glb = MLJBase.glb(vals...)
+        glb = MLJBase.glb(_nodes(signature)...)
         new(signature, glb)
     end
 end
@@ -121,7 +112,7 @@ glb(c::CompositeFitresult) = getfield(c, :glb)
 report_additions(c::CompositeFitresult) = getfield(c, :report_additions)
 
 update!(c::CompositeFitresult) =
-    setfield!(c, :report_additions, call_report_nodes(signature(c)))
+    setfield!(c, :report_additions, _call(_report_part(signature(c))))
 
 # To accommodate pre-existing design (operations.jl) arrange
 # that `fitresult.predict` returns the predict node, etc:
@@ -156,7 +147,7 @@ const ERR_EXPECTED_NODE_IN_SIGNATURE = ArgumentError(
     "Did not enounter `Node` in place one was expected. ")
 
 function check_surrogate_machine(::Surrogate, signature, _sources)
-    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
+    isempty(_operations(signature)) && throw(ERR_MUST_OPERATE)
     isempty(_sources) && throw(ERR_MUST_SPECIFY_SOURCES)
     return nothing
 end
@@ -164,7 +155,7 @@ end
 function check_surrogate_machine(::Union{Supervised,SupervisedAnnotator},
                                  signature,
                                  _sources)
-    isempty(operations(signature)) && throw(ERR_MUST_PREDICT)
+    isempty(_operations(signature)) && throw(ERR_MUST_PREDICT)
     length(_sources) > 1 || throw(err_supervised_nargs())
     return nothing
 end
@@ -172,7 +163,7 @@ end
 function check_surrogate_machine(::Union{Unsupervised},
                                  signature,
                                  _sources)
-    isempty(operations(signature)) && throw(ERR_MUST_TRANSFORM)
+    isempty(_operations(signature)) && throw(ERR_MUST_TRANSFORM)
     length(_sources) < 2 || throw(err_unsupervised_nargs())
     return nothing
 end
@@ -183,7 +174,7 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
     signature = (; pair_itr...)
 
     # signature checks:
-    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
+    isempty(_operations(signature)) && throw(ERR_MUST_OPERATE)
     for k in keys(signature)
         if k in OPERATIONS
             getproperty(signature, k) isa AbstractNode ||
@@ -441,9 +432,10 @@ function Base.replace(mach::Machine{<:Surrogate},
                       pairs::Pair...; empty_unspecified_sources=false)
 
     signature = MLJBase.signature(mach.fitresult)
-    interface_nodes = values(signature)
+    operation_nodes = values(_operation_part(signature))
+    report_nodes = values(_report_part(signature))
 
-    W = glb(interface_nodes...)
+    W = glb(operation_nodes..., report_nodes...)
 
     # Note: We construct nodes of the new network as values of a
     # dictionary keyed on the nodes of the old network. Additionally,
@@ -492,7 +484,9 @@ function Base.replace(mach::Machine{<:Surrogate},
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
     newsources = [newnode_given_old[s] for s in sources_]
-    newinterface_node_given_old =
+    newoperation_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newreport_node_given_old =
         IdDict{AbstractNode,AbstractNode}()
     newmach_given_old = IdDict{Machine,Machine}()
 
@@ -512,14 +506,27 @@ function Base.replace(mach::Machine{<:Surrogate},
              end
              newnode_given_old[N] = N.operation(m, args...)
          end
-        if N in interface_nodes
-            newinterface_node_given_old[N] = newnode_given_old[N]
+        if N in operation_nodes
+            newoperation_node_given_old[N] = newnode_given_old[N]
+        elseif N in report_nodes
+            newreport_node_given_old[N] = newnode_given_old[N]
         end
     end
 
-    newinterface_nodes = Tuple(newinterface_node_given_old[N] for N in
-                          interface_nodes)
-    newsignature = NamedTuple{keys(signature)}(newinterface_nodes)
+    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
+                          operation_nodes)
+    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
+                            report_nodes)
+    report_tuple =
+        NamedTuple{keys(_report_part(signature))}(newreport_nodes)
+    operation_tuple =
+        NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
+
+    newsignature = if isempty(report_tuple)
+        operation_tuple
+    else
+        merge(operation_tuple, (report=report_tuple,))
+    end
 
     return machine(mach.model, newsources...; newsignature...)
 

@@ -267,7 +267,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
                        Xs;
                        predict=yhat,
                        transform=Wout,
-                       foo=foo)
+                       report=(foo=foo,))
         return!(mach, model, verbosity)
     end
     X, _ = make_regression(10, 5);
@@ -310,8 +310,8 @@ function MLJBase.fit(m::TwoStages, verbosity, X, y)
                    Xs,
                    ys;
                    predict=ypred3,
-                   μpred=μpred,
-                   σpred=σpred)
+                   report=(μpred=μpred,
+                           σpred=σpred))
     return!(mach, m, verbosity)
 end
 

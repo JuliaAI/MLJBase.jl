@@ -435,7 +435,10 @@ m = machine(clust, W)
 yhat = predict(m, W)
 Wout = transform(m, W)
 foo = first(yhat)
-mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout, foo=foo)
+mach = machine(Unsupervised(), Xs;
+               predict=yhat,
+               transform=Wout,
+               report=(foo=foo,))
 
 @from_network mach begin
     mutable struct WrappedClusterer

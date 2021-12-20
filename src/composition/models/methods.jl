@@ -34,7 +34,7 @@ function update(model::M,
     network_model_names = cache.network_model_names
     old_model = cache.old_model
 
-    glb_node = glb(values(signature(fitresult))...) # greatest lower bound
+    glb_node = glb(fitresult) # greatest lower bound
 
     if fallback(model, old_model, network_model_names, glb_node)
         return fit(model, verbosity, args...)
