@@ -1,20 +1,22 @@
+# `vtrait` (internal method, not to be re-exported)
+MMI.vtrait(::FI, X, s) = ScientificTypes.vtrait(X)
 # ------------------------------------------------------------------------
-# categorical
-
+# `categorical`
 MMI.categorical(::FI, a...; kw...) = categorical(a...; kw...)
 
 # ------------------------------------------------------------------------
-# matrix
-
+# `matrix`
 MMI.matrix(::FI, ::Val{:table}, X; kw...) = Tables.matrix(X; kw...)
 
 # ------------------------------------------------------------------------
-# int
+# `int`
+function MMI.int(::FI, x)
+    throw(
+        DomainError(x, "Can only convert categorical elements to integers.")
+    )
+end
 
-MMI.int(::FI, x) = throw(
-    DomainError(x, "Can only convert categorical elements to integers. "))
-
-MMI.int(::FI, x::Missing)       = missing
+MMI.int(::FI, x::Missing) = missing
 MMI.int(::FI, x::AbstractArray) = int.(x)
 
 # first line is no good because it promotes type to larger integer type:
@@ -22,33 +24,32 @@ MMI.int(::FI, x::AbstractArray) = int.(x)
 MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.refcode(x)
 
 # ------------------------------------------------------------------------
-# classes
-
+# `classes`
 MMI.classes(::FI, p::CategoricalPool) = [p[i] for i in 1:length(p)]
 MMI.classes(::FI, x::CategoricalValue) = classes(CategoricalArrays.pool(x))
 MMI.classes(::FI, v::CategoricalArray) = classes(CategoricalArrays.pool(v))
 
 # ------------------------------------------------------------------------
-# schema
-
+# `schema`
 MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
+MMI.schema(::FI, ::Val{:other}, X; kw...) = nothing
 
 # ------------------------------------------------------------------------
-# decoder
-
+# `decoder`
 struct CategoricalDecoder{V,R}
     classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
 end
 
 MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
 
-(d::CategoricalDecoder{V,R})(i::Integer) where {V,R} =
-    CategoricalValue{V,R}(d.classes[i])
+function (d::CategoricalDecoder{V,R})(i::Integer) where {V,R}
+    return CategoricalValue{V,R}(d.classes[i])
+end
+
 (d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
 
 # ------------------------------------------------------------------------
-# table
-
+# `table`
 function MMI.table(::FI, cols::NamedTuple; prototype=NamedTuple())
 
     Tables.istable(prototype) || error("`prototype` is not a table. ")
@@ -72,13 +73,11 @@ function MMI.table(::FI, A::AbstractMatrix; names=nothing, prototype=nothing)
 end
 
 # ------------------------------------------------------------------------
-# nrows, selectrows, selectcols
-
+# `nrows`, `selectrows`, `selectcols`
 function MMI.nrows(::FI, ::Val{:table}, X)
     if Tables.rowaccess(X)
         rows = Tables.rows(X)
         return _nrows_rat(Base.IteratorSize(typeof(rows)), rows)
-        
     else
         cols = Tables.columns(X)
         return _nrows_cat(cols)
@@ -110,7 +109,7 @@ function MMI.selectrows(::FI, ::Val{:table}, X, r)
     return Tables.materializer(X)(new_cols)
 end
 
-function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol,Integer})
+function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     cols = Tables.columntable(X) # named tuple of vectors
     return cols[c]
 end
@@ -122,23 +121,26 @@ function MMI.selectcols(::FI, ::Val{:table}, X, c::AbstractArray)
 end
 
 # -------------------------------
-# utils for select*
+# utils for `select`*
 
 # project named tuple onto a tuple with only specified `labels` or indices:
-project(t::NamedTuple, labels::AbstractArray{Symbol}) =
-    NamedTuple{tuple(labels...)}(t)
+function project(t::NamedTuple, labels::AbstractArray{Symbol})
+    return NamedTuple{tuple(labels...)}(t)
+end
+
 project(t::NamedTuple, label::Colon) = t
 project(t::NamedTuple, label::Symbol) = project(t, [label,])
-project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
-    NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
+function project(t::NamedTuple, indices::AbstractArray{<:Integer})
+    return NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
+end
+
 # utils for selectrows
-typename(X)    = split(string(supertype(typeof(X)).name), '.')[end]
+typename(X) = split(string(supertype(typeof(X)).name), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
 
 # ----------------------------------------------------------------
 # univariate finite
 
 # see src/univariate_finite/
-

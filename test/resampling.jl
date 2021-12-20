@@ -24,7 +24,6 @@ end
 struct DummyInterval <: Interval end
 dummy_interval=DummyInterval()
 
-
 dummy_measure_det(yhat, y) = 42
 MLJBase.target_scitype(::typeof(dummy_measure_det)) = Table(MLJBase.Textual)
 MLJBase.prediction_type(::typeof(dummy_measure_det)) = :deterministic
@@ -124,18 +123,19 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = ((sleep(0.01*rand(rng)); fill(1:k, nmeasures)),
+        func(mach, k) = ((sleep(0.1*rand(rng)); fill(1:k, nmeasures)),
                          :fitted_params,
                          :report,)
     end
     mach = machine(ConstantRegressor(), X, y)
-    p = Progress(nfolds, dt=0)
     if accel isa CPUThreads
-        result = MLJBase._evaluate!(func,
-                                    mach,
-                                    CPUThreads(Threads.nthreads()),
-                                    nfolds,
-                                    1)
+        result = MLJBase._evaluate!(
+            func,
+            mach,
+            CPUThreads(Threads.nthreads()),
+            nfolds,
+            1
+        )
     else
         result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
     end
@@ -145,7 +145,7 @@ end
     @test collect(result[2]) == fill(:fitted_params, nfolds)
 end
 
-
+println("I am here now")
 @test CV(nfolds=6) == CV(nfolds=6)
 @test CV(nfolds=5) != CV(nfolds=6)
 @test MLJBase.train_test_pairs(CV(), 1:10) !=
@@ -227,6 +227,7 @@ end
 end
 
 @testset_accelerated "folds specified" accel begin
+    println("I got here")
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
@@ -279,7 +280,7 @@ end
     x1 = ones(20)
     x2 = ones(20)
     X = (x1=x1, x2=x2)
-    y = rand(rng,20)
+    y = rand(rng, 20)
 
     holdout = Holdout(fraction_train=0.75, rng=rng)
     model = Models.DeterministicConstantRegressor()
@@ -341,6 +342,7 @@ end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
+    println("could_it be this")
     X, y = make_moons(50)
     model = ConstantClassifier()
 
@@ -349,6 +351,7 @@ end
 end
 
 @testset_accelerated "cv" accel begin
+    println("maybe not")
     x1 = ones(10)
     x2 = ones(10)
     X = (x1=x1, x2=x2)
@@ -506,9 +509,10 @@ end
 end
 
 @testset_accelerated "resampler as machine" accel begin
+    println("This is finally it")
     N = 50
-    X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
-    y = X.x1 -2X.x2 + 0.05*rand(rng,N)
+    X = (x1=rand(rng, N), x2=rand(rng, N), x3=rand(rng, N))
+    y = X.x1 -2X.x2 + 0.05*rand(rng, N)
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
     resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae,
@@ -735,6 +739,7 @@ end
     end
 
     @testset "warnings about measures not supporting weights" begin
+        println("strange")
         model = ConstantClassifier()
         N = 100
         X, y = make_moons(N)
@@ -752,6 +757,7 @@ end
 end
 
 @testset_accelerated "automatic operations - integration" accel begin
+    println("finally")
     clf = ConstantClassifier()
     X, y = make_moons(100)
     e1 = evaluate(clf, X, y, resampling=CV(),

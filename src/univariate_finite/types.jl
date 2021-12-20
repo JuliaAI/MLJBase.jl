@@ -59,7 +59,7 @@ _err_aug() = throw(ArgumentError(
     "sums along the last axis exceeding one. "))
 
 function _check_pool(pool)
-    ismissing(pool) || pool == nothing ||
+    ismissing(pool) || pool === nothing ||
         @warn "Specified pool ignored, as class labels being "*
     "generated automatically. "
     return nothing

@@ -14,7 +14,7 @@ include("data_utils.jl")
 
 include("model_api.jl")
 
-@test trait(rms) == :measure
+#@test trait(rms) == :measure
 
 end
 

@@ -1,11 +1,14 @@
 using Distributed
-addprocs()
+#addprocs()
+addprocs(4, exeflags="--threads=2")
 
 using MLJBase
 if !MLJBase.TESTING
-    error("To test MLJBase, the environment variable "*
-          "`TEST_MLJBASE` must be set to `\"true\"`\n"*
-          "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"`")
+    error(
+        "To test MLJBase, the environment variable "*
+        "`TEST_MLJBASE` must be set to `\"true\"`\n"*
+        "You can do this in the REPL with `ENV[\"TEST_MLJBASE\"]=\"true\"`"
+    )
 end
 
 @info "nprocs() = $(nprocs())"

@@ -17,27 +17,31 @@ macro testset_accelerated(name::String, var, opts::Expr, ex)
 end
 function testset_accelerated(name::String, var, ex; exclude=[])
     final_ex = quote
-        $var = CPU1()
+       local $var = CPU1()
         @testset $name $ex
     end
-    resources = Any[CPUProcesses()]
+    resources = AbstractResource[CPUProcesses()]
     @static if VERSION >= v"1.3.0-DEV.573"
         push!(resources, CPUThreads())
     end
     for res in resources
         if any(x->typeof(res)<:x, exclude)
             push!(final_ex.args, quote
-               $var = $res
+               local $var = $res
                @testset $(name*" ($(typeof(res).name))") begin
                    @test_broken false
                end
             end)
         else
             push!(final_ex.args, quote
-               $var = $res
+               local $var = $res
                @testset $(name*" ($(typeof(res).name))") $ex
             end)
         end
+    end
+    # preserve outer location if possible
+    if ex isa Expr && ex.head === :block && !isempty(ex.args) && ex.args[1] isa LineNumberNode
+        final_ex = Expr(:block, ex.args[1], final_ex)
     end
     return esc(final_ex)
 end
@@ -62,7 +66,7 @@ macro test_mach_sequence(fit_ex, sequence_exs...)
     esc(quote
         MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
         $fit_ex
-        $seq = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+        local $seq = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
         # for s in $seq
         #     println(s)
         # end
@@ -80,7 +84,7 @@ macro test_model_sequence(fit_ex, sequence_exs...)
     esc(quote
         MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
         $fit_ex
-        $seq = map(MLJBase.flush!(MLJBase.MACHINE_CHANNEL)) do tup
+        local $seq = map(MLJBase.flush!(MLJBase.MACHINE_CHANNEL)) do tup
             (tup[1], tup[2].model)
         end
         # for s in $seq

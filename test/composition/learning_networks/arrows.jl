@@ -42,8 +42,8 @@ end
 @testset "Auto-source" begin
     rng = StableRNG(51616161)
 
-    X = MLJBase.table(randn(rng,500, 5))
-    y = abs.(randn(rng,500))
+    X = MLJBase.table(randn(rng, 500, 5))
+    y = abs.(randn(rng, 500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=2)
     fit!(W, verbosity=0)
@@ -52,7 +52,7 @@ end
     sch = schema(Wraw)
     @test sch.names == (:x1, :x2)
     @test sch.scitypes == (MLJBase.Continuous, MLJBase.Continuous)
-    @test sch.nrows == 500
+    @test nrows(Wraw) == 500
 
     yhat = (W, y) |> RidgeRegressor()
     fit!(yhat, verbosity=0)
@@ -65,8 +65,8 @@ end
 @testset "Auto-table" begin
     rng = StableRNG(5661)
 
-    X = randn(rng,500, 5)
-    y = abs.(randn(rng,500))
+    X = randn(rng, 500, 5)
+    y = abs.(randn(rng, 500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=2)
     yhat = (W, y) |> RidgeRegressor()
@@ -80,8 +80,8 @@ end
 @testset "Stacking" begin
     rng = StableRNG(66161)
 
-    X = randn(rng,500, 5)
-    y = abs.(randn(rng,500))
+    X = randn(rng, 500, 5)
+    y = abs.(randn(rng, 500))
 
     W = X |> Standardizer() |> PCA(maxoutdim=3)
     z = y |> UnivariateBoxCoxTransformer()
@@ -100,10 +100,10 @@ end
 
 @testset "functions and static transfomers" begin
     rng = StableRNG(66666)
-    x1 = rand(rng,30)
-    x2 = rand(rng,30)
-    x3 = rand(rng,30)
-    yy = exp.(x1 - x2 -2x3 + 0.1*rand(rng,30))
+    x1 = rand(rng, 30)
+    x2 = rand(rng, 30)
+    x3 = rand(rng, 30)
+    yy = exp.(x1 - x2 -2x3 + 0.1*rand(rng, 30))
     XX = (x1=x1, x2=x2, x3=x3)
 
     f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))

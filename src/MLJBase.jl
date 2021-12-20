@@ -7,16 +7,18 @@ import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*
 
 # Scitype
-import ScientificTypes.ScientificTypesBase: TRAIT_FUNCTION_GIVEN_NAME
 using ScientificTypes
 
 # Traits for models and measures (which are being overloaded):
 using StatisticalTraits
+
 for trait in StatisticalTraits.TRAITS
     eval(:(import StatisticalTraits.$trait))
 end
+
 import Base.instances # considered a trait for measures
 import StatisticalTraits.snakecase
+import StatisticalTraits.info
 
 # Interface
 using MLJModelInterface
@@ -61,7 +63,6 @@ const Dist = Distributions
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
-
 # ===================================================================
 ## EXPORTS
 
@@ -73,9 +74,11 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # traits for measures and models:
 using StatisticalTraits
+
 for trait in StatisticalTraits.TRAITS
     eval(:(export $trait))
 end
+
 export implemented_methods # defined here and not in StatisticalTraits
 
 export UnivariateFinite
@@ -103,7 +106,7 @@ export CPU1, CPUProcesses, CPUThreads
 export Unknown, Known, Finite, Infinite,
     OrderedFactor, Multiclass, Count, Continuous, Textual,
     Binary, ColorImage, GrayImage, Image, Table
-export scitype, scitype_union, elscitype, nonmissing, trait
+export scitype, scitype_union, elscitype, nonmissing #, trait
 export coerce, coerce!, autotype, schema, info
 
 # -------------------------------------------------------------------
@@ -123,7 +126,7 @@ export partition, unpack, complement, restrict, corestrict
 
 # utilities.jl:
 export flat_values, recursive_setproperty!,
-       recursive_getproperty, pretty, unwind
+    recursive_getproperty, pretty, unwind
 
 # show.jl
 export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
@@ -133,9 +136,9 @@ export average, UnivariateFiniteArray, UnivariateFiniteVector
 
 # datasets.jl:
 export load_boston, load_ames, load_iris, load_sunspots,
-       load_reduced_ames, load_crabs, load_smarket,
-       @load_boston, @load_ames, @load_iris, @load_sunspots,
-       @load_reduced_ames, @load_crabs, @load_smarket
+    load_reduced_ames, load_crabs, load_smarket,
+    @load_boston, @load_ames, @load_iris, @load_sunspots,
+    @load_reduced_ames, @load_crabs, @load_smarket
 
 # sources.jl:
 export source, Source, CallableReturning
@@ -157,7 +160,7 @@ export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
-       evaluate!, Resampler, PerformanceEvaluation
+    evaluate!, Resampler, PerformanceEvaluation
 
 # -------------------------------------------------------------------
 # exports from MLJBase specific to Measure (these may go in their
@@ -223,33 +226,33 @@ export TruePositive, TrueNegative, FalsePositive, FalseNegative,
 # measures/finite.jl -- Finite{N} - multiclass generalizations of
 # above OrderedFactor{2} measures (but order independent):
 export MulticlassTruePositive, MulticlassTrueNegative, MulticlassFalsePositive,
-      MulticlassFalseNegative, MulticlassTruePositiveRate,
-      MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
-      MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
-      MulticlassPrecision, MulticlassNegativePredictiveValue, MulticlassFScore,
-      # standard synonyms
-      MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
-      MulticlassRecall, MulticlassSpecificity,
-      # instances and their synonyms
-      multiclass_truepositive, multiclass_truenegative,
-      multiclass_falsepositive,
-      multiclass_falsenegative, multiclass_true_positive,
-      multiclass_true_negative, multiclass_false_positive,
-      multiclass_false_negative, multiclass_truepositive_rate,
-      multiclass_truenegative_rate, multiclass_falsepositive_rate,
-      multiclass_true_positive_rate, multiclass_true_negative_rate,
-      multiclass_false_positive_rate, multiclass_falsenegative_rate,
-      multiclass_negativepredictive_value, multiclass_false_negative_rate,
-      multiclass_negative_predictive_value, multiclass_positivepredictive_value,
-      multiclass_positive_predictive_value, multiclass_tpr, multiclass_tnr,
-      multiclass_fpr, multiclass_fnr, multiclass_falsediscovery_rate,
-      multiclass_false_discovery_rate, multiclass_fdr, multiclass_npv,
-      multiclass_ppv, multiclass_recall, multiclass_sensitivity,
-      multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
-      multiclass_selectivity, macro_f1score, micro_f1score,
-      multiclass_f1score, multiclass_fallout, multiclass_precision,
-      # averaging modes
-      no_avg, macro_avg, micro_avg
+    MulticlassFalseNegative, MulticlassTruePositiveRate,
+    MulticlassTrueNegativeRate, MulticlassFalsePositiveRate,
+    MulticlassFalseNegativeRate, MulticlassFalseDiscoveryRate,
+    MulticlassPrecision, MulticlassNegativePredictiveValue, MulticlassFScore,
+    # standard synonyms
+    MTPR, MTNR, MFPR, MFNR, MFDR, MPPV,
+    MulticlassRecall, MulticlassSpecificity,
+    # instances and their synonyms
+    multiclass_truepositive, multiclass_truenegative,
+    multiclass_falsepositive,
+    multiclass_falsenegative, multiclass_true_positive,
+    multiclass_true_negative, multiclass_false_positive,
+    multiclass_false_negative, multiclass_truepositive_rate,
+    multiclass_truenegative_rate, multiclass_falsepositive_rate,
+    multiclass_true_positive_rate, multiclass_true_negative_rate,
+    multiclass_false_positive_rate, multiclass_falsenegative_rate,
+    multiclass_negativepredictive_value, multiclass_false_negative_rate,
+    multiclass_negative_predictive_value, multiclass_positivepredictive_value,
+    multiclass_positive_predictive_value, multiclass_tpr, multiclass_tnr,
+    multiclass_fpr, multiclass_fnr, multiclass_falsediscovery_rate,
+    multiclass_false_discovery_rate, multiclass_fdr, multiclass_npv,
+    multiclass_ppv, multiclass_recall, multiclass_sensitivity,
+    multiclass_hit_rate, multiclass_miss_rate, multiclass_specificity,
+    multiclass_selectivity, macro_f1score, micro_f1score,
+    multiclass_f1score, multiclass_fallout, multiclass_precision,
+    # averaging modes
+    no_avg, macro_avg, micro_avg
 
 # measures/loss_functions_interface.jl
 export dwd_margin_loss, exp_loss, l1_hinge_loss, l2_hinge_loss, l2_margin_loss,
@@ -273,6 +276,7 @@ const MARGIN_LOSSES = [
     :SmoothedL1HingeLoss,
     :ZeroOneLoss
 ]
+
 const DISTANCE_LOSSES = [
     :HuberLoss,
     :L1EpsilonInsLoss,
@@ -282,6 +286,7 @@ const DISTANCE_LOSSES = [
     :PeriodicLoss,
     :QuantileLoss
 ]
+
 const WITH_PARAMETERS = [
     :DWDMarginLoss,
     :SmoothedL1HingeLoss,
@@ -291,6 +296,7 @@ const WITH_PARAMETERS = [
     :LPDistLoss,
     :QuantileLoss,
 ]
+
 const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
 
 for Loss in LOSS_FUNCTIONS
@@ -301,7 +307,7 @@ end
 # re-export from Random, StatsBase, Statistics, Distributions,
 # OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
-       levels, levels!, std, Not, support, logpdf, LittleDict
+   levels, levels!, std, Not, support, logpdf, LittleDict
 
 
 # ===================================================================
@@ -356,6 +362,7 @@ include("composition/abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/machines.jl")
+
 @static if VERSION ≥ v"1.3.0-"
     include("composition/learning_networks/arrows.jl")
 end
