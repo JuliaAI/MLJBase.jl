@@ -22,14 +22,6 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-const PREDICT_OPERATIONS = (:predict,
-                            :predict_mean,
-                            :predict_mode,
-                            :predict_median,
-                            :predict_joint)
-
-const OPERATIONS = (PREDICT_OPERATIONS..., :transform, :inverse_transform)
-
 _err_rows_not_allowed() =
     throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
                         "`mach.model isa Static` is not allowed, as no data "*

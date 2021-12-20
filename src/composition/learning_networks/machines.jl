@@ -1,4 +1,4 @@
-## SIGNATURES
+# # SIGNATURES
 
 const DOC_SIGNATURES =
 """
@@ -28,33 +28,33 @@ corresponding key `k`. So, in the third example above,
 `report(mach).loss` then returns the value of `loss_node()`.
 
 """
-    call_non_operations(signature)
 
-Return an new named tuple which has as keys those keys of `signature`
-that are not operations. The corresponding values are replaced with
-the result of calling the original values with zero arguments. For
-example, if
+"""
+    call_report_nodes(signature)
 
-    signature = (predict=yhat, x=n, a=m)
+Return `NamedTuple()` if `:report` is not a key of
+`signature`. Othewise, expecting `signature.report` to be some named
+tuple `(k1=n1, k2=n2, ..., kn=nn)`, return the named tuple `(k1=n1(),
+k2=n2(), ..., kn=nn())`
+
+For example, if
+
+    signature = (predict=yhat, report=(x=n, a=m))
 
 then return `(x=n(), a=m())`.
 
 $DOC_SIGNATURES
 
 """
-function call_non_operations(signature)
+function call_report_nodes(signature)
     _call(n) = deepcopy(n())
     _keys = keys(signature)
     _values = values(signature)
-    v = filter(zip(_keys, _values)|> collect) do (k, v)
-        !(k in OPERATIONS)
-    end
-    isempty(v) && return NamedTuple()
-    new_keys, new_values = collect(zip(v...))
+    :report in _keys || return NamedTuple()
+    nt = signature.report
+    new_keys, new_values = keys(nt), values(nt)
     return NamedTuple{new_keys}(_call.(new_values))
 end
-
-# TODO: add test for above method
 
 """
     model_supertype(signature)
@@ -100,14 +100,19 @@ end
 operations(s::NamedTuple) = filter(in(OPERATIONS), keys(s))
 
 
-## FITRESULTS FOR COMPOSITE MODELS
+# # FITRESULTS FOR COMPOSITE MODELS
 
 mutable struct CompositeFitresult
     signature
     glb
     report_additions
     function CompositeFitresult(signature)
-        glb = MLJBase.glb(values(signature)...)
+        ops = operations(signature)
+        vals = tuple([getproperty(signature, op) for op in ops]...)
+        if :report in keys(signature)
+            vals = tuple(vals..., values(signature.report)...)
+        end
+        glb = MLJBase.glb(vals...)
         new(signature, glb)
     end
 end
@@ -116,7 +121,7 @@ glb(c::CompositeFitresult) = getfield(c, :glb)
 report_additions(c::CompositeFitresult) = getfield(c, :report_additions)
 
 update!(c::CompositeFitresult) =
-    setfield!(c, :report_additions, call_non_operations(signature(c)))
+    setfield!(c, :report_additions, call_report_nodes(signature(c)))
 
 # To accommodate pre-existing design (operations.jl) arrange
 # that `fitresult.predict` returns the predict node, etc:
@@ -124,10 +129,8 @@ Base.propertynames(c::CompositeFitresult) = keys(signature(c))
 Base.getproperty(c::CompositeFitresult, name::Symbol) =
     getproperty(signature(c), name)
 
-# TODO: add test for above access methods
 
-
-# LEARNING NETWORK MACHINES
+# # LEARNING NETWORK MACHINES
 
 surrogate(::Type{<:Deterministic})  = Deterministic()
 surrogate(::Type{<:Probabilistic})  = Probabilistic()
@@ -145,6 +148,12 @@ const ERR_MUST_OPERATE = ArgumentError(
 const ERR_MUST_SPECIFY_SOURCES = ArgumentError(
     "You must specify at least one source `Xs`, as in "*
     "`machine(surrogate_model, Xs, ...; kwargs...)`. ")
+const ERR_BAD_SIGNATURE = ArgumentError(
+    "Only the following keyword arguments are supported in learning network "*
+    "machine constructors: `report` or one of: `$OPERATIONS`. ")
+const ERR_EXPECTED_NODE_IN_SIGNATURE = ArgumentError(
+    "Learning network machine constructor syntax error. "*
+    "Did not enounter `Node` in place one was expected. ")
 
 function check_surrogate_machine(::Surrogate, signature, _sources)
     isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
@@ -173,7 +182,19 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
 
-    # TODO: add checks on the values of the signature, ie that they are nodes.
+    # signature checks:
+    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
+    for k in keys(signature)
+        if k in OPERATIONS
+            getproperty(signature, k) isa AbstractNode ||
+                throw(ERR_EXPECTED_NODE_IN_SIGNATURE)
+        elseif k === :report
+            all(v->v isa AbstractNode, values(signature.report)) ||
+                throw(ERR_EXPECTED_NODE_IN_SIGNATURE)
+        else
+            throw(ERR_BAD_SIGNATURE)
+        end
+    end
 
     check_surrogate_machine(model, signature, _sources)
 
@@ -188,8 +209,6 @@ end
 function machine(_sources::Source...; pair_itr...)
 
     signature = (; pair_itr...)
-
-    isempty(operations(signature)) && throw(ERR_MUST_OPERATE)
 
     T = model_supertype(signature)
     if T == nothing
@@ -219,30 +238,6 @@ $DOC_SIGNATURES
 """
 glb(mach::Machine{<:Union{Composite,Surrogate}}) = glb(mach.fitresult)
 
-
-# """
-#     operations_only(signature)
-
-# Return an new named tuple skipping entries whose keys are not
-# operations. For example, if
-
-#     signature = (predict=yhat, x=7, a=5)
-
-# then return `(predict=yhat, )`.
-
-# """
-# function operations_only(signature)
-#     _keys = keys(signature)
-#     _values = values(signature)
-#     v = filter(zip(_keys, _values)|> collect) do (k, v)
-#         k in OPERATIONS
-#     end
-#     isempty(v) && return NamedTuple()
-#     new_keys, new_values = collect(zip(v...))
-#     return NamedTuple{new_keys}(new_values)
-# end
-
-# # TODO: add test for above method
 
 """
     fit!(mach::Machine{<:Surrogate};
@@ -275,7 +270,7 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
     fitted_params(glb(mach))
 
 
-## CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
+# # CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
 # Identify which properties of `model` have, as values, a model in the
 # learning network wrapped by `mach`, and check that no two such

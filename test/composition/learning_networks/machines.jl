@@ -31,6 +31,16 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
 N = 20
 X = (a = rand(N), b = categorical(rand("FM", N)))
 
+@testset "call_report_nodes" begin
+    @test MLJBase.call_report_nodes((predict=source(:yhat), )) == NamedTuple()
+    s = (transform=source(:transform),
+         report=(a=source(:a), b=source(:b)),
+         predict=source(:yhat))
+    R = MLJBase.call_report_nodes(s)
+    @test R.a == :a
+    @test R.b == :b
+end
+
 @testset "wrapping a learning network in a machine" begin
 
     # unsupervised:
@@ -40,18 +50,35 @@ X = (a = rand(N), b = categorical(rand("FM", N)))
     m = machine(clust, W)
     yhat = predict(m, W)
     Wout = transform(m, W)
+    rnode = source(:stuff)
 
     # test of `fitted_params(::NamedTuple)':
     fit!(Wout, verbosity=0)
-    s = (predict=yhat, transform=Wout, a=source(:a), b=source(:b))
-    Θ = MLJBase.call_non_operations(s)
-    @test Θ.a == :a
-    @test Θ.b == :b
 
-    mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+    @test_throws(MLJBase.ERR_BAD_SIGNATURE,
+                 machine(Unsupervised(),
+                         predict=yhat,
+                         fitted_params=rnode))
+    @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
+                 machine(Unsupervised(),
+                         predict=42))
+    @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
+                 machine(Unsupervised(), Xs;
+                         predict=yhat,
+                         transform=Wout,
+                         report=(some_stuff=42,)))
+    mach = machine(Unsupervised(), Xs;
+                   predict=yhat,
+                   transform=Wout,
+                   report=(some_stuff=rnode,))
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
     fit!(mach, force=true, verbosity=0)
+    Θ = mach.fitresult
+    @test Θ.predict == yhat
+    @test Θ.transform == Wout
+    Θ.report.some_stuff == rnode
+    @test report(mach).some_stuff == :stuff
 
     @test report(mach).machines == fitted_params(mach).machines
 
@@ -63,10 +90,13 @@ X = (a = rand(N), b = categorical(rand("FM", N)))
     e = @node auc(yhat, ys)
 
     @test_throws Exception machine(predict=yhat)
-    mach = machine(Probabilistic(), Xs, ys; predict=yhat, training_auc=e)
+    mach = machine(Probabilistic(), Xs, ys;
+                   predict=yhat,
+                   report=(training_auc=e,))
     @test mach.model isa Probabilistic
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
-    @test_throws ArgumentError machine(Probabilistic(), Xs, ys; training_auc=e)
+    @test_throws ArgumentError machine(Probabilistic(), Xs, ys;
+                                       report=(training_auc=e,))
 
     # test extra report items coming from `training_auc=e` above
     fit!(mach, verbosity=0)
