@@ -145,7 +145,6 @@ end
     @test collect(result[2]) == fill(:fitted_params, nfolds)
 end
 
-println("I am here now")
 @test CV(nfolds=6) == CV(nfolds=6)
 @test CV(nfolds=5) != CV(nfolds=6)
 @test MLJBase.train_test_pairs(CV(), 1:10) !=
@@ -227,7 +226,6 @@ end
 end
 
 @testset_accelerated "folds specified" accel begin
-    println("I got here")
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
@@ -342,7 +340,6 @@ end
 end
 
 @testset_accelerated "Exception handling (see issue 235)" accel begin
-    println("could_it be this")
     X, y = make_moons(50)
     model = ConstantClassifier()
 
@@ -351,7 +348,6 @@ end
 end
 
 @testset_accelerated "cv" accel begin
-    println("maybe not")
     x1 = ones(10)
     x2 = ones(10)
     X = (x1=x1, x2=x2)
@@ -509,7 +505,6 @@ end
 end
 
 @testset_accelerated "resampler as machine" accel begin
-    println("This is finally it")
     N = 50
     X = (x1=rand(rng, N), x2=rand(rng, N), x3=rand(rng, N))
     y = X.x1 -2X.x2 + 0.05*rand(rng, N)
@@ -739,7 +734,6 @@ end
     end
 
     @testset "warnings about measures not supporting weights" begin
-        println("strange")
         model = ConstantClassifier()
         N = 100
         X, y = make_moons(N)
@@ -757,7 +751,6 @@ end
 end
 
 @testset_accelerated "automatic operations - integration" accel begin
-    println("finally")
     clf = ConstantClassifier()
     X, y = make_moons(100)
     e1 = evaluate(clf, X, y, resampling=CV(),
