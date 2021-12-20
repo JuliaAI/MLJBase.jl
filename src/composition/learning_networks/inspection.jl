@@ -27,6 +27,7 @@ function tree(W::Node)
     return NamedTuple{keys}(values)
 end
 tree(s::Source) = (source = s,)
+tree(n::ErrorNode) = (node = n,)
 
 # """
 #    args(tree; train=false)

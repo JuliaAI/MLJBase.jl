@@ -54,7 +54,7 @@ print("\r                                           \r")
 RUN_ALL_TESTS = isempty(ARGS)
 macro conditional_testset(name, expr)
     name = string(name)
-    esc(quote 
+    esc(quote
         if RUN_ALL_TESTS || $name in ARGS
             @testset $name $expr
         end
@@ -69,11 +69,6 @@ end
 @conditional_testset "interface" begin
     @test include("interface/interface.jl")
     @test include("interface/data_utils.jl")
-end
-
-@conditional_testset "univariate finite" begin
-    @test include("univariate_finite/methods.jl")
-    @test include("univariate_finite/arrays.jl")
 end
 
 @conditional_testset "measures" begin
@@ -103,15 +98,15 @@ end
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/machines.jl")
-    VERSION ≥ v"1.3.0-" &&
-        @test include("composition/learning_networks/arrows.jl")
 end
 
 @conditional_testset "composition_models" begin
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")
+    @test include("composition/models/deprecated.jl")
     @test include("composition/models/pipelines.jl")
+    @test include("composition/models/transformed_target_model.jl")
     @test include("composition/models/stacking.jl")
     @test include("composition/models/_wrapped_function.jl")
     @test include("composition/models/static_transformers.jl")

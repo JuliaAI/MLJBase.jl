@@ -9,25 +9,14 @@ MMI.categorical(::FI, a...; kw...) = categorical(a...; kw...)
 MMI.matrix(::FI, ::Val{:table}, X; kw...) = Tables.matrix(X; kw...)
 
 # ------------------------------------------------------------------------
-# `int`
-function MMI.int(::FI, x)
-    throw(
-        DomainError(x, "Can only convert categorical elements to integers.")
-    )
-end
+# int
 
-MMI.int(::FI, x::Missing) = missing
-MMI.int(::FI, x::AbstractArray) = int.(x)
-
-# first line is no good because it promotes type to larger integer type:
-# MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.levelcode(x)
-MMI.int(::FI, x::CategoricalValue) = CategoricalArrays.refcode(x)
+MMI.int(::FI, x; args...) = CategoricalDistributions.int(x; args...)
 
 # ------------------------------------------------------------------------
-# `classes`
-MMI.classes(::FI, p::CategoricalPool) = [p[i] for i in 1:length(p)]
-MMI.classes(::FI, x::CategoricalValue) = classes(CategoricalArrays.pool(x))
-MMI.classes(::FI, v::CategoricalArray) = classes(CategoricalArrays.pool(v))
+# classes
+
+MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
 
 # ------------------------------------------------------------------------
 # `schema`
@@ -35,18 +24,9 @@ MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
 MMI.schema(::FI, ::Val{:other}, X; kw...) = nothing
 
 # ------------------------------------------------------------------------
-# `decoder`
-struct CategoricalDecoder{V,R}
-    classes::CategoricalVector{V, R, V, CategoricalValue{V,R}, Union{}}
-end
+# decoder
 
-MMI.decoder(::FI, x) = CategoricalDecoder(classes(x))
-
-function (d::CategoricalDecoder{V,R})(i::Integer) where {V,R}
-    return CategoricalValue{V,R}(d.classes[i])
-end
-
-(d::CategoricalDecoder)(a::AbstractArray{<:Integer}) = d.(a)
+MMI.decoder(::FI, x) = CategoricalDistributions.decoder(x)
 
 # ------------------------------------------------------------------------
 # `table`
@@ -143,4 +123,5 @@ isdataframe(X) = typename(X) == "AbstractDataFrame"
 # ----------------------------------------------------------------
 # univariate finite
 
-# see src/univariate_finite/
+MMI.UnivariateFinite(::FI, b...; kwargs...) =
+    CategoricalDistributions.UnivariateFinite(b...; kwargs...)

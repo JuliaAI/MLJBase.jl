@@ -47,6 +47,24 @@ function reduce_nested_field(ex)
 end
 
 """
+    prepend(s::Symbol, s::Symbol)
+
+For prepending symbols in expressions like `:(y.w)` and `:(x1.x2.x3)`.
+
+julia> compose(:x, :y)
+:(x.y)
+
+julia> compose(:x, :(y.z))
+:(x.y.z)
+
+julia> compose(:w, ans)
+:(w.x.y.z)
+
+"""
+prepend(s::Symbol, t::Symbol) = Expr(:(.), s, QuoteNode(t))
+prepend(s::Symbol, ex::Expr) = Expr(:(.), prepend(s, ex.args[1]), ex.args[2])
+
+"""
     recursive_getproperty(object, nested_name::Expr)
 
 Call getproperty recursively on `object` to extract the value of some
@@ -61,6 +79,21 @@ recursive_getproperty(obj, property::Symbol) = getproperty(obj, property)
 function recursive_getproperty(obj, ex::Expr)
     subex, field = reduce_nested_field(ex)
     return recursive_getproperty(recursive_getproperty(obj, subex), field)
+end
+
+recursive_getpropertytype(obj, property::Symbol) = typeof(getproperty(obj, property))
+recursive_getpropertytype(obj::T, property::Symbol) where T <: Model = begin
+    model_type = typeof(obj)
+    property_names = fieldnames(model_type)
+    property_types = model_type.types
+    for (t, n) in zip(property_types, property_names)
+        n == property && return t
+    end
+    error("Property $property not found")
+end
+function recursive_getpropertytype(obj, ex::Expr)
+    subex, field = reduce_nested_field(ex)
+    return recursive_getpropertytype(recursive_getproperty(obj, subex), field)
 end
 
 """
@@ -371,3 +404,64 @@ function available_name(modl, name)
     end
     return new_name
 end
+
+"""
+    generate_name!(M, existing_names; only=Union{Function,Type}, substitute=:f)
+
+Given a type `M` (e.g., `MyEvenInteger{N}`) return a symbolic,
+snake-case, representation of the type name (such as
+`my_even_integer`). The symbol is pushed to `existing_names`, which
+must be an `AbstractVector` to which a `Symbol` can be pushed.
+
+If the snake-case representation already exists in `existing_names` a
+suitable integer is appended to the name.
+
+If `only` is specified, then the operation is restricted to those `M`
+for which `M isa only`. In all other cases the symbolic name is
+generated using `substitute` as the base symbol.
+
+```
+existing_names = []
+julia> generate_name!(Vector{Int}, existing_names)
+:vector
+
+julia> generate_name!(Vector{Int}, existing_names)
+:vector2
+
+julia> generate_name!(AbstractFloat, existing_names)
+:abstract_float
+
+julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
+:not_array
+
+julia> generate_name!(Int, existing_names, only=Array, substitute=:not_array)
+:not_array2
+```
+
+"""
+function generate_name!(M::DataType,
+                        existing_names;
+                        only=Any,
+                        substitute=:f)
+    if M <: only
+        str = split(string(M), '{') |> first
+        candidate = split(str, '.') |> last |> snakecase |> Symbol
+    else
+        candidate = substitute
+    end
+
+    candidate in existing_names ||
+        (push!(existing_names, candidate); return candidate)
+    n = 2
+    new_candidate = candidate
+    while true
+        new_candidate = string(candidate, n) |> Symbol
+        new_candidate in existing_names || break
+        n += 1
+    end
+    push!(existing_names, new_candidate)
+    return new_candidate
+end
+
+generate_name!(model, existing_names; kwargs...) =
+    generate_name!(typeof(model), existing_names; kwargs...)
