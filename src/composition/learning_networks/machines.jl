@@ -13,7 +13,7 @@ If a key `k` is the name of an operation (such as `predict`) then
 `k(mach, X)` returns `n(X)` where `n` is the corresponding value (a
 node). In all other cases, the key-value pair `k => n()` (evaluated at
 `fit!` time) will be included in the named tuple returned by
-`fitted_params(mach)`. Values in the first case (`yhat` and `W` in the
+`report(mach)`. Values in the first case (`yhat` and `W` in the
 example) must have a unique origin, while those in the second
 (`loss_node`) need not.
 """
@@ -50,14 +50,14 @@ end
 """
     model_supertype(signature)
 
-Return, if this can be deduced, which of `Deterministic`,
+Return, if this can be inferred, which of `Deterministic`,
 `Probabilistic` and `Unsupervised` is the appropriate supertype for a
 composite model obtained by exporting a learning network with the
 specified `signature`.
-[
+
 $DOC_SIGNATURES
 
-If a supertype cannot be deduced, `nothing` is returned.
+If a supertype cannot be inferred, `nothing` is returned.
 
 If the network with given `signature` is not exportable, this method
 will not error but it will not a give meaningful return value either.
