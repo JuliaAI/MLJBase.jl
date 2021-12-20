@@ -3,20 +3,29 @@
 const DOC_SIGNATURES =
 """
 A learning network *signature* is a named tuple that we define when
-constructing some learning network machine, `mach`. An example is
+constructing a learning network machine, `mach`. Examples are
 
-    signature = `(predict=yhat, transform=W, loss=loss_node)`
+    (predict=yhat, )
+    (transform=Xsmall,)
+    (predict=yhat, transform=W, report=(loss=loss_node,))
 
-where `yhat`, `W` and `loss_node` are nodes in the network.
+where `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
 
-If a key `k` is the name of an operation (such as `predict`) then
-`k(mach, X)` returns `n(X)` where `n` is the corresponding value (a
-node). In all other cases, the key-value pair `k => n()` (evaluated at
-`fit!` time) will be included in the named tuple returned by
-`report(mach)`. Values in the first case (`yhat` and `W` in the
-example) must have a unique origin, while those in the second
-(`loss_node`) need not.
-"""
+If a key `k` is the name of an operation (such as `:predict`,
+`:predict_mode`, `:transform`, `inverse_transform`) then `k(mach, X)`
+returns `n(X)` where `n` is the corresponding node value.  Each such
+node must have a unique origin (`length(origins(n)) === 1`).
+
+The only other allowed key is `:report`, whose corresponding value
+must be a named tuple
+
+    (k1=n1, k2=n2, ...)
+
+whose keys are arbitrary, and whose values are nodes of the
+network. For each such key-value pair `k=n`, the value returned by
+`n()` is included in the named tuple `report(mach)`, with
+corresponding key `k`. So, in the third example above,
+`report(mach).loss` then returns the value of `loss_node()`.
 
 """
     call_non_operations(signature)
