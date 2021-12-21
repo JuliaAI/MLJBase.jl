@@ -123,9 +123,11 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = ((sleep(0.1*rand(rng)); fill(1:k, nmeasures)),
-                         :fitted_params,
-                         :report,)
+        func(mach, k) = (
+            (sleep(MLJBase.PROG_METER_DT*rand(rng)); fill(1:k, nmeasures)),
+            :fitted_params,
+            :report,
+        )
     end
     mach = machine(ConstantRegressor(), X, y)
     if accel isa CPUThreads

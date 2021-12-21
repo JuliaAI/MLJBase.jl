@@ -20,10 +20,9 @@ function testset_accelerated(name::String, var, ex; exclude=[])
        local $var = CPU1()
         @testset $name $ex
     end
-    resources = AbstractResource[CPUProcesses()]
-    @static if VERSION >= v"1.3.0-DEV.573"
-        push!(resources, CPUThreads())
-    end
+
+    resources = AbstractResource[CPUProcesses(), CPUThreads()]
+
     for res in resources
         if any(x->typeof(res)<:x, exclude)
             push!(final_ex.args, quote

@@ -20,9 +20,9 @@ MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
 
 # ------------------------------------------------------------------------
 # `schema`
-MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
-MMI.schema(::FI, ::Val{:other}, X; kw...) = nothing
-
+function MMI.schema(::FI, ::Union{Val{:other}, Val{:table}}, X; kw...)
+    return schema(X; kw...)
+end
 # ------------------------------------------------------------------------
 # decoder
 

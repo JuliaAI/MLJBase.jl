@@ -4,6 +4,7 @@ const PREDICT_OPERATIONS_STRING = begin
     end
     join(strings, ", ", ", or ")
 end
+const PROG_METER_DT = 0.1 
 const ERR_WEIGHTS_REAL =
     ArgumentError("`weights` must be a `Real` vector. ")
 const ERR_WEIGHTS_LENGTH =
@@ -920,10 +921,10 @@ function _next!(p)
 end
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-    if !(verbosity < 1) 
+    if verbosity > 0 
         p = Progress(
             nfolds,
-            dt = 0.1,
+            dt = PROG_METER_DT,
             desc = "Evaluating over $nfolds folds: ",
             barglyphs = BarGlyphs("[=> ]"),
             barlen = 25,
@@ -945,10 +946,10 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
     local ret
     @sync begin
-        if !(verbosity < 1) 
+        if verbosity > 0 
             p = Progress(
                 nfolds,
-                dt = 0.1,
+                dt = PROG_METER_DT,
                 desc = "Evaluating over $nfolds folds: ",
                 barglyphs = BarGlyphs("[=> ]"),
                 barlen = 25,
@@ -991,10 +992,10 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     ntasks = accel.settings
     partitions = chunks(1:nfolds, ntasks)
-    if !(verbosity < 1) 
+    if verbosity > 0 
         p = Progress(
             nfolds,
-            dt = 0.1,
+            dt = PROG_METER_DT,
             desc = "Evaluating over $nfolds folds: ",
             barglyphs = BarGlyphs("[=> ]"),
             barlen = 25,
@@ -1049,7 +1050,7 @@ end
 # Core `evaluation` method, operating on train-test pairs
 
 const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
-const TrainTestPair = Tuple{AbstractRow,AbstractRow}
+const TrainTestPair = Tuple{AbstractRow, AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
 # helper:

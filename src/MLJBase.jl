@@ -130,7 +130,8 @@ export CPU1, CPUProcesses, CPUThreads
 export Unknown, Known, Finite, Infinite,
     OrderedFactor, Multiclass, Count, Continuous, Textual,
     Binary, ColorImage, GrayImage, Image, Table
-export scitype, scitype_union, elscitype, nonmissing #, trait
+
+export scitype, scitype_union, elscitype, nonmissing
 export coerce, coerce!, autotype, schema, info
 
 # re-exports from CategoricalDistributions:
