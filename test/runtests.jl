@@ -1,6 +1,6 @@
 using Distributed
-#addprocs()
-addprocs(4, exeflags="--threads=2")
+addprocs()
+
 
 using MLJBase
 if !MLJBase.TESTING
