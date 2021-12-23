@@ -23,19 +23,21 @@ is_measure_type(::Any) = false
 # Each of the following traits, with fallbacks defined in
 # StatisticalTraits.jl, make sense for some or all measures:
 
-const MEASURE_TRAITS = [:name,
-                        :instances,
-                        :human_name,
-                        :target_scitype,
-                        :supports_weights,
-                        :supports_class_weights,
-                        :prediction_type,
-                        :orientation,
-                        :reports_each_observation,
-                        :aggregation,
-                        :is_feature_dependent,
-                        :docstring,
-                        :distribution_type]
+const MEASURE_TRAITS = [
+    :name,
+    :instances,
+    :human_name,
+    :target_scitype,
+    :supports_weights,
+    :supports_class_weights,
+    :prediction_type,
+    :orientation,
+    :reports_each_observation,
+    :aggregation,
+    :is_feature_dependent,
+    :docstring,
+    :distribution_type
+]
 
 # # FOR BUILT-IN MEASURES (subtyping Measure)
 
@@ -48,7 +50,6 @@ StatisticalTraits.reports_each_observation(::Type{<:Unaggregated}) = true
 
 
 # # FALLBACK CHECKS
-
 extra_check(::Measure, args...) = nothing
 function _check(measure::Measure, yhat, y)
     check_dimensions(yhat, y)
@@ -68,33 +69,38 @@ function _check(measure::Measure, yhat::Arr{<:UnivariateFinite})
     check_pools(yhat, y)
     extra_check(measure, yhat, y)
 end
-function _check(measure::Measure,
-                yhat::Arr{<:UnivariateFinite},
-                y,
-                w::Arr)
+
+function _check(
+    measure::Measure,
+    yhat::Arr{<:UnivariateFinite},
+    y,
+    w::Arr
+)
     check_dimensions(yhat, y)
     check_pools(yhat, y)
     extra_check(measure, yhat, y, w)
 end
-function _check(measure::Measure,
-                yhat::Arr{<:UnivariateFinite},
-                y,
-                w::AbstractDict)
+
+function _check(
+    measure::Measure,
+    yhat::Arr{<:UnivariateFinite},
+    y,
+    w::AbstractDict
+)
     check_dimensions(yhat, y)
     check_pools(yhat, y)
     check_pools(yhat, w)
     extra_check(measure, yhat, y, w)
 end
 
-
 # # METHODS TO EVALUATE MEASURES
 
 # See measures/README.md for details
 
-single(::Unaggregated, η̂::Missing, η)          = missing
-single(::Unaggregated, η̂,          η::Missing) = missing
+single(::Unaggregated, η̂::Missing, η) = missing
+single(::Unaggregated, η̂, η::Missing) = missing
 
-const Label = Union{CategoricalValue,Number,AbstractString,Symbol,AbstractChar}
+const Label = Union{CategoricalValue, Number, AbstractString, Symbol, AbstractChar}
 
 # closure for broadcasting:
 single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
@@ -110,9 +116,7 @@ function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
     return w .* unweighted
 end
 
-
 # ## Top level
-
 function (measure::Measure)(args...)
     _check(measure, args...)
     call(measure, args...)
@@ -122,8 +126,7 @@ end
 
 # user-bespoke measures will subtype `Measure` directly and the
 # following will therefore not apply:
-StatisticalTraits.supports_weights(::Type{<:Union{Aggregated,Unaggregated}}) =
-    true
+StatisticalTraits.supports_weights(::Type{<:Union{Aggregated, Unaggregated}}) = true
 
 is_measure_type(::Type{<:Measure}) = true
 is_measure(m) = is_measure_type(typeof(m))
@@ -144,12 +147,13 @@ show_as_constructed(::Type{<:Measure}) = true
 show_compact(::Type{<:Measure}) = true
 Base.show(io::IO, m::Measure) = show(io, MIME("text/plain"), m)
 
-# info (see also src/init.jl):
-function ScientificTypes.info(M, ::Val{:measure_type})
+# info
+function StatisticalTraits.info(M::Type{<:Measure})
     values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
     return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
-ScientificTypes.info(m, ::Val{:measure}) = info(typeof(m))
+
+StatisticalTraits.info(m::Measure) = StatisticalTraits.info(typeof(m))
 
 
 # # AGGREGATION
@@ -182,7 +186,6 @@ function value(measure, yhat, X, y, w)
                     supports_class_weights(measure))
     return value(measure, yhat, X, y, w, vfdep, vsweights)
 end
-
 
 # # UNIVERSAL CALLING INTERFACE
 
@@ -219,9 +222,7 @@ function check_pools(ŷ, w::AbstractDict)
     return nothing
 end
 
-
 # # INCLUDE SPECIFIC MEASURES AND TOOLS
-
 include("meta_utilities.jl")
 include("roc.jl")
 include("confusion_matrix.jl")
@@ -230,37 +231,64 @@ include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")
 
-
 # # DEFAULT MEASURES
 
 default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS
-default_measure(::Type{<:Deterministic},
-                ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
-                               Vec{<:Union{Missing,Count}}}}) = rms
+function default_measure(
+    ::Type{<:Deterministic},
+    ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
+    Vec{<:Union{Missing,Count}}}}
+)
+   return rms
+end
 
 # Deterministic + Finite ==> Misclassification rate
-default_measure(::Type{<:Deterministic},
-                ::Type{<:Vec{<:Union{Missing,Finite}}}) = misclassification_rate
+function default_measure(
+    ::Type{<:Deterministic},
+    ::Type{<:Vec{<:Union{Missing,Finite}}}
+) 
+    return misclassification_rate
+end
 
 # Probabilistic + Finite ==> log loss
-default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Finite}}}) = log_loss
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing,Finite}}}
+) 
+    return log_loss
+end
 
 # Probablistic + Continuous ==> Log loss
-default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Continuous}}}) = log_loss
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing,Continuous}}}
+) 
+    return log_loss
+end
 
 # Probablistic + Count ==> Log score
-default_measure(::Type{<:Probabilistic},
-                ::Type{<:Vec{<:Union{Missing,Count}}}) = log_loss
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing, Count}}}
+) 
+    return log_loss
+end
 
-default_measure(::Type{<:MMI.ProbabilisticDetector},
-                ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}) = area_under_curve
+function default_measure(
+    ::Type{<:MMI.ProbabilisticDetector},
+    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+) 
+    return area_under_curve
+end
 
-default_measure(::Type{<:MMI.DeterministicDetector},
-                ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}) = balanced_accuracy
+function default_measure(
+    ::Type{<:MMI.DeterministicDetector},
+    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+) 
+    return balanced_accuracy
+end
 
 # Fallbacks
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))

@@ -24,7 +24,6 @@ end
 struct DummyInterval <: Interval end
 dummy_interval=DummyInterval()
 
-
 dummy_measure_det(yhat, y) = 42
 MLJBase.target_scitype(::typeof(dummy_measure_det)) = Table(MLJBase.Textual)
 MLJBase.prediction_type(::typeof(dummy_measure_det)) = :deterministic
@@ -124,18 +123,21 @@ end
     @everywhere begin
         nfolds = 6
         nmeasures = 2
-        func(mach, k) = ((sleep(0.01*rand(rng)); fill(1:k, nmeasures)),
-                         :fitted_params,
-                         :report,)
+        func(mach, k) = (
+            (sleep(MLJBase.PROG_METER_DT*rand(rng)); fill(1:k, nmeasures)),
+            :fitted_params,
+            :report,
+        )
     end
     mach = machine(ConstantRegressor(), X, y)
-    p = Progress(nfolds, dt=0)
     if accel isa CPUThreads
-        result = MLJBase._evaluate!(func,
-                                    mach,
-                                    CPUThreads(Threads.nthreads()),
-                                    nfolds,
-                                    1)
+        result = MLJBase._evaluate!(
+            func,
+            mach,
+            CPUThreads(Threads.nthreads()),
+            nfolds,
+            1
+        )
     else
         result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
     end
@@ -144,7 +146,6 @@ end
         [1:1, 1:1, 1:2, 1:2, 1:3, 1:3, 1:4, 1:4, 1:5, 1:5, 1:6, 1:6]
     @test collect(result[2]) == fill(:fitted_params, nfolds)
 end
-
 
 @test CV(nfolds=6) == CV(nfolds=6)
 @test CV(nfolds=5) != CV(nfolds=6)
@@ -279,7 +280,7 @@ end
     x1 = ones(20)
     x2 = ones(20)
     X = (x1=x1, x2=x2)
-    y = rand(rng,20)
+    y = rand(rng, 20)
 
     holdout = Holdout(fraction_train=0.75, rng=rng)
     model = Models.DeterministicConstantRegressor()
@@ -507,8 +508,8 @@ end
 
 @testset_accelerated "resampler as machine" accel begin
     N = 50
-    X = (x1=rand(rng,N), x2=rand(rng,N), x3=rand(rng,N))
-    y = X.x1 -2X.x2 + 0.05*rand(rng,N)
+    X = (x1=rand(rng, N), x2=rand(rng, N), x3=rand(rng, N))
+    y = X.x1 -2X.x2 + 0.05*rand(rng, N)
     ridge_model = FooBarRegressor(lambda=20.0)
     holdout = Holdout(fraction_train=0.75)
     resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae,
