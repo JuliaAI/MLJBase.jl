@@ -403,7 +403,6 @@ include("composition/models/inspection.jl")
 include("composition/models/deprecated.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
-include("composition/models/_wrapped_function.jl")
 
 include("operations.jl")
 include("resampling.jl")
