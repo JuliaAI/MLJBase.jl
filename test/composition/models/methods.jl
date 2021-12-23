@@ -129,7 +129,8 @@ selector_model = FeatureSelector()
     fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
 
     # test data anonymity:
-    @test isempty(sources(fitresult[1])[1])
+    ss = sources(glb(values(MLJBase.signature(fitresult))...))
+    @test all(isempty, ss)
 
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
@@ -261,7 +262,12 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
         m = machine(model.model, W)
         yhat = predict(m, W)
         Wout = transform(m, W)
-        mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+        foo = node(η -> first(η), yhat)
+        mach = machine(Unsupervised(),
+                       Xs;
+                       predict=yhat,
+                       transform=Wout,
+                       report=(foo=foo,))
         return!(mach, model, verbosity)
     end
     X, _ = make_regression(10, 5);
@@ -272,11 +278,69 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
     @test transform(mach, X) == selectcols(X, 1:3)
     r = report(mach)
     @test r.model.centres == MLJBase.matrix(X)[1:3,:]
+    @test r.foo == predict(mach, rows=:)[1]
     fp = fitted_params(mach)
+    @test :model in keys(fp)
     levs = fp.model.fitresult
     @test predict(mach, X) == fill(levs[1], 10)
 end
 
+
+## NETWORK WITH MULTIPLE NODES REPORTING STATE/ REFIT
+
+mutable struct TwoStages <: DeterministicComposite
+    model1
+    model2
+    model3
+end
+
+function MLJBase.fit(m::TwoStages, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    mach1 = machine(m.model1, Xs, ys)
+    mach2 = machine(m.model2, Xs, ys)
+    ypred1 = MLJBase.predict(mach1, Xs)
+    ypred2 = MLJBase.predict(mach2, Xs)
+    Y = MLJBase.table(hcat(ypred1, ypred2))
+    mach3 = machine(m.model3, Y, ys)
+    ypred3 = MLJBase.predict(mach3, Y)
+    μpred = node(x->mean(x), ypred3)
+    σpred = node((x, μ)->mean((x.-μ).^2), ypred3, μpred)
+    mach = machine(Deterministic(),
+                   Xs,
+                   ys;
+                   predict=ypred3,
+                   report=(μpred=μpred,
+                           σpred=σpred))
+    return!(mach, m, verbosity)
+end
+
+@testset "Test exported-network with multiple saved nodes and refit" begin
+    X, y = make_regression(100, 3)
+    model3 = FooBarRegressor(lambda=1)
+    twostages = TwoStages(FooBarRegressor(lambda=0.1),
+                          FooBarRegressor(lambda=10), model3)
+    mach = machine(twostages, X, y)
+    fit!(mach, verbosity=0)
+    rep = report(mach)
+    # All machines have been fitted once
+    @test rep.machines[1].state ==
+        rep.machines[2].state ==
+        rep.machines[3].state == 1
+    # Retrieve current values of interest
+    μpred = rep.μpred
+    σpred = rep.σpred
+    # Change model3 and refit
+    model3.lambda = 10
+    fit!(mach, verbosity=0)
+    rep = report(mach)
+    # Machines 1,2 have been fitted once and machine 3 twice
+    @test rep.machines[1].state == rep.machines[2].state == 1
+    @test rep.machines[3].state == 2
+    # The new values have been updated
+    @test rep.μpred != μpred
+    @test rep.σpred != σpred
+end
 
 ## COMPOSITE WITH COMPONENT MODELS STORED IN NTUPLE
 

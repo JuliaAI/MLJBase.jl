@@ -5,13 +5,14 @@
 
 caches_data_by_default(::Type{<:Composite}) = true
 
-fitted_params(::Union{Composite,Surrogate},
-              fitresult::NamedTuple) =
-                  fitted_params(glb(values(fitresult)...))
+# builds on `fitted_params(::CompositeFitresult)` defined in
+# composition/learning_networks/machines.jl:
+fitted_params(::Union{Composite,Surrogate}, fitresult::CompositeFitresult) =
+    fitted_params(glb(fitresult))
 
 function update(model::M,
                 verbosity::Integer,
-                fitresult::NamedTuple,
+                fitresult::CompositeFitresult,
                 cache,
                 args...) where M <: Composite
 
@@ -33,7 +34,7 @@ function update(model::M,
     network_model_names = cache.network_model_names
     old_model = cache.old_model
 
-    glb_node = glb(values(fitresult)...) # greatest lower bound
+    glb_node = glb(fitresult) # greatest lower bound
 
     if fallback(model, old_model, network_model_names, glb_node)
         return fit(model, verbosity, args...)
@@ -46,6 +47,7 @@ function update(model::M,
     end
 
     fit!(glb_node; verbosity=verbosity)
+    update!(fitresult) # updates report_additions
 
     # anonymize data again:
     for s in sources
@@ -58,7 +60,10 @@ function update(model::M,
              network_model_names=cache.network_model_names,
              old_model = deepcopy(model))
 
-    return fitresult, cache, report(glb_node)
+    return (fitresult,
+            cache,
+            merge(report(glb_node),
+                  report_additions(fitresult)))
 
 end
 

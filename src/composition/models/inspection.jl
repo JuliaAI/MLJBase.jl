@@ -29,14 +29,12 @@ end
 function report(mach::Machine{<:Composite})
     machines = mach.report.machines
     dict = mach.report.report_given_machine
-    return merge(tuple_keyed_on_model_names(dict, mach),
-                 (machines=machines, report_given_machine=dict,))
+    return merge(tuple_keyed_on_model_names(dict, mach), mach.report)
 end
 
 function fitted_params(mach::Machine{<:Composite})
     fp = fitted_params(mach.model, mach.fitresult)
     _machines = fp.machines
     dict = fp.fitted_params_given_machine
-    return merge(MLJBase.tuple_keyed_on_model_names(dict, mach),
-                 (machines=_machines, fitted_params_given_machine=dict,))
+    return merge(MLJBase.tuple_keyed_on_model_names(dict, mach), fp)
 end

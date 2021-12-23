@@ -343,6 +343,14 @@ export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
 # ===================================================================
 ## CONSTANTS
 
+const PREDICT_OPERATIONS = (:predict,
+                            :predict_mean,
+                            :predict_mode,
+                            :predict_median,
+                            :predict_joint)
+
+const OPERATIONS = (PREDICT_OPERATIONS..., :transform, :inverse_transform)
+
 # the directory containing this file: (.../src/)
 const MODULE_DIR = dirname(@__FILE__)
 
