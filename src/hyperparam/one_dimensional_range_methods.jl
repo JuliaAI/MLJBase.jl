@@ -28,6 +28,9 @@ inverse_transform(::SCALE, ::Val{:log}, x) = exp(x)
 transform(::SCALE, ::Val{:logminus}, x) = log(-x)
 inverse_transform(::SCALE, ::Val{:logminus}, x) = -exp(x)
 
+transform(::SCALE, ::Val{:log10minus}, x) = log10(-x)
+inverse_transform(::SCALE, ::Val{:log10minus}, x) = -10^x
+
 transform(::SCALE, ::Val{:log10}, x) = log10(x)
 inverse_transform(::SCALE, ::Val{:log10}, x) = 10^x
 

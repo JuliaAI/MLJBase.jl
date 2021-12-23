@@ -224,7 +224,7 @@ end
     # resulting in the table of shape (nrows, 6) here nrows=6 
     # for future use by the metalearner
     sc = schema(Zval())
-    @test sc.nrows == 6
+    @test nrows(Zval()) == 6
     @test sc.names == (:x1, :x2, :x3, :x4, :x5, :x6)
 
     # The lines of yval should match the reordering indexes

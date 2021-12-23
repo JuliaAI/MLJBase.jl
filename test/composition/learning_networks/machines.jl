@@ -8,7 +8,6 @@ using Tables
 using StableRNGs
 rng = StableRNG(616161)
 
-
 # A dummy clustering model:
 mutable struct DummyClusterer <: Unsupervised
     n::Int
@@ -28,10 +27,29 @@ MLJBase.transform(model::DummyClusterer, fitresult, Xnew) =
 MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     [fill(fitresult[1], nrows(Xnew))...]
 
-@testset "wrapping a learning network in a machine" begin
 
-    N = 20
-    X = (a = rand(N), b = categorical(rand("FM", N)))
+N = 20
+X = (a = rand(N), b = categorical(rand("FM", N)))
+
+@testset "signature helpers" begin
+    @test MLJBase._call(NamedTuple()) == NamedTuple()
+    a = source(:a)
+    b = source(:b)
+    W = source(:W)
+    yhat = source(:yhat)
+    s = (transform=W,
+         report=(a=a, b=b),
+         predict=yhat)
+    @test MLJBase._report_part(s) == (a=a, b=b)
+    @test MLJBase._operation_part(s) == (transform=W, predict=yhat)
+    @test MLJBase._nodes(s) == (W, yhat, a, b)
+    @test MLJBase._operations(s) == (:transform, :predict)
+    R = MLJBase._call(MLJBase._report_part(s))
+    @test R.a == :a
+    @test R.b == :b
+end
+
+@testset "wrapping a learning network in a machine" begin
 
     # unsupervised:
     Xs = source(X)
@@ -40,41 +58,75 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
     m = machine(clust, W)
     yhat = predict(m, W)
     Wout = transform(m, W)
+    rnode = source(:stuff)
 
-    mach = machine(Unsupervised(), Xs; predict=yhat, transform=Wout)
+    # test of `fitted_params(::NamedTuple)':
+    fit!(Wout, verbosity=0)
+
+    @test_throws(MLJBase.ERR_BAD_SIGNATURE,
+                 machine(Unsupervised(),
+                         predict=yhat,
+                         fitted_params=rnode))
+    @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
+                 machine(Unsupervised(),
+                         predict=42))
+    @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
+                 machine(Unsupervised(), Xs;
+                         predict=yhat,
+                         transform=Wout,
+                         report=(some_stuff=42,)))
+    mach = machine(Unsupervised(), Xs;
+                   predict=yhat,
+                   transform=Wout,
+                   report=(some_stuff=rnode,))
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
     fit!(mach, force=true, verbosity=0)
+    Θ = mach.fitresult
+    @test Θ.predict == yhat
+    @test Θ.transform == Wout
+    Θ.report.some_stuff == rnode
+    @test report(mach).some_stuff == :stuff
 
-    report(mach)
-    fitted_params(mach)
+    @test report(mach).machines == fitted_params(mach).machines
 
     # supervised
     y = rand("ab", N) |> categorical;
     ys = source(y)
     mm = machine(ConstantClassifier(), W, ys)
     yhat = predict(mm, W)
+    e = @node auc(yhat, ys)
+
     @test_throws Exception machine(predict=yhat)
-    mach = machine(Probabilistic(), Xs, ys; predict=yhat)
+    mach = machine(Probabilistic(), Xs, ys;
+                   predict=yhat,
+                   report=(training_auc=e,))
     @test mach.model isa Probabilistic
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
+    @test_throws ArgumentError machine(Probabilistic(), Xs, ys;
+                                       report=(training_auc=e,))
+
+    # test extra report items coming from `training_auc=e` above
+    fit!(mach, verbosity=0)
+    err = auc(yhat(), y)
+    @test report(mach).training_auc ≈ err
 
     # supervised - predict_mode
-    fit!(mach, verbosity=0)
     @test predict_mode(mach, X) == mode.(predict(mach, X))
-    @test predict(mach, rows=1:2) == predict(mach, rows=:)[1:2]
+    predict_mode(mach, rows=1:2) == predict_mode(mach, rows=:)[1:2]
 
     # evaluate a learning machine
     evaluate!(mach, measure=LogLoss(), verbosity=0)
 
     # supervised - predict_median, predict_mean
-    X, y = make_regression(20)
-    Xs = source(X); ys = source(y)
+    X1, y1 = make_regression(20)
+
+    Xs = source(X1); ys = source(y1)
     mm = machine(ConstantRegressor(), Xs, ys)
     yhat = predict(mm, Xs)
     mach = fit!(machine(Probabilistic(), Xs, ys; predict=yhat), verbosity=0)
-    @test predict_mean(mach, X) ≈ mean.(predict(mach, X))
-    @test predict_median(mach, X) ≈ median.(predict(mach, X))
+    @test predict_mean(mach, X1) ≈ mean.(predict(mach, X1))
+    @test predict_median(mach, X1) ≈ median.(predict(mach, X1))
 
 end
 
@@ -100,6 +152,7 @@ oakM = machine(oak, W, u)
 uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
+enode = @node mae(ys, yhat)
 
 @testset "replace method for learning network machines" begin
 
@@ -116,11 +169,13 @@ yhat = exp(zhat)
     knn2 = deepcopy(knn)
 
     # duplicate a learning network machine:
-    mach  = machine(Deterministic(), Xs, ys; predict=yhat)
+    mach  = machine(Deterministic(), Xs, ys;
+                    predict=yhat,
+                    report=(mae=enode,))
     mach2 = replace(mach, hot=>hot2, knn=>knn2,
                     ys=>source(ys.data);
                     empty_unspecified_sources=true)
-    ss = sources(glb(mach2.fitresult...))
+    ss = sources(glb(mach2))
     @test isempty(ss[1])
     mach2 = @test_logs((:warn, r"No replacement"),
                        replace(mach, hot=>hot2, knn=>knn2,
@@ -129,6 +184,8 @@ yhat = exp(zhat)
     fit!(mach, verbosity=0)
     fit!(mach2, verbosity=0)
     @test predict(mach, X) ≈ predict(mach2, X)
+    @test MLJBase.report_additions(mach.fitresult).mae ≈
+        MLJBase.report_additions(mach2.fitresult).mae
 
     @test mach2.args[1]() == Xs()
     @test mach2.args[2]() == ys()

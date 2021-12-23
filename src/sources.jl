@@ -133,3 +133,14 @@ function Base.show(stream::IO, ::MIME"text/plain", source::Source)
     print(stream, " \u23CE `$(elscitype(source))`")
     return nothing
 end
+
+## SPECIAL NODE TO THROW EXCEPTION WHEN CALLED
+
+struct ErrorNode{E} <: AbstractNode
+    exception::E
+end
+(n::ErrorNode)(args...; kwargs...) = throw(n.exception)
+
+origins(::ErrorNode) = AbstractNode[]
+nodes(::ErrorNode) = AbstractNode[]
+machines(::ErrorNode) = Machine[]

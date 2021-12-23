@@ -38,11 +38,6 @@ repository provides core functionality for MLJ, including:
 
 - basic utilities for **manipulating data**
   
-- an extension to
-  [Distributions.jl](https://github.com/JuliaStats/Distributions.jl)
-  called `UnivariateFinite` for randomly sampling *labeled*
-  categorical data
-
 - a [small interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1) for **resampling strategies** and implementations, including `CV()`, `StratifiedCV` and `Holdout`
 
 - methods for **performance evaluation**, based on those resampling strategies
@@ -59,9 +54,3 @@ repository provides core functionality for MLJ, including:
   library, user-defined measures, as well as about forty natively
   defined measures.
 
-
-Previously MLJBase provided the model interface for integrating third
-party machine learning models into MLJ. That role has now shifted to
-the light-weight
-[MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl)
-package.
