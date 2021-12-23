@@ -1,11 +1,11 @@
+# `vtrait` (internal method, not to be re-exported)
+MMI.vtrait(::FI, X, s) = ScientificTypes.vtrait(X)
 # ------------------------------------------------------------------------
-# categorical
-
+# `categorical`
 MMI.categorical(::FI, a...; kw...) = categorical(a...; kw...)
 
 # ------------------------------------------------------------------------
-# matrix
-
+# `matrix`
 MMI.matrix(::FI, ::Val{:table}, X; kw...) = Tables.matrix(X; kw...)
 
 # ------------------------------------------------------------------------
@@ -19,18 +19,17 @@ MMI.int(::FI, x; args...) = CategoricalDistributions.int(x; args...)
 MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
 
 # ------------------------------------------------------------------------
-# schema
-
-MMI.schema(::FI, ::Val{:table}, X; kw...) = schema(X; kw...)
-
+# `schema`
+function MMI.schema(::FI, ::Union{Val{:other}, Val{:table}}, X; kw...)
+    return schema(X; kw...)
+end
 # ------------------------------------------------------------------------
 # decoder
 
 MMI.decoder(::FI, x) = CategoricalDistributions.decoder(x)
 
 # ------------------------------------------------------------------------
-# table
-
+# `table`
 function MMI.table(::FI, cols::NamedTuple; prototype=NamedTuple())
 
     Tables.istable(prototype) || error("`prototype` is not a table. ")
@@ -54,13 +53,11 @@ function MMI.table(::FI, A::AbstractMatrix; names=nothing, prototype=nothing)
 end
 
 # ------------------------------------------------------------------------
-# nrows, selectrows, selectcols
-
+# `nrows`, `selectrows`, `selectcols`
 function MMI.nrows(::FI, ::Val{:table}, X)
     if Tables.rowaccess(X)
         rows = Tables.rows(X)
         return _nrows_rat(Base.IteratorSize(typeof(rows)), rows)
-
     else
         cols = Tables.columns(X)
         return _nrows_cat(cols)
@@ -92,7 +89,7 @@ function MMI.selectrows(::FI, ::Val{:table}, X, r)
     return Tables.materializer(X)(new_cols)
 end
 
-function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol,Integer})
+function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     cols = Tables.columntable(X) # named tuple of vectors
     return cols[c]
 end
@@ -104,19 +101,23 @@ function MMI.selectcols(::FI, ::Val{:table}, X, c::AbstractArray)
 end
 
 # -------------------------------
-# utils for select*
+# utils for `select`*
 
 # project named tuple onto a tuple with only specified `labels` or indices:
-project(t::NamedTuple, labels::AbstractArray{Symbol}) =
-    NamedTuple{tuple(labels...)}(t)
+function project(t::NamedTuple, labels::AbstractArray{Symbol})
+    return NamedTuple{tuple(labels...)}(t)
+end
+
 project(t::NamedTuple, label::Colon) = t
 project(t::NamedTuple, label::Symbol) = project(t, [label,])
-project(t::NamedTuple, indices::AbstractArray{<:Integer}) =
-    NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
+function project(t::NamedTuple, indices::AbstractArray{<:Integer})
+    return NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
+end
+
 # utils for selectrows
-typename(X)    = split(string(supertype(typeof(X)).name), '.')[end]
+typename(X) = split(string(supertype(typeof(X)).name), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
 
 # ----------------------------------------------------------------
