@@ -1,3 +1,12 @@
+# # TYPE ALIASES
+
+const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
+const TrainTestPair = Tuple{AbstractRow,AbstractRow}
+const TrainTestPairs = AbstractVector{<:TrainTestPair}
+
+
+# # ERROR MESSAGES
+
 const PREDICT_OPERATIONS_STRING = begin
     strings = map(PREDICT_OPERATIONS) do op
         "`"*string(op)*"`"
@@ -437,14 +446,72 @@ end
 # ================================================================
 ## EVALUATION RESULT TYPE
 
-const PerformanceEvaluation = NamedTuple{(:measure,
-                                          :measurement,
-                                          :operation,
-                                          :per_fold,
-                                          :per_observation,
-                                          :fitted_params_per_fold,
-                                          :report_per_fold,
-                                          :train_test_rows)}
+"""
+    PerformanceEvaluation
+
+Type of object returned by [`evaluate`](@ref) (for models plus data)
+or [`evaluate!`](@ref) (for machines). Such objects encode estimates
+of the performance (generalization error) of a supervised model or
+outlier detection model.
+
+When `evaluate`/`evaluate!` is called, a number of train/test pairs
+("folds") of row indices are generated, according to the options
+provided, which are discussed in the [`evaluate!`](@ref)
+doc-string. Rows correspond to observations.  The train/test pairs
+generated are recorded in the `train_test_rows` field of the
+`PerformanceEvaluation` struct, and the corresponding estimates,
+aggregated over all train/test pairs, are recorded in `measurement`, a
+vector with one entry for each measure (metric) recorded in `measure`.
+
+### Fields
+
+- `measure`: vector of measures (metrics) used to evaluate performance
+
+- `measurement`: vector of measurements - one for each element of
+  `measure` - aggregating the performance measurements over all
+  train/test pairs (folds). The aggregation method applied for a given
+  measure `m` is `aggregation(m)` (commonly `Mean` or `Sum`)
+
+- `operation` (e.g., `predict_mode`): the operations applied for each
+  measure to generate predictions to be evaluated. Possibilities are:
+  $PREDICT_OPERATIONS_STRING.
+
+- `per_fold`: a vector of vectors of individual test fold evaluations
+  (one vector per measure). Useful for obtaining a rough estimate of
+  the variance of the performance estimate.
+
+- `per_observation`: a vector of vectors of individual observation
+  evaluations of those measures for which
+  `reports_each_observation(measure)` is true, which is otherwise
+  reported `missing`. Useful for some forms of hyper-parameter
+  optimization.
+
+- `fitted_params_per_fold`: a vector containing `fitted params(mach)`
+  for each machine `mach` trained during resampling - one machine per
+  train/test pair. Use this to extract the learned parameters for each
+  individual training event.
+
+- `report_per_fold`: a vector containing `report(mach)` for each
+  machine `mach` training in resampling - one machine per train/test
+  pair.
+
+"""
+struct PerformanceEvaluation{M,
+                             Measurement,
+                             Operation,
+                             PerFold,
+                             PerObservation,
+                             FittedParamsPerFold,
+                             ReportPerFold} <: MLJType
+    measure::M
+    measurement::Measurement
+    operation::Operation
+    per_fold::PerFold
+    per_observation::PerObservation
+    fitted_params_per_fold::FittedParamsPerFold
+    report_per_fold::ReportPerFold
+    train_test_rows::TrainTestPairs
+end
 
 # pretty printing:
 round3(x) = x
@@ -812,31 +879,8 @@ untouched.
 
 ### Return value
 
-A property-accessible object of type `PerformanceEvaluation` with
-these properties:
-
-- `measure`: the vector of specified measures
-
-- `measurement`: the corresponding measurements, aggregated across the
-  test folds using the aggregation method defined for each measure (do
-  `aggregation(measure)` to inspect)
-
-- `operation`: for each measure, the operation applied; one of:
-  $PREDICT_OPERATIONS_STRING.
-
-- `per_fold`: a vector of vectors of individual test fold evaluations
-  (one vector per measure)
-
-- `per_observation`: a vector of vectors of individual observation
-  evaluations of those measures for which
-  `reports_each_observation(measure)` is true, which is otherwise
-  reported `missing`
-
-- `fitted_params_per_fold`: a vector containing `fitted pamarms(mach)` for each
-  machine `mach` trained during resampling.
-
-- `report_per_fold`: a vector containing `report(mach)` for each
-  machine `mach` training in resampling
+A [`PerformanceEvaluation`](@ref) object. See
+[`PerformanceEvaluation`](@ref) for details.
 
 """
 function evaluate!(mach::Machine{<:Measurable};
