@@ -52,6 +52,16 @@ function Base.show(stream::IO,
     return nothing
 end
 
+WARN_INFERRING_TYPE =
+    "Inferring the hyper-parameter type from the given "*
+    "model instance as the corresponding field is typed `Any`."
+
+ERROR_AMBIGUOUS_UNION = ArgumentError(
+    "The inferred hyper-parameter type is ambiguous, because "*
+    "the union type contains multiple real subtypes. You can "*
+    "specify the correct type as first argument of `range`, as"*
+    " in the example, `range(Int, :dummy, lower=1, upper=10)`.")
+
 """
     r = range(model, :hyper; values=nothing)
 
@@ -70,7 +80,8 @@ Assuming `values` is not specified, define a one-dimensional
 that `r` is not directly iteratable but `iterator(r, n)`is an iterator
 of length `n`. To generate random elements from `r`, instead apply
 `rand` methods to `sampler(r)`. The supported scales are `:linear`,`
-:log`, `:logminus`, `:log10`, `:log2`, or a callable object.
+:log`, `:logminus`, `:log10`, `:log10minus`, `:log2`, or a callable
+object.
 
 Note that `r` is not directly iterable, but `iterator(r, n)` is, for
 given resolution (length) `n`.
@@ -84,9 +95,9 @@ behaviour is determined by the value of the specified type.
 A nested hyperparameter is specified using dot notation (see above).
 
 If `scale` is unspecified, it is set to `:linear`, `:log`,
-`:logminus`, or `:linear`, according to whether the interval `(lower,
-upper)` is bounded, right-unbounded, left-unbounded, or doubly
-unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
+`:log10minus`, or `:linear`, according to whether the interval
+`(lower, upper)` is bounded, right-unbounded, left-unbounded, or
+doubly unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
 allowed.
 
 If `values` is specified, the other keyword arguments are ignored and
@@ -104,13 +115,26 @@ function Base.range(model::Union{Model, Type}, field::Union{Symbol,Expr};
                             "unit=..."))
 
     if model isa Model
-        value = recursive_getproperty(model, field)
-        T = typeof(value)
+        T = recursive_getpropertytype(model, field)
+        if T === Any
+            @warn WARN_INFERRING_TYPE
+            T = typeof(recursive_getproperty(model, field))
+        end
     else
         T = model
     end
-    if T <: Real && values === nothing
-        return numeric_range(T, D, field, lower, upper, origin, unit, scale)
+    possible_types = filter(t -> t <: Real, Base.uniontypes(T))
+    n_possible_types = length(possible_types)
+    if n_possible_types > 0 && values === nothing
+        n_possible_types > 1 && throw(ERROR_AMBIGUOUS_UNION)
+        return numeric_range(first(possible_types),
+                             D,
+                             field,
+                             lower,
+                             upper,
+                             origin,
+                             unit,
+                             scale)
     else
         return nominal_range(T, field, values)
     end
@@ -156,12 +180,12 @@ function numeric_range(T, D, field, lower, upper, origin, unit, scale)
             scale === nothing && (scale = :linear)
         else
             B = LeftUnbounded
-            scale === nothing && (scale = :logminus)
+            scale === nothing && (scale = :log10minus)
         end
     else
         if upper === Inf
             B = RightUnbounded
-            scale === nothing && (scale = :log)
+            scale === nothing && (scale = :log10)
         else
             B = Bounded
             scale === nothing && (scale = :linear)

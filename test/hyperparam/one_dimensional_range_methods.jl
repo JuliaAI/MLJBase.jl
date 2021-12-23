@@ -185,7 +185,7 @@ end
         Random.seed!(1);
         v = rand(s, 1000)
         @test all(x >= 0.2 for x in v)
-        @test abs(minimum(v)/0.2 - 1) <= 0.01
+        @test abs(minimum(v)/0.2 - 1) <= 0.02
 
         rng = _default_rng(1);
         @test rand(rng, s, 1000) == v

@@ -11,6 +11,10 @@ end
 
 dummy_model = DummyModel(4, 9.5, 'k')
 
+mutable struct AnyModel <: Deterministic
+    any
+end
+
 mutable struct SuperModel <: Deterministic
     lambda::Float64
     model1::DummyModel
@@ -19,6 +23,7 @@ end
 
 dummy1 = DummyModel(1, 9.5, 'k')
 dummy2 = DummyModel(2, 9.5, 'k')
+any1 = AnyModel(1)
 super_model = SuperModel(0.5, dummy1, dummy2)
 
 @testset "constructors" begin
@@ -65,13 +70,13 @@ super_model = SuperModel(0.5, dummy1, dummy2)
     @test z2.origin == 10^6
     @test z2.unit == 10^5
     @test z2.upper  == Inf
-    @test z2.scale == :log
+    @test z2.scale == :log10
 
     z3 = range(dummy_model, :K, upper=-10, origin=-10^6, unit=10^5)
     @test z3.origin == -10^6
     @test z3.unit == 10^5
     @test z3.lower  == -Inf
-    @test z3.scale == :logminus
+    @test z3.scale == :log10minus
 
     z4 = range(super_model, :lambda, lower=1, upper=10)
     @test z4.origin == 5.5
@@ -97,6 +102,18 @@ end
     q1 = range(super_model, :(model1.K) , lower=1, upper=10, scale=:log10)
     @test iterator(q1, 5) == iterator(p1, 5)
     q2 = range
+end
+
+@testset "warnings and errors" begin
+    # unambiguous union should work
+    @test range(Union{Nothing, Float64}, :any, lower=1, upper=10) ==
+        range(Float64, :any, lower=1, upper=10)
+    # ambiguous union should fail
+    @test_throws(MLJBase.ERROR_AMBIGUOUS_UNION,
+                 range(Union{Float32, Float64}, :any, lower=1, upper=10))
+    # untyped parameters should warn if inferred
+    @test_logs((:warn, MLJBase.WARN_INFERRING_TYPE),
+               range(any1, :any, lower=1, upper=10))
 end
 
 end
