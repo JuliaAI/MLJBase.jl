@@ -1221,18 +1221,16 @@ function evaluate!(mach::Machine, resampling, weights,
         MLJBase.aggregate(per_fold[k], m)
     end
 
-    ret = (
-        measure = measures,
-        measurement = per_measure,
-        operation = operations,
-        per_fold = per_fold,
-        per_observation = per_observation,
-        fitted_params_per_fold = fitted_params_per_fold |> collect,
-        report_per_fold = report_per_fold |> collect,
-        train_test_rows = resampling
+    return PerformanceEvaluation(
+        measures,
+        per_measure,
+        operations,
+        per_fold,
+        per_observation,
+        fitted_params_per_fold |> collect,
+        report_per_fold |> collect,
+        resampling
     )
-
-    return ret
 
 end
 
