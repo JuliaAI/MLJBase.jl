@@ -98,7 +98,7 @@ warn_generic_scitype_mismatch(S, F) =
     "expected by model's `fit` method.\n"*
     "  provided: $S\n  expected by fit: $F"
 
-warn_scitype(model::Supervised, X, y) =
+warn_scitype(model::Union{Supervised, Unsupervised}, X, y) =
     "The scitype of `y`, in `machine(model, X, y, ...)` "*
     "is incompatible with "*
     "`model=$model`:\nscitype(y) = "*
@@ -186,7 +186,11 @@ function check(model::Union{Supervised, SupervisedAnnotator}, args... ; full = f
 end
 
 function check(model::Unsupervised, args...; full=false)
-    check_unsupervised(model, full, args...)
+    if fit_data_scitype(model) <: NTuple{2, Any}
+        check_supervised(model, full, args...)
+    else
+        check_unsupervised(model, full, args...)
+    end
 end
 
 function check(model::UnsupervisedAnnotator, args... ; full = false)
