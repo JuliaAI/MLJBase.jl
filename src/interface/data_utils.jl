@@ -19,10 +19,17 @@ MMI.int(::FI, x; args...) = CategoricalDistributions.int(x; args...)
 MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
 
 # ------------------------------------------------------------------------
-# `schema`
-function MMI.schema(::FI, ::Union{Val{:other}, Val{:table}}, X; kw...)
-    return schema(X; kw...)
+# `scitype`
+function MMI.scitype(::FI, ::Union{Val{:other}, Val{:table}}, X)
+    return ScientificTypes.scitype(X)
 end
+
+# ------------------------------------------------------------------------
+# `schema`
+function MMI.schema(::FI, ::Union{Val{:other}, Val{:table}}, X)
+    return ScientificTypes.schema(X)
+end
+
 # ------------------------------------------------------------------------
 # decoder
 
