@@ -14,6 +14,35 @@ end
     @test classes(v) == levels(v)
 end
 
+@testset "MLJModelInterface.scitype overload" begin
+    ST = MLJBase.ScientificTypes
+    x = rand(Int, 3)
+    y = rand(Int, 2, 3)
+    z = rand(3)
+    a = rand(4, 3)
+    b = categorical(["a", "b", "c"])
+    c = categorical(["a", "b", "c"]; ordered=true)
+    X = (x1=x, x2=z, x3=b, x4=c)
+    @test MLJModelInterface.scitype(x) == ST.scitype(x)    
+    @test MLJModelInterface.scitype(y) == ST.scitype(y)
+    @test MLJModelInterface.scitype(z) == ST.scitype(z)
+    @test MLJModelInterface.scitype(a) == ST.scitype(a)
+    @test MLJModelInterface.scitype(b) == ST.scitype(b)
+    @test MLJModelInterface.scitype(c) == ST.scitype(c)
+    @test MLJModelInterface.scitype(X) == ST.scitype(X)
+end
+
+@testset "MLJModelInterface.schema overload" begin
+    ST = MLJBase.ScientificTypes
+    x = rand(Int, 3)
+    z = rand(3)
+    b = categorical(["a", "b", "c"])
+    c = categorical(["a", "b", "c"]; ordered=true)
+    X = (x1=x, x2=z, x3=b, x4=c)
+    @test_throws ArgumentError MLJModelInterface.schema(x)    
+    @test MLJModelInterface.schema(X) == ST.schema(X)
+end
+
 @testset "int, classes, decoder" begin
     N = 10
     mix = shuffle(rng, 0:N - 1)
