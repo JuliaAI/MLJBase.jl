@@ -22,8 +22,7 @@ import StatisticalTraits.info
 
 # Interface
 
-# HACK: When https://github.com/JuliaAI/MLJModelInterface.jl/issues/124 and
-# https://github.com/JuliaAI/MLJModelInterface.jl/issues/131 is resolved:
+# HACK: When https://github.com/JuliaAI/MLJModelInterface.jl/issues/124
 # Uncomment next line and delete "Hack Block"
 # using MLJModelInterface
 #####################
@@ -37,8 +36,7 @@ for name in exported_names(MLJModelInterface)
     name in [
         :UnivariateFinite,
         :augmented_transform,
-        :info,
-        :scitype # Needed to avoid clashing with `ScientificTypes.scitype` 
+        :info 
     ] && continue
     quote
         import MLJModelInterface.$name
