@@ -263,6 +263,36 @@ end
 end
 
 
+## DUMMY TRANSFORMER WITH TARGET
+
+struct DummyTargetTransformer <: Unsupervised
+    n::Int
+end
+
+MLJModelInterface.fit_data_scitype(M::Type{<:DummyTargetTransformer}) = Tuple{AbstractMatrix{Count}, AbstractVector{Count}}
+
+function MLJModelInterface.fit(model::DummyTargetTransformer, verbosity, X, y)
+    n = model.n
+    fitresult = n
+    cache = nothing
+    return fitresult, cache, NamedTuple()
+end
+
+MLJModelInterface.transform(model::DummyTargetTransformer, result, X) = X[:, begin:result]
+
+@testset "dummy transformer with target" begin
+    dummytarget = DummyTargetTransformer(2)
+
+    X = [1 2 3 4 5; 6 7 8 9 10; 11 12 13 14 15]
+    y = [3, 1, 2]
+
+    mach = machine(dummytarget, X, y)
+
+    X_trans = transform(mach, X)
+    @test size(X_trans) == (3, 2)
+    @test X[:, 1:2] == X_trans
+end
+
 end # module
 
 true

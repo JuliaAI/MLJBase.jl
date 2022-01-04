@@ -110,7 +110,7 @@ warn_scitype(model::Unsupervised, X) =
     "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
     "input_scitype(model) = $(input_scitype(model))."
 
-err_length_mismatch(model::Supervised) = DimensionMismatch(
+err_length_mismatch(model::Union{Supervised, Unsupervised}) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
