@@ -80,6 +80,13 @@ err_supervised_nargs() = ArgumentError(
     "Use  `machine(model, X, y; ...)` or "*
     "`machine(model, X, y, extras...; ...)`. ")
 
+err_unsupervised_target_nargs() = ArgumentError(
+    "This `Unsupervised` model was defined with at "*
+    "least two training arguments - thus it must have "*
+    "at least two when used. "*
+    "Use  `machine(model, X, y; ...)` or "*
+    "`machine(model, X, y, extras...; ...)`. ")
+
 err_unsupervised_nargs() = ArgumentError(
     "`Unsupervised` models should have one "*
     "training argument, except `Static` models, which have none. "*
@@ -187,6 +194,8 @@ end
 
 function check(model::Unsupervised, args...; full=false)
     if fit_data_scitype(model) <: NTuple{2, Any}
+        nargs = length(args)
+        nargs > 1 || throw(err_unsupervised_target_nargs())
         check_supervised(model, full, args...)
     else
         check_unsupervised(model, full, args...)
