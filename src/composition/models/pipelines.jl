@@ -613,3 +613,5 @@ function iteration_parameter(pipe::SupervisedPipeline)
     name =  supervised_component_name(pipe)
     MLJBase.prepend(name, iteration_parameter(model))
 end
+
+target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
