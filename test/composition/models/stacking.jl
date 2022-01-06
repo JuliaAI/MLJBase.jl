@@ -171,7 +171,7 @@ end
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling)
+    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing)
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]
