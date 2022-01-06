@@ -329,7 +329,7 @@ end
 @testset "Test maybe_evaluate" begin
     ypred = source([1, 2 , 3, 4])
     ytest = source([1, 2, 3, 5])
-    @test MLJBase.maybe_evaluate(ypred, ytest, nothing) == []
+    @test MLJBase.maybe_evaluate(ypred, ytest, nothing) == nothing
 
     out = MLJBase.maybe_evaluate(ypred, ytest, [rms, rsq])
     @test out() == [0.5, 0.8857142857142857]
@@ -352,7 +352,7 @@ end
                             [source([6, 7]), source([8, 9]), source([10, 11])],
                             [source([12, 13]), source([14, 15]), source([16, 17])])
 
-    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...)()
+    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...).report()
     # FoldId 1
     @test internalreport[1][constant] == [1, 2]
     @test internalreport[1][decisiontree] == [2, 3]
