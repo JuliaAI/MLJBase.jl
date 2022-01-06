@@ -565,10 +565,6 @@ end
     @test MLJBase.as_type(:unsupervised) == Unsupervised
 end 
 
-@testset "Traits" begin
-    
-end
-
 end
 
 true
