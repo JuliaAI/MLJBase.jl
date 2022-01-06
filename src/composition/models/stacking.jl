@@ -30,9 +30,10 @@ mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: Determ
    models::Vector{Supervised}
    metalearner::Deterministic
    resampling
-   function DeterministicStack(modelnames, models, metalearner, resampling)
+   internal_measures
+   function DeterministicStack(modelnames, models, metalearner, resampling, internal_measures)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, internal_measures)
    end
 end
 
@@ -40,9 +41,10 @@ mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: Probab
     models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
-    function ProbabilisticStack(modelnames, models, metalearner, resampling)
+    internal_measures
+    function ProbabilisticStack(modelnames, models, metalearner, resampling, internal_measures)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, internal_measures)
     end
  end
 
@@ -135,7 +137,7 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 ```
 
 """
-function Stack(;metalearner=nothing, resampling=CV(), named_models...)
+function Stack(;metalearner=nothing, resampling=CV(), internal_measures=nothing, named_models...)
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
@@ -144,9 +146,9 @@ function Stack(;metalearner=nothing, resampling=CV(), named_models...)
     models = collect(nt)
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, resampling)
+        stack =  DeterministicStack(modelnames, models, metalearner, resampling, internal_measures)
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
+        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, internal_measures)
     else
         throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))
@@ -193,6 +195,7 @@ Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:resampling, :m
 function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
     name === :resampling && return getfield(stack, :resampling)
+    name == :internal_measures && return getfield(stack, :internal_measures)
     models = getfield(stack, :models)
     for j in eachindex(modelnames)
         name === modelnames[j] && return models[j]
@@ -253,9 +256,37 @@ pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<
     ŷ
 
 
+maybe_evaluate(ypred::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
+function maybe_evaluate(ypred::AbstractNode, ytest::AbstractNode, measures)
+    node((ypred, ytest) -> [m(ypred, ytest) for m in measures], ypred, ytest)
+end
+
+internal_stack_report(m::Stack, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+function internal_stack_report(m::Stack, folds_evaluations::Vararg{AbstractNode})
+    _internal_stack_report(folds_evaluations...) =
+        internal_stack_report(m, folds_evaluations...)
+    return (report=node(_internal_stack_report, folds_evaluations...),)
+end
+
+function internal_stack_report(m::Stack, folds_evaluations...)
+    results = []
+    index = 1
+    for foldid in 1:m.resampling.nfolds
+        foldresults = Dict()
+        for model in getfield(m, :models)
+            foldresults[model] = folds_evaluations[index]
+            index += 1
+        end
+        push!(results, foldresults)
+    end
+    return results
+end
+
+
 function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
     yval = []
+    folds_evaluations = []
     # Loop over the cross validation folds to build a training set for the metalearner.
     for nfold in 1:m.resampling.nfolds
         Xtrain = trainrows(Xs, folds, nfold)
@@ -269,12 +300,13 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
         for model in getfield(m, :models)
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
+            # Internal evaluation on the fold if required
+            push!(folds_evaluations, maybe_evaluate(ypred, ytest, m.internal_measures))
             # Dispatch the computation of the expected mean based on
             # the model type and target_scytype
             ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
             push!(Zfold, ypred)
         end
-
         Zfold = hcat(Zfold...)
 
         push!(Zval, Zfold)
@@ -284,7 +316,7 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = MLJBase.table(vcat(Zval...))
     yval = vcat(yval...)
 
-    Zval, yval
+    Zval, yval, folds_evaluations
 end
 
 #######################################
@@ -301,7 +333,7 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     folds = getfolds(ys, m.resampling, n)
 
-    Zval, yval = oos_set(m, folds, Xs, ys)
+    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
 
     metamach = machine(m.metalearner, Zval, yval)
 
@@ -317,8 +349,10 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zpred = MLJBase.table(hcat(Zpred...))
     ŷ = predict(metamach, Zpred)
 
+    internal_report = internal_stack_report(m, folds_evaluations...)
+
     # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ)
+    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, report=internal_report)
 
     return!(mach, m, verbosity)
 

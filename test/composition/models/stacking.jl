@@ -325,6 +325,71 @@ end
     
 end
 
+
+@testset "Test maybe_evaluate" begin
+    ypred = source([1, 2 , 3, 4])
+    ytest = source([1, 2, 3, 5])
+    @test MLJBase.maybe_evaluate(ypred, ytest, nothing) == []
+
+    out = MLJBase.maybe_evaluate(ypred, ytest, [rms, rsq])
+    @test out() == [0.5, 0.8857142857142857]
+end
+
+@testset "Test internal_stack_report" begin
+    constant = DeterministicConstantRegressor()
+    decisiontree = DecisionTreeRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    internal_measures=[rms, rsq],
+                    constant=constant,
+                    decisiontree=decisiontree,
+                    ridge=ridge)
+
+    # Measures are added incrementally by model for each fold by `maybe_evaluate`
+    # ie: 3 folds, 3 models per fold
+    evaluation_nodes = vcat([source([1, 2]), source([2, 3]), source([4, 5])],
+                            [source([6, 7]), source([8, 9]), source([10, 11])],
+                            [source([12, 13]), source([14, 15]), source([16, 17])])
+
+    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...)()
+    # FoldId 1
+    @test internalreport[1][constant] == [1, 2]
+    @test internalreport[1][decisiontree] == [2, 3]
+    @test internalreport[1][ridge] == [4, 5]
+    # FoldId 2
+    @test internalreport[2][constant] == [6, 7]
+    @test internalreport[2][decisiontree] == [8, 9]
+    @test internalreport[2][ridge] == [10, 11]
+    # FoldId 1
+    @test internalreport[3][constant] == [12, 13]
+    @test internalreport[3][decisiontree] == [14, 15]
+    @test internalreport[3][ridge] == [16, 17]
+    
+end
+
+@testset "Test internal evaluation of the stack" begin
+    X, y = make_regression(500, 5; rng=rng)
+    constant = DeterministicConstantRegressor()
+    decisiontree = DecisionTreeRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    internal_measures=[rms, rsq],
+                    constant=constant,
+                    decisiontree=decisiontree,
+                    ridge=ridge)
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    perf_measures = report(mach).report
+    @test length(perf_measures) == 3
+    for foldres in perf_measures
+        for (model, perf) in foldres
+            @test any(model == m for m in (constant, decisiontree, ridge))
+         end
+    end
+end
+
 end
 
 true
