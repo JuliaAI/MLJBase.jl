@@ -288,6 +288,8 @@ MLJModelInterface.transform(model::DummyTargetTransformer, result, X) = X[:, beg
 
     mach = machine(dummytarget, X, y)
 
+    fit!(mach)
+
     X_trans = transform(mach, X)
     @test size(X_trans) == (3, 2)
     @test X[:, 1:2] == X_trans
