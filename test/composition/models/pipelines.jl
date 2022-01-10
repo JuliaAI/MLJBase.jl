@@ -358,6 +358,9 @@ end
     MLJBase.tree(mach.fitresult.predict).arg1.model.features == [:x3, ]
     @test predict(mach, X) ≈ hand_built
 
+    # Check target_scitype of a supervised pipeline is the same as the supervised component
+    @test target_scitype(p) == target_scitype(KNNRegressor())
+
     # test cache is set correctly internally:
     @test all(fitted_params(mach).machines) do m
         MLJBase._cache_status(m)  == " caches data"
@@ -408,6 +411,9 @@ end
     fit!(mach, verbosity=0)
     @test predict(mach, X) == fill('f', 7)
 
+    # Check target_scitype of a supervised pipeline is the same as the supervised component
+    @test target_scitype(p) == target_scitype(ConstantClassifier())
+    
     # test pipelines with weights:
     w = map(y) do η
         η == 'm' ? 100 : 1
@@ -436,6 +442,9 @@ MLJBase.transform(transf::MyTransformer3, verbosity, X) =
                    MyTransformer3(:age))
     mach = fit!(machine(p99, X), verbosity=0)
     @test transform(mach, X) == float.(X.age)
+
+    # Check target_scitype of an unsupervised pipeline is Unknown
+    @test target_scitype(p99) == Unknown
 end
 
 @testset "integration 5" begin
@@ -473,6 +482,8 @@ end
     y = transform(mach, x)
     x̂ = inverse_transform(mach, y)
     @test isapprox(x, x̂)
+    # Check target_scitype of an unsupervised pipeline is Unknown
+    @test target_scitype(p) == Unknown
 end
 
 # A dummy clustering model:
