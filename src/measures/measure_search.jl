@@ -32,7 +32,8 @@ List all measures compatible with the target `y`.
 
     measures(needle::Union{AbstractString,Regex}
 
-List all measures with `needle` in a measure's `name` or `docstring`.
+List all measures with `needle` in a measure's `name`, `instances`, or
+`docstring`
 
 
 ### Example
@@ -42,7 +43,7 @@ Find all classification measures supporting sample weights:
     measures(m -> m.target_scitype <: AbstractVector{<:Finite} &&
                   m.supports_weights)
 
-Find all measures in the `rms` family:
+Find all measures in the "rms" family:
 
     measures("rms")
 
@@ -56,7 +57,8 @@ end
 
 function measures(needle::Union{AbstractString,Regex})
     f = m -> occursin(needle, m.name) ||
-        occursin(needle, m.docstring)
+        occursin(needle, m.docstring) ||
+        occursin(needle, join(m.instances, " "))
     return MLJBase.measures(f)
 end
 
