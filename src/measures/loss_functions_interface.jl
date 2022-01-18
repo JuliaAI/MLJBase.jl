@@ -61,6 +61,12 @@ macro wrap_loss(ex)
         name(M::Type{<:$Loss_ex}) = $Loss_str
     end
 
+    # defined instances
+    alias = snakecase(string(Loss_ex))
+    push!(program.args, quote
+          instances(::Type{<:$Loss_ex}) = [$alias, ]
+          end)
+
     # define kw constructor and expose any parameter as a property:
     if length(ex.args) == 1
         push!(program.args, quote
@@ -116,7 +122,6 @@ reports_each_observation(::Type{<:SupervisedLoss}) = true
 is_feature_dependent(::Type{<:SupervisedLoss})     = false
 supports_weights(::Type{<:SupervisedLoss}) = true
 docstring(M::Type{<:SupervisedLoss})       = name(M)
-instances(M::Type{<:SupervisedLoss}) = [snakecase(string.(naked(M))), ]
 
 
 ## CALLING - DISTANCE BASED LOSS FUNCTIONS
