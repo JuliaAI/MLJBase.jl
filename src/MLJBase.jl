@@ -419,6 +419,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
+include("measures/doc_strings.jl")
 
 include("composition/models/stacking.jl")
 
