@@ -91,6 +91,122 @@ const Dist = Distributions
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
 # ===================================================================
+## CONSTANTS
+
+const PREDICT_OPERATIONS = (:predict,
+                            :predict_mean,
+                            :predict_mode,
+                            :predict_median,
+                            :predict_joint)
+
+const OPERATIONS = (PREDICT_OPERATIONS..., :transform, :inverse_transform)
+
+# the directory containing this file: (.../src/)
+const MODULE_DIR = dirname(@__FILE__)
+
+# horizontal space for field names in `MLJType` object display:
+const COLUMN_WIDTH = 24
+# how deep to display fields of `MLJType` objects:
+const DEFAULT_SHOW_DEPTH = 0
+const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
+const INDENT = 4
+
+const Arr = AbstractArray
+const Vec = AbstractVector
+
+# Note the following are existential (union) types. In particular,
+# ArrMissing{Integer} is not the same as Arr{Union{Missing,Integer}},
+# etc.
+const ArrMissing{T,N} = Arr{<:Union{Missing,T},N}
+const VecMissing{T} = ArrMissing{T,1}
+const CatArrMissing{T,N} = ArrMissing{CategoricalValue{T},N}
+
+const MMI = MLJModelInterface
+const FI  = MLJModelInterface.FullInterface
+
+const MARGIN_LOSSES = [
+    :DWDMarginLoss,
+    :ExpLoss,
+    :L1HingeLoss,
+    :L2HingeLoss,
+    :L2MarginLoss,
+    :LogitMarginLoss,
+    :ModifiedHuberLoss,
+    :PerceptronLoss,
+    :SigmoidLoss,
+    :SmoothedL1HingeLoss,
+    :ZeroOneLoss
+]
+
+const DISTANCE_LOSSES = [
+    :HuberLoss,
+    :L1EpsilonInsLoss,
+    :L2EpsilonInsLoss,
+    :LPDistLoss,
+    :LogitDistLoss,
+    :PeriodicLoss,
+    :QuantileLoss
+]
+
+const WITH_PARAMETERS = [
+    :DWDMarginLoss,
+    :SmoothedL1HingeLoss,
+    :HuberLoss,
+    :L1EpsilonInsLoss,
+    :L2EpsilonInsLoss,
+    :LPDistLoss,
+    :QuantileLoss,
+]
+
+const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
+
+# ===================================================================
+# Computational Resource
+# default_resource allows to switch the mode of parallelization
+
+default_resource()    = DEFAULT_RESOURCE[]
+default_resource(res) = (DEFAULT_RESOURCE[] = res)
+
+# ===================================================================
+# Includes
+
+include("init.jl")
+include("utilities.jl")
+include("show.jl")
+include("interface/data_utils.jl")
+include("interface/model_api.jl")
+
+include("sources.jl")
+include("machines.jl")
+
+include("composition/abstract_types.jl")
+include("composition/learning_networks/nodes.jl")
+include("composition/learning_networks/inspection.jl")
+include("composition/learning_networks/machines.jl")
+
+include("composition/models/methods.jl")
+include("composition/models/from_network.jl")
+include("composition/models/inspection.jl")
+include("composition/models/deprecated.jl")
+include("composition/models/pipelines.jl")
+include("composition/models/transformed_target_model.jl")
+
+include("operations.jl")
+include("resampling.jl")
+
+include("hyperparam/one_dimensional_ranges.jl")
+include("hyperparam/one_dimensional_range_methods.jl")
+
+include("data/data.jl")
+include("data/datasets.jl")
+include("data/datasets_synthetic.jl")
+
+include("measures/measures.jl")
+include("measures/measure_search.jl")
+
+include("composition/models/stacking.jl")
+
+# ===================================================================
 ## EXPORTS
 
 # -------------------------------------------------------------------
@@ -296,41 +412,6 @@ export dwd_margin_loss, exp_loss, l1_hinge_loss, l2_hinge_loss, l2_margin_loss,
 
 # ------------------------------------------------------------------------
 # re-export from LossFunctions.jl:
-const MARGIN_LOSSES = [
-    :DWDMarginLoss,
-    :ExpLoss,
-    :L1HingeLoss,
-    :L2HingeLoss,
-    :L2MarginLoss,
-    :LogitMarginLoss,
-    :ModifiedHuberLoss,
-    :PerceptronLoss,
-    :SigmoidLoss,
-    :SmoothedL1HingeLoss,
-    :ZeroOneLoss
-]
-
-const DISTANCE_LOSSES = [
-    :HuberLoss,
-    :L1EpsilonInsLoss,
-    :L2EpsilonInsLoss,
-    :LPDistLoss,
-    :LogitDistLoss,
-    :PeriodicLoss,
-    :QuantileLoss
-]
-
-const WITH_PARAMETERS = [
-    :DWDMarginLoss,
-    :SmoothedL1HingeLoss,
-    :HuberLoss,
-    :L1EpsilonInsLoss,
-    :L2EpsilonInsLoss,
-    :LPDistLoss,
-    :QuantileLoss,
-]
-
-const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
 
 for Loss in LOSS_FUNCTIONS
     eval(:(export $Loss))
@@ -343,83 +424,5 @@ export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
 
 
-# ===================================================================
-## CONSTANTS
-
-const PREDICT_OPERATIONS = (:predict,
-                            :predict_mean,
-                            :predict_mode,
-                            :predict_median,
-                            :predict_joint)
-
-const OPERATIONS = (PREDICT_OPERATIONS..., :transform, :inverse_transform)
-
-# the directory containing this file: (.../src/)
-const MODULE_DIR = dirname(@__FILE__)
-
-# horizontal space for field names in `MLJType` object display:
-const COLUMN_WIDTH = 24
-# how deep to display fields of `MLJType` objects:
-const DEFAULT_SHOW_DEPTH = 0
-const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
-const INDENT = 4
-
-const Arr = AbstractArray
-const Vec = AbstractVector
-
-# Note the following are existential (union) types. In particular,
-# ArrMissing{Integer} is not the same as Arr{Union{Missing,Integer}},
-# etc.
-const ArrMissing{T,N} = Arr{<:Union{Missing,T},N}
-const VecMissing{T} = ArrMissing{T,1}
-const CatArrMissing{T,N} = ArrMissing{CategoricalValue{T},N}
-
-const MMI = MLJModelInterface
-const FI  = MLJModelInterface.FullInterface
-# ===================================================================
-# Computational Resource
-# default_resource allows to switch the mode of parallelization
-
-default_resource()    = DEFAULT_RESOURCE[]
-default_resource(res) = (DEFAULT_RESOURCE[] = res)
-
-# ===================================================================
-# Includes
-
-include("init.jl")
-include("utilities.jl")
-include("show.jl")
-include("interface/data_utils.jl")
-include("interface/model_api.jl")
-
-include("sources.jl")
-include("machines.jl")
-
-include("composition/abstract_types.jl")
-include("composition/learning_networks/nodes.jl")
-include("composition/learning_networks/inspection.jl")
-include("composition/learning_networks/machines.jl")
-
-include("composition/models/methods.jl")
-include("composition/models/from_network.jl")
-include("composition/models/inspection.jl")
-include("composition/models/deprecated.jl")
-include("composition/models/pipelines.jl")
-include("composition/models/transformed_target_model.jl")
-
-include("operations.jl")
-include("resampling.jl")
-
-include("hyperparam/one_dimensional_ranges.jl")
-include("hyperparam/one_dimensional_range_methods.jl")
-
-include("data/data.jl")
-include("data/datasets.jl")
-include("data/datasets_synthetic.jl")
-
-include("measures/measures.jl")
-include("measures/measure_search.jl")
-
-include("composition/models/stacking.jl")
 
 end # module
