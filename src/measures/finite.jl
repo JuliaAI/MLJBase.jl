@@ -614,7 +614,7 @@ MMI.docstring(::Type{<:MulticlassPrecision}) =
   "`multiclass_recall`."
 instances(::Type{<:MulticlassPrecision}) =
     ["multiclass_positive_predictive_value", "multiclass_ppv",
-     "multiclass_positivepredictive_value", "multiclass_recall"]
+     "multiclass_positivepredictive_value"]
 
 const W_KEY_MISMATCH = "Encountered target with levels different from the " *
                        "keys of user-specified dictionary of class weights."
