@@ -54,8 +54,8 @@ function detailed_doc_string(M; typename="", body="", footer="", scitype="")
         (ret *= DOC_CLASS_WEIGHTS)
     ret *= "\n\n"
     isempty(body) || (ret *= "$body\n\n")
-    ret *= "Requires `scitype(y)` to be a subtype of $scitype; "
-    ret *= "`ŷ` must be an array of $(prediction_type(M)) predictions. "
+    ret *= "Requires `scitype(y)` to be a subtype of `$scitype`; "
+    ret *= "`ŷ` must be an array of `$(prediction_type(M))` predictions. "
     isempty(footer) ||(ret *= "\n\n$footer")
     ret *= "\n\n"
     ret *= "For more information, run `info($(name(M)))`. "
@@ -203,4 +203,35 @@ function metadata_measure(T; name::String="",
 
     end
     parentmodule(T).eval(ex)
+end
+
+"""
+
+    @export measures
+
+Export all measure types (subtypes of `Aggregated` and `Unaggregated`)
+and their type aliases (as defined by the constant
+`MLJBase.MEASURE_TYPE_ALIASES`) as well as the names of all built-in
+instances.
+
+When adding new measures any new type aliases must be added to the
+constant `MLJBase.MEASURE_TYPE_ALIASES`. However, any name in
+`instances(SomeMeasureType)` is automatically exported by calling this
+macro.
+
+"""
+macro export_measures()
+    program = quote end
+    for m in measures()
+        name = m.name |> Symbol
+        push!(program.args, :(export $name))
+        for instance in m.instances
+            alias = Symbol(instance)
+            push!(program.args, :(export $alias))
+        end
+    end
+    for name in MLJBase.MEASURE_TYPE_ALIASES
+        push!(program.args, :(export $name))
+    end
+    program
 end
