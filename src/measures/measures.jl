@@ -223,6 +223,7 @@ function check_pools(ŷ, w::AbstractDict)
 end
 
 # # INCLUDE SPECIFIC MEASURES AND TOOLS
+
 include("meta_utilities.jl")
 include("roc.jl")
 include("confusion_matrix.jl")
@@ -230,6 +231,7 @@ include("continuous.jl")
 include("finite.jl")
 include("probabilistic.jl")
 include("loss_functions_interface.jl")
+
 
 # # DEFAULT MEASURES
 
@@ -248,7 +250,7 @@ end
 function default_measure(
     ::Type{<:Deterministic},
     ::Type{<:Vec{<:Union{Missing,Finite}}}
-) 
+)
     return misclassification_rate
 end
 
@@ -256,7 +258,7 @@ end
 function default_measure(
     ::Type{<:Probabilistic},
     ::Type{<:Vec{<:Union{Missing,Finite}}}
-) 
+)
     return log_loss
 end
 
@@ -264,7 +266,7 @@ end
 function default_measure(
     ::Type{<:Probabilistic},
     ::Type{<:Vec{<:Union{Missing,Continuous}}}
-) 
+)
     return log_loss
 end
 
@@ -272,21 +274,21 @@ end
 function default_measure(
     ::Type{<:Probabilistic},
     ::Type{<:Vec{<:Union{Missing, Count}}}
-) 
+)
     return log_loss
 end
 
 function default_measure(
     ::Type{<:MMI.ProbabilisticDetector},
     ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
-) 
+)
     return area_under_curve
 end
 
 function default_measure(
     ::Type{<:MMI.DeterministicDetector},
     ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
-) 
+)
     return balanced_accuracy
 end
 
@@ -296,3 +298,4 @@ default_measure(::M) where M <: Supervised = default_measure(M)
 
 default_measure(M::Type{<:Annotator}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Annotator = default_measure(M)
+
