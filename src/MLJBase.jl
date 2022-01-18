@@ -218,6 +218,7 @@ include("data/datasets_synthetic.jl")
 
 include("measures/measures.jl")
 include("measures/measure_search.jl")
+include("measures/doc_strings.jl")
 
 include("composition/models/stacking.jl")
 
@@ -353,7 +354,5 @@ export no_avg, macro_avg, micro_avg
 # OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
-
-
 
 end # module
