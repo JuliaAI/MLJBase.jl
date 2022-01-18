@@ -1,6 +1,10 @@
 # implementation of MLJ measure interface for LossFunctions.jl
 
-naked(T::Type) = split(string(T), '.') |> last |> Symbol
+function naked(T::Type)
+    without_module_name = split(string(T), '.') |> last
+    without_type_parameters = split(without_module_name, '{') |> first
+    return Symbol(without_type_parameters)
+end
 
 const WITHOUT_PARAMETERS =
     setdiff(LOSS_FUNCTIONS, WITH_PARAMETERS)

@@ -11,6 +11,13 @@ const DISTANCE_LOSSES = MLJBase.DISTANCE_LOSSES
 # https://github.com/JuliaML/LossFunctions.jl/issues/149
 WeightedSum(w) = LossFunctions.AggMode.WeightedMean(w, normalize=false)
 
+@testset "naked" begin
+    @test MLJBase.naked(MLJBase.LossFunctions.PeriodicLoss{Float64}) ==
+        :PeriodicLoss
+    @test MLJBase.naked(MLJBase.LossFunctions.PeriodicLoss) ==
+        :PeriodicLoss
+end
+
 @testset "LossFunctions.jl - binary" begin
     y = categorical(["yes", "yes", "no", "yes"])
     yes, no = y[1], y[3]
