@@ -25,7 +25,7 @@ const WITH_L2NORM_COUNT =
         :DiscreteNonParametric]]
 
 const WITH_L2NORM = vcat([UnivariateFinite, ],
-                                  WITH_L2NORM_CONTINUOUS,
+                         WITH_L2NORM_CONTINUOUS,
                          WITH_L2NORM_COUNT)
 
 const UD = Distributions.UnivariateDistribution

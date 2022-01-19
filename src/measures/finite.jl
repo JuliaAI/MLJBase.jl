@@ -599,7 +599,8 @@ MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) =
     "aliases: `multiclass_false_discovery_rate`, " *
     "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
 instances(::Type{<:MulticlassFalseDiscoveryRate}) =
-    ["multiclass_falsediscovery_rate", "multiclass_fdr"]
+    ["multiclass_falsediscovery_rate", "multiclass_fdr",
+     "multiclass_false_discovery_rate"]
 MMI.docstring(::Type{<:MulticlassNegativePredictiveValue}) =
     "multiclass negative predictive value; aliases: " *
     "`multiclass_negative_predictive_value`, " *
@@ -611,10 +612,10 @@ MMI.docstring(::Type{<:MulticlassPrecision}) =
   "multiclass positive predictive value (aka precision);"*
   " aliases: `multiclass_positive_predictive_value`, `multiclass_ppv`, " *
   "`multiclass_positivepredictive_value`, " *
-  "`multiclass_recall`."
+  "`multiclass_precision`."
 instances(::Type{<:MulticlassPrecision}) =
     ["multiclass_positive_predictive_value", "multiclass_ppv",
-     "multiclass_positivepredictive_value", "multiclass_recall"]
+     "multiclass_positivepredictive_value", "multiclass_precision"]
 
 const W_KEY_MISMATCH = "Encountered target with levels different from the " *
                        "keys of user-specified dictionary of class weights."
