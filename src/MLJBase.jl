@@ -222,6 +222,9 @@ include("measures/doc_strings.jl")
 
 include("composition/models/stacking.jl")
 
+# function on the right-hand side is defined in src/measures/meta_utilities.jl:
+const MEASURES_TYPES_ALIASES_AND_INSTANCES = measures_for_export()
+
 # ===================================================================
 ## EXPORTS
 
@@ -331,10 +334,12 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 # src/composition/abstract_types.jl
 
 # -------------------------------------------------------------------
-# exports from MLJBase specific to Measure (these may go in their
-# specific MLJMeasureInterface package in some future)
+# exports from MLJBase specific to measures
 
-export_measures(MLJBase) # from measures/meta_utilities.jl
+# measure names:
+for m in MEASURES_TYPES_ALIASES_AND_INSTANCES
+    :(export $m) |> eval
+end
 
 # measures/registry.jl:
 export measures, metadata_measure

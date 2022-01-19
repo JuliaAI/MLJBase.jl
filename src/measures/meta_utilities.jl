@@ -207,31 +207,27 @@ end
 
 """
 
-    @export measures
+    measures_for_export()
 
-Export all measure types (subtypes of `Aggregated` and `Unaggregated`)
-and their type aliases (as defined by the constant
-`MLJBase.MEASURE_TYPE_ALIASES`) as well as the names of all built-in
-instances.
+Return a list of the symbolic representation of all:
 
-When adding new measures any new type aliases must be added to the
-constant `MLJBase.MEASURE_TYPE_ALIASES`. However, any name in
-`instances(SomeMeasureType)` is automatically exported by calling this
-macro.
+- measure types (subtypes of `Aggregated` and `Unaggregated`) measure
+
+- type aliases (as defined by the constant
+  `MLJBase.MEASURE_TYPE_ALIASES`)
+
+- all built-in measure instances (as declared by `instances` trait)
 
 """
-function export_measures(modl::Module)
-    program = quote end
+function measures_for_export()
+    ret = MLJBase.MEASURE_TYPE_ALIASES
     for m in measures()
         name = m.name |> Symbol
-        push!(program.args, :(export $name))
+        push!(ret, name)
         for instance in m.instances
             alias = Symbol(instance)
-            push!(program.args, :(export $alias))
+            push!(ret, alias)
         end
     end
-    for name in MLJBase.MEASURE_TYPE_ALIASES
-        push!(program.args, :(export $name))
-    end
-    modl.eval(program)
+    return ret
 end
