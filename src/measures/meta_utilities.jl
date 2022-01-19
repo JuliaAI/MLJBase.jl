@@ -220,7 +220,7 @@ constant `MLJBase.MEASURE_TYPE_ALIASES`. However, any name in
 macro.
 
 """
-macro export_measures()
+function export_measures(modl::Module)
     program = quote end
     for m in measures()
         name = m.name |> Symbol
@@ -233,5 +233,5 @@ macro export_measures()
     for name in MLJBase.MEASURE_TYPE_ALIASES
         push!(program.args, :(export $name))
     end
-    program
+    modl.eval(program)
 end

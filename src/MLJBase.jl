@@ -334,7 +334,7 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 # exports from MLJBase specific to Measure (these may go in their
 # specific MLJMeasureInterface package in some future)
 
-@export_measures # from measures/meta_utilities.jl
+export_measures(MLJBase) # from measures/meta_utilities.jl
 
 # measures/registry.jl:
 export measures, metadata_measure
