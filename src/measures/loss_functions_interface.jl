@@ -1,6 +1,10 @@
 # implementation of MLJ measure interface for LossFunctions.jl
 
-naked(T::Type) = split(string(T), '.') |> last |> Symbol
+function naked(T::Type)
+    without_module_name = split(string(T), '.') |> last
+    without_type_parameters = split(without_module_name, '{') |> first
+    return Symbol(without_type_parameters)
+end
 
 const WITHOUT_PARAMETERS =
     setdiff(LOSS_FUNCTIONS, WITH_PARAMETERS)
@@ -57,6 +61,12 @@ macro wrap_loss(ex)
         name(M::Type{<:$Loss_ex}) = $Loss_str
     end
 
+    # defined instances
+    alias = snakecase(string(Loss_ex))
+    push!(program.args, quote
+          instances(::Type{<:$Loss_ex}) = [$alias, ]
+          end)
+
     # define kw constructor and expose any parameter as a property:
     if length(ex.args) == 1
         push!(program.args, quote
@@ -112,7 +122,6 @@ reports_each_observation(::Type{<:SupervisedLoss}) = true
 is_feature_dependent(::Type{<:SupervisedLoss})     = false
 supports_weights(::Type{<:SupervisedLoss}) = true
 docstring(M::Type{<:SupervisedLoss})       = name(M)
-instances(M::Type{<:SupervisedLoss}) = [snakecase(string.(naked(M))), ]
 
 
 ## CALLING - DISTANCE BASED LOSS FUNCTIONS
@@ -167,7 +176,7 @@ _signature(::Type{<:QuantileLoss}) = "`QuantileLoss(; τ=0.7)`"
 const DOC_LOSS_FUNCTIONS =
 """
 For more detail, see the original LossFunctions.jl documentation *but
-note differences in the signature.
+note differences in the signature.*
 
 Losses from LossFunctions.jl do not support `missing` values. To use
 with `missing` values, replace `(ŷ, y)` with `skipinvalid(ŷ, y))`.

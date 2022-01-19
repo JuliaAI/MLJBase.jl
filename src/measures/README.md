@@ -132,4 +132,11 @@ trait                    | allowed values               | default
 `docstring`              | any `String`                 | includes `name`, `human_name` and `instances`
 `distribution_type`      | any `Distribution` subtype or `Unknown`   | `Unknown`
 
+### Exporting the measure and its aliases
 
+If you create a type alias, as in `const MAE = MeanAbsoluteValue`,
+then you must add this alias to the constant
+`MEASURE_TYPE_ALIASES`. That is the only step needed, as the the macro
+`@export_measures` programmatically exports all measure types and
+their instances, and those aliases listed in = MeanAbsoluteValue`,
+then you must add this alias to the constant `MEASURE_TYPE_ALIASES`.

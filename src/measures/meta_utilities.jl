@@ -54,8 +54,8 @@ function detailed_doc_string(M; typename="", body="", footer="", scitype="")
         (ret *= DOC_CLASS_WEIGHTS)
     ret *= "\n\n"
     isempty(body) || (ret *= "$body\n\n")
-    ret *= "Requires `scitype(y)` to be a subtype of $scitype; "
-    ret *= "`ŷ` must be an array of $(prediction_type(M)) predictions. "
+    ret *= "Requires `scitype(y)` to be a subtype of `$scitype`; "
+    ret *= "`ŷ` must be an array of `$(prediction_type(M))` predictions. "
     isempty(footer) ||(ret *= "\n\n$footer")
     ret *= "\n\n"
     ret *= "For more information, run `info($(name(M)))`. "
@@ -203,4 +203,31 @@ function metadata_measure(T; name::String="",
 
     end
     parentmodule(T).eval(ex)
+end
+
+"""
+
+    measures_for_export()
+
+Return a list of the symbolic representation of all:
+
+- measure types (subtypes of `Aggregated` and `Unaggregated`) measure
+
+- type aliases (as defined by the constant
+  `MLJBase.MEASURE_TYPE_ALIASES`)
+
+- all built-in measure instances (as declared by `instances` trait)
+
+"""
+function measures_for_export()
+    ret = MLJBase.MEASURE_TYPE_ALIASES
+    for m in measures()
+        name = m.name |> Symbol
+        push!(ret, name)
+        for instance in m.instances
+            alias = Symbol(instance)
+            push!(ret, alias)
+        end
+    end
+    return ret
 end
