@@ -166,7 +166,7 @@ const MEASURE_TYPE_ALIASES = [
     :MCR,
     :MCC,
     :BAC, :BACC,
-    :RMS, :RMSPV, :RMSL, :RMSLP,
+    :RMS, :RMSPV, :RMSL, :RMSLP, :RMSP,
     :MAV, :MAE, :MAPE,
     :RSQ, :LogCosh,
     :CrossEntropy,

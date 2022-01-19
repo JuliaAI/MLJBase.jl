@@ -599,7 +599,8 @@ MMI.docstring(::Type{<:MulticlassFalseDiscoveryRate}) =
     "aliases: `multiclass_false_discovery_rate`, " *
     "`multiclass_falsediscovery_rate`, `multiclass_fdr`."
 instances(::Type{<:MulticlassFalseDiscoveryRate}) =
-    ["multiclass_falsediscovery_rate", "multiclass_fdr"]
+    ["multiclass_falsediscovery_rate", "multiclass_fdr",
+     "multiclass_false_discovery_rate"]
 MMI.docstring(::Type{<:MulticlassNegativePredictiveValue}) =
     "multiclass negative predictive value; aliases: " *
     "`multiclass_negative_predictive_value`, " *
