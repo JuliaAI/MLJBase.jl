@@ -394,8 +394,10 @@ function return!(mach::Machine{<:Surrogate},
 
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
 
-    # anonymize the data:
-    sources = mach.args
+    # anonymize the data, except at source nodes wrapping exceptions:
+    sources = filter(MLJBase.sources(glb(mach))) do s
+        !(s.data isa Exception)
+    end 
     data = Tuple(s.data for s in sources)
     [MLJBase.rebind!(s, nothing) for s in sources]
 
@@ -417,6 +419,12 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
 
 ## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
+function _emptied(s::Source)
+    s.data isa Exception && return source(s.data)
+    return source()
+end
+
+
 """
     replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
 
@@ -425,7 +433,8 @@ any specified sources and models `a1, a2, ...` of the original
 underlying network with `b1, b2, ...`.
 
 If `empty_unspecified_sources=true` then any source nodes not
-specified are replaced with empty source nodes.
+specified are replaced with empty source nodes, unless they wrap an
+`Exception` object.
 
 """
 function Base.replace(mach::Machine{<:Surrogate},
@@ -466,8 +475,9 @@ function Base.replace(mach::Machine{<:Surrogate},
         "nodes. Contents will be duplicated. "
     end
     if empty_unspecified_sources
-        unspecified_source_pairs = [s => source() for
+        unspecified_source_pairs = [s => _emptied(s) for
                                     s in unspecified_sources]
+        @show unspecified_source_pairs
     else
         unspecified_source_pairs = [s => deepcopy(s) for
                                     s in unspecified_sources]

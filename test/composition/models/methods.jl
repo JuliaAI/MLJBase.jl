@@ -486,5 +486,37 @@ end
 
 end
 
+@testset "exporting learning networks with error nodes" begin
+
+    # tests a network with an error node (source node wrapping an
+    # exception) that is also a operation node
+
+    mutable struct BananaComposite <: UnsupervisedComposite
+        stand
+    end
+    BananaComposite(; stand=Standardizer()) = BananaComposite(stand)
+
+    function MLJBase.fit(model::BananaComposite, verbosity, X)
+
+        Xs = source(X)
+        mach1 = machine(model.stand, Xs)
+        X2 = transform(mach1, Xs)
+
+        # node for the inverse_transform:
+        Z = source(ErrorException("Oh bother!"))
+
+        network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Z)
+        return!(network_mach, model, verbosity)
+
+    end
+
+    X = (x = Float64[1, 2, 3],)
+    mach = machine(BananaComposite(), X)
+    fit!(mach, verbosity=0, force=true)
+    @test transform(mach, X).x ≈ Float64[-1, 0, 1]
+    @test_throws ErrorException("Oh bother!") inverse_transform(mach, X)
+
+end
+
 end # module
 true

@@ -1,6 +1,7 @@
 ## EXPORTING LEARNING NETWORKS AS MODELS WITH @from_network
 
-# closure to generate the fit methods for exported composite. Here `mach`
+# closure to generate the fit methods for exported composite. Here
+# `mach` is a learning network machine.
 function fit_method(mach, models...)
 
     signature = mach.fitresult
