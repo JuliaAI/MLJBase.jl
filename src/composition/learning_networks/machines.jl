@@ -477,7 +477,6 @@ function Base.replace(mach::Machine{<:Surrogate},
     if empty_unspecified_sources
         unspecified_source_pairs = [s => _emptied(s) for
                                     s in unspecified_sources]
-        @show unspecified_source_pairs
     else
         unspecified_source_pairs = [s => deepcopy(s) for
                                     s in unspecified_sources]
