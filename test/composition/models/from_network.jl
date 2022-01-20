@@ -590,14 +590,12 @@ mach = machine(model, X, y)
            @test_throws(ArgumentError,
                         fit!(mach, verbosity=-1)))
 
-end
-
 
 ## SOURCE NODES THAT ARE ALSO OPERATION NODES OR ERROR NODES
 
 stand = Standardizer()
 
-Xs = source(rand(3))
+Xs = source()
 mach1 = machine(stand, Xs)
 X2 = transform(mach1, Xs)
 
@@ -617,5 +615,7 @@ mach = machine(AppleComposite(), X)
 fit!(mach, verbosity=0, force=true)
 @test transform(mach, X).x ≈ Float64[-1, 0, 1]
 @test_throws ErrorException("Oh bother!") inverse_transform(mach, X)
+
+end
 
 true
