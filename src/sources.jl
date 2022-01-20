@@ -36,6 +36,9 @@ The calling behaviour of a `Source` object is this:
     Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
     Xs(Xnew) = Xnew
 
+If a `Source` object wraps an object of type `Exception`, then any of
+the above calls will `throw` that object. 
+
 See also: [`@from_network`](@ref], [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).
 
@@ -55,10 +58,14 @@ color(::Source) = :yellow
 
 # make source nodes callable:
 function (X::Source)(; rows=:)
+    X.data isa Exception && throw(X.data)
     rows == (:) && return X.data
     return selectrows(X.data, rows)
 end
-(X::Source)(Xnew) = Xnew
+function (X::Source)(Xnew)
+    X.data isa Exception && throw(X.data)
+    return Xnew
+end
 
 # return a string of diagnostics for the call `X(input...; kwargs...)`
 diagnostic_table_sources(X::AbstractNode) =
@@ -133,14 +140,3 @@ function Base.show(stream::IO, ::MIME"text/plain", source::Source)
     print(stream, " \u23CE `$(elscitype(source))`")
     return nothing
 end
-
-## SPECIAL NODE TO THROW EXCEPTION WHEN CALLED
-
-struct ErrorNode{E} <: AbstractNode
-    exception::E
-end
-(n::ErrorNode)(args...; kwargs...) = throw(n.exception)
-
-origins(::ErrorNode) = AbstractNode[]
-nodes(::ErrorNode) = AbstractNode[]
-machines(::ErrorNode) = Machine[]

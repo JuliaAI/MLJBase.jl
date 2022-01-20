@@ -501,7 +501,7 @@ function pipeline_network_machine(super_type,
             node =  first(mach.args)
         end
     else
-        inode = ErrorNode(ERR_INVERSION_NOT_SUPPORTED)
+        inode = source(ERR_INVERSION_NOT_SUPPORTED)
     end
 
     machine(super_type(), source0, sources...;

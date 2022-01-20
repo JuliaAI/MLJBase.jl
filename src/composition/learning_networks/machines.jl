@@ -453,7 +453,7 @@ function Base.replace(mach::Machine{<:Surrogate},
     newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
 
     # build complete source replacement pairs:
-    sources_ = mach.args # sources(W)
+    sources_ = sources(W)
     specified_source_pairs = filter(collect(pairs)) do pair
         first(pair) isa Source
     end
@@ -475,11 +475,8 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
 
-    # drop source nodes from all nodes of network terminating at W:
-    nodes_ = filter(nodes(W)) do N
-        !(N isa Source)
-    end
-    isempty(nodes_) && error("All nodes in network are source nodes. ")
+    nodes_ = nodes(W)
+
     # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
@@ -492,27 +489,28 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     # build the new network:
     for N in nodes_
-       args = [newnode_given_old[arg] for arg in N.args]
-         if N.machine === nothing
-             newnode_given_old[N] = node(N.operation, args...)
-         else
-             if N.machine in keys(newmach_given_old)
-                 m = newmach_given_old[N.machine]
-             else
-                 train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                 m = Machine(newmodel_given_old[N.machine.model],
+        if N isa Node # ie, not a `Source`
+            args = [newnode_given_old[arg] for arg in N.args]
+            if N.machine === nothing
+                newnode_given_old[N] = node(N.operation, args...)
+            else
+                if N.machine in keys(newmach_given_old)
+                    m = newmach_given_old[N.machine]
+                else
+                    train_args = [newnode_given_old[arg] for arg in N.machine.args]
+                    m = Machine(newmodel_given_old[N.machine.model],
                                 train_args...)
-                 newmach_given_old[N.machine] = m
-             end
-             newnode_given_old[N] = N.operation(m, args...)
-         end
-        if N in operation_nodes
+                    newmach_given_old[N.machine] = m
+                end
+                newnode_given_old[N] = N.operation(m, args...)
+            end
+        end
+        if N in operation_nodes # could be `Source`
             newoperation_node_given_old[N] = newnode_given_old[N]
         elseif N in report_nodes
             newreport_node_given_old[N] = newnode_given_old[N]
         end
     end
-
     newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
                           operation_nodes)
     newreport_nodes = Tuple(newreport_node_given_old[N] for N in
