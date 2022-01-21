@@ -469,10 +469,6 @@ extend(front::Front{false}, component, args...) =
 
 # ## The learning network machine
 
-const ERR_INVERSION_NOT_SUPPORTED = ErrorException(
-    "Applying `inverse_transform` to a "*
-    "pipeline that does not support it")
-
 function pipeline_network_machine(super_type,
                                   cache,
                                   operation,
@@ -500,12 +496,12 @@ function pipeline_network_machine(super_type,
             inode = inverse_transform(mach, inode)
             node =  first(mach.args)
         end
-    else
-        inode = source(ERR_INVERSION_NOT_SUPPORTED)
+        return machine(super_type(), source0, sources...;
+                       predict=pnode, transform=tnode, inverse_transform=inode)
     end
 
-    machine(super_type(), source0, sources...;
-            predict=pnode, transform=tnode, inverse_transform=inode)
+    return machine(super_type(), source0, sources...;
+                       predict=pnode, transform=tnode)
 
 end
 

@@ -486,10 +486,7 @@ end
 
 end
 
-@testset "exporting learning networks with error nodes" begin
-
-    # tests a network with an error node (source node wrapping an
-    # exception) that is also a operation node
+@testset "operation nodes that are source nodes" begin
 
     mutable struct BananaComposite <: UnsupervisedComposite
         stand
@@ -503,9 +500,8 @@ end
         X2 = transform(mach1, Xs)
 
         # node for the inverse_transform:
-        Z = source(ErrorException("Oh bother!"))
 
-        network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Z)
+        network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs)
         return!(network_mach, model, verbosity)
 
     end
@@ -514,7 +510,7 @@ end
     mach = machine(BananaComposite(), X)
     fit!(mach, verbosity=0, force=true)
     @test transform(mach, X).x ≈ Float64[-1, 0, 1]
-    @test_throws ErrorException("Oh bother!") inverse_transform(mach, X)
+    @test inverse_transform(mach, X) == X
 
 end
 

@@ -36,9 +36,6 @@ The calling behaviour of a `Source` object is this:
     Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
     Xs(Xnew) = Xnew
 
-If a `Source` object wraps an object of type `Exception`, then any of
-the above calls will `throw` that object. 
-
 See also: [`@from_network`](@ref], [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).
 
@@ -58,12 +55,10 @@ color(::Source) = :yellow
 
 # make source nodes callable:
 function (X::Source)(; rows=:)
-    X.data isa Exception && throw(X.data)
     rows == (:) && return X.data
     return selectrows(X.data, rows)
 end
 function (X::Source)(Xnew)
-    X.data isa Exception && throw(X.data)
     return Xnew
 end
 

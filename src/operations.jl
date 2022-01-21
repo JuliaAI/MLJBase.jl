@@ -106,13 +106,23 @@ end
 
 ## SURROGATE AND COMPOSITE MODELS
 
+const err_unsupported_operation(operation) = ErrorException(
+    "The `$operation` operation has been applied to a composite model or learning "*
+    "network machine that does not support it. "
+)
+
 for operation in [:predict,
                   :predict_joint,
                   :transform,
                   :inverse_transform]
     ex = quote
-        $operation(model::Union{Composite,Surrogate}, fitresult,X) =
-            fitresult.$operation(X)
+        function $operation(model::Union{Composite,Surrogate}, fitresult,X)
+            if hasproperty(fitresult, $(QuoteNode(operation)))
+                return fitresult.$operation(X)
+            else
+                throw(err_unsupported_operation($operation))
+            end
+        end
     end
     eval(ex)
 end

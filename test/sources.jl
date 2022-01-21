@@ -14,9 +14,5 @@ rebind!(Xs, nothing)
 @test isempty(Xs)
 @test Xs.scitype == Nothing
 
-n = source(ArgumentError("Stop!"))
-@test_throws ArgumentError("Stop!") n(rows=1:3)
-@test_throws ArgumentError("Stop!") n(1:3)
-
 end
 true
