@@ -76,7 +76,7 @@ for operation in OPERATIONS
     ex = quote
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
-            if mach.state > 0
+            if mach.state != 0
                 return $(operation)(mach.model,
                                     mach.fitresult,
                                     reformat(mach.model, Xraw)...)
