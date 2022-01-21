@@ -31,8 +31,24 @@ predict_median(m, fitresult, Xnew, ::Type{<:BadMedianTypes}) =
 MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
     getfield.(methodswith(M), :name) |> unique
 
-# serialization fallbacks:
-MLJModelInterface.save(filename, model, fitresult; kwargs...) = fitresult
+# the following serialization fallbacks should live in
+# MLJModelInterface when version 2.0 i s released. At that time the
+# hack block could also be removed.
+#####################
+# hack block begins #
+#####################
+const ERR_SERIALIZATION_FAILURE = ErrorException(
+"Serialization failure. You are using a model that implements an outdated "*
+    "version of the serialization API. If you are using "*
+    "a model from XGBoost.jl, be sure to use MLJXGBoostInterface 2.0 or "*
+    "or higher. "
+)
+MLJModelInterface.save(filename, model, fitresult; kwargs...) =
+    throw(ERR_SERIALIZATION_FAILURE)
+###################
+# hack block ends #
+###################
+MLJModelInterface.save(model, fitresult; kwargs) = fitresult
 MLJModelInterface.restore(filename, model, serializable_fitresult) =
                           serializable_fitresult
 
