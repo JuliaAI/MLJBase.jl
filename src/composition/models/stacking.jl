@@ -265,20 +265,56 @@ internal_stack_report(m::Stack, folds_evaluations::Vararg{Nothing}) = NamedTuple
 function internal_stack_report(m::Stack, folds_evaluations::Vararg{AbstractNode})
     _internal_stack_report(folds_evaluations...) =
         internal_stack_report(m, folds_evaluations...)
-    return (report=node(_internal_stack_report, folds_evaluations...),)
+    return (report=(cv_report=node(_internal_stack_report, folds_evaluations...),),)
 end
 
-function internal_stack_report(m::Stack, folds_evaluations...)
-    results = []
+function internal_stack_report(stack::Stack{modelnames,}, folds_evaluations...) where modelnames
+
+    n_measures = length(stack.internal_measures)
+    nfolds = stack.resampling.nfolds
+
+    # For each model we record the results mimicking the fields PerformanceEvaluation
+    results = NamedTuple{modelnames}([
+            (measure=stack.internal_measures,
+            measurement=Vector{Any}(undef, n_measures),
+            operation=predict,
+            per_fold=[Vector{Any}(undef, nfolds) for _ in 1:n_measures],
+            per_observation=Vector{Union{Missing, Vector{Any}}}(missing, n_measures)
+            ) 
+        for _ in modelnames]
+    )
+    
+    # Update per_observation and per_fold fields
     index = 1
-    for foldid in 1:m.resampling.nfolds
-        foldresults = Dict()
-        for model in getfield(m, :models)
-            foldresults[model] = folds_evaluations[index]
+    for foldid in 1:nfolds
+        for modelname in modelnames
+            model_results = results[modelname]
+            for (i, m) in enumerate(stack.internal_measures)
+                fold_measure_results = folds_evaluations[index][i]
+                # per_observation
+                if reports_each_observation(m)
+                    if model_results.per_observation[i] === missing
+                        model_results.per_observation[i] = Vector{Any}(undef, nfolds)
+                    end
+                    model_results.per_observation[i][foldid] = fold_measure_results
+                end
+
+                # per_fold
+                model_results.per_fold[i][foldid] = 
+                    reports_each_observation(m) ? MLJBase.aggregate(fold_measure_results, m) : fold_measure_results
+            end
             index += 1
         end
-        push!(results, foldresults)
     end
+
+    # Update measurement field
+    for modelname in modelnames
+        for (i, m) in enumerate(stack.internal_measures)
+            model_results = results[modelname]
+            model_results.measurement[i] = MLJBase.aggregate(model_results.per_fold[i], m)
+        end
+    end
+
     return results
 end
 
@@ -350,10 +386,9 @@ function fit(m::Stack, verbosity::Int, X, y)
     ŷ = predict(metamach, Zpred)
 
     internal_report = internal_stack_report(m, folds_evaluations...)
-
+    println(internal_report)
     # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, report=internal_report)
-
+    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
+    
     return!(mach, m, verbosity)
-
 end
