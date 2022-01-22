@@ -256,9 +256,10 @@ pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<
     ŷ
 
 
-maybe_evaluate(ypred::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
-function maybe_evaluate(ypred::AbstractNode, ytest::AbstractNode, measures)
-    node((ypred, ytest) -> [m(ypred, ytest) for m in measures], ypred, ytest)
+maybe_evaluate(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures::Nothing, verbosity::Int) = nothing
+function maybe_evaluate(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures, verbosity::Int)
+    ops = _actual_operations(nothing, measures, mach.model, verbosity)
+    node((ytest, Xtest) -> [m(ops[i](mach, Xtest), ytest) for (i, m) in enumerate(measures)], ytest, Xtest)
 end
 
 internal_stack_report(m::Stack, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
@@ -319,7 +320,7 @@ function internal_stack_report(stack::Stack{modelnames,}, folds_evaluations...) 
 end
 
 
-function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
+function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source, verbosity::Int)
     Zval = []
     yval = []
     folds_evaluations = []
@@ -337,7 +338,7 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
             # Internal evaluation on the fold if required
-            push!(folds_evaluations, maybe_evaluate(ypred, ytest, m.internal_measures))
+            push!(folds_evaluations, maybe_evaluate(mach, Xtest, ytest, m.internal_measures, verbosity))
             # Dispatch the computation of the expected mean based on
             # the model type and target_scytype
             ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
@@ -366,10 +367,10 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     Xs = source(X)
     ys = source(y)
-
+    
     folds = getfolds(ys, m.resampling, n)
-
-    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
+    
+    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys, verbosity)
 
     metamach = machine(m.metalearner, Zval, yval)
 
@@ -386,7 +387,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     ŷ = predict(metamach, Zpred)
 
     internal_report = internal_stack_report(m, folds_evaluations...)
-    println(internal_report)
+
     # We can infer the Surrogate by two calls to supertype
     mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
     

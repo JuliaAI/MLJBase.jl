@@ -217,7 +217,7 @@ end
     ys = source(y)
     folds = MLJBase.getfolds(ys, stack.resampling, n)
 
-    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
+    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys, 0)
     
     # No internal measure has been provided so the resulting 
     # folds_evaluations contain nothing
@@ -332,15 +332,20 @@ end
 
 
 @testset "Test maybe_evaluate" begin
-    ypred = source([1, 2 , 3, 4])
-    ytest = source([1, 2, 3, 5])
-    @test MLJBase.maybe_evaluate(ypred, ytest, nothing) === nothing
-
-    out = MLJBase.maybe_evaluate(ypred, ytest, [rms, rsq])
-    @test out() == [0.5, 0.8857142857142857]
+    X, y = make_blobs(;rng=rng, shuffle=false)
+    Xs, ys = source(X), source(y)
+    mach = machine(KNNClassifier(), Xs, ys)
+    fit!(mach, verbosity=0)
+    measures = [accuracy, log_loss]
+    measure_results = MLJBase.maybe_evaluate(mach, Xs, ys, measures, 0)()
+    @test measure_results[1] == accuracy(predict_mode(mach), y)
+    @test measure_results[2] == log_loss(predict(mach), y)
+    # check fallback
+    @test MLJBase.maybe_evaluate(mach, Xs, ys, nothing, 0) === nothing
 end
 
 @testset "Test internal_stack_report" begin
+
     decisiontree = DecisionTreeRegressor()
     ridge = FooBarRegressor()
     mystack = Stack(;metalearner=FooBarRegressor(),
@@ -349,6 +354,8 @@ end
                     decisiontree=decisiontree,
                     ridge=ridge)
 
+    # Testing internal_stack_report default with nothing
+    @test MLJBase.internal_stack_report(mystack, nothing, nothing) == NamedTuple{}()
 
     # Measures are added incrementally by model for each fold by `maybe_evaluate`
     # ie: 3 folds, 2 models per fold and 2 measures per node
@@ -357,7 +364,7 @@ end
                             [source([6, [7, 8, 9]]), source([8, [1, 1, 1]])],
                             [source([12, [2, 8, 0]]), source([14, [0, 0, 0]])])
 
-    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...).report()
+    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...).report.cv_report()
     # decisiontree
     dtreport = internalreport.decisiontree
     @test dtreport.measure == [rms, l2]
@@ -388,28 +395,62 @@ end
 
 end
 
-@testset "Test internal evaluation of the stack" begin
+@testset "Test internal evaluation of the stack in regression mode" begin
     X, y = make_regression(500, 5; rng=rng)
-    decisiontree = DecisionTreeRegressor()
+    resampling = CV(;nfolds=3)
+    measures = [rms, l2]
+    constant = ConstantRegressor()
     ridge = FooBarRegressor()
     mystack = Stack(;metalearner=FooBarRegressor(),
-                    resampling=CV(;nfolds=3),
-                    internal_measures=[rms, l2],
-                    decisiontree=decisiontree,
-                    ridge=ridge)
+                    resampling=resampling,
+                    internal_measures=measures,
+                    ridge=ridge,
+                    constant=constant)
 
     mach = machine(mystack, X, y)
     fit!(mach, verbosity=0)
     cvreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        decisiontree = evaluate(decisiontree, X, y, measure=[rms, l2], resampling=CV(nfolds=3)),
-        ridge = evaluate(ridge, X, y, measure=[rms, l2], resampling=CV(nfolds=3))
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling),
+        ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling)
         )
     
-    for modelname in (:ridge, :decisiontree)
+    for modelname in (:constant, :ridge)
         @test cvreport[modelname].operation == predict
-        @test cvreport[modelname].measure == [rms, l2]
+        @test cvreport[modelname].measure == measures
+        @test cvreport[modelname].measurement ≈ std_evaluation[modelname].measurement
+        @test cvreport[modelname].per_fold ≈ std_evaluation[modelname].per_fold 
+        @test cvreport[modelname].per_observation[2] ≈ std_evaluation[modelname].per_observation[2] 
+        @test cvreport[modelname].per_observation[1] === std_evaluation[modelname].per_observation[1] === missing
+    end
+
+end
+
+@testset "Test internal evaluation of the stack in classification mode" begin
+    X, y = make_blobs(;rng=rng, shuffle=false)
+    resampling = StratifiedCV(;nfolds=3)
+    measures = [accuracy, log_loss]
+    constant = ConstantClassifier()
+    knn = KNNClassifier()
+    mystack = Stack(;metalearner=DecisionTreeClassifier(),
+                    resampling=resampling,
+                    constant=constant,
+                    knn=knn,
+                    internal_measures=measures)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    cvreport = report(mach).cv_report
+    # evaluate decisiontree and ridge out of stack and check results match
+    std_evaluation = (
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling),
+        knn = evaluate(knn, X, y, measure=measures, resampling=resampling)
+        )
+    
+    for modelname in (:knn, :constant)
+        @test cvreport[modelname].operation == predict
+        @test cvreport[modelname].measure == measures
         @test cvreport[modelname].measurement ≈ std_evaluation[modelname].measurement
         @test cvreport[modelname].per_fold ≈ std_evaluation[modelname].per_fold 
         @test cvreport[modelname].per_observation[2] ≈ std_evaluation[modelname].per_observation[2] 
