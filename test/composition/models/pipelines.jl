@@ -367,7 +367,7 @@ end
     end
 
     # test correct error thrown for inverse_transform:
-    @test_throws(MLJBase.ERR_INVERSION_NOT_SUPPORTED,
+    @test_throws(MLJBase.err_unsupported_operation(:inverse_transform),
                  inverse_transform(mach, 3))
 end
 
@@ -413,7 +413,7 @@ end
 
     # Check target_scitype of a supervised pipeline is the same as the supervised component
     @test target_scitype(p) == target_scitype(ConstantClassifier())
-    
+
     # test pipelines with weights:
     w = map(y) do η
         η == 'm' ? 100 : 1
@@ -563,7 +563,7 @@ end
 
 @testset "miscelleneous coverage" begin
     @test MLJBase.as_type(:unsupervised) == Unsupervised
-end 
+end
 
 end
 

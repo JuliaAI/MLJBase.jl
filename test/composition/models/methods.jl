@@ -486,5 +486,33 @@ end
 
 end
 
+@testset "operation nodes that are source nodes" begin
+
+    mutable struct BananaComposite <: UnsupervisedComposite
+        stand
+    end
+    BananaComposite(; stand=Standardizer()) = BananaComposite(stand)
+
+    function MLJBase.fit(model::BananaComposite, verbosity, X)
+
+        Xs = source(X)
+        mach1 = machine(model.stand, Xs)
+        X2 = transform(mach1, Xs)
+
+        # node for the inverse_transform:
+
+        network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs)
+        return!(network_mach, model, verbosity)
+
+    end
+
+    X = (x = Float64[1, 2, 3],)
+    mach = machine(BananaComposite(), X)
+    fit!(mach, verbosity=0, force=true)
+    @test transform(mach, X).x ≈ Float64[-1, 0, 1]
+    @test inverse_transform(mach, X) == X
+
+end
+
 end # module
 true

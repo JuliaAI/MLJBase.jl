@@ -394,8 +394,8 @@ function return!(mach::Machine{<:Surrogate},
 
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
 
-    # anonymize the data:
-    sources = mach.args
+    # anonymize the data
+    sources = MLJBase.sources(glb(mach))
     data = Tuple(s.data for s in sources)
     [MLJBase.rebind!(s, nothing) for s in sources]
 
@@ -417,6 +417,7 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
 
 ## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
+
 """
     replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
 
@@ -425,7 +426,8 @@ any specified sources and models `a1, a2, ...` of the original
 underlying network with `b1, b2, ...`.
 
 If `empty_unspecified_sources=true` then any source nodes not
-specified are replaced with empty source nodes.
+specified are replaced with empty source nodes, unless they wrap an
+`Exception` object.
 
 """
 function Base.replace(mach::Machine{<:Surrogate},
@@ -453,7 +455,7 @@ function Base.replace(mach::Machine{<:Surrogate},
     newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
 
     # build complete source replacement pairs:
-    sources_ = mach.args # sources(W)
+    sources_ = sources(W)
     specified_source_pairs = filter(collect(pairs)) do pair
         first(pair) isa Source
     end
@@ -475,11 +477,8 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
 
-    # drop source nodes from all nodes of network terminating at W:
-    nodes_ = filter(nodes(W)) do N
-        !(N isa Source)
-    end
-    isempty(nodes_) && error("All nodes in network are source nodes. ")
+    nodes_ = nodes(W)
+
     # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
@@ -492,27 +491,28 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     # build the new network:
     for N in nodes_
-       args = [newnode_given_old[arg] for arg in N.args]
-         if N.machine === nothing
-             newnode_given_old[N] = node(N.operation, args...)
-         else
-             if N.machine in keys(newmach_given_old)
-                 m = newmach_given_old[N.machine]
-             else
-                 train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                 m = Machine(newmodel_given_old[N.machine.model],
+        if N isa Node # ie, not a `Source`
+            args = [newnode_given_old[arg] for arg in N.args]
+            if N.machine === nothing
+                newnode_given_old[N] = node(N.operation, args...)
+            else
+                if N.machine in keys(newmach_given_old)
+                    m = newmach_given_old[N.machine]
+                else
+                    train_args = [newnode_given_old[arg] for arg in N.machine.args]
+                    m = Machine(newmodel_given_old[N.machine.model],
                                 train_args...)
-                 newmach_given_old[N.machine] = m
-             end
-             newnode_given_old[N] = N.operation(m, args...)
-         end
-        if N in operation_nodes
+                    newmach_given_old[N.machine] = m
+                end
+                newnode_given_old[N] = N.operation(m, args...)
+            end
+        end
+        if N in operation_nodes # could be `Source`
             newoperation_node_given_old[N] = newnode_given_old[N]
         elseif N in report_nodes
             newreport_node_given_old[N] = newnode_given_old[N]
         end
     end
-
     newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
                           operation_nodes)
     newreport_nodes = Tuple(newreport_node_given_old[N] for N in
