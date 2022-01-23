@@ -1,7 +1,7 @@
 using Documenter
 using MLJBase
 
-const REPO="https://github.com/JuliaAI/MLJBase.jl"
+const REPO="github.com/JuliaAI/MLJBase.jl.git"
 
 makedocs(;
     modules=[MLJBase],
