@@ -271,8 +271,8 @@ pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<
     ŷ
 
 
-maybe_evaluate(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
-function maybe_evaluate(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures)
+store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
+function store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures)
     node((ytest, Xtest) -> [mach, Xtest, ytest], ytest, Xtest)
 end
 
@@ -361,7 +361,7 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source, verbosit
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
             # Internal evaluation on the fold if required
-            push!(folds_evaluations, maybe_evaluate(mach, Xtest, ytest, m.measures))
+            push!(folds_evaluations, store_for_evaluation(mach, Xtest, ytest, m.measures))
             # Dispatch the computation of the expected mean based on
             # the model type and target_scytype
             ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))

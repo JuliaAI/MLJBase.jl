@@ -351,18 +351,18 @@ end
 end
 
 
-@testset "Test maybe_evaluate" begin
+@testset "Test store_for_evaluation" begin
     X, y = make_blobs(;rng=rng, shuffle=false)
     Xs, ys = source(X), source(y)
     mach = machine(KNNClassifier(), Xs, ys)
     fit!(mach, verbosity=0)
     measures = [accuracy, log_loss]
-    mach_, Xtest, ytest = MLJBase.maybe_evaluate(mach, Xs, ys, measures)()
+    mach_, Xtest, ytest = MLJBase.store_for_evaluation(mach, Xs, ys, measures)()
     @test Xtest == X
     @test ytest == y
     @test mach_ == mach
     # check fallback
-    @test MLJBase.maybe_evaluate(mach, Xs, ys, nothing) === nothing
+    @test MLJBase.store_for_evaluation(mach, Xs, ys, nothing) === nothing
 end
 
 @testset "Test internal_stack_report" begin
