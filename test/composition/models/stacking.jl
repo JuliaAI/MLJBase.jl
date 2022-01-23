@@ -24,6 +24,22 @@ function model_evaluation(models::NamedTuple, X, y; measure=rmse)
 end
 
 
+function test_internal_evaluation(internalreport, std_evaluation, modelnames)
+    for model in modelnames
+        model_ev = internalreport[model]
+        std_ev = std_evaluation[model]
+        @test model_ev isa PerformanceEvaluation
+        @test model_ev.per_fold == std_ev.per_fold
+        @test model_ev.measurement == std_ev.measurement
+        @test model_ev.per_observation[1] === std_ev.per_observation[1] === missing
+        @test model_ev.per_observation[2] == std_ev.per_observation[2] 
+        @test model_ev.operation == std_ev.operation
+        @test model_ev.report_per_fold == std_ev.report_per_fold
+        @test model_ev.train_test_rows == std_ev.train_test_rows
+    end
+end
+
+
 @testset "Testing Stack on Continuous target" begin
     X, y = make_regression(500, 5; rng=rng)
 
@@ -149,6 +165,7 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
+                    measures=rmse,
                     resampling=CV(;nfolds=3),
                     models...)
     @test mystack.ridge_lambda.lambda == 0.1
@@ -163,6 +180,9 @@ end
 
     mystack.resampling = StratifiedCV()
     @test mystack.resampling isa StratifiedCV
+
+    # Test measures accepts a single measure
+    @test mystack.measures == [rmse,]
 
     # using inner constructor accepts :resampling and :metalearner
     # as modelnames
@@ -337,61 +357,63 @@ end
     mach = machine(KNNClassifier(), Xs, ys)
     fit!(mach, verbosity=0)
     measures = [accuracy, log_loss]
-    measure_results = MLJBase.maybe_evaluate(mach, Xs, ys, measures, 0)()
-    @test measure_results[1] == accuracy(predict_mode(mach), y)
-    @test measure_results[2] == log_loss(predict(mach), y)
+    mach_, Xtest, ytest = MLJBase.maybe_evaluate(mach, Xs, ys, measures)()
+    @test Xtest == X
+    @test ytest == y
+    @test mach_ == mach
     # check fallback
-    @test MLJBase.maybe_evaluate(mach, Xs, ys, nothing, 0) === nothing
+    @test MLJBase.maybe_evaluate(mach, Xs, ys, nothing) === nothing
 end
 
 @testset "Test internal_stack_report" begin
-
-    decisiontree = DecisionTreeRegressor()
+    n = 500
+    X, y = make_regression(n, 5; rng=rng)
+    resampling = CV(;nfolds=2)
+    measures = [rms, l2]
+    constant = ConstantRegressor()
     ridge = FooBarRegressor()
-    mystack = Stack(;metalearner=FooBarRegressor(),
-                    resampling=CV(;nfolds=3),
-                    internal_measures=[rms, l2],
-                    decisiontree=decisiontree,
+    mystack = Stack(;metalearner=ridge,
+                    resampling=resampling,
+                    measures=measures,
+                    constant=constant,
                     ridge=ridge)
 
+    std_evaluation = (
+        constant=evaluate(constant, X, y, resampling=resampling, measures=measures, verbosity=0),
+        ridge=evaluate(ridge, X, y, resampling=resampling, measures=measures, verbosity=0)
+    )
+
     # Testing internal_stack_report default with nothing
-    @test MLJBase.internal_stack_report(mystack, nothing, nothing) == NamedTuple{}()
+    ys = source(y)
+    @test MLJBase.internal_stack_report(mystack, 0, ys, nothing, nothing) == NamedTuple{}()
 
-    # Measures are added incrementally by model for each fold by `maybe_evaluate`
-    # ie: 3 folds, 2 models per fold and 2 measures per node
-    # The rms measure reports aggregates while l2 reports per observation values
-    evaluation_nodes = vcat([source([1, [1, 2, 3]]), source([2, [4, 5, 6]])],
-                            [source([6, [7, 8, 9]]), source([8, [1, 1, 1]])],
-                            [source([12, [2, 8, 0]]), source([14, [0, 0, 0]])])
+    # Simulate the evaluation nodes which consist of
+    # - The fold machine
+    # - Xtest
+    # - ytest
+    evaluation_nodes = []
+    for (train, test) in MLJBase.train_test_pairs(resampling, 1:n, y)
+        for model in getfield(mystack, :models)
+            mach = machine(model, X, y)
+            fit!(mach, verbosity=0, rows=train)
+            Xtest = selectrows(X, test)
+            ytest = selectrows(y, test)    
+            push!(evaluation_nodes, source((mach, Xtest, ytest)))
+        end
+    end
 
-    internalreport = MLJBase.internal_stack_report(mystack, evaluation_nodes...).report.cv_report()
-    # decisiontree
-    dtreport = internalreport.decisiontree
-    @test dtreport.measure == [rms, l2]
-    @test dtreport.operation == predict
+    internalreport = MLJBase.internal_stack_report(
+        mystack, 
+        0, 
+        ys, 
+        evaluation_nodes...
+    ).report.cv_report()
 
-    @test dtreport.per_observation[1] === missing
-    @test dtreport.per_observation[2] == [[1, 2, 3], [7, 8, 9], [2, 8, 0]]
-    
-    @test dtreport.per_fold[1] == [1, 6, 12]
-    @test dtreport.per_fold[2] ≈ [2., 8., 3.333] atol=1e-3
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
 
-    @test dtreport.measurement[1] == MLJBase.aggregate([1, 6, 12], rms)
-    @test dtreport.measurement[2] ≈ MLJBase.aggregate([2., 8., 3.333], l2) atol=1e-3
-
-    # ridge
-    ridgereport = internalreport.ridge
-    @test ridgereport.measure == [rms, l2]
-    @test ridgereport.operation == predict
-
-    @test ridgereport.per_observation[1] === missing
-    @test ridgereport.per_observation[2] == [[4, 5, 6], [1, 1, 1], [0, 0, 0]]
-    
-    @test ridgereport.per_fold[1] == [2, 8, 14]
-    @test ridgereport.per_fold[2] == [5.0, 1.0, 0.0]
-
-    @test ridgereport.measurement[1] == MLJBase.aggregate([2, 8, 14], rms)
-    @test ridgereport.measurement[2] == MLJBase.aggregate([5.0, 1.0, 0.0], l2) 
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
+    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -403,27 +425,22 @@ end
     ridge = FooBarRegressor()
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=resampling,
-                    internal_measures=measures,
+                    measures=measures,
                     ridge=ridge,
                     constant=constant)
 
     mach = machine(mystack, X, y)
     fit!(mach, verbosity=0)
-    cvreport = report(mach).cv_report
+    internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling),
-        ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling)
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
     
-    for modelname in (:constant, :ridge)
-        @test cvreport[modelname].operation == predict
-        @test cvreport[modelname].measure == measures
-        @test cvreport[modelname].measurement ≈ std_evaluation[modelname].measurement
-        @test cvreport[modelname].per_fold ≈ std_evaluation[modelname].per_fold 
-        @test cvreport[modelname].per_observation[2] ≈ std_evaluation[modelname].per_observation[2] 
-        @test cvreport[modelname].per_observation[1] === std_evaluation[modelname].per_observation[1] === missing
-    end
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
+    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -437,28 +454,30 @@ end
                     resampling=resampling,
                     constant=constant,
                     knn=knn,
-                    internal_measures=measures)
+                    measures=measures)
 
     mach = machine(mystack, X, y)
     fit!(mach, verbosity=0)
-    cvreport = report(mach).cv_report
+    internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling),
-        knn = evaluate(knn, X, y, measure=measures, resampling=resampling)
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        knn = evaluate(knn, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
     
-    for modelname in (:knn, :constant)
-        @test cvreport[modelname].operation == predict
-        @test cvreport[modelname].measure == measures
-        @test cvreport[modelname].measurement ≈ std_evaluation[modelname].measurement
-        @test cvreport[modelname].per_fold ≈ std_evaluation[modelname].per_fold 
-        @test cvreport[modelname].per_observation[2] ≈ std_evaluation[modelname].per_observation[2] 
-        @test cvreport[modelname].per_observation[1] === std_evaluation[modelname].per_observation[1] === missing
+    test_internal_evaluation(internalreport, std_evaluation, (:knn, :constant))
+    # Test fitted_params
+    for i in 1:mystack.resampling.nfolds
+        std_constant_fp = std_evaluation.constant.fitted_params_per_fold[i]
+        intern_constant_fp = internalreport.constant.fitted_params_per_fold[i]
+        @test std_constant_fp.target_distribution ≈ intern_constant_fp.target_distribution
+
+        std_knn_fp = std_evaluation.knn.fitted_params_per_fold[i]
+        intern_knn_fp = internalreport.knn.fitted_params_per_fold[i]
+        @test std_knn_fp.tree.data == intern_knn_fp.tree.data
     end
 
 end
 
 end
-
 true
