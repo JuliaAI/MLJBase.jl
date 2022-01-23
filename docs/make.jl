@@ -19,4 +19,4 @@ makedocs(;
     sitename="MLJBase.jl"
 )
 
-deploydocs(; repo="$(REPO).git", push_preview=false)
+deploydocs(; repo=REPO, push_preview=false)
