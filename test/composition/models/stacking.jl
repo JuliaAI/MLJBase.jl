@@ -237,7 +237,7 @@ end
     ys = source(y)
     folds = MLJBase.getfolds(ys, stack.resampling, n)
 
-    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys, 0)
+    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
     
     # No internal measure has been provided so the resulting 
     # folds_evaluations contain nothing

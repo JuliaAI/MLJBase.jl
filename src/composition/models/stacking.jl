@@ -343,7 +343,7 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, fol
 end
 
 
-function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source, verbosity::Int)
+function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
     yval = []
     folds_evaluations = []
@@ -393,7 +393,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     
     folds = getfolds(ys, m.resampling, n)
     
-    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys, verbosity)
+    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
 
     metamach = machine(m.metalearner, Zval, yval)
 
