@@ -19,4 +19,8 @@ makedocs(;
     sitename="MLJBase.jl"
 )
 
-deploydocs(; repo=REPO, push_preview=false)
+deploydocs(;
+    repo=REPO,
+    devbranch="dev",
+    push_preview=false,
+)
