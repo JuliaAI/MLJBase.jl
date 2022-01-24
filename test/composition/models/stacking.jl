@@ -217,6 +217,22 @@ end
     initial_stack.constant = ConstantClassifier()
     @test_throws DomainError clean!(initial_stack)
 
+    # Test check_stack_measures with 
+    # probabilistic measure and deterministic model
+    measures =[log_loss]
+    stack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    measure=measures,
+                    constant=ConstantRegressor(),
+                    fb=FooBarRegressor())
+    X, y = make_regression()
+
+    @test_throws ArgumentError fit!(machine(stack, X, y), verbosity=0)
+    @test_throws ArgumentError MLJBase.check_stack_measures(stack, 0, measures, y)
+
+    # This will not raise
+    stack.measures = nothing 
+    fit!(machine(stack, X, y), verbosity=0)
 end
 
 @testset  "function oos_set" begin
@@ -425,7 +441,7 @@ end
     ridge = FooBarRegressor()
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=resampling,
-                    measures=measures,
+                    measure=measures,
                     ridge=ridge,
                     constant=constant)
 

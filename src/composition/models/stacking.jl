@@ -149,7 +149,7 @@ report(mach).cv_report
 ```
 
 """
-function Stack(;metalearner=nothing, resampling=CV(), measures=nothing, named_models...)
+function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, named_models...)
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
@@ -222,6 +222,7 @@ end
 function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where modelnames
     _name === :metalearner && return setfield!(stack, :metalearner, val)
     _name === :resampling && return setfield!(stack, :resampling, val)
+    _name === :measures && return setfield!(stack, :measures, val)
     idx = findfirst(==(_name), modelnames)
     idx isa Nothing || return getfield(stack, :models)[idx] = val
     error("type Stack has no property $name")
@@ -276,13 +277,34 @@ function store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::Abstrac
     node((ytest, Xtest) -> [mach, Xtest, ytest], ytest, Xtest)
 end
 
+"""
+    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing})
+
+When measure/measures is a Nothing, the folds_evaluation won't have been filled by `store_for_evaluation`
+and we thus return an empty NamedTuple.
+"""
 internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+
+"""
+    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
+
+When measure/measures is provided, the folds_evaluation will have been filled by `store_for_evaluation`. This function is 
+not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
+can be evaluated later.
+"""
 function internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
     _internal_stack_report(y, folds_evaluations...) =
         internal_stack_report(m, verbosity, y, folds_evaluations...)
     return (report=(cv_report=node(_internal_stack_report, y, folds_evaluations...),),)
 end
 
+"""
+    internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+
+Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. The folds_evaluations
+are  built in a flatten array respecting the order given by:
+(fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1, model_2, ...), ...)
+"""
 function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
 
     n_measures = length(stack.measures)
@@ -343,6 +365,26 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, fol
 end
 
 
+check_stack_measures(stack, verbosity::Int, measures::Nothing, y) = nothing
+"""
+    check_stack_measures(stack, measures, y)
+
+Check the measures compatibility for each model in the Stack.
+"""
+function check_stack_measures(stack, verbosity::Int, measures, y)
+    for model in getfield(stack, :models)
+        operations = _actual_operations(nothing, measures, model, verbosity)
+        _check_measures(measures, operations, model, y)
+    end
+end
+
+"""
+    oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
+
+This function is building the out-of-sample dataset that is later used by the `judge`
+for its own training. It also returns the folds_evaluations object if internal 
+cross-validation results are requested.
+"""
 function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
     yval = []
@@ -386,6 +428,8 @@ end
     fit(m::Stack, verbosity::Int, X, y)
 """
 function fit(m::Stack, verbosity::Int, X, y)
+    check_stack_measures(m, verbosity, m.measures, y)
+
     n = nrows(y)
 
     Xs = source(X)
