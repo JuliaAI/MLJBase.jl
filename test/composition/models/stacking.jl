@@ -24,6 +24,22 @@ function model_evaluation(models::NamedTuple, X, y; measure=rmse)
 end
 
 
+function test_internal_evaluation(internalreport, std_evaluation, modelnames)
+    for model in modelnames
+        model_ev = internalreport[model]
+        std_ev = std_evaluation[model]
+        @test model_ev isa PerformanceEvaluation
+        @test model_ev.per_fold == std_ev.per_fold
+        @test model_ev.measurement == std_ev.measurement
+        @test model_ev.per_observation[1] === std_ev.per_observation[1] === missing
+        @test model_ev.per_observation[2] == std_ev.per_observation[2] 
+        @test model_ev.operation == std_ev.operation
+        @test model_ev.report_per_fold == std_ev.report_per_fold
+        @test model_ev.train_test_rows == std_ev.train_test_rows
+    end
+end
+
+
 @testset "Testing Stack on Continuous target" begin
     X, y = make_regression(500, 5; rng=rng)
 
@@ -149,6 +165,7 @@ end
                 ridge_lambda=FooBarRegressor(;lambda=0.1))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
+                    measures=rmse,
                     resampling=CV(;nfolds=3),
                     models...)
     @test mystack.ridge_lambda.lambda == 0.1
@@ -164,6 +181,9 @@ end
     mystack.resampling = StratifiedCV()
     @test mystack.resampling isa StratifiedCV
 
+    # Test measures accepts a single measure
+    @test mystack.measures == [rmse,]
+
     # using inner constructor accepts :resampling and :metalearner
     # as modelnames
     modelnames = (:resampling, :metalearner)
@@ -171,7 +191,7 @@ end
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling)
+    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing)
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]
@@ -197,6 +217,22 @@ end
     initial_stack.constant = ConstantClassifier()
     @test_throws DomainError clean!(initial_stack)
 
+    # Test check_stack_measures with 
+    # probabilistic measure and deterministic model
+    measures =[log_loss]
+    stack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    measure=measures,
+                    constant=ConstantRegressor(),
+                    fb=FooBarRegressor())
+    X, y = make_regression()
+
+    @test_throws ArgumentError fit!(machine(stack, X, y), verbosity=0)
+    @test_throws ArgumentError MLJBase.check_stack_measures(stack, 0, measures, y)
+
+    # This will not raise
+    stack.measures = nothing 
+    fit!(machine(stack, X, y), verbosity=0)
 end
 
 @testset  "function oos_set" begin
@@ -217,7 +253,12 @@ end
     ys = source(y)
     folds = MLJBase.getfolds(ys, stack.resampling, n)
 
-    Zval, yval = MLJBase.oos_set(stack, folds, Xs, ys)
+    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
+    
+    # No internal measure has been provided so the resulting 
+    # folds_evaluations contain nothing
+    @test all(x === nothing for x in folds_evaluations)
+
     # To be accessed, the machines need to be trained
     fit!(Zval, verbosity=0)
     # Each model in the library should output a 3-dim vector to be concatenated
@@ -325,6 +366,134 @@ end
     
 end
 
+
+@testset "Test store_for_evaluation" begin
+    X, y = make_blobs(;rng=rng, shuffle=false)
+    Xs, ys = source(X), source(y)
+    mach = machine(KNNClassifier(), Xs, ys)
+    fit!(mach, verbosity=0)
+    measures = [accuracy, log_loss]
+    mach_, Xtest, ytest = MLJBase.store_for_evaluation(mach, Xs, ys, measures)()
+    @test Xtest == X
+    @test ytest == y
+    @test mach_ == mach
+    # check fallback
+    @test MLJBase.store_for_evaluation(mach, Xs, ys, nothing) === nothing
 end
 
+@testset "Test internal_stack_report" begin
+    n = 500
+    X, y = make_regression(n, 5; rng=rng)
+    resampling = CV(;nfolds=2)
+    measures = [rms, l2]
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=ridge,
+                    resampling=resampling,
+                    measures=measures,
+                    constant=constant,
+                    ridge=ridge)
+
+    std_evaluation = (
+        constant=evaluate(constant, X, y, resampling=resampling, measures=measures, verbosity=0),
+        ridge=evaluate(ridge, X, y, resampling=resampling, measures=measures, verbosity=0)
+    )
+
+    # Testing internal_stack_report default with nothing
+    ys = source(y)
+    @test MLJBase.internal_stack_report(mystack, 0, ys, nothing, nothing) == NamedTuple{}()
+
+    # Simulate the evaluation nodes which consist of
+    # - The fold machine
+    # - Xtest
+    # - ytest
+    evaluation_nodes = []
+    for (train, test) in MLJBase.train_test_pairs(resampling, 1:n, y)
+        for model in getfield(mystack, :models)
+            mach = machine(model, X, y)
+            fit!(mach, verbosity=0, rows=train)
+            Xtest = selectrows(X, test)
+            ytest = selectrows(y, test)    
+            push!(evaluation_nodes, source((mach, Xtest, ytest)))
+        end
+    end
+
+    internalreport = MLJBase.internal_stack_report(
+        mystack, 
+        0, 
+        ys, 
+        evaluation_nodes...
+    ).report.cv_report()
+
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
+
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
+    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+
+end
+
+@testset "Test internal evaluation of the stack in regression mode" begin
+    X, y = make_regression(500, 5; rng=rng)
+    resampling = CV(;nfolds=3)
+    measures = [rms, l2]
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=resampling,
+                    measure=measures,
+                    ridge=ridge,
+                    constant=constant)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    internalreport = report(mach).cv_report
+    # evaluate decisiontree and ridge out of stack and check results match
+    std_evaluation = (
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling, verbosity=0)
+        )
+    
+    test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
+    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+
+end
+
+@testset "Test internal evaluation of the stack in classification mode" begin
+    X, y = make_blobs(;rng=rng, shuffle=false)
+    resampling = StratifiedCV(;nfolds=3)
+    measures = [accuracy, log_loss]
+    constant = ConstantClassifier()
+    knn = KNNClassifier()
+    mystack = Stack(;metalearner=DecisionTreeClassifier(),
+                    resampling=resampling,
+                    constant=constant,
+                    knn=knn,
+                    measures=measures)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    internalreport = report(mach).cv_report
+    # evaluate decisiontree and ridge out of stack and check results match
+    std_evaluation = (
+        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        knn = evaluate(knn, X, y, measure=measures, resampling=resampling, verbosity=0)
+        )
+    
+    test_internal_evaluation(internalreport, std_evaluation, (:knn, :constant))
+    # Test fitted_params
+    for i in 1:mystack.resampling.nfolds
+        std_constant_fp = std_evaluation.constant.fitted_params_per_fold[i]
+        intern_constant_fp = internalreport.constant.fitted_params_per_fold[i]
+        @test std_constant_fp.target_distribution ≈ intern_constant_fp.target_distribution
+
+        std_knn_fp = std_evaluation.knn.fitted_params_per_fold[i]
+        intern_knn_fp = internalreport.knn.fitted_params_per_fold[i]
+        @test std_knn_fp.tree.data == intern_knn_fp.tree.data
+    end
+
+end
+
+end
 true
