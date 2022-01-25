@@ -132,7 +132,7 @@ function check(model::Model, args...; full=false)
     (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
         return true
 
-    S = Tuple{scitype.(args)...}
+    S = Tuple{elscitype.(args)...}
     if !(S <: F)
         @warn warn_generic_scitype_mismatch(S, F)
         nowarns = false
