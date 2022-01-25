@@ -58,7 +58,9 @@ function (X::Source)(; rows=:)
     rows == (:) && return X.data
     return selectrows(X.data, rows)
 end
-(X::Source)(Xnew) = Xnew
+function (X::Source)(Xnew)
+    return Xnew
+end
 
 # return a string of diagnostics for the call `X(input...; kwargs...)`
 diagnostic_table_sources(X::AbstractNode) =
@@ -133,14 +135,3 @@ function Base.show(stream::IO, ::MIME"text/plain", source::Source)
     print(stream, " \u23CE `$(elscitype(source))`")
     return nothing
 end
-
-## SPECIAL NODE TO THROW EXCEPTION WHEN CALLED
-
-struct ErrorNode{E} <: AbstractNode
-    exception::E
-end
-(n::ErrorNode)(args...; kwargs...) = throw(n.exception)
-
-origins(::ErrorNode) = AbstractNode[]
-nodes(::ErrorNode) = AbstractNode[]
-machines(::ErrorNode) = Machine[]

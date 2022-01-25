@@ -69,19 +69,23 @@ jobs:
                end
            end
            event_name = "${{ github.event_name }}"
+           ref = "${{ github.ref }}"
+           ref_is_master = ref == "refs/heads/master"
+           ref_is_dev    = ref == "refs/heads/dev"
+           ref_is_tag    = startswith(ref, "refs/tags/")
            if event_name == "pull_request"
                base_ref = "${{ github.base_ref }}"
                head_ref = "${{ github.head_ref }}"
                base_repository = "${{ github.repository }}"
                head_repository = "${{ github.event.pull_request.head.repo.full_name }}"
-               build_docs = (base_ref == "master") && (head_ref == "dev") && (base_repository == head_repository)
+               is_not_fork = base_repository == head_repository
+               build_docs = (base_ref == "master") && (head_ref == "dev") && (is_not_fork)
            elseif event_name == "push"
-               ref = "${{ github.ref }}"
-               build_docs = (ref == "refs/heads/master") || (startswith(ref, "refs/tags/"))
+               build_docs = ref_is_master || ref_is_dev || ref_is_tag
            elseif event_name == "schedule"
-               build_docs = ref == "refs/heads/master"
+               build_docs = ref_is_master || ref_is_dev
            elseif event_name == "workflow_dispatch"
-               build_docs = ref == "refs/heads/master"
+               build_docs = ref_is_master || ref_is_dev
            else
                build_docs = false
            end

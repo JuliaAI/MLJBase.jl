@@ -1,7 +1,7 @@
 using Documenter
 using MLJBase
 
-const REPO="https://github.com/JuliaAI/MLJBase.jl"
+const REPO="github.com/JuliaAI/MLJBase.jl"
 
 makedocs(;
     modules=[MLJBase],
@@ -15,8 +15,12 @@ makedocs(;
         "Distributions" => "distributions.md",
         "Utilities" => "utilities.md"
     ],
-    repo="$REPO/blob/{commit}{path}#L{line}",
+    repo="https://$REPO/blob/{commit}{path}#L{line}",
     sitename="MLJBase.jl"
 )
 
-deploydocs(; repo=REPO, push_preview=false)
+deploydocs(;
+    repo=REPO,
+    devbranch="dev",
+    push_preview=false,
+)

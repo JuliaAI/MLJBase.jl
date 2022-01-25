@@ -30,9 +30,10 @@ mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: Determ
    models::Vector{Supervised}
    metalearner::Deterministic
    resampling
-   function DeterministicStack(modelnames, models, metalearner, resampling)
+   measures::Union{Nothing,AbstractVector}
+   function DeterministicStack(modelnames, models, metalearner, resampling, measures)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
    end
 end
 
@@ -40,9 +41,10 @@ mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: Probab
     models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
-    function ProbabilisticStack(modelnames, models, metalearner, resampling)
+    measures::Union{Nothing,AbstractVector}
+    function ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
     end
  end
 
@@ -91,6 +93,10 @@ When training a machine bound to such an instance:
   It can be a user-defined strategy, the only 
   caveat being that it should have a `nfolds` attribute.
 
+- `measures`: A measure or iterable over measures, to perform an internal 
+  evaluation of the learners in the Stack while training. This is not for the
+  evaluation of the Stack itself.
+
 - `name1=model1, name2=model2, ...`: the `Supervised` model instances
   to be used as base learners.  The provided names become properties
   of the instance created to allow hyper-parameter access
@@ -122,6 +128,7 @@ X, y = make_regression(500, 5)
 
 stack = Stack(;metalearner=LinearRegressor(),
                 resampling=CV(),
+                measures=rmse,
                 constant=ConstantRegressor(),
                 tree_2=DecisionTreeRegressor(max_depth=2),
                 tree_3=DecisionTreeRegressor(max_depth=3),
@@ -134,19 +141,29 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 
 ```
 
+The internal evaluation report can be accessed like this 
+and provides a PerformanceEvaluation object for each model:
+
+```julia
+report(mach).cv_report
+```
+
 """
-function Stack(;metalearner=nothing, resampling=CV(), named_models...)
+function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, named_models...)
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
     models = collect(nt)
+    if (measures !== nothing) && !(measures isa AbstractVector)
+        measures = [measures, ]
+    end
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, resampling)
+        stack =  DeterministicStack(modelnames, models, metalearner, resampling, measures)
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, resampling)
+        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
     else
         throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))
@@ -193,6 +210,7 @@ Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:resampling, :m
 function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
     name === :resampling && return getfield(stack, :resampling)
+    name == :measures && return getfield(stack, :measures)
     models = getfield(stack, :models)
     for j in eachindex(modelnames)
         name === modelnames[j] && return models[j]
@@ -204,6 +222,7 @@ end
 function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where modelnames
     _name === :metalearner && return setfield!(stack, :metalearner, val)
     _name === :resampling && return setfield!(stack, :resampling, val)
+    _name === :measures && return setfield!(stack, :measures, val)
     idx = findfirst(==(_name), modelnames)
     idx isa Nothing || return getfield(stack, :models)[idx] = val
     error("type Stack has no property $name")
@@ -253,9 +272,123 @@ pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<
     ŷ
 
 
+store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
+function store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures)
+    node((ytest, Xtest) -> [mach, Xtest, ytest], ytest, Xtest)
+end
+
+"""
+    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing})
+
+When measure/measures is a Nothing, the folds_evaluation won't have been filled by `store_for_evaluation`
+and we thus return an empty NamedTuple.
+"""
+internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+
+"""
+    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
+
+When measure/measures is provided, the folds_evaluation will have been filled by `store_for_evaluation`. This function is 
+not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
+can be evaluated later.
+"""
+function internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
+    _internal_stack_report(y, folds_evaluations...) =
+        internal_stack_report(m, verbosity, y, folds_evaluations...)
+    return (report=(cv_report=node(_internal_stack_report, y, folds_evaluations...),),)
+end
+
+"""
+    internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+
+Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. The folds_evaluations
+are  built in a flatten array respecting the order given by:
+(fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1, model_2, ...), ...)
+"""
+function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+
+    n_measures = length(stack.measures)
+    nfolds = stack.resampling.nfolds
+
+    # For each model we record the results mimicking the fields PerformanceEvaluation
+    results = NamedTuple{modelnames}([
+            (measure=stack.measures,
+            measurement=Vector{Any}(undef, n_measures),
+            operation=_actual_operations(nothing, stack.measures, model, verbosity),
+            per_fold=[Vector{Any}(undef, nfolds) for _ in 1:n_measures],
+            per_observation=Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
+            fitted_params_per_fold=[],
+            report_per_fold=[],
+            train_test_pairs=train_test_pairs(stack.resampling, 1:nrows(y), y)
+            ) 
+        for model in getfield(stack, :models)]
+    )
+    
+    # Update the results
+    index = 1
+    for foldid in 1:nfolds
+        for modelname in modelnames
+            model_results = results[modelname]
+            mach, Xtest, ytest = folds_evaluations[index]
+            # Update report and fitted_params per fold
+            push!(model_results.fitted_params_per_fold, fitted_params(mach))
+            push!(model_results.report_per_fold, report(mach))
+            # Loop over measures to update per_observation and per_fold
+            for (i, (measure, operation)) in enumerate(zip(stack.measures, model_results.operation))
+                ypred = operation(mach, Xtest)
+                loss = measure(ypred, ytest)
+                # Update per_observation
+                if reports_each_observation(measure)
+                    if model_results.per_observation[i] === missing
+                        model_results.per_observation[i] = Vector{Any}(undef, nfolds)
+                    end
+                    model_results.per_observation[i][foldid] = loss
+                end
+
+                # Update per_fold
+                model_results.per_fold[i][foldid] = 
+                    reports_each_observation(measure) ? MLJBase.aggregate(loss, measure) : loss
+            end
+            index += 1
+        end
+    end
+
+    # Update measurement field by aggregation
+    for modelname in modelnames
+        for (i, measure) in enumerate(stack.measures)
+            model_results = results[modelname]
+            model_results.measurement[i] = MLJBase.aggregate(model_results.per_fold[i], measure)
+        end
+    end
+
+    return NamedTuple{modelnames}([PerformanceEvaluation(r...) for r in results])
+end
+
+
+check_stack_measures(stack, verbosity::Int, measures::Nothing, y) = nothing
+"""
+    check_stack_measures(stack, measures, y)
+
+Check the measures compatibility for each model in the Stack.
+"""
+function check_stack_measures(stack, verbosity::Int, measures, y)
+    for model in getfield(stack, :models)
+        operations = _actual_operations(nothing, measures, model, verbosity)
+        _check_measures(measures, operations, model, y)
+    end
+end
+
+"""
+    oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
+
+This function is building the out-of-sample dataset that is later used by the `judge`
+for its own training. It also returns the folds_evaluations object if internal 
+cross-validation results are requested.
+"""
 function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = []
     yval = []
+    folds_evaluations = []
     # Loop over the cross validation folds to build a training set for the metalearner.
     for nfold in 1:m.resampling.nfolds
         Xtrain = trainrows(Xs, folds, nfold)
@@ -269,12 +402,13 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
         for model in getfield(m, :models)
             mach = machine(model, Xtrain, ytrain)
             ypred = predict(mach, Xtest)
+            # Internal evaluation on the fold if required
+            push!(folds_evaluations, store_for_evaluation(mach, Xtest, ytest, m.measures))
             # Dispatch the computation of the expected mean based on
             # the model type and target_scytype
             ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
             push!(Zfold, ypred)
         end
-
         Zfold = hcat(Zfold...)
 
         push!(Zval, Zfold)
@@ -284,7 +418,7 @@ function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
     Zval = MLJBase.table(vcat(Zval...))
     yval = vcat(yval...)
 
-    Zval, yval
+    Zval, yval, folds_evaluations
 end
 
 #######################################
@@ -294,14 +428,16 @@ end
     fit(m::Stack, verbosity::Int, X, y)
 """
 function fit(m::Stack, verbosity::Int, X, y)
+    check_stack_measures(m, verbosity, m.measures, y)
+
     n = nrows(y)
 
     Xs = source(X)
     ys = source(y)
-
+    
     folds = getfolds(ys, m.resampling, n)
-
-    Zval, yval = oos_set(m, folds, Xs, ys)
+    
+    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
 
     metamach = machine(m.metalearner, Zval, yval)
 
@@ -317,9 +453,10 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zpred = MLJBase.table(hcat(Zpred...))
     ŷ = predict(metamach, Zpred)
 
+    internal_report = internal_stack_report(m, verbosity, ys, folds_evaluations...)
+
     # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ)
-
+    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
+    
     return!(mach, m, verbosity)
-
 end

@@ -590,6 +590,29 @@ mach = machine(model, X, y)
            @test_throws(ArgumentError,
                         fit!(mach, verbosity=-1)))
 
+
+## SOURCE NODES THAT ARE ALSO OPERATION NODES
+
+stand = Standardizer()
+
+Xs = source()
+mach1 = machine(stand, Xs)
+X2 = transform(mach1, Xs)
+
+network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs)
+
+@from_network network_mach begin
+    struct AppleComposite
+        standardizer = stand
+    end
+end
+
+X = (x = Float64[1, 2, 3],)
+mach = machine(AppleComposite(), X)
+fit!(mach, verbosity=0, force=true)
+@test transform(mach, X).x ≈ Float64[-1, 0, 1]
+@test inverse_transform(mach, X) == X 
+
 end
 
 true
