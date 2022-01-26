@@ -57,7 +57,7 @@ MLJModelInterface.restore(filename, model, serializable_fitresult) =
 # hack block ends #
 ###################
 
-MLJModelInterface.save(model, fitresult; kwargs) = fitresult
+MLJModelInterface.save(model, fitresult; kwargs...) = fitresult
 MLJModelInterface.restore(model, serializable_fitresult) =
     serializable_fitresult
 
