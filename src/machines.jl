@@ -935,9 +935,30 @@ setreport!(mach::Machine, report) =
 maybe_serializable(val) = val
 maybe_serializable(val::Machine) = serializable(val)
 
+"""
+    serializable_cache(cache)
 
+Default fallbacks to return the original cache.
+"""
 serializable_cache(cache) = cache
-serializable_cache(cache::Tuple) = Tuple(maybe_serializable(val) for val in cache)
+
+"""
+    serializable_cache(cache::Tuple)
+
+If the cache is a Tuple, any machine in the cache is called 
+`serializable` upon. This is to address TunedModels. A dispatch on
+TunedModel would have been possible but would require a new api function.
+"""
+serializable_cache(cache::Tuple) = 
+    Tuple(maybe_serializable(val) for val in cache)
+
+"""
+    serializable_cache(cache::NamedTuple)
+
+If the cache is a NamedTuple, any data field is filtered, this is to address 
+the current learning networks cache. Any machine in the cache is also called 
+`serializable` upon.
+"""
 function serializable_cache(cache::NamedTuple)
     new_keys = filter(!=(:data), keys(cache))
     return NamedTuple{new_keys}([maybe_serializable(cache[key]) for key in new_keys])
