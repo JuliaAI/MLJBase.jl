@@ -4,12 +4,11 @@ using MLJBase
 using Test
 using Statistics
 using ..Models
-const MLJModelInterface = MLJBase.MLJModelInterface
 using StableRNGs
 using Serialization
 using ..TestUtilities
 
-DecisionTreeRegressor()
+const MLJModelInterface = MLJBase.MLJModelInterface
 
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
@@ -296,6 +295,39 @@ end
 
     rm(filename)
 end
+
+@testset "Test Misc functions used in `serializable`" begin
+    X, y = TestUtilities.simpledata()
+    mach = machine(DeterministicConstantRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # setreport! default
+    @test mach.report isa NamedTuple
+    MLJBase.setreport!(mach, "toto")
+    @test mach.report == "toto"
+
+    # serializable_cache
+    # The default is to return the original cache
+    @test MLJBase.serializable_cache(mach.cache) === mach.cache
+    # For Tuples and NamedTuples, a machine might live in the cache
+    # (as it is the case in MLJTuned model) 
+    # and therefore has to be called `serializable` upon
+    # if a `data` field lives in the cache, it is removed, this is for
+    # learning networks. However this might become useless if the
+    # data anomynization process in fit! is removed
+    submach = machine(DeterministicConstantRegressor(), X, y)
+    fit!(submach, verbosity=0)
+    # Tuple type in cache
+    mach.cache = (submach,)
+    newcache = MLJBase.serializable_cache(mach.cache)
+    @test newcache[1] isa Machine 
+    @test !isdefined(newcache[1], :data)
+    # NamedTuple type in cache
+    mach.cache = (machine=submach, data=(X,y))
+    newcache = MLJBase.serializable_cache(mach.cache)
+    @test :data ∉ keys(newcache)
+    @test !isdefined(newcache[1], :data)
+end
+
 
 end # module
 
