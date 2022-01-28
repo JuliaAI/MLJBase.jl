@@ -232,7 +232,6 @@ end
 
 
 @testset "Test serializable of pipeline" begin
-    # Composite model with some C inside
     filename = "pipe_mach.jls"
     X, y = TestUtilities.simpledata()
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
@@ -261,7 +260,6 @@ end
 
 
 @testset "Test serializable of composite machines" begin
-    # Composite model with some C inside
     filename = "stack_mach.jls"
     X, y = TestUtilities.simpledata()
     model = Stack(
@@ -307,8 +305,7 @@ end
 end
 
 @testset "Test serializable of nested composite machines" begin
-    # Composite model with some C inside
-    filename = "nested stack_mach.jls"
+    filename = "nested_stack_mach.jls"
     X, y = TestUtilities.simpledata()
 
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
@@ -335,7 +332,33 @@ end
 
     rm(filename)
 
+end
 
+@testset "Test serialized filesize does not increase with datasize" begin
+    model = Stack(
+        metalearner = FooBarRegressor(lambda=1.), 
+        model_1 = DeterministicConstantRegressor(),
+        model_2=ConstantRegressor())
+
+    filesizes = []
+    for n in [100, 500, 1000]
+        filename = "serialized_temp_$n.jls"
+        X, y = TestUtilities.simpledata(n=n)
+        mach = machine(model, X, y)
+        fit!(mach, verbosity=0)
+        MLJBase.save(filename, mach)
+        push!(filesizes, filesize(filename))
+        rm(filename)
+    end
+    @test all(x==filesizes[1] for x in filesizes)
+    # What if no serializable procedure had happened
+    filename = "full_of_data.jls"
+    X, y = TestUtilities.simpledata(n=1000)
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=0)
+    serialize(filename, mach)
+    @test filesize(filename) > filesizes[1]
+    rm(filename)
 end
 
 mutable struct DummyComposite <: DeterministicComposite
