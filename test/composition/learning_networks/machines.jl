@@ -285,6 +285,7 @@ end
     @test smach.report.cv_report === mach.report.cv_report
 
     @test smach.fitresult isa MLJBase.CompositeFitresult
+    @test getfield(smach.fitresult, :report_additions) === getfield(mach.fitresult, :report_additions)
 
     Serialization.serialize(filename, smach)
     smach = Serialization.deserialize(filename)

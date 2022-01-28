@@ -415,8 +415,92 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
 
 
-## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
+function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
+    train_args = [newnode_given_old[arg] for arg in N.machine.args]
+    return Machine(newmodel_given_old[N.machine.model],
+                train_args...)
+end
 
+function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+    m = serializable(N.machine)
+    m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
+    return m
+end
+
+## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
+function update_mappings_with_node!(
+    newnode_given_old, 
+    newmach_given_old, 
+    newmodel_given_old, 
+    N::AbstractNode)
+    args = [newnode_given_old[arg] for arg in N.args]
+    if N.machine === nothing
+        newnode_given_old[N] = node(N.operation, args...)
+    else
+        if N.machine in keys(newmach_given_old)
+            m = newmach_given_old[N.machine]
+        else
+            m = copy_or_replace_machine(N, newmodel_given_old, newnode_given_old)
+            newmach_given_old[N.machine] = m
+        end
+        newnode_given_old[N] = N.operation(m, args...)
+    end
+end
+
+update_mappings_with_node!(
+    newnode_given_old, 
+    newmach_given_old, 
+    newmodel_given_old, 
+    N::Source) = nothing
+
+function copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
+    operation_nodes = values(_operation_part(signature))
+    report_nodes = values(_report_part(signature))
+    W = glb(operation_nodes..., report_nodes...)
+    # Note: We construct nodes of the new network as values of a
+    # dictionary keyed on the nodes of the old network. Additionally,
+    # there are dictionaries of models keyed on old models and
+    # machines keyed on old machines. The node and machine
+    # dictionaries must be built simultaneously.
+
+    # instantiate node and machine dictionaries:
+    newoperation_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newreport_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newmach_given_old = IdDict{Machine,Machine}()
+
+    # build the new network:
+    for N in nodes(W)
+        update_mappings_with_node!(
+            newnode_given_old, 
+            newmach_given_old, 
+            newmodel_given_old, 
+            N
+        )
+        if N in operation_nodes # could be `Source`
+            newoperation_node_given_old[N] = newnode_given_old[N]
+        elseif N in report_nodes
+            newreport_node_given_old[N] = newnode_given_old[N]
+        end
+    end
+    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
+                          operation_nodes)
+    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
+                            report_nodes)
+    report_tuple =
+        NamedTuple{keys(_report_part(signature))}(newreport_nodes)
+    operation_tuple =
+        NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
+
+    newsignature = if isempty(report_tuple)
+        operation_tuple
+    else
+        merge(operation_tuple, (report=report_tuple,))
+    end
+
+    return newsignature
+end
 
 """
     replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
@@ -439,13 +523,7 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     W = glb(operation_nodes..., report_nodes...)
 
-    # Note: We construct nodes of the new network as values of a
-    # dictionary keyed on the nodes of the old network. Additionally,
-    # there are dictionaries of models keyed on old models and
-    # machines keyed on old machines. The node and machine
-    # dictionaries must be built simultaneously.
-
-    # build model dict:
+    # Instantiate model dictionary:
     model_pairs = filter(collect(pairs)) do pair
         first(pair) isa Model
     end
@@ -453,7 +531,6 @@ function Base.replace(mach::Machine{<:Surrogate},
     models_to_copy = setdiff(models_, first.(model_pairs))
     model_copy_pairs = [model=>deepcopy(model) for model in models_to_copy]
     newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
-
     # build complete source replacement pairs:
     sources_ = sources(W)
     specified_source_pairs = filter(collect(pairs)) do pair
@@ -476,57 +553,12 @@ function Base.replace(mach::Machine{<:Surrogate},
     end
 
     all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
-
-    nodes_ = nodes(W)
-
-    # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
-    newsources = [newnode_given_old[s] for s in sources_]
-    newoperation_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newreport_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newmach_given_old = IdDict{Machine,Machine}()
+    newsources = [newnode_given_old[s] for s in sources(W)]
 
-    # build the new network:
-    for N in nodes_
-        if N isa Node # ie, not a `Source`
-            args = [newnode_given_old[arg] for arg in N.args]
-            if N.machine === nothing
-                newnode_given_old[N] = node(N.operation, args...)
-            else
-                if N.machine in keys(newmach_given_old)
-                    m = newmach_given_old[N.machine]
-                else
-                    train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                    m = Machine(newmodel_given_old[N.machine.model],
-                                train_args...)
-                    newmach_given_old[N.machine] = m
-                end
-                newnode_given_old[N] = N.operation(m, args...)
-            end
-        end
-        if N in operation_nodes # could be `Source`
-            newoperation_node_given_old[N] = newnode_given_old[N]
-        elseif N in report_nodes
-            newreport_node_given_old[N] = newnode_given_old[N]
-        end
-    end
-    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
-                          operation_nodes)
-    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
-                            report_nodes)
-    report_tuple =
-        NamedTuple{keys(_report_part(signature))}(newreport_nodes)
-    operation_tuple =
-        NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
-
-    newsignature = if isempty(report_tuple)
-        operation_tuple
-    else
-        merge(operation_tuple, (report=report_tuple,))
-    end
+    newsignature = copysignature(signature, newnode_given_old, newmodel_given_old=newmodel_given_old)
+    
 
     return machine(mach.model, newsources...; newsignature...)
 
@@ -548,71 +580,17 @@ in it needs to be called `serializable` upon.
 Ideally this method should "reuse" as much as possible `Base.replace`.
 """
 function save(model::Composite, fitresult)
-    # THIS IS WIP: NOT WORKING
     signature = MLJBase.signature(fitresult)
-
     operation_nodes = values(MLJBase._operation_part(signature))
     report_nodes = values(MLJBase._report_part(signature))
-
     W = glb(operation_nodes..., report_nodes...)
-
-    nodes_ = filter(x -> !(x isa Source), nodes(W))
-
-    # instantiate node dictionary with source nodes and exception nodes
-    # This supposes that exception nodes only occur in the signature otherwise we need 
-    # to to this differently
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}([old => source() for old in sources(W)])
-    # Other useful mappings
-    newoperation_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newreport_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newmach_given_old = IdDict{Machine,Machine}()
 
-    # build the new network, nodes are nicely ordered
-    for N in nodes_
-        # Retrieve the future node's ancestors
-        args = [newnode_given_old[arg] for arg in N.args]
-        if N.machine === nothing
-            newnode_given_old[N] = node(N.operation, args...)
-        else
-            # The same machine can be associated with multiple nodes
-            if N.machine in keys(newmach_given_old)
-                m = newmach_given_old[N.machine]
-            else
-                m = serializable(N.machine)
-                m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
-                newmach_given_old[N.machine] = m
-            end
-            newnode_given_old[N] = N.operation(m, args...)
-        end
-        # Sort nodes according to: operation_node, report_node
-        if N in operation_nodes
-            newoperation_node_given_old[N] = newnode_given_old[N]
-        elseif N in report_nodes
-            newreport_node_given_old[N] = newnode_given_old[N]
-        end
-    end
-
-    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
-            operation_nodes)
-    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
-            report_nodes)
-    report_tuple =
-        NamedTuple{keys(MLJBase._report_part(signature))}(newreport_nodes)
-    operation_tuple =
-        NamedTuple{keys(MLJBase._operation_part(signature))}(newoperation_nodes)
-
-    newsignature = if isempty(report_tuple)
-                        operation_tuple
-                    else
-                        merge(operation_tuple, (report=report_tuple,))
-                    end
-    
+    newsignature = copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
 
     newfitresult = MLJBase.CompositeFitresult(newsignature)
-    setfield!(newfitresult, :report_additions, report_tuple)
+    setfield!(newfitresult, :report_additions, getfield(fitresult, :report_additions))
 
     return newfitresult
 end
