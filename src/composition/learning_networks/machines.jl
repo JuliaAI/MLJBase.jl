@@ -414,6 +414,7 @@ end
 network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
 
+## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
     train_args = [newnode_given_old[arg] for arg in N.machine.args]
@@ -421,13 +422,31 @@ function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_gi
                 train_args...)
 end
 
+"""
+    copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+
+For now, two top functions will lead to a call of this function: `Base.replace` and
+`save`. If `save` is the calling function, the argument `newmodel_given_old` will be nothing
+and the goal is to make the machine in the current learning network serializable. 
+This method will be called. If `Base.replace` is the calling function, then `newmodel_given_old` 
+will be defined and the other method called, a new Machine will be built with training data.
+"""
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
     m = serializable(N.machine)
     m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
     return m
 end
 
-## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
+"""
+    update_mappings_with_node!(
+        newnode_given_old, 
+        newmach_given_old, 
+        newmodel_given_old, 
+        N::AbstractNode)
+
+For Nodes that are not sources, update the appropriate mappings 
+between elements of the learning to be copied and the copy itself.
+"""
 function update_mappings_with_node!(
     newnode_given_old, 
     newmach_given_old, 
@@ -453,6 +472,21 @@ update_mappings_with_node!(
     newmodel_given_old, 
     N::Source) = nothing
 
+"""
+    copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
+
+Copies the given signature of a learning network.
+
+# Arguments:
+- `signature`: signature of the learning network to be copied
+- `newnode_given_old`: initialized mapping between nodes of the 
+learning network to be copied and the new one. At this stage it should 
+contain only source nodes.
+- `newmodel_given_old`: initialized mapping between models of the 
+learning network to be copied and the new one. This is `nothing` if `save` was 
+the calling function which will result in a different behaviour of 
+`update_mappings_with_node!`
+"""
 function copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
     operation_nodes = values(_operation_part(signature))
     report_nodes = values(_report_part(signature))
