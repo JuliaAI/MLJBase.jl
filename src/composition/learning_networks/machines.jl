@@ -531,3 +531,109 @@ function Base.replace(mach::Machine{<:Surrogate},
     return machine(mach.model, newsources...; newsignature...)
 
 end
+
+
+###############################################################################
+#####              SAVE AND RESTORE FOR COMPOSITES                        #####
+###############################################################################
+
+
+"""
+    save(model::Composite, fitresult)
+
+Returns a new `CompositeFitresult` that is a shallow copy of the original one.
+To do so,  we build a copy of the learning network where each machine contained 
+in it needs to be called `serializable` upon.
+
+Ideally this method should "reuse" as much as possible `Base.replace`.
+"""
+function save(model::Composite, fitresult)
+    # THIS IS WIP: NOT WORKING
+    signature = MLJBase.signature(fitresult)
+
+    operation_nodes = values(MLJBase._operation_part(signature))
+    report_nodes = values(MLJBase._report_part(signature))
+
+    W = glb(operation_nodes..., report_nodes...)
+
+    nodes_ = filter(x -> !(x isa Source), nodes(W))
+
+    # instantiate node dictionary with source nodes and exception nodes
+    # This supposes that exception nodes only occur in the signature otherwise we need 
+    # to to this differently
+    newnode_given_old =
+        IdDict{AbstractNode,AbstractNode}([old => source() for old in sources(W)])
+    # Other useful mappings
+    newoperation_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newreport_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newmach_given_old = IdDict{Machine,Machine}()
+
+    # build the new network, nodes are nicely ordered
+    for N in nodes_
+        # Retrieve the future node's ancestors
+        args = [newnode_given_old[arg] for arg in N.args]
+        if N.machine === nothing
+            newnode_given_old[N] = node(N.operation, args...)
+        else
+            # The same machine can be associated with multiple nodes
+            if N.machine in keys(newmach_given_old)
+                m = newmach_given_old[N.machine]
+            else
+                m = serializable(N.machine)
+                m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
+                newmach_given_old[N.machine] = m
+            end
+            newnode_given_old[N] = N.operation(m, args...)
+        end
+        # Sort nodes according to: operation_node, report_node
+        if N in operation_nodes
+            newoperation_node_given_old[N] = newnode_given_old[N]
+        elseif N in report_nodes
+            newreport_node_given_old[N] = newnode_given_old[N]
+        end
+    end
+
+    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
+            operation_nodes)
+    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
+            report_nodes)
+    report_tuple =
+        NamedTuple{keys(MLJBase._report_part(signature))}(newreport_nodes)
+    operation_tuple =
+        NamedTuple{keys(MLJBase._operation_part(signature))}(newoperation_nodes)
+
+    newsignature = if isempty(report_tuple)
+                        operation_tuple
+                    else
+                        merge(operation_tuple, (report=report_tuple,))
+                    end
+    
+
+    newfitresult = MLJBase.CompositeFitresult(newsignature)
+    setfield!(newfitresult, :report_additions, report_tuple)
+
+    return newfitresult
+end
+
+"""
+    restore!(mach::Machine{<:Composite})
+
+Restores a machine of a composite model by restoring all 
+submachines contained in it.
+"""
+function restore!(mach::Machine{<:Composite})
+    glb_node = glb(mach)
+    for submach in machines(glb_node)
+        restore!(submach)
+    end
+    return mach
+end
+
+
+function setreport!(mach::Machine{<:Composite}, report)
+    basereport = MLJBase.report(glb(mach))
+    report_additions = Base.structdiff(report, basereport)
+    mach.report = merge(basereport, report_additions)
+end

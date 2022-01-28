@@ -59,6 +59,7 @@ import MLJModelInterface: fit, update, update_data, transform,
 using Parameters
 
 # Containers & data manipulation
+using Serialization
 using Tables
 import PrettyTables
 using DelimitedFiles

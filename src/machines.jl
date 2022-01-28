@@ -378,6 +378,22 @@ function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
     return Machine(model, arg1, args...; kwargs...)
 end
 
+"""
+    machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
+
+Rebuild from a file a machine that has been serialized using the default 
+Serialization module.
+"""
+function machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
+    smach = deserialize(file)
+    restore!(smach)
+    if raw_arg1 !== nothing
+        args = source.((raw_arg1, raw_args...))
+        MLJBase.check(smach.model, args...; full=true)
+        smach.args = args
+    end
+    return smach
+end
 
 ## INSPECTION AND MINOR MANIPULATION OF FIELDS
 
@@ -795,4 +811,134 @@ function training_losses(mach::Machine)
     else
         throw(NotTrainedError(mach, :training_losses))
     end
+end
+
+
+###############################################################################
+#####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
+###############################################################################
+
+
+"""
+    serializable(mach::Machine)
+
+Returns a shallow copy of the machine to make it serializable, in particular:
+    - Removes all data from caches, args and data fields
+    - Makes all `fitresults` serializable
+    - Annotates the state as -1
+"""
+function serializable(mach::Machine{<:Any, C}) where C
+    copymach = machine(mach.model, mach.args..., cache=C)
+
+    for fieldname in fieldnames(Machine)
+        if fieldname ∈ (:model, :report)
+            continue
+        elseif  fieldname == :state
+            setfield!(copymach, :state, -1)
+        # Wipe data from cache
+        elseif fieldname == :cache 
+            setfield!(copymach, :cache, serializable_cache(mach.cache))
+        elseif fieldname == :args 
+            setfield!(copymach, fieldname, ())
+        # Let those fields undefined
+        elseif fieldname ∈ (:data, :resampled_data, :old_rows)
+            continue
+        # Make fitresult ready for serialization
+        elseif fieldname == :fitresult
+            copymach.fitresult = save(mach.model, getfield(mach, fieldname))
+        else
+            setfield!(copymach, fieldname, getfield(mach, fieldname))
+        end
+    end
+
+    setreport!(copymach, mach.report)
+    
+    return copymach
+end
+
+"""
+    restore!(mach::Machine)
+
+Default method to restores the state of a machine that is currently serializable.
+Such a machine is annotated with `state=-1`
+"""
+function restore!(mach::Machine)
+    mach.fitresult = restore(mach.model, mach.fitresult)
+    return mach
+end
+
+
+"""
+    MLJ.save(filename, mach::Machine)
+    MLJ.save(io, mach::Machine)
+
+    MLJBase.save(filename, mach::Machine)
+    MLJBase.save(io, mach::Machine)
+
+Serialize the machine `mach` to a file with path `filename`, or to an
+input/output stream `io` (at least `IOBuffer` instances are
+supported) using the Serialization module.
+
+Machines are de-serialized using the `machine` constructor as shown in
+the example below. Data (or nodes) may be optionally passed to the
+constructor for retraining on new data using the saved model.
+
+
+### Example
+
+    using MLJ
+    tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    MLJ.save("tree.jlso", mach)
+    mach_predict_only = machine("tree.jlso")
+    predict(mach_predict_only, X)
+
+    mach2 = machine("tree.jlso", selectrows(X, 1:100), y[1:100])
+    predict(mach2, X) # same as above
+
+    fit!(mach2) # saved learned parameters are over-written
+    predict(mach2, X) # not same as above
+
+    # using a buffer:
+    io = IOBuffer()
+    MLJ.save(io, mach)
+    seekstart(io)
+    predict_only_mach = machine(io)
+    predict(predict_only_mach, X)
+
+!!! warning "Only load files from trusted sources"
+    Maliciously constructed JLSO files, like pickles, and most other
+    general purpose serialization formats, can allow for arbitrary code
+    execution during loading. This means it is possible for someone
+    to use a JLSO file that looks like a serialized MLJ machine as a
+    [Trojan
+    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
+"""
+function save(file::Union{String,IO},
+              mach::Machine)
+    isdefined(mach, :fitresult)  ||
+        error("Cannot save an untrained machine. ")
+
+    smach = serializable(mach)
+
+    serialize(file, smach)
+end
+
+
+setreport!(mach::Machine, report) = 
+    setfield!(mach, :report, report)
+
+
+maybe_serializable(val) = val
+maybe_serializable(val::Machine) = serializable(val)
+
+
+serializable_cache(cache) = cache
+serializable_cache(cache::Tuple) = Tuple(maybe_serializable(val) for val in cache)
+function serializable_cache(cache::NamedTuple)
+    new_keys = filter(!=(:data), keys(cache))
+    return NamedTuple{new_keys}([maybe_serializable(cache[key]) for key in new_keys])
 end

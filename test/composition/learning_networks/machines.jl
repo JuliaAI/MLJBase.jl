@@ -6,6 +6,7 @@ using ..TestUtilities
 using MLJBase
 using Tables
 using StableRNGs
+using Serialization
 rng = StableRNG(616161)
 
 # A dummy clustering model:
@@ -230,6 +231,112 @@ enode = @node mae(ys, yhat)
 end
 
 
+@testset "Test serializable of pipeline" begin
+    # Composite model with some C inside
+    filename = "pipe_mach.jls"
+    X, y = TestUtilities.simpledata()
+    pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
+    mach = machine(pipe, X, y)
+    fit!(mach, verbosity=0)
+
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    TestUtilities.generic_tests(mach, smach)
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
+    @test keys(fitted_params(smach)) == keys(fitted_params(mach))
+    @test keys(report(smach)) == keys(report(mach))
+    # Check data has been wiped out from models at the first level of composition
+    @test length(machines(glb(smach))) == length(machines(glb(mach)))
+    for submach in machines(glb(smach))
+        TestUtilities.test_data(submach)
+    end
+
+    # End to end
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test predict(smach, X) == predict(mach, X)
+
+    rm(filename)
+end
+
+
+@testset "Test serializable of composite machines" begin
+    # Composite model with some C inside
+    filename = "stack_mach.jls"
+    X, y = TestUtilities.simpledata()
+    model = Stack(
+        metalearner = DecisionTreeRegressor(), 
+        tree1 = DecisionTreeRegressor(min_samples_split=3),
+        tree2 = DecisionTreeRegressor(),
+        measures=rmse)
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=0)
+
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    TestUtilities.generic_tests(mach, smach)
+    # Check data has been wiped out from models at the first level of composition
+    @test length(machines(glb(smach))) == length(machines(glb(mach)))
+    for submach in machines(glb(smach))
+        @test !isdefined(submach, :data)
+        @test !isdefined(submach, :resampled_data)
+        @test submach.cache isa Nothing || :data ∉ keys(submach.cache)
+    end
+
+    # Testing extra report field : it is a deepcopy
+    @test smach.report.cv_report === mach.report.cv_report
+
+    @test smach.fitresult isa MLJBase.CompositeFitresult
+
+    Serialization.serialize(filename, smach)
+    smach = Serialization.deserialize(filename)
+    MLJBase.restore!(smach)
+
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
+    @test keys(fitted_params(smach)) == keys(fitted_params(mach))
+    @test keys(report(smach)) == keys(report(mach))
+
+    rm(filename)
+
+    # End to end
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test predict(smach, X) == predict(mach, X)
+
+    rm(filename)
+end
+
+@testset "Test serializable of nested composite machines" begin
+    # Composite model with some C inside
+    filename = "nested stack_mach.jls"
+    X, y = TestUtilities.simpledata()
+
+    pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
+    model = Stack(
+        metalearner = DecisionTreeRegressor(), 
+        pipe = pipe)
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=0)
+
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+
+    @test predict(smach, X) == predict(mach, X)
+
+    # Test data as been erased at the first and second level of composition
+    for submach in machines(glb(smach))
+        TestUtilities.test_data(submach)
+        if submach isa Machine{<:Composite}
+            for subsubmach in machines(glb(submach))
+                TestUtilities.test_data(subsubmach)
+            end
+        end
+    end
+
+    rm(filename)
+
+
+end
 
 mutable struct DummyComposite <: DeterministicComposite
     stand1

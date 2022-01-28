@@ -6,6 +6,7 @@ using Statistics
 using ..Models
 const MLJModelInterface = MLJBase.MLJModelInterface
 using StableRNGs
+using Serialization
 using ..TestUtilities
 
 DecisionTreeRegressor()
@@ -262,6 +263,39 @@ end
 
 end
 
+@testset "Test serializable method of simple machines" begin
+    X, y = TestUtilities.simpledata()
+    filename = "decisiontree.jls"
+    mach = machine(DecisionTreeRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    @test smach.report == mach.report
+    @test smach.fitresult == mach.fitresult
+    TestUtilities.generic_tests(mach, smach)
+    # Check restore! function
+    Serialization.serialize(filename, smach)
+    smach = Serialization.deserialize(filename)
+    MLJBase.restore!(smach)
+
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
+    @test fitted_params(smach) isa NamedTuple
+    @test report(smach) == report(mach)
+
+    rm(filename)
+
+    # End to end save and reload
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test predict(smach, X) == predict(mach, X)
+
+    # Try to reset the data
+    smach = machine(filename, X, y)
+    fit!(smach, verbosity=0)
+    @test predict(smach) == predict(mach)
+
+    rm(filename)
+end
 
 end # module
 
