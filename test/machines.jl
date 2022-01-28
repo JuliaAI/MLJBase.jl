@@ -262,7 +262,7 @@ end
 
 end
 
-@testset "Test serializable method of simple machines" begin
+@testset "Test serializable method of Supervised Machine" begin
     X, y = TestUtilities.simpledata()
     filename = "decisiontree.jls"
     mach = machine(DecisionTreeRegressor(), X, y)
@@ -292,6 +292,20 @@ end
     smach = machine(filename, X, y)
     fit!(smach, verbosity=0)
     @test predict(smach) == predict(mach)
+
+    rm(filename)
+end
+
+@testset "Test serializable method of Unsupervised Machine" begin
+    X, _ = TestUtilities.simpledata()
+    filename = "standardizer.jls"
+    mach = machine(Standardizer(), X)
+    fit!(mach, verbosity=0)
+
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+
+    @test transform(mach, X) == transform(smach, X)
 
     rm(filename)
 end
