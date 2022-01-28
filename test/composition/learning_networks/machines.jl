@@ -358,6 +358,12 @@ end
     fit!(mach, verbosity=0)
     serialize(filename, mach)
     @test filesize(filename) > filesizes[1]
+
+    @test_logs (:warn, "Deserialized machine state is"*
+                       " not -1 (=1). It means that the"*
+                       " machine has not been saved by a"*
+                       " conventional MLJ routine.") machine(filename)
+
     rm(filename)
 end
 

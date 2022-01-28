@@ -386,6 +386,9 @@ Serialization module.
 """
 function machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
     smach = deserialize(file)
+    smach.state == -1 || 
+        @warn "Deserialized machine state is not -1 (=$(smach.state)). "*
+             "It means that the machine has not been saved by a conventional MLJ routine."
     restore!(smach)
     if raw_arg1 !== nothing
         args = source.((raw_arg1, raw_args...))
