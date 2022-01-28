@@ -97,13 +97,13 @@ function MLJBase.fit(model::PCA, verbosity::Int, X)
                        mean=model.mean)
 
     cache = nothing
-    report = (indim=MS.indim(fitresult),
-              outdim=MS.outdim(fitresult),
+    report = (indim=size(fitresult)[1],
+              outdim=size(fitresult)[2],
               mean=MS.mean(fitresult),
               principalvars=MS.principalvars(fitresult),
               tprincipalvar=MS.tprincipalvar(fitresult),
               tresidualvar=MS.tresidualvar(fitresult),
-              tvar=MS.tvar(fitresult))
+              tvar=MS.var(fitresult))
 
     return fitresult, cache, report
 end
@@ -114,7 +114,7 @@ MLJBase.fitted_params(::PCA, fr) = (projection=fr,)
 function MLJBase.transform(::PCA, fr::PCAFitResultType, X)
     # X is n x d, need to transpose and copy twice...
     Xarray = MLJBase.matrix(X)
-    Xnew   = permutedims(MS.transform(fr, permutedims(Xarray)))
+    Xnew   = permutedims(MS.predict(fr, permutedims(Xarray)))
     return MLJBase.table(Xnew, prototype=X)
 end
 
