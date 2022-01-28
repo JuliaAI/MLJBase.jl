@@ -74,6 +74,19 @@ end
 # In these checks the args are abstract nodes but `full=true` only
 # makes sense if they are actually source nodes.
 
+# helper
+
+# Here `F` is some fit_data_scitype, and so is tuple of scitypes, or a
+# union of such tuples:
+_contains_unknown(F) = false
+_contains_unknown(F::Type{Unknown}) = true
+_contains_unknown(F::Union) = any(_contains_unknown, Base.uniontypes(F))
+function _contains_unknown(F::Type{<:Tuple})
+    # the first line seems necessary; see https://discourse.julialang.org/t/a-union-of-tuple-types-isa-tuple-type/75339?u=ablaom
+    F isa Union && return any(_contains_unknown, Base.uniontypes(F))
+    return any(_contains_unknown, F.parameters)
+end
+
 err_supervised_nargs() = ArgumentError(
     "`Supervised` models should have at least two "*
     "training arguments. "*
@@ -94,17 +107,17 @@ warn_scitype(model::Supervised, X) =
 
 warn_generic_scitype_mismatch(S, F) =
     "The number and/or types of data arguments do not " *
-    "match what the specified model supports. Commonly, " *
-    "but non exclusively, supervised models are constructed " *
+    "match what the specified model supports.\n"*
+    "Commonly, but non exclusively, supervised models are constructed " *
     "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
     "while most other models with `machine(model, X)`. " *
-    "Here `X` are features, `y` a target, and `w` sample or class weights. " *
+    "Here `X` are features, `y` a target, and `w` sample or class weights.\n" *
     "In general, data in `machine(model, data...)` must satisfy " *
     "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
-    "right-hand side is `Unknown`.  Here, the scitype of `args` " *
-    "in `machine(model, args...; kwargs)` does not match the scitype " *
-    "expected by model's `fit` method.\n" *
-    "  provided: $S\n  expected by fit: $F"
+    "right-hand side is `Unknown`.\n"*
+    "In the present case:\n"*
+    "scitype(data) = $S\n"*
+    "fit_data_scitype(model) = $F\n"
 
 warn_scitype(model::Supervised, X, y) =
     "The scitype of `y`, in `machine(model, X, y, ...)` "*
@@ -124,14 +137,17 @@ err_length_mismatch(model::Supervised) = DimensionMismatch(
 
 check(model::Any, args...; kwargs...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-
 function check(model::Model, args...; full=false)
     nowarns = true
 
+    # skip checks if `Unknown` scitypes appear anywhere in
+    # `fit_data_scitype(model)`:
     F = fit_data_scitype(model)
-    (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
-        return true
 
+    _contains_unknown(F) && return true
+
+    # we use `elscitype` here instead of `scitype` because the data is
+    # wrapped in source nodes:
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
         @warn warn_generic_scitype_mismatch(S, F)
@@ -145,6 +161,7 @@ function check(model::Model, args...; full=false)
         scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
             throw(err_length_mismatch(model))
     end
+    return nowarns
 end
 
 """
@@ -324,7 +341,6 @@ end
 
 function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
                  kwargs...)
-    check(model, arg1, args...)
     return Machine(model, arg1, args...; kwargs...)
 end
 
@@ -552,9 +568,9 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                 if check(mach.model, source.(raw_args)... ; full=true)
                     @info "Type checks okay. "
                 else
-                @info "It seems an upstream node in a learning "*
-                    "network is providing data of incompatible scitype. See "*
-                    "above. "
+                    @info "It seems an upstream node in a learning "*
+                        "network is providing data of incompatible scitype. See "*
+                        "above. "
                 end
                 rethrow()
             end

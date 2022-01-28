@@ -17,6 +17,20 @@ y = 2*X.a - X.c + 0.05*rand(N);
 train, test = partition(eachindex(y), 0.7);
 
 tree = DecisionTreeRegressor(max_depth=5)
+pca = PCA()
+
+@testset "_contains_unknown" begin
+    @test MLJBase._contains_unknown(Unknown)
+    @test MLJBase._contains_unknown(Tuple{Unknown})
+    @test MLJBase._contains_unknown(Tuple{Unknown, Int})
+    @test MLJBase._contains_unknown(Union{Tuple{Unknown}, Tuple{Int,Char}})
+    @test MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Unknown}})
+    @test !MLJBase._contains_unknown(Int)
+    @test !MLJBase._contains_unknown(Tuple{Int})
+    @test !MLJBase._contains_unknown(Tuple{Char, Int})
+    @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
+    @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
+end
 
 t = machine(tree, X, y)
 @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
@@ -53,10 +67,34 @@ freeze!(stand)
 
 @testset "warnings" begin
     @test_throws DimensionMismatch machine(tree, X, y[1:end-1])
-    @test_logs((:warn, r"The scitype of `y`"),
+
+    # supervised model with bad target:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(X), AbstractVector{Multiclass{N}}},
+                    MLJBase.fit_data_scitype(tree)
+                    )
+                ),
                machine(tree, X, categorical(1:N)))
-    @test_logs((:warn, r"The scitype of `X`"),
-               machine(tree, (x=categorical(1:N),), y))
+
+    # ordinary transformer:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(42),},
+                    MLJBase.fit_data_scitype(pca)
+                    )
+                ),
+               machine(pca, 42))
+    y2 = coerce(1:N, OrderedFactor);
+
+    # bad weight vector:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(X), scitype(y2), scitype(42)},
+                    MLJBase.fit_data_scitype(ConstantClassifier())
+                    )
+                ),
+               machine(ConstantClassifier(), X, y2, 42))
 end
 
 struct FooBar <: Model end

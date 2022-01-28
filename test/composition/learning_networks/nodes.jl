@@ -9,9 +9,6 @@ using CategoricalArrays
 import Random.seed!
 seed!(1234)
 
-KNNRegressor()
-DecisionTreeClassifier()
-
 N =100
 X = (x1=rand(N), x2=rand(N), x3=rand(N));
 y = 2X.x1  - X.x2 + 0.05*rand(N);
@@ -29,18 +26,23 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
     yhat = predict(mach2, W)
     @test_logs((:error, r"Problem fitting"),
                (:info, r"Running type checks"),
-               (:warn, r"^The scitype of"),
+               (:warn, MLJBase.warn_generic_scitype_mismatch(
+                   scitype((X, y)),
+                   MLJBase.fit_data_scitype(mach2.model)
+               )),
                (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
                @test_throws Exception fit!(yhat, verbosity=-1))
-
     Xs = source()
     mach1 = machine(Standardizer(), Xs)
     W = transform(mach1, Xs)
     @test_logs((:error, r"Problem fitting"),
                (:warn, r"^Some learning network source"),
                (:info, r"Running type checks"),
-               (:warn, r"^The scitype of"),
+               (:warn, MLJBase.warn_generic_scitype_mismatch(
+                   Tuple{Nothing},
+                   MLJBase.fit_data_scitype(mach1.model)
+               )),
                (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
                @test_throws Exception fit!(W, verbosity=-1))
