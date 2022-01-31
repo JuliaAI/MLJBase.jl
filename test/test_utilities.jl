@@ -125,7 +125,5 @@ function generic_tests(mach₁, mach₂)
     end
 end
 
-simpledata(;n=100) = (x₁=rand(n),), rand(n)
-
 
 end

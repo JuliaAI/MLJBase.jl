@@ -233,7 +233,7 @@ end
 
 @testset "Test serializable of pipeline" begin
     filename = "pipe_mach.jls"
-    X, y = TestUtilities.simpledata()
+    X, y = make_regression(100, 1)
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
     mach = machine(pipe, X, y)
     fit!(mach, verbosity=0)
@@ -261,7 +261,7 @@ end
 
 @testset "Test serializable of composite machines" begin
     filename = "stack_mach.jls"
-    X, y = TestUtilities.simpledata()
+    X, y = make_regression(100, 1)
     model = Stack(
         metalearner = DecisionTreeRegressor(), 
         tree1 = DecisionTreeRegressor(min_samples_split=3),
@@ -307,7 +307,7 @@ end
 
 @testset "Test serializable of nested composite machines" begin
     filename = "nested_stack_mach.jls"
-    X, y = TestUtilities.simpledata()
+    X, y = make_regression(100, 1)
 
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
     model = Stack(

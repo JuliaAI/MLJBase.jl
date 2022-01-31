@@ -263,7 +263,7 @@ end
 end
 
 @testset "Test serializable method of Supervised Machine" begin
-    X, y = TestUtilities.simpledata()
+    X, y = make_regression(100, 1)
     filename = "decisiontree.jls"
     mach = machine(DecisionTreeRegressor(), X, y)
     fit!(mach, verbosity=0)
@@ -297,7 +297,7 @@ end
 end
 
 @testset "Test serializable method of Unsupervised Machine" begin
-    X, _ = TestUtilities.simpledata()
+    X, _ = make_regression(100, 1)
     filename = "standardizer.jls"
     mach = machine(Standardizer(), X)
     fit!(mach, verbosity=0)
@@ -311,7 +311,7 @@ end
 end
 
 @testset "Test Misc functions used in `serializable`" begin
-    X, y = TestUtilities.simpledata()
+    X, y = make_regression(100, 1)
     mach = machine(DeterministicConstantRegressor(), X, y)
     fit!(mach, verbosity=0)
     # setreport! default

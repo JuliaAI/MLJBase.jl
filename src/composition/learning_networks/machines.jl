@@ -416,6 +416,13 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
 
 ## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
+"""
+    copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
+
+For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
+`save(::Machine, ...)`. A call from `Base.replace` with given `newmodel_given_old` will dispatch to this method.
+A new Machine is built with training data from node N.
+"""
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
     train_args = [newnode_given_old[arg] for arg in N.machine.args]
     return Machine(newmodel_given_old[N.machine.model],
@@ -425,11 +432,11 @@ end
 """
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
 
-For now, two top functions will lead to a call of this function: `Base.replace` and
-`save`. If `save` is the calling function, the argument `newmodel_given_old` will be nothing
-and the goal is to make the machine in the current learning network serializable. 
-This method will be called. If `Base.replace` is the calling function, then `newmodel_given_old` 
-will be defined and the other method called, a new Machine will be built with training data.
+For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
+`save(::Machine, ...)`. A call from `save` will set `newmodel_given_old` to `nothing` which will 
+then dispatch to this method.
+In this circumstance, the purpose is to make the machine attached to node N serializable (see `serializable(::Machine)`). 
+
 """
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
     m = serializable(N.machine)
@@ -445,7 +452,7 @@ end
         N::AbstractNode)
 
 For Nodes that are not sources, update the appropriate mappings 
-between elements of the learning to be copied and the copy itself.
+between elements of the learning networks to be copied and the copy itself.
 """
 function update_mappings_with_node!(
     newnode_given_old, 
@@ -610,8 +617,6 @@ end
 Returns a new `CompositeFitresult` that is a shallow copy of the original one.
 To do so,  we build a copy of the learning network where each machine contained 
 in it needs to be called `serializable` upon.
-
-Ideally this method should "reuse" as much as possible `Base.replace`.
 """
 function save(model::Composite, fitresult)
     signature = MLJBase.signature(fitresult)
