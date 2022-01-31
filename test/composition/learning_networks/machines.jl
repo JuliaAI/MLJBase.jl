@@ -344,7 +344,7 @@ end
     filesizes = []
     for n in [100, 500, 1000]
         filename = "serialized_temp_$n.jls"
-        X, y = TestUtilities.simpledata(n=n)
+        X, y = make_regression(n, 1)
         mach = machine(model, X, y)
         fit!(mach, verbosity=0)
         MLJBase.save(filename, mach)
@@ -354,16 +354,13 @@ end
     @test all(x==filesizes[1] for x in filesizes)
     # What if no serializable procedure had happened
     filename = "full_of_data.jls"
-    X, y = TestUtilities.simpledata(n=1000)
+    X, y = make_regression(1000, 1)
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
     serialize(filename, mach)
     @test filesize(filename) > filesizes[1]
 
-    @test_logs (:warn, "Deserialized machine state is"*
-                       " not -1 (=1). It means that the"*
-                       " machine has not been saved by a"*
-                       " conventional MLJ routine.") machine(filename)
+    @test_logs (:warn, MLJBase.warn_bad_deserialization(mach.state)) machine(filename)
 
     rm(filename)
 end

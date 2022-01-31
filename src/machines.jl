@@ -378,6 +378,12 @@ function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
     return Machine(model, arg1, args...; kwargs...)
 end
 
+
+warn_bad_deserialization(state) = 
+    "Deserialized machine state is not -1 (got $state). "*
+    "This means that the machine has not been saved by a conventional MLJ routine.\n"
+    "For example, it's possible original training data is accessible from the deserialised object. "
+
 """
     machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
 
@@ -387,8 +393,7 @@ Serialization module.
 function machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
     smach = deserialize(file)
     smach.state == -1 || 
-        @warn "Deserialized machine state is not -1 (=$(smach.state)). "*
-             "It means that the machine has not been saved by a conventional MLJ routine."
+        @warn warn_bad_deserialization(smach.state)
     restore!(smach)
     if raw_arg1 !== nothing
         args = source.((raw_arg1, raw_args...))
@@ -825,12 +830,43 @@ end
 """
     serializable(mach::Machine)
 
-Returns a shallow copy of the machine to make it serializable, in particular:
-    - Removes all data from caches, args and data fields
-    - Makes all `fitresults` serializable
-    - Annotates the state as -1
+Returns a shallow copy of the machine to make it serializable. In particular, 
+all training data is removed and, if necessary, learned parameters are replaced 
+with persistent representations. 
+
+Any general purpose Julia serialization may be applied to the output of 
+serializable (eg, JLSO, BSON, JLD) but you must call restore!(mach) on 
+the deserialised object mach before using it. See the example below.
+
+If using Julia's standard Serialization library, a shorter workflow is 
+available using the [`save`](@ref) method.
+
+A machine returned by serializable is characterized by the property mach.state == -1.
+
+### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
+
+    using MLJ
+    using JLSO
+    tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    # This machine can now be serialized
+    smach = serializable(mach)
+    JLSO.save("machine.jlso", machine => smach)
+    
+    # Some fitresults may have to be restored
+    loaded_mach = JLSO.load("machine.jlso")[:machine]
+    restore!(loaded_mach)
+
+    predict(loaded_mach, X)
+    predict(mach, X)
 """
 function serializable(mach::Machine{<:Any, C}) where C
+    # Returns a shallow copy of the machine to make it serializable, in particular:
+    # - Removes all data from caches, args and data fields
+    # - Makes all `fitresults` serializable
+    # - Annotates the state as -1
     copymach = machine(mach.model, mach.args..., cache=C)
 
     for fieldname in fieldnames(Machine)
@@ -880,7 +916,9 @@ end
 
 Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
-supported) using the Serialization module.
+supported) using the Serialization module. 
+
+To serialise using a different format, see `serializable`.
 
 Machines are de-serialized using the `machine` constructor as shown in
 the example below. Data (or nodes) may be optionally passed to the
@@ -894,11 +932,11 @@ constructor for retraining on new data using the saved model.
     X, y = @load_iris
     mach = fit!(machine(tree, X, y))
 
-    MLJ.save("tree.jlso", mach)
-    mach_predict_only = machine("tree.jlso")
+    MLJ.save("tree.jls", mach)
+    mach_predict_only = machine("tree.jls")
     predict(mach_predict_only, X)
 
-    mach2 = machine("tree.jlso", selectrows(X, 1:100), y[1:100])
+    mach2 = machine("tree.jls", selectrows(X, 1:100), y[1:100])
     predict(mach2, X) # same as above
 
     fit!(mach2) # saved learned parameters are over-written
@@ -912,10 +950,10 @@ constructor for retraining on new data using the saved model.
     predict(predict_only_mach, X)
 
 !!! warning "Only load files from trusted sources"
-    Maliciously constructed JLSO files, like pickles, and most other
+    Maliciously constructed JLS files, like pickles, and most other
     general purpose serialization formats, can allow for arbitrary code
     execution during loading. This means it is possible for someone
-    to use a JLSO file that looks like a serialized MLJ machine as a
+    to use a JLS file that looks like a serialized MLJ machine as a
     [Trojan
     horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 

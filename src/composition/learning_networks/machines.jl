@@ -480,9 +480,11 @@ update_mappings_with_node!(
     N::Source) = nothing
 
 """
-    copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
+    copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
 
-Copies the given signature of a learning network.
+Copies the given signature of a learning network. Contrary to Julia's convention,
+this method is actually mutating `newnode_given_old`` and `newmodel_given_old`` and not 
+the first `signature` argument.
 
 # Arguments:
 - `signature`: signature of the learning network to be copied
@@ -494,7 +496,7 @@ learning network to be copied and the new one. This is `nothing` if `save` was
 the calling function which will result in a different behaviour of 
 `update_mappings_with_node!`
 """
-function copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
+function copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
     operation_nodes = values(_operation_part(signature))
     report_nodes = values(_report_part(signature))
     W = glb(operation_nodes..., report_nodes...)
@@ -598,7 +600,7 @@ function Base.replace(mach::Machine{<:Surrogate},
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
     newsources = [newnode_given_old[s] for s in sources(W)]
 
-    newsignature = copysignature(signature, newnode_given_old, newmodel_given_old=newmodel_given_old)
+    newsignature = copysignature!(signature, newnode_given_old, newmodel_given_old=newmodel_given_old)
     
 
     return machine(mach.model, newsources...; newsignature...)
@@ -626,7 +628,7 @@ function save(model::Composite, fitresult)
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}([old => source() for old in sources(W)])
 
-    newsignature = copysignature(signature, newnode_given_old; newmodel_given_old=nothing)
+    newsignature = copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
 
     newfitresult = MLJBase.CompositeFitresult(newsignature)
     setfield!(newfitresult, :report_additions, getfield(fitresult, :report_additions))
