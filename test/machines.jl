@@ -288,11 +288,6 @@ end
     smach = machine(filename)
     @test predict(smach, X) == predict(mach, X)
 
-    # Try to reset the data
-    smach = machine(filename, X, y)
-    fit!(smach, verbosity=0)
-    @test predict(smach) == predict(mach)
-
     rm(filename)
 end
 

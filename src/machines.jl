@@ -385,21 +385,16 @@ warn_bad_deserialization(state) =
     "For example, it's possible original training data is accessible from the deserialised object. "
 
 """
-    machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
+    machine(file::Union{String, IO})
 
 Rebuild from a file a machine that has been serialized using the default 
 Serialization module.
 """
-function machine(file::Union{String, IO}, raw_arg1=nothing, raw_args...)
+function machine(file::Union{String, IO})
     smach = deserialize(file)
     smach.state == -1 || 
         @warn warn_bad_deserialization(smach.state)
     restore!(smach)
-    if raw_arg1 !== nothing
-        args = source.((raw_arg1, raw_args...))
-        MLJBase.check(smach.model, args...; full=true)
-        smach.args = args
-    end
     return smach
 end
 
