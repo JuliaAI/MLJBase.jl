@@ -480,7 +480,7 @@ update_mappings_with_node!(
     copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
 
 Copies the given signature of a learning network. Contrary to Julia's convention,
-this method is actually mutating `newnode_given_old`` and `newmodel_given_old`` and not 
+this method is actually mutating `newnode_given_old` and `newmodel_given_old` and not 
 the first `signature` argument.
 
 # Arguments:

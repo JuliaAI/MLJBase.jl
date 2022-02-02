@@ -835,19 +835,20 @@ all training data is removed and, if necessary, learned parameters are replaced
 with persistent representations. 
 
 Any general purpose Julia serialization may be applied to the output of 
-serializable (eg, JLSO, BSON, JLD) but you must call restore!(mach) on 
-the deserialised object mach before using it. See the example below.
+`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on 
+the deserialised object `mach` before using it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is 
 available using the [`save`](@ref) method.
 
-A machine returned by serializable is characterized by the property mach.state == -1.
+A machine returned by serializable is characterized by the property `mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
 
     using MLJ
     using JLSO
-    tree = @load DecisionTreeClassifier
+    Tree = @load DecisionTreeClassifier
+    tree = Tree()
     X, y = @load_iris
     mach = fit!(machine(tree, X, y))
 
@@ -855,7 +856,7 @@ A machine returned by serializable is characterized by the property mach.state =
     smach = serializable(mach)
     JLSO.save("machine.jlso", machine => smach)
     
-    # Some fitresults may have to be restored
+    # Deserialize and restore learned parameters to useable form:
     loaded_mach = JLSO.load("machine.jlso")[:machine]
     restore!(loaded_mach)
 
@@ -928,9 +929,9 @@ constructor for retraining on new data using the saved model.
 ### Example
 
     using MLJ
-    tree = @load DecisionTreeClassifier
+    Tree = @load DecisionTreeClassifier
     X, y = @load_iris
-    mach = fit!(machine(tree, X, y))
+    mach = fit!(machine(Tree(), X, y))
 
     MLJ.save("tree.jls", mach)
     mach_predict_only = machine("tree.jls")
