@@ -185,8 +185,7 @@ enode = @node mae(ys, yhat)
     fit!(mach, verbosity=0)
     fit!(mach2, verbosity=0)
     @test predict(mach, X) ≈ predict(mach2, X)
-    @test MLJBase.report_additions(mach.fitresult).mae ≈
-        MLJBase.report_additions(mach2.fitresult).mae
+    @test report(mach).mae ≈ report(mach2).mae
 
     @test mach2.args[1]() == Xs()
     @test mach2.args[2]() == ys()
@@ -285,7 +284,6 @@ end
     @test smach.report.cv_report === mach.report.cv_report
 
     @test smach.fitresult isa MLJBase.CompositeFitresult
-    @test getfield(smach.fitresult, :report_additions) === getfield(mach.fitresult, :report_additions)
 
     Serialization.serialize(filename, smach)
     smach = Serialization.deserialize(filename)

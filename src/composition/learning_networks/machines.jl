@@ -101,18 +101,14 @@ end
 mutable struct CompositeFitresult
     signature
     glb
-    report_additions
+    network_model_names
     function CompositeFitresult(signature)
-        glb = MLJBase.glb(_nodes(signature)...)
-        new(signature, glb)
+        signature_node = glb(_nodes(signature)...)
+        new(signature, signature_node)
     end
 end
 signature(c::CompositeFitresult) = getfield(c, :signature)
 glb(c::CompositeFitresult) = getfield(c, :glb)
-report_additions(c::CompositeFitresult) = getfield(c, :report_additions)
-
-update!(c::CompositeFitresult) =
-    setfield!(c, :report_additions, _call(_report_part(signature(c))))
 
 # To accommodate pre-existing design (operations.jl) arrange
 # that `fitresult.predict` returns the predict node, etc:
@@ -251,9 +247,9 @@ See also [`machine`](@ref)
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb_node = glb(mach)
     fit!(glb_node; kwargs...)
-    update!(mach.fitresult) # updates `report_additions`
     mach.state += 1
-    mach.report = merge(report(glb_node), report_additions(mach.fitresult))
+    report_additions_ = _call(_report_part(signature(mach.fitresult)))
+    mach.report = merge(report(glb_node), report_additions_)
     return mach
 end
 
@@ -390,8 +386,6 @@ function return!(mach::Machine{<:Surrogate},
                  model::Union{Model,Nothing},
                  verbosity)
 
-    _network_model_names = network_model_names(model, mach)
-
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
 
     # anonymize the data
@@ -404,8 +398,11 @@ function return!(mach::Machine{<:Surrogate},
 
     cache = (sources = sources,
              data=data,
-             network_model_names=_network_model_names,
              old_model=old_model)
+
+    setfield!(mach.fitresult, 
+        :network_model_names, 
+        network_model_names(model, mach))
 
     return mach.fitresult, cache, mach.report
 
@@ -631,7 +628,7 @@ function save(model::Composite, fitresult)
     newsignature = copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
 
     newfitresult = MLJBase.CompositeFitresult(newsignature)
-    setfield!(newfitresult, :report_additions, getfield(fitresult, :report_additions))
+    setfield!(newfitresult, :network_model_names, getfield(fitresult, :network_model_names))
 
     return newfitresult
 end
