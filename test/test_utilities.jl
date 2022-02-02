@@ -111,9 +111,7 @@ function test_data(mach)
     @test !isdefined(mach, :old_rows)
     @test !isdefined(mach, :data)
     @test !isdefined(mach, :resampled_data)
-    if mach isa NamedTuple
-        @test :data ∉ keys(mach.cache)
-    end
+    @test !isdefined(mach, :cache)
 end
 
 function generic_tests(mach₁, mach₂)

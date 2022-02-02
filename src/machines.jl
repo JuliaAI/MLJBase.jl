@@ -871,18 +871,12 @@ function serializable(mach::Machine{<:Any, C}) where C
     copymach = machine(mach.model, mach.args..., cache=C)
 
     for fieldname in fieldnames(Machine)
-        if fieldname ∈ (:model, :report)
+        if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
             continue
         elseif  fieldname == :state
             setfield!(copymach, :state, -1)
-        # Wipe data from cache
-        elseif fieldname == :cache 
-            setfield!(copymach, :cache, serializable_cache(mach.cache))
         elseif fieldname == :args 
             setfield!(copymach, fieldname, ())
-        # Let those fields undefined
-        elseif fieldname ∈ (:data, :resampled_data, :old_rows)
-            continue
         # Make fitresult ready for serialization
         elseif fieldname == :fitresult
             copymach.fitresult = save(mach.model, getfield(mach, fieldname))
@@ -972,36 +966,3 @@ end
 
 setreport!(mach::Machine, report) = 
     setfield!(mach, :report, report)
-
-
-maybe_serializable(val) = val
-maybe_serializable(val::Machine) = serializable(val)
-
-"""
-    serializable_cache(cache)
-
-Default fallbacks to return the original cache.
-"""
-serializable_cache(cache) = cache
-
-"""
-    serializable_cache(cache::Tuple)
-
-If the cache is a Tuple, any machine in the cache is called 
-`serializable` upon. This is to address TunedModels. A dispatch on
-TunedModel would have been possible but would require a new api function.
-"""
-serializable_cache(cache::Tuple) = 
-    Tuple(maybe_serializable(val) for val in cache)
-
-"""
-    serializable_cache(cache::NamedTuple)
-
-If the cache is a NamedTuple, any data field is filtered, this is to address 
-the current learning networks cache. Any machine in the cache is also called 
-`serializable` upon.
-"""
-function serializable_cache(cache::NamedTuple)
-    new_keys = filter(!=(:data), keys(cache))
-    return NamedTuple{new_keys}([maybe_serializable(cache[key]) for key in new_keys])
-end

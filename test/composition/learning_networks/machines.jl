@@ -275,9 +275,7 @@ end
     # Check data has been wiped out from models at the first level of composition
     @test length(machines(glb(smach))) == length(machines(glb(mach)))
     for submach in machines(glb(smach))
-        @test !isdefined(submach, :data)
-        @test !isdefined(submach, :resampled_data)
-        @test submach.cache isa Nothing || :data ∉ keys(submach.cache)
+        TestUtilities.test_data(submach)
     end
 
     # Testing extra report field : it is a deepcopy
