@@ -889,10 +889,11 @@ end
     restore!(mach::Machine)
 
 Default method to restores the state of a machine that is currently serializable.
-Such a machine is annotated with `state=-1`
+Such a machine is annotated with `state=1`
 """
 function restore!(mach::Machine)
     mach.fitresult = restore(mach.model, mach.fitresult)
+    mach.state = 1
     return mach
 end
 

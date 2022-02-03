@@ -644,6 +644,7 @@ function restore!(mach::Machine{<:Composite})
     for submach in machines(glb_node)
         restore!(submach)
     end
+    mach.state = 1
     return mach
 end
 
