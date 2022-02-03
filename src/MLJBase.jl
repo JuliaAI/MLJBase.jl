@@ -273,7 +273,7 @@ export scitype, scitype_union, elscitype, nonmissing
 export coerce, coerce!, autotype, schema, info
 
 # re-exports from CategoricalDistributions:
-export CategoricalUnivariateFiniteArray, UnivariateFiniteVector
+export UnivariateFiniteArray, UnivariateFiniteVector
 
 
 # -------------------------------------------------------------------
