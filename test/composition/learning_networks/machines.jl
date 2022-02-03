@@ -239,6 +239,9 @@ end
 
     # Check serializable function
     smach = MLJBase.serializable(mach)
+    @test_logs((:warn, MLJBase.warn_serializable_mach(predict),
+                (:warn, MLJBase.warn_serializable_mach(predict)),
+                fit!(mach, verbosity=0)))
     TestUtilities.generic_tests(mach, smach)
     @test keys(fitted_params(smach)) == keys(fitted_params(mach))
     @test keys(report(smach)) == keys(report(mach))
