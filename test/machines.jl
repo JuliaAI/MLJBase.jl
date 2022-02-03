@@ -271,12 +271,16 @@ end
     smach = MLJBase.serializable(mach)
     @test smach.report == mach.report
     @test smach.fitresult == mach.fitresult
+    @test_throws(ArgumentError, predict(smach))
+    @test_logs (:warn, MLJBase.warn_serializable_mach(predict)) predict(smach, X)
+
     TestUtilities.generic_tests(mach, smach)
     # Check restore! function
     Serialization.serialize(filename, smach)
     smach = Serialization.deserialize(filename)
     MLJBase.restore!(smach)
 
+    @test smach.state == 1
     @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
     @test fitted_params(smach) isa NamedTuple
     @test report(smach) == report(mach)
@@ -286,6 +290,7 @@ end
     # End to end save and reload
     MLJBase.save(filename, mach)
     smach = machine(filename)
+    @test smach.state == 1
     @test predict(smach, X) == predict(mach, X)
 
     rm(filename)
@@ -301,6 +306,11 @@ end
     smach = machine(filename)
 
     @test transform(mach, X) == transform(smach, X)
+    @test_throws(ArgumentError, transform(smach))
+
+    # warning on non-restored machine
+    smach = deserialize(filename)
+    @test_logs (:warn, MLJBase.warn_serializable_mach(transform)) transform(smach, X)
 
     rm(filename)
 end

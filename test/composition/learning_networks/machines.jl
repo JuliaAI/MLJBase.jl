@@ -240,7 +240,6 @@ end
     # Check serializable function
     smach = MLJBase.serializable(mach)
     TestUtilities.generic_tests(mach, smach)
-    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
     @test keys(fitted_params(smach)) == keys(fitted_params(mach))
     @test keys(report(smach)) == keys(report(mach))
     # Check data has been wiped out from models at the first level of composition
