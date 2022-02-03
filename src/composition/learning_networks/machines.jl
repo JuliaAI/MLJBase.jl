@@ -263,6 +263,20 @@ MLJModelInterface.fitted_params(mach::Machine{<:Surrogate}) =
 
 # # CONSTRUCTING THE RETURN VALUE FOR A COMPOSITE FIT METHOD
 
+logerr_identical_models(name, model) =
+    "The hyperparameters $name of "*
+    "$model have identical model "*
+    "instances as values. "
+const ERR_IDENTICAL_MODELS = ArgumentError(
+    "Two distinct hyper-parameters of a "*
+    "composite model that are both "*
+    "associated with models in the underlying learning "*
+    "network (eg, any two components of a `@pipeline` model) "*
+    "cannot have identical values, although they can be `==` "*
+    "(corresponding nested properties are `==`). "*
+    "Consider constructing instances "*
+    "separately or use `deepcopy`. ")
+
 # Identify which properties of `model` have, as values, a model in the
 # learning network wrapped by `mach`, and check that no two such
 # properties have have identical values (#377). Return the property name
@@ -299,20 +313,10 @@ function network_model_names(model::M,
     if !no_duplicates
         for (id, name) in name_given_id
             if length(name) > 1
-                @error "The hyperparameters $name of "*
-                    "$model have identical model "*
-                "instances as values. "
+                @error logerr_identical_models(name, model)
             end
         end
-        throw(ArgumentError(
-        "Two distinct hyper-parameters of a "*
-            "composite model that are both "*
-            "associated with models in the underlying learning "*
-            "network (eg, any two components of a `@pipeline` model) "*
-            "cannot have identical values, although they can be `==` "*
-            "(corresponding nested properties are `==`). "*
-            "Consider constructing instances "*
-            "separately or use `deepcopy`. "))
+        throw(ERR_IDENTICAL_MODELS)
     end
 
     return map(network_model_ids) do id
