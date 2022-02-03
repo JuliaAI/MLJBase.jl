@@ -386,7 +386,10 @@ function return!(mach::Machine{<:Surrogate},
                  model::Union{Model,Nothing},
                  verbosity)
 
+    network_model_names_ = network_model_names(model, mach)
+
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
+    setfield!(mach.fitresult, :network_model_names, network_model_names_)
 
     # anonymize the data
     sources = MLJBase.sources(glb(mach))
