@@ -72,7 +72,8 @@ freeze!(stand)
     @test_logs((:warn,
                 MLJBase.warn_generic_scitype_mismatch(
                     Tuple{scitype(X), AbstractVector{Multiclass{N}}},
-                    MLJBase.fit_data_scitype(tree)
+                    MLJBase.fit_data_scitype(tree),
+                    typeof(tree)
                     )
                 ),
                machine(tree, X, categorical(1:N)))
@@ -81,7 +82,8 @@ freeze!(stand)
     @test_logs((:warn,
                 MLJBase.warn_generic_scitype_mismatch(
                     Tuple{scitype(42),},
-                    MLJBase.fit_data_scitype(pca)
+                    MLJBase.fit_data_scitype(pca),
+                    typeof(pca)
                     )
                 ),
                machine(pca, 42))
@@ -91,7 +93,8 @@ freeze!(stand)
     @test_logs((:warn,
                 MLJBase.warn_generic_scitype_mismatch(
                     Tuple{scitype(X), scitype(y2), scitype(42)},
-                    MLJBase.fit_data_scitype(ConstantClassifier())
+                    MLJBase.fit_data_scitype(ConstantClassifier()),
+                    ConstantClassifier
                     )
                 ),
                machine(ConstantClassifier(), X, y2, 42))
@@ -111,7 +114,8 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
     @test_logs machine(model, X)
     @test_logs((:warn,
                 MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
-                                                      fit_data_scitype(model))),
+                                                      fit_data_scitype(model),
+                                                      FooBar)),
                 machine(model, y))
 end
 

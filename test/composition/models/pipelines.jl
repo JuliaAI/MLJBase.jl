@@ -395,7 +395,8 @@ end
            (:info, r"^Running type"),
                (:warn, MLJBase.warn_generic_scitype_mismatch(
                    scitype((X, y)),
-                   MLJBase.fit_data_scitype(ConstantRegressor())
+                   MLJBase.fit_data_scitype(ConstantRegressor()),
+                   typeof(ConstantRegressor())
                )),
            (:info, r"It seems"),
            (:error, r"Problem"),

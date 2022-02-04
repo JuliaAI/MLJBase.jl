@@ -87,16 +87,17 @@ function _contains_unknown(F::Type{<:Tuple})
     return any(_contains_unknown, F.parameters)
 end
 
-warn_generic_scitype_mismatch(S, F) =
+warn_generic_scitype_mismatch(S, F, T) =
     "The number and/or types of data arguments do not " *
     "match what the specified model supports.\n"*
+    "Run `@doc $T` to learn more about your model's requirements.\n\n"*
     "Commonly, but non exclusively, supervised models are constructed " *
     "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
     "while most other models with `machine(model, X)`. " *
     "Here `X` are features, `y` a target, and `w` sample or class weights.\n" *
     "In general, data in `machine(model, data...)` must satisfy " *
     "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
-    "right-hand side is `Unknown`.\n"*
+    "right-hand side contains `Unknown` scitypes.\n"*
     "In the present case:\n"*
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
@@ -120,7 +121,7 @@ function check(model::Model, args...; full=false)
     # wrapped in source nodes:
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
-        @warn warn_generic_scitype_mismatch(S, F)
+        @warn warn_generic_scitype_mismatch(S, F, typeof(model))
         nowarns = false
     end
 

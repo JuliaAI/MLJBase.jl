@@ -28,7 +28,8 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
                (:info, r"Running type checks"),
                (:warn, MLJBase.warn_generic_scitype_mismatch(
                    scitype((X, y)),
-                   MLJBase.fit_data_scitype(mach2.model)
+                   MLJBase.fit_data_scitype(mach2.model),
+                   typeof(mach2.model)
                )),
                (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
@@ -41,7 +42,8 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
                (:info, r"Running type checks"),
                (:warn, MLJBase.warn_generic_scitype_mismatch(
                    Tuple{Nothing},
-                   MLJBase.fit_data_scitype(mach1.model)
+                   MLJBase.fit_data_scitype(mach1.model),
+                   typeof(mach1.model)
                )),
                (:info, r"^It seems an upstream"),
                (:error, r"^Problem fitting"),
