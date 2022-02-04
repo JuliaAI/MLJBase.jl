@@ -87,24 +87,6 @@ function _contains_unknown(F::Type{<:Tuple})
     return any(_contains_unknown, F.parameters)
 end
 
-err_supervised_nargs() = ArgumentError(
-    "`Supervised` models should have at least two "*
-    "training arguments. "*
-    "Use  `machine(model, X, y; ...)` or "*
-    "`machine(model, X, y, extras...; ...)`. ")
-
-err_unsupervised_nargs() = ArgumentError(
-    "`Unsupervised` models should have one "*
-    "training argument, except `Static` models, which have none. "*
-    "Use  `machine(model, X; ...)` (usual case) or "*
-    "`machine(model; ...)` (static case). ")
-
-warn_scitype(model::Supervised, X) =
-    "The scitype of `X`, in `machine(model, X, ...)` "*
-    "is incompatible with "*
-    "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-    "input_scitype(model) = $(input_scitype(model))."
-
 warn_generic_scitype_mismatch(S, F) =
     "The number and/or types of data arguments do not " *
     "match what the specified model supports.\n"*
@@ -119,19 +101,7 @@ warn_generic_scitype_mismatch(S, F) =
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
 
-warn_scitype(model::Supervised, X, y) =
-    "The scitype of `y`, in `machine(model, X, y, ...)` "*
-    "is incompatible with "*
-    "`model=$model`:\nscitype(y) = "*
-    "$(elscitype(y))\ntarget_scitype(model) "*
-    "= $(target_scitype(model))."
-
-warn_scitype(model::Unsupervised, X) =
-    "The scitype of `X`, in `machine(model, X)` is "*
-    "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-    "input_scitype(model) = $(input_scitype(model))."
-
-err_length_mismatch(model::Supervised) = DimensionMismatch(
+err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
@@ -140,10 +110,10 @@ check(model::Any, args...; kwargs...) =
 function check(model::Model, args...; full=false)
     nowarns = true
 
-    # skip checks if `Unknown` scitypes appear anywhere in
-    # `fit_data_scitype(model)`:
     F = fit_data_scitype(model)
 
+    # skip checks if `Unknown` scitypes appear anywhere in
+    # `fit_data_scitype(model)`:
     _contains_unknown(F) && return true
 
     # we use `elscitype` here instead of `scitype` because the data is
@@ -154,7 +124,7 @@ function check(model::Model, args...; full=false)
         nowarns = false
     end
 
-    if length(args) > 1
+    if length(args) > 1 && is_supervised(model)
         X, y = args[1:2]
 
         # checks on dimension matching:
