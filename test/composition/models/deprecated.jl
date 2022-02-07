@@ -478,9 +478,10 @@ pdf(predict(mach, X)[1], 'f') ≈ 4/7
 # test invalid replacement of classifier with regressor throws
 # informative error message:
 p.constant_classifier = ConstantRegressor()
+
 @test_logs((:error, r"^Problem"),
            (:info, r"^Running type"),
-           (:warn, r"The scitype of"),
+           (:warn, r""),
            (:info, r"It seems"),
            (:error, r"Problem"),
            @test_throws Exception fit!(mach, verbosity=-1))
