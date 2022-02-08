@@ -2,17 +2,22 @@ const PROPER_SCORING_RULES = "[Gneiting and Raftery (2007), \"Strictly"*
     "Proper Scoring Rules, Prediction, and Estimation\""*
     "](https://doi.org/10.1198/016214506000001437)"
 const DOC_FINITE =
-    "`AbstractArray{<:Finite}` (multiclass classification)"
+    "`AbstractArray{<:Union{Finite,Missing}` (multiclass classification)"
 const DOC_FINITE_BINARY =
-    "`AbstractArray{<:Finite{2}}` (binary classification)"
+    "`AbstractArray{<:Union{Finite{2},Missing}}` (binary classification)"
 const DOC_ORDERED_FACTOR =
-    "`AbstractArray{<:OrderedFactor}` (classification of ordered target)"
+    "`AbstractArray{<:Union{OrderedFactor,Missing}}` (classification of ordered target)"
 const DOC_ORDERED_FACTOR_BINARY =
-    "`AbstractArray{<:OrderedFactor{2}}` "*
+    "`AbstractArray{<:Union{OrderedFactor{2},Missing}}` "*
     "(binary classification where choice of \"true\" effects the measure)"
-const DOC_CONTINUOUS = "`AbstractArray{Continuous}` (regression)"
-const DOC_COUNT = "`AbstractArray{Count}`"
-const DOC_INFINITE = "AbstractArray{<:Infinite}"
+const DOC_CONTINUOUS = "`AbstractArray{<:Union{Continuous,Missing}}` (regression)"
+const DOC_COUNT = "`AbstractArray{<:Union{Count,Missing}}`"
+const DOC_MULTI = "`AbtractArray{<:Union{Missing,T}` where `T` is `Continuous` "*
+    "or `Count` (for respectively continuous or discrete Distribution.jl objects in "*
+    "`ŷ`) or  `OrderedFactor` or `Multiclass` "*
+    "(for `UnivariateFinite` distributions in `ŷ`)"
+
+const DOC_INFINITE = "`AbstractArray{<:Union{Infinite,Missing}}`"
 const INVARIANT_LABEL =
     "This metric is invariant to class reordering."
 const VARIANT_LABEL =
