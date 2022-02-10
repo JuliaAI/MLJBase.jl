@@ -178,11 +178,8 @@ order.  These machines are those returned by
 
 
 """
-fit!(y::Node; acceleration=CPU1(), kwargs...) =
+fit!(y::Node; acceleration=default_resource(), kwargs...) =
     fit!(y::Node, acceleration; kwargs...)
-
-fit!(y::Node, ::AbstractResource; kwargs...) =
-        error("Only `acceleration=CPU1()` currently supported")
 
 function fit!(y::Node, ::CPU1; kwargs...)
 
@@ -204,6 +201,27 @@ function fit!(y::Node, ::CPU1; kwargs...)
 
     return y
 end
+
+function fit!(y::Node, ::CPUThreads; kwargs...)
+    _machines = machines(y)
+
+    # flush the fit_okay channels:
+    @sync for mach in _machines
+        Threads.@spawn flush!(mach.fit_okay)
+    end
+
+    # fit the machines in Multithreading mode
+    @sync for mach in _machines
+        Threads.@spawn fit_only!(mach, true; kwargs...)
+    end
+
+    return y
+
+end
+
+fit!(y::Node, ::AbstractResource; kwargs...) =
+        error("Only `acceleration=CPU1()` currently supported")
+
 fit!(S::Source; args...) = S
 
 # allow arguments of `Nodes` and `Machine`s to appear
