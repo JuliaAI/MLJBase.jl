@@ -143,7 +143,9 @@ function (::Kappa)(cm::ConfusionMatrixObject{C}) where C
     p₀ = sum(diag(cm.mat))/sum(cm.mat)
 
     # probability of agreement due to chance - for each class cᵢ, this would be: (#predicted=cᵢ)/(#instances) x (#observed=cᵢ)/(#instances)
-    pₑ = sum(sum(cm[j, :]) * sum(cm[:, j]) for j in 1:C)/sum(cm.mat)^2
+    rows_sum = sum!(similar(cm.mat, 1, C), cm.mat) # 1 x C matrix
+    cols_sum = sum!(similar(cm.mat, C, 1), cm.mat) # C X 1 matrix
+    pₑ = first(rows_sum*cols_sum)/sum(rows_sum)^2
 
     # Kappa calculation
     κ = (p₀ - pₑ)/(1 - pₑ)
