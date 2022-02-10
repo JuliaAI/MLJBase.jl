@@ -113,6 +113,48 @@ function call(m::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
     return score
 end
 
+# ---------------------------------------------------
+# kappa
+
+struct Kappa <: Aggregated end
+
+metadata_measure(Kappa;
+                 instances  = ["kappa"],
+                 target_scitype           = FiniteArrMissing,
+                 prediction_type          = :deterministic,
+                 orientation              = :score,
+                 supports_weights         = false)
+
+@create_aliases Kappa
+
+@create_docs(Kappa,
+body=
+"""
+A metric to measure agreement between predicted labels and the ground truth. 
+See [https://en.wikipedia.org/wiki/Cohen%27s_kappa](https://en.wikipedia.org/wiki/Cohen%27s_kappa)
+
+$INVARIANT_LABEL
+""",
+scitype=DOC_FINITE)
+
+# calling behaviour:
+function (::Kappa)(cm::ConfusionMatrixObject{C}) where C
+    # relative observed agreement - same as accuracy
+    p₀ = sum(diag(cm.mat))/sum(cm.mat)
+
+    # probability of agreement due to chance - for each class cᵢ, this would be: (#predicted=cᵢ)/(#instances) x (#observed=cᵢ)/(#instances)
+    rows_sum = sum!(similar(cm.mat, 1, C), cm.mat) # 1 x C matrix
+    cols_sum = sum!(similar(cm.mat, C, 1), cm.mat) # C X 1 matrix
+    pₑ = first(rows_sum*cols_sum)/sum(rows_sum)^2
+
+    # Kappa calculation
+    κ = (p₀ - pₑ)/(1 - pₑ)
+
+    return κ
+end
+
+call(k::Kappa, ŷ, y) = _confmat(ŷ, y, warn=false) |> k
+
 
 # ==================================================================
 ## DETERMINISTIC BINARY PREDICTIONS - ORDER-INDEPENDENT
