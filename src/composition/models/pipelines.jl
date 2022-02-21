@@ -591,23 +591,24 @@ end
 
 # ## Traits
 
-# We cannot provide the following trait at the level of types because
+# We cannot provide the following traits at the level of types because
 # the pipeline type does not know the precise type of the supervised
 # component, only its `abstract_type`. See comment at top of page.
-supports_training_losses(pipe::SupervisedPipeline) =
-    supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
 
-function training_losses(pipe::SupervisedPipeline, pipe_report)
+MMI.supports_training_losses(pipe::SupervisedPipeline) =
+    MMI.supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
+
+function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
     mach = supervised(pipe_report.machines)
     _report = report(mach)
     return training_losses(mach.model, _report)
 end
 
 # This trait cannot be defined at the level of types (see previous comment):
-function iteration_parameter(pipe::SupervisedPipeline)
+function MMI.iteration_parameter(pipe::SupervisedPipeline)
     model = supervised_component(pipe)
     name =  supervised_component_name(pipe)
     MLJBase.prepend(name, iteration_parameter(model))
 end
 
-target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
+MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
