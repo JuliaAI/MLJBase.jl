@@ -598,12 +598,6 @@ end
 MMI.supports_training_losses(pipe::SupervisedPipeline) =
     MMI.supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
 
-function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
-    mach = supervised(pipe_report.machines)
-    _report = report(mach)
-    return training_losses(mach.model, _report)
-end
-
 # This trait cannot be defined at the level of types (see previous comment):
 function MMI.iteration_parameter(pipe::SupervisedPipeline)
     model = supervised_component(pipe)
@@ -612,3 +606,12 @@ function MMI.iteration_parameter(pipe::SupervisedPipeline)
 end
 
 MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
+
+
+# ## Training losses
+
+function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
+    mach = supervised(pipe_report.machines)
+    _report = report(mach)
+    return training_losses(mach.model, _report)
+end
