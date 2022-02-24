@@ -16,6 +16,15 @@
 abstract type AbstractNode <: MLJType end
 abstract type CallableReturning{K} end # scitype for sources and nodes
 
+"""
+    Source
+
+Type for a learning network source node. Constructed using
+[`source`](@ref), as in `source()` or `source(rand(2,3))`.
+
+See also [`source`](@ref), [`Node`](@ref).
+
+"""
 mutable struct Source <: AbstractNode
     data     # training data
     scitype::DataType

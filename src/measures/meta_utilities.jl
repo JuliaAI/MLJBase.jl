@@ -22,7 +22,7 @@ function detailed_doc_string(M; typename="", body="", footer="", scitype="")
     _instances = _decorate(instances(M))
     human_name = MLJBase.human_name(M)
     if isempty(scitype)
-        scitype = target_scitype(M) |> string
+        scitype = "`$(target_scitype(M))`"
     end
 
     if isempty(typename)
@@ -54,7 +54,7 @@ function detailed_doc_string(M; typename="", body="", footer="", scitype="")
         (ret *= DOC_CLASS_WEIGHTS)
     ret *= "\n\n"
     isempty(body) || (ret *= "$body\n\n")
-    ret *= "Requires `scitype(y)` to be a subtype of `$scitype`; "
+    ret *= "Requires `scitype(y)` to be a subtype of $scitype; "
     ret *= "`ŷ` must be an array of `$(prediction_type(M))` predictions. "
     isempty(footer) ||(ret *= "\n\n$footer")
     ret *= "\n\n"

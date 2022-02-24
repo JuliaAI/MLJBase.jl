@@ -38,6 +38,7 @@ end
 
 @testset "prepend" begin
     MLJBase.prepend(:x, :(y.z.w)) == :(x.y.z.w)
+    MLJBase.prepend(:x, nothing) == nothing
 end
 
 @testset "recursive getproperty, setproperty!" begin

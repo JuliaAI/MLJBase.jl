@@ -480,7 +480,7 @@ end
 
 mach = fit!(machine(NoTraining()), verbosity=0)
 @test transform(mach, X) == 2*X.age
- 
+
 
 ## TESTINGS A STACK AND IN PARTICULAR FITTED_PARAMS
 
@@ -557,37 +557,37 @@ fp = fitted_params(mach)
 
 ## ISSUE #377
 
-target_stand = Standardizer()
-stand = Standardizer()
-rgs = KNNRegressor()
+stand1 = Standardizer()
+stand2 = Standardizer()
 
-X = source()
-y = source()
+Xraw = (x=[-2.0, 0.0, 2.0],)
+X = source(Xraw)
 
-mach1 = machine(target_stand, y)
-z = transform(mach1, y)
-mach2 = machine(stand, X)
-W = transform(mach2, X)
-mach3 = machine(rgs, W, z)
-zhat = predict(mach3, W)
-yhat = inverse_transform(mach1, zhat)
+mach1 = machine(stand1, X)
+X2 = transform(mach1, X)
 
-@from_network machine(Deterministic(), X, y; predict=yhat) begin
-    mutable struct CompositeA
-        rgs=rgs
-        stand=stand
-        target=target_stand
+mach2 = machine(stand2, X2)
+X3 = transform(mach2, X2)
+
+@from_network machine(Unsupervised(), X; transform=X3) begin
+    mutable struct CompositeZ
+        s1=stand1
+        s2=stand2
     end
 end
 
-X, y = make_regression(20, 2);
-model = CompositeA(stand=stand, target=stand)
-mach = machine(model, X, y)
-@test_logs((:error, r"The hyper"),
+# check no problems with network:
+fit!(X3)
+@test X3().x ≈ [-1.0, 0.0, 1.0]
+
+# instantiate with identical (===) models in two places:
+model = CompositeZ(s1=stand1, s2=stand1)
+mach = machine(model, Xraw)
+@test_logs((:error, MLJBase.logerr_identical_models([:s1, :s2], model)),
            (:error, r"Problem"),
            (:info, r"Running"),
            (:info, r"Type checks okay"),
-           @test_throws(ArgumentError,
+           @test_throws(MLJBase.ERR_IDENTICAL_MODELS,
                         fit!(mach, verbosity=-1)))
 
 
@@ -611,7 +611,7 @@ X = (x = Float64[1, 2, 3],)
 mach = machine(AppleComposite(), X)
 fit!(mach, verbosity=0, force=true)
 @test transform(mach, X).x ≈ Float64[-1, 0, 1]
-@test inverse_transform(mach, X) == X 
+@test inverse_transform(mach, X) == X
 
 end
 
