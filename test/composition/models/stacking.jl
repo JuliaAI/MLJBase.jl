@@ -247,11 +247,11 @@ end
     stack = Stack(metalearner=judge,
                 model1=model1,
                 model2=model2,
-                resampling=CV(;nfolds=3, shuffle=true, rng=rng))
+                resampling=CV(;nfolds=3, shuffle=false))
 
     Xs = source(X)
     ys = source(y)
-    folds = MLJBase.getfolds(ys, stack.resampling, n)
+    folds = MLJBase.getfolds(Xs, ys, stack.resampling, n)
 
     Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
     

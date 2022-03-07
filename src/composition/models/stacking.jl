@@ -249,11 +249,8 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 ###########################################################
 
 
-getfolds(y::AbstractNode, cv::CV, n::Int) =
-    source(train_test_pairs(cv, 1:n))
-
-getfolds(y::AbstractNode, cv::StratifiedCV, n::Int) =
-    node(YY->train_test_pairs(cv, 1:n, YY), y)
+getfolds(X::AbstractNode, y::AbstractNode, cv, n::Int) =
+    node((XX, YY) -> train_test_pairs(cv, 1:n, XX, YY), X, y)
 
 trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
     node((XX, ff) -> selectrows(XX, ff[nfold][1]), X, folds)
@@ -435,7 +432,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     Xs = source(X)
     ys = source(y)
     
-    folds = getfolds(ys, m.resampling, n)
+    folds = getfolds(Xs, ys, m.resampling, n)
     
     Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
 
