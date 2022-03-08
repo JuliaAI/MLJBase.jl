@@ -399,10 +399,9 @@ end
         constant=evaluate(constant, X, y, resampling=resampling, measures=measures, verbosity=0),
         ridge=evaluate(ridge, X, y, resampling=resampling, measures=measures, verbosity=0)
     )
-
+    ttp = MLJBase.train_test_pairs(resampling, 1:nrows(y), X, y)
     # Testing internal_stack_report default with nothing
-    ys = source(y)
-    @test MLJBase.internal_stack_report(mystack, 0, ys, nothing, nothing) == NamedTuple{}()
+    @test MLJBase.internal_stack_report(mystack, 0, ttp, nothing, nothing) == NamedTuple{}()
 
     # Simulate the evaluation nodes which consist of
     # - The fold machine
@@ -422,7 +421,7 @@ end
     internalreport = MLJBase.internal_stack_report(
         mystack, 
         0, 
-        ys, 
+        ttp, 
         evaluation_nodes...
     ).report.cv_report()
 
@@ -494,6 +493,26 @@ end
         @test std_knn_fp.tree.data == intern_knn_fp.tree.data
     end
 
+end
+
+@testset "Test Holdout CV" begin
+    X, y = make_regression(100, 3; rng=rng)
+    resampling = Holdout()
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=resampling,
+                    measures=[rmse],
+                    ridge=ridge,
+                    constant=constant)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    for modelname in (:ridge, :constant)
+        model_perf = getproperty(report(mach).cv_report, modelname)
+        @test length(model_perf.per_fold) == 1
+        @test length(model_perf.train_test_rows) == 1
+    end
 end
 
 end

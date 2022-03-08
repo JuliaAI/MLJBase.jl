@@ -272,7 +272,7 @@ end
 When measure/measures is a Nothing, the folds_evaluation won't have been filled by `store_for_evaluation`
 and we thus return an empty NamedTuple.
 """
-internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+internal_stack_report(m::Stack, verbosity::Int, ttp, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
 
 """
     internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
@@ -281,10 +281,10 @@ When measure/measures is provided, the folds_evaluation will have been filled by
 not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
 can be evaluated later.
 """
-function internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
-    _internal_stack_report(y, folds_evaluations...) =
-        internal_stack_report(m, verbosity, y, folds_evaluations...)
-    return (report=(cv_report=node(_internal_stack_report, y, folds_evaluations...),),)
+function internal_stack_report(m::Stack, verbosity::Int, ttp, folds_evaluations::Vararg{AbstractNode})
+    _internal_stack_report(folds_evaluations...) =
+        internal_stack_report(m, verbosity, ttp, folds_evaluations...)
+    return (report=(cv_report=node(_internal_stack_report, folds_evaluations...),),)
 end
 
 """
@@ -294,10 +294,10 @@ Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. T
 are  built in a flatten array respecting the order given by:
 (fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1, model_2, ...), ...)
 """
-function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, ttp, folds_evaluations...) where modelnames
 
     n_measures = length(stack.measures)
-    nfolds = stack.resampling.nfolds
+    nfolds = length(ttp)
 
     # For each model we record the results mimicking the fields PerformanceEvaluation
     results = NamedTuple{modelnames}([
@@ -308,7 +308,7 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, fol
             per_observation=Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
             fitted_params_per_fold=[],
             report_per_fold=[],
-            train_test_pairs=train_test_pairs(stack.resampling, 1:nrows(y), y)
+            train_test_pairs=ttp
             ) 
         for model in getfield(stack, :models)]
     )
@@ -439,7 +439,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zpred = MLJBase.table(hcat(Zpred...))
     ŷ = predict(metamach, Zpred)
 
-    internal_report = internal_stack_report(m, verbosity, ys, folds_evaluations...)
+    internal_report = internal_stack_report(m, verbosity, ttp, folds_evaluations...)
 
     # We can infer the Surrogate by two calls to supertype
     mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
