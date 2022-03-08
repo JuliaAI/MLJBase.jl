@@ -248,9 +248,6 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 ################# Node operations Methods #################
 ###########################################################
 
-selectrows(X::AbstractNode, idx) = 
-    node(X-> selectrows(X, idx), X)
-
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
