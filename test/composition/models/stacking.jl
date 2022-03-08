@@ -247,13 +247,14 @@ end
     stack = Stack(metalearner=judge,
                 model1=model1,
                 model2=model2,
-                resampling=CV(;nfolds=3, shuffle=false))
+                resampling=CV(;nfolds=3, shuffle=true, rng=StableRNG(123)))
 
     Xs = source(X)
     ys = source(y)
-    folds = MLJBase.getfolds(Xs, ys, stack.resampling, n)
+    
+    ttp = MLJBase.train_test_pairs(stack.resampling, 1:n, X, y)
 
-    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
+    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, Xs, ys, ttp)
     
     # No internal measure has been provided so the resulting 
     # folds_evaluations contain nothing
@@ -270,19 +271,19 @@ end
 
     # The lines of yval should match the reordering indexes
     # of the original y (reordering given by the folds node)
-    reordering = vcat([x[2] for x in folds()]...)
+    reordering = vcat([x[2] for x in ttp]...)
     @test yval() == y[reordering]
     # And the same is true for Zval, let's check this for model1's output
     # on the first fold, ie (2 first rows, 3 first columns)
     # First we need to train the model
-    trainingrows = folds()[1][1]
+    trainingrows = ttp[1][1]
     Xtrain = selectrows(X, trainingrows)
     ytrain = selectrows(y, trainingrows)
     mach = machine(model1, Xtrain, ytrain)
     fit!(mach, verbosity=0)
 
     # Then predict on the validation rows
-    Xpred = selectrows(X, folds()[1][2])
+    Xpred = selectrows(X, ttp[1][2])
     Zval_expected_dist = predict(mach, Xpred)
     # This is a distribution, we need to apply the appropriate transformation
     Zval_expected = pdf(Zval_expected_dist, levels(first(Zval_expected_dist)))

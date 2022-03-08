@@ -248,16 +248,8 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 ################# Node operations Methods #################
 ###########################################################
 
-
-getfolds(X::AbstractNode, y::AbstractNode, cv, n::Int) =
-    node((XX, YY) -> train_test_pairs(cv, 1:n, XX, YY), X, y)
-
-trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
-    node((XX, ff) -> selectrows(XX, ff[nfold][1]), X, folds)
-
-testrows(X::AbstractNode, folds::AbstractNode, nfold) =
-    node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
-
+selectrows(X::AbstractNode, idx) = 
+    node(X-> selectrows(X, idx), X)
 
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
@@ -382,16 +374,16 @@ This function is building the out-of-sample dataset that is later used by the `j
 for its own training. It also returns the folds_evaluations object if internal 
 cross-validation results are requested.
 """
-function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
+function oos_set(m::Stack, Xs::Source, ys::Source, ttp)
     Zval = []
     yval = []
     folds_evaluations = []
     # Loop over the cross validation folds to build a training set for the metalearner.
-    for nfold in 1:m.resampling.nfolds
-        Xtrain = trainrows(Xs, folds, nfold)
-        ytrain = trainrows(ys, folds, nfold)
-        Xtest = testrows(Xs, folds, nfold)
-        ytest = testrows(ys, folds, nfold)
+    for (training_rows, test_rows) in ttp
+        Xtrain = selectrows(Xs, training_rows)
+        ytrain = selectrows(ys, training_rows)
+        Xtest = selectrows(Xs, test_rows)
+        ytest = selectrows(ys, test_rows)
 
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
@@ -426,15 +418,12 @@ end
 """
 function fit(m::Stack, verbosity::Int, X, y)
     check_stack_measures(m, verbosity, m.measures, y)
-
-    n = nrows(y)
+    ttp = train_test_pairs(m.resampling, 1:nrows(y), X, y)
 
     Xs = source(X)
     ys = source(y)
-    
-    folds = getfolds(Xs, ys, m.resampling, n)
-    
-    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
+        
+    Zval, yval, folds_evaluations = oos_set(m, Xs, ys, ttp)
 
     metamach = machine(m.metalearner, Zval, yval)
 
