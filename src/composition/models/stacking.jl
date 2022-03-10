@@ -90,8 +90,6 @@ When training a machine bound to such an instance:
 
 - `resampling`: The resampling strategy used
   to prepare out-of-sample predictions of the base learners. 
-  It can be a user-defined strategy, the only 
-  caveat being that it should have a `nfolds` attribute.
 
 - `measures`: A measure or iterable over measures, to perform an internal 
   evaluation of the learners in the Stack while training. This is not for the
@@ -248,20 +246,6 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 ################# Node operations Methods #################
 ###########################################################
 
-
-getfolds(y::AbstractNode, cv::CV, n::Int) =
-    source(train_test_pairs(cv, 1:n))
-
-getfolds(y::AbstractNode, cv::StratifiedCV, n::Int) =
-    node(YY->train_test_pairs(cv, 1:n, YY), y)
-
-trainrows(X::AbstractNode, folds::AbstractNode, nfold) =
-    node((XX, ff) -> selectrows(XX, ff[nfold][1]), X, folds)
-
-testrows(X::AbstractNode, folds::AbstractNode, nfold) =
-    node((XX, ff) -> selectrows(XX, ff[nfold][2]), X, folds)
-
-
 pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
     node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
@@ -283,7 +267,7 @@ end
 When measure/measures is a Nothing, the folds_evaluation won't have been filled by `store_for_evaluation`
 and we thus return an empty NamedTuple.
 """
-internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+internal_stack_report(m::Stack, verbosity::Int, tt_pairs, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
 
 """
     internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
@@ -292,10 +276,10 @@ When measure/measures is provided, the folds_evaluation will have been filled by
 not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
 can be evaluated later.
 """
-function internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
-    _internal_stack_report(y, folds_evaluations...) =
-        internal_stack_report(m, verbosity, y, folds_evaluations...)
-    return (report=(cv_report=node(_internal_stack_report, y, folds_evaluations...),),)
+function internal_stack_report(m::Stack, verbosity::Int, tt_pairs, folds_evaluations::Vararg{AbstractNode})
+    _internal_stack_report(folds_evaluations...) =
+        internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
+    return (report=(cv_report=node(_internal_stack_report, folds_evaluations...),),)
 end
 
 """
@@ -305,10 +289,10 @@ Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. T
 are  built in a flatten array respecting the order given by:
 (fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1, model_2, ...), ...)
 """
-function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pairs, folds_evaluations...) where modelnames
 
     n_measures = length(stack.measures)
-    nfolds = stack.resampling.nfolds
+    nfolds = length(tt_pairs)
 
     # For each model we record the results mimicking the fields PerformanceEvaluation
     results = NamedTuple{modelnames}([
@@ -319,7 +303,7 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, fol
             per_observation=Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
             fitted_params_per_fold=[],
             report_per_fold=[],
-            train_test_pairs=train_test_pairs(stack.resampling, 1:nrows(y), y)
+            train_test_pairs=tt_pairs
             ) 
         for model in getfield(stack, :models)]
     )
@@ -385,16 +369,16 @@ This function is building the out-of-sample dataset that is later used by the `j
 for its own training. It also returns the folds_evaluations object if internal 
 cross-validation results are requested.
 """
-function oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
+function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
     Zval = []
     yval = []
     folds_evaluations = []
     # Loop over the cross validation folds to build a training set for the metalearner.
-    for nfold in 1:m.resampling.nfolds
-        Xtrain = trainrows(Xs, folds, nfold)
-        ytrain = trainrows(ys, folds, nfold)
-        Xtest = testrows(Xs, folds, nfold)
-        ytest = testrows(ys, folds, nfold)
+    for (training_rows, test_rows) in tt_pairs
+        Xtrain = selectrows(Xs, training_rows)
+        ytrain = selectrows(ys, training_rows)
+        Xtest = selectrows(Xs, test_rows)
+        ytest = selectrows(ys, test_rows)
 
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
@@ -429,15 +413,12 @@ end
 """
 function fit(m::Stack, verbosity::Int, X, y)
     check_stack_measures(m, verbosity, m.measures, y)
-
-    n = nrows(y)
+    tt_pairs = train_test_pairs(m.resampling, 1:nrows(y), X, y)
 
     Xs = source(X)
     ys = source(y)
-    
-    folds = getfolds(ys, m.resampling, n)
-    
-    Zval, yval, folds_evaluations = oos_set(m, folds, Xs, ys)
+        
+    Zval, yval, folds_evaluations = oos_set(m, Xs, ys, tt_pairs)
 
     metamach = machine(m.metalearner, Zval, yval)
 
@@ -453,7 +434,7 @@ function fit(m::Stack, verbosity::Int, X, y)
     Zpred = MLJBase.table(hcat(Zpred...))
     ŷ = predict(metamach, Zpred)
 
-    internal_report = internal_stack_report(m, verbosity, ys, folds_evaluations...)
+    internal_report = internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
 
     # We can infer the Surrogate by two calls to supertype
     mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
