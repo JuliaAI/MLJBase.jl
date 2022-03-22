@@ -159,6 +159,10 @@ y = rand(5)
     @test training_losses(mach) == ones(5)
 end
 
+@testset "Transform a `EvoTreeRegressor` to a binary `EvoTreeClassifier`" begin
+    include("evotrees.jl")
+end
+
 end
 
 true

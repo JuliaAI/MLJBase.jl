@@ -50,7 +50,10 @@ julia = "1.6"
 [extras]
 DecisionTree = "7806a523-6efd-50cb-b5f6-3fa6f1930dbb"
 Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+EvoTrees = "f6006082-12f8-11e9-0c9c-0d5d367ab1e5"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+MLJ = "add582a8-e3ab-11e8-2d5e-e98b27df1bc7"
+MLJModels = "d491faf4-2d78-11e9-2867-c94bc002c0b7"
 MultivariateStats = "6f286f6a-111f-5878-ab1e-185364afe411"
 NearestNeighbors = "b8a86587-4115-5ab1-83bc-aa920d37bbce"
 StableRNGs = "860ef19b-820b-49d6-a774-d7a799459cd3"
@@ -58,4 +61,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 TypedTables = "9d95f2ec-7b3d-5a63-8d20-e2491e220bb9"
 
 [targets]
-test = ["DecisionTree", "Distances", "Logging", "MultivariateStats", "NearestNeighbors", "StableRNGs", "Test", "TypedTables"]
+test = ["DecisionTree", "Distances", "EvoTrees", "Logging", "MLJ", "MLJModels", "MultivariateStats", "NearestNeighbors", "StableRNGs", "Test", "TypedTables"]

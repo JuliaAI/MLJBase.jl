@@ -26,11 +26,11 @@ const TT_SUPER_GIVEN_ATOM =
 
 # The type definitions:
 
-for From in TT_SUPPORTED_ATOMS
-    New = TT_TYPE_GIVEN_ATOM[From]
-    To  = TT_SUPER_GIVEN_ATOM[From]
+for TransformedAbstract in TT_SUPPORTED_ATOMS
+    New = TT_TYPE_GIVEN_ATOM[TransformedAbstract]
+    To  = TT_SUPER_GIVEN_ATOM[TransformedAbstract]
     ex = quote
-        mutable struct $New{M <: $From} <: $To
+        mutable struct $New{M, target_scitype, predict_scitype, prediction_type} <: $To
             model::M
             target   # Unsupervised or callable
             inverse  # callable or `nothing`
@@ -81,7 +81,13 @@ const WARN_MISSING_INVERSE =
     "returned on a scale different from the training target. "
 
 """
-    TransformedTargetModel(model; target=nothing, inverse=nothing, cache=true)
+    TransformedTargetModel(
+        model;
+        target = nothing,
+        inverse = nothing,
+        cache = true,
+        traits = nothing,
+    )
 
 Wrap the supervised or semi-supervised `model` in a transformation of
 the target variable.
@@ -127,11 +133,14 @@ tmodel2 = TransformedTargetModel(model, target=y->log.(y), inverse=z->exp.(y))
 ```
 
 """
-function TransformedTargetModel(args...;
-                           model=nothing,
-                           target=nothing,
-                           inverse=nothing,
-                           cache=true)
+function TransformedTargetModel(
+        args...;
+        model = nothing,
+        target = nothing,
+        inverse = nothing,
+        cache = true,
+        traits::Union{AbstractDict, Nothing} = nothing,
+    )
     length(args) < 2 || throw(ERR_TOO_MANY_ARGUMENTS)
     if length(args) === 1
         atom = first(args)
@@ -143,12 +152,38 @@ function TransformedTargetModel(args...;
     end
     atom isa TTSupported || throw(err_tt_unsupported(atom))
     target === nothing && throw(ERR_TARGET_NOT_SPECIFIED)
+    M = typeof(atom)
+    OriginalAbstract = MMI.abstract_type(atom)
+    if traits === nothing
+        target_scitype  = MMI.target_scitype(M)
+        predict_scitype = MMI.predict_scitype(M)
+        prediction_type = MMI.prediction_type(M)
+        TransformedAbstract = OriginalAbstract
 
-    metamodel =
-        tt_type_given_atom[MMI.abstract_type(atom)](atom,
-                                                    target,
-                                                    inverse,
-                                                    cache)
+    else
+        target_scitype  = traits[:target_scitype]
+        predict_scitype = traits[:predict_scitype]
+        prediction_type = traits[:prediction_type]
+        if prediction_type === :deterministic
+            TransformedAbstract = MMI.Deterministic
+        elseif prediction_type === :probabilistic
+            TransformedAbstract = MMI.Probabilistic
+        else
+            msg = string(
+                "Could not automatically infer the new abstract type from the ",
+                "given trait values",
+            )
+            throw(ArgumentError(msg))
+        end
+    end
+    tt_type = tt_type_given_atom[TransformedAbstract]
+    tt_type_with_params = tt_type{M, target_scitype, predict_scitype, prediction_type}
+    metamodel = tt_type_with_params(
+        atom,
+        target,
+        inverse,
+        cache,
+    )
     message = clean!(metamodel)
     isempty(message) || @warn message
     return metamodel
@@ -243,22 +278,34 @@ for New in TT_TYPE_EXS
         MMI.iteration_parameter(::Type{<:$New{M}}) where M =
             MLJBase.prepend(:model, iteration_parameter(M))
     end |> eval
-    for trait in [:input_scitype,
-        :output_scitype,
-        :target_scitype,
+    for trait in [
+        :input_scitype,
+        # :output_scitype,
         :fit_data_scitype,
-        :predict_scitype,
-        :transform_scitype,
-        :inverse_transform_scitype,
+        # :transform_scitype,
+        # :inverse_transform_scitype,
         :is_pure_julia,
         :supports_weights,
         :supports_class_weights,
         :supports_online,
         :supports_training_losses,
         :is_supervised,
-        :prediction_type]
+        ]
         quote
-            MMI.$trait(::Type{<:$New{M}}) where M = MMI.$trait(M)
+            MMI.$trait(::Type{<:$New{M}}) where {M} = MMI.$trait(M)
+        end |> eval
+    end
+
+    # TODO: figure out how to make the for loop work
+    for trait in [
+        :target_scitype,
+        :predict_scitype,
+        :prediction_type,
+        ]
+        quote
+            MMI.$trait(
+                ::Type{<:$New{M, target_scitype, predict_scitype, prediction_type}}
+            ) where {M, target_scitype, predict_scitype, prediction_type} = $trait
         end |> eval
     end
 end
