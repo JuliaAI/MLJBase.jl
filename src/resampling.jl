@@ -39,11 +39,7 @@ err_ambiguous_operation(model, measure) = ArgumentError(
     "\nUnable to deduce an appropriate operation for $measure. "*
     "Explicitly specify `operation=...` or `operations=...`. ")
 err_incompatible_prediction_types(model, measure) = ArgumentError(
-    _ambiguous_operation(model, measure)*
-    "If your model really is making probabilistic predictions, try explicitly "*
-    "specifiying operations. For example, for "*
-    "`measures = [area_under_curve, accuracy]`, try "*
-    "`operations=[predict, predict_mode]`. ")
+    _ambiguous_operation(model, measure))
 
 
 # ==================================================================
