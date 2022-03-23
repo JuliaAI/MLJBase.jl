@@ -13,7 +13,7 @@ const PREDICT_OPERATIONS_STRING = begin
     end
     join(strings, ", ", ", or ")
 end
-const PROG_METER_DT = 0.1 
+const PROG_METER_DT = 0.1
 const ERR_WEIGHTS_REAL =
     ArgumentError("`weights` must be a `Real` vector. ")
 const ERR_WEIGHTS_LENGTH =
@@ -39,7 +39,12 @@ err_ambiguous_operation(model, measure) = ArgumentError(
     "\nUnable to deduce an appropriate operation for $measure. "*
     "Explicitly specify `operation=...` or `operations=...`. ")
 err_incompatible_prediction_types(model, measure) = ArgumentError(
-    _ambiguous_operation(model, measure))
+    _ambiguous_operation(model, measure)*
+    "If your model really is making probabilistic predictions, try explicitly "*
+    "specifiying operations. For example, for "*
+    "`measures = [area_under_curve, accuracy]`, try "*
+    "`operations=[predict, predict_mode]`. ")
+
 
 # ==================================================================
 ## MODEL TYPES THAT CAN BE EVALUATED
@@ -965,7 +970,7 @@ function _next!(p)
 end
 
 function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
-    if verbosity > 0 
+    if verbosity > 0
         p = Progress(
             nfolds,
             dt = PROG_METER_DT,
@@ -990,7 +995,7 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
 
     local ret
     @sync begin
-        if verbosity > 0 
+        if verbosity > 0
             p = Progress(
                 nfolds,
                 dt = PROG_METER_DT,
@@ -1001,7 +1006,7 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
             )
             channel = RemoteChannel(()->Channel{Bool}(), 1)
         end
-        
+
         # printing the progress bar
         verbosity < 1 || @async begin
             while take!(channel)
@@ -1014,7 +1019,7 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
             verbosity < 1 || put!(channel, true)
             [r, ]
         end
-        
+
         verbosity < 1 || put!(channel, false)
     end
 
@@ -1036,7 +1041,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     ntasks = accel.settings
     partitions = chunks(1:nfolds, ntasks)
-    if verbosity > 0 
+    if verbosity > 0
         p = Progress(
             nfolds,
             dt = PROG_METER_DT,
@@ -1061,7 +1066,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
         clean!(mach.model)
         # One tmach for each task:
         machines = vcat(
-            mach, 
+            mach,
             [
                 machine(mach.model, mach.args...; cache = _caches_data(mach))
                 for _ in 2:length(partitions)
