@@ -470,6 +470,9 @@ vector with one entry for each measure (metric) recorded in `measure`.
 
 ### Fields
 
+These fields are part of the public API of the `PerformanceEvaluation`
+struct.
+
 - `measure`: vector of measures (metrics) used to evaluate performance
 
 - `measurement`: vector of measurements - one for each element of
