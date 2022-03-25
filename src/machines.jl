@@ -102,27 +102,41 @@ warn_generic_scitype_mismatch(S, F, T) =
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
 
+const INFO_UNKNOWN_SCITYPE =
+    "Some data contains `Unknown` scitypes, which means scitype checks are skipped. "
+
 err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
 check(model::Any, args...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-function check(model::Model, args...)
-    nowarns = true
+function check(model::Model, check_level, args...)
+
+    is_okay = true
+
+    check_level >= 1 || return is_okay
 
     F = fit_data_scitype(model)
 
-    # skip checks if `Unknown` scitypes appear anywhere in
-    # `fit_data_scitype(model)`:
-    _contains_unknown(F) && return true
+    # if there are `Unknown`s an error will never be thrown and at
+    # worst we log this fact to `Info`:
+    if _contains_unknown(F)
+        check_level >= 2 && @info INFO_UNKNOWN_SCITYPE
+        return is_okay
+    end
 
     # we use `elscitype` here instead of `scitype` because the data is
     # wrapped in source nodes:
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
-        @warn warn_generic_scitype_mismatch(S, F, typeof(model))
-        nowarns = false
+        is_okay = false
+        message = warn_generic_scitype_mismatch(S, F, typeof(model))
+        if check_level >= 3
+            throw(ArgumentError(message))
+        else
+            @warn message
+        end
     end
 
     if length(args) > 1 && is_supervised(model)
@@ -132,7 +146,7 @@ function check(model::Model, args...)
         scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
             throw(err_length_mismatch(model))
     end
-    return nowarns
+    return is_okay
 end
 
 """
@@ -304,9 +318,13 @@ machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
     error("Mixing concrete data with `Node` training arguments "*
           "is not allowed. ")
 
-function machine(model::Model, raw_arg1, raw_args...; kwargs...)
+function machine(model::Model,
+                 raw_arg1,
+                 raw_args...;
+                 check_level=1,
+                 kwargs...)
     args = source.((raw_arg1, raw_args...))
-    check(model, args...)
+    check(model, check_level, args...;)
     return Machine(model, args...; kwargs...)
 end
 
@@ -316,7 +334,7 @@ function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
 end
 
 
-warn_bad_deserialization(state) = 
+warn_bad_deserialization(state) =
     "Deserialized machine state is not -1 (got $state). "*
     "This means that the machine has not been saved by a conventional MLJ routine.\n"
     "For example, it's possible original training data is accessible from the deserialised object. "
@@ -324,12 +342,12 @@ warn_bad_deserialization(state) =
 """
     machine(file::Union{String, IO})
 
-Rebuild from a file a machine that has been serialized using the default 
+Rebuild from a file a machine that has been serialized using the default
 Serialization module.
 """
 function machine(file::Union{String, IO})
     smach = deserialize(file)
-    smach.state == -1 || 
+    smach.state == -1 ||
         @warn warn_bad_deserialization(smach.state)
     restore!(smach)
     return smach
@@ -555,7 +573,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
-                if check(mach.model, source.(raw_args)...)
+                check_level = 1
+                if check(mach.model, check_level, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*
@@ -762,15 +781,15 @@ end
 """
     serializable(mach::Machine)
 
-Returns a shallow copy of the machine to make it serializable. In particular, 
-all training data is removed and, if necessary, learned parameters are replaced 
-with persistent representations. 
+Returns a shallow copy of the machine to make it serializable. In particular,
+all training data is removed and, if necessary, learned parameters are replaced
+with persistent representations.
 
-Any general purpose Julia serialization may be applied to the output of 
-`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on 
+Any general purpose Julia serialization may be applied to the output of
+`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
 the deserialised object `mach` before using it. See the example below.
 
-If using Julia's standard Serialization library, a shorter workflow is 
+If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
 
 A machine returned by serializable is characterized by the property `mach.state == -1`.
@@ -787,7 +806,7 @@ A machine returned by serializable is characterized by the property `mach.state 
     # This machine can now be serialized
     smach = serializable(mach)
     JLSO.save("machine.jlso", machine => smach)
-    
+
     # Deserialize and restore learned parameters to useable form:
     loaded_mach = JLSO.load("machine.jlso")[:machine]
     restore!(loaded_mach)
@@ -807,7 +826,7 @@ function serializable(mach::Machine{<:Any, C}) where C
             continue
         elseif  fieldname == :state
             setfield!(copymach, :state, -1)
-        elseif fieldname == :args 
+        elseif fieldname == :args
             setfield!(copymach, fieldname, ())
         # Make fitresult ready for serialization
         elseif fieldname == :fitresult
@@ -818,7 +837,7 @@ function serializable(mach::Machine{<:Any, C}) where C
     end
 
     setreport!(copymach, mach.report)
-    
+
     return copymach
 end
 
@@ -844,7 +863,7 @@ end
 
 Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
-supported) using the Serialization module. 
+supported) using the Serialization module.
 
 To serialise using a different format, see `serializable`.
 
@@ -897,5 +916,5 @@ function save(file::Union{String,IO},
 end
 
 
-setreport!(mach::Machine, report) = 
+setreport!(mach::Machine, report) =
     setfield!(mach, :report, report)

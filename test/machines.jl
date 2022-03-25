@@ -106,17 +106,49 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
     Union{Tuple{AbstractVector{Count}},
           Tuple{AbstractVector{Count},AbstractVector{Continuous}}}
 
+struct FooBarUnknown <: Model end
+
 @testset "machine argument check for generic model" begin
+
     X = [1, 2, 3, 4]
     y = rand(4)
+
+    # with no Unknown scitypes
+
     model = FooBar()
-    @test_logs machine(model, X, y)
-    @test_logs machine(model, X)
-    @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
-                                                      fit_data_scitype(model),
-                                                      FooBar)),
-                machine(model, y))
+
+    for check_level in [1, 2]
+        @test_logs machine(model, X, y; check_level)
+        @test_logs machine(model, X; check_level)
+        @test_logs((:warn,
+                    MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+                                                          fit_data_scitype(model),
+                                                          FooBar)),
+                   machine(model, y; check_level))
+    end
+
+    check_level = 3
+    @test_logs machine(model, X, y; check_level)
+    @test_logs machine(model, X; check_level)
+    @test_throws(ArgumentError(
+        MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+                                              fit_data_scitype(model),
+                                              FooBar)),
+                 machine(model, y; check_level))
+
+    # with Unknown scitypes
+
+    model = FooBarUnknown()
+
+    check_level = 1
+    @test_logs machine(model, X, y; check_level)
+    @test_logs machine(model, X; check_level)
+
+    for check_level in [2, 3]
+        @test_logs (:info, MLJBase.INFO_UNKNOWN_SCITYPE) machine(model, X, y; check_level)
+        @test_logs (:info, MLJBase.INFO_UNKNOWN_SCITYPE) machine(model, X; check_level)
+    end
+
 end
 
 @testset "weights" begin
