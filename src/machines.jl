@@ -94,7 +94,7 @@ warn_generic_scitype_mismatch(S, F, T) =
     "Commonly, but non exclusively, supervised models are constructed " *
     "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
     "while most other models with `machine(model, X)`. " *
-    "Here `X` are features, `y` a target, and `w` sample or class weights.\n" *
+    "Here `X` are features, `y` a target, and `w` sample or class weights.\n\n" *
     "In general, data in `machine(model, data...)` must satisfy " *
     "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
     "right-hand side contains `Unknown` scitypes.\n"*
@@ -150,7 +150,7 @@ function check(model::Model, check_level, args...)
 end
 
 """
-    machine(model, args...; cache=true)
+    machine(model, args...; cache=true, check_level)
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
@@ -176,11 +176,18 @@ fit!(mach, rows=1:50)
 predict(mach, selectrows(X, 51:100)) # or predict(mach, rows=51:100)
 ```
 
-Specify `cache=false` to prioritize memory management over speed, and
-to guarantee data anonymity when serializing composite models.
+Specify `cache=false` to prioritize memory management over speed.
+
+If `args` contain `Unknown` scientific types, the `machine`
+constructor will not check that the specified `model` explicitly
+supports that type of data, and does so silently by default. Specify
+`check_level >= 2` to be notified in the event of check
+skipping. Specify `check_level=3` if you wish an error to be thrown if
+scientific type mismatches occur. Otherwise a warning only is
+issued.
 
 When building a learning network, `Node` objects can be substituted
-for the concrete data.
+for the concrete data. 
 
 ### Learning network machines
 
