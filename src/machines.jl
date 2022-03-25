@@ -106,9 +106,9 @@ err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
-check(model::Any, args...; kwargs...) =
+check(model::Any, args...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-function check(model::Model, args...; full=false)
+function check(model::Model, args...)
     nowarns = true
 
     F = fit_data_scitype(model)
@@ -306,7 +306,7 @@ machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
 
 function machine(model::Model, raw_arg1, raw_args...; kwargs...)
     args = source.((raw_arg1, raw_args...))
-    check(model, args...; full=true)
+    check(model, args...)
     return Machine(model, args...; kwargs...)
 end
 
@@ -555,7 +555,7 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
-                if check(mach.model, source.(raw_args)... ; full=true)
+                if check(mach.model, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*
