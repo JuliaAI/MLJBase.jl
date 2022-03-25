@@ -4,11 +4,11 @@ using MLJBase
 using Test
 using Statistics
 using ..Models
-const MLJModelInterface = MLJBase.MLJModelInterface
 using StableRNGs
+using Serialization
 using ..TestUtilities
 
-DecisionTreeRegressor()
+const MLJModelInterface = MLJBase.MLJModelInterface
 
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
@@ -302,6 +302,69 @@ end
     @test_logs((:info, "resampling X, y"),
                fit!(mach, rows=1:2, verbosity=0))
 
+end
+
+@testset "Test serializable method of Supervised Machine" begin
+    X, y = make_regression(100, 1)
+    filename = "decisiontree.jls"
+    mach = machine(DecisionTreeRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    @test smach.report == mach.report
+    @test smach.fitresult == mach.fitresult
+    @test_throws(ArgumentError, predict(smach))
+    @test_logs (:warn, MLJBase.warn_serializable_mach(predict)) predict(smach, X)
+
+    TestUtilities.generic_tests(mach, smach)
+    # Check restore! function
+    Serialization.serialize(filename, smach)
+    smach = Serialization.deserialize(filename)
+    MLJBase.restore!(smach)
+
+    @test smach.state == 1
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
+    @test fitted_params(smach) isa NamedTuple
+    @test report(smach) == report(mach)
+
+    rm(filename)
+
+    # End to end save and reload
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test smach.state == 1
+    @test predict(smach, X) == predict(mach, X)
+
+    rm(filename)
+end
+
+@testset "Test serializable method of Unsupervised Machine" begin
+    X, _ = make_regression(100, 1)
+    filename = "standardizer.jls"
+    mach = machine(Standardizer(), X)
+    fit!(mach, verbosity=0)
+
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+
+    @test transform(mach, X) == transform(smach, X)
+    @test_throws(ArgumentError, transform(smach))
+
+    # warning on non-restored machine
+    smach = deserialize(filename)
+    @test_logs (:warn, MLJBase.warn_serializable_mach(transform)) transform(smach, X)
+
+    rm(filename)
+end
+
+@testset "Test Misc functions used in `serializable`" begin
+    X, y = make_regression(100, 1)
+    mach = machine(DeterministicConstantRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # setreport! default
+    @test mach.report isa NamedTuple
+    MLJBase.setreport!(mach, "toto")
+    @test mach.report == "toto"
 end
 
 

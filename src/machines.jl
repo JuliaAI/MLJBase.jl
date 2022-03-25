@@ -316,6 +316,25 @@ function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
 end
 
 
+warn_bad_deserialization(state) = 
+    "Deserialized machine state is not -1 (got $state). "*
+    "This means that the machine has not been saved by a conventional MLJ routine.\n"
+    "For example, it's possible original training data is accessible from the deserialised object. "
+
+"""
+    machine(file::Union{String, IO})
+
+Rebuild from a file a machine that has been serialized using the default 
+Serialization module.
+"""
+function machine(file::Union{String, IO})
+    smach = deserialize(file)
+    smach.state == -1 || 
+        @warn warn_bad_deserialization(smach.state)
+    restore!(smach)
+    return smach
+end
+
 ## INSPECTION AND MINOR MANIPULATION OF FIELDS
 
 # Note: freeze! and thaw! are possibly not used within MLJ itself.
@@ -733,3 +752,150 @@ function training_losses(mach::Machine)
         throw(NotTrainedError(mach, :training_losses))
     end
 end
+
+
+###############################################################################
+#####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
+###############################################################################
+
+
+"""
+    serializable(mach::Machine)
+
+Returns a shallow copy of the machine to make it serializable. In particular, 
+all training data is removed and, if necessary, learned parameters are replaced 
+with persistent representations. 
+
+Any general purpose Julia serialization may be applied to the output of 
+`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on 
+the deserialised object `mach` before using it. See the example below.
+
+If using Julia's standard Serialization library, a shorter workflow is 
+available using the [`save`](@ref) method.
+
+A machine returned by serializable is characterized by the property `mach.state == -1`.
+
+### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
+
+    using MLJ
+    using JLSO
+    Tree = @load DecisionTreeClassifier
+    tree = Tree()
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    # This machine can now be serialized
+    smach = serializable(mach)
+    JLSO.save("machine.jlso", machine => smach)
+    
+    # Deserialize and restore learned parameters to useable form:
+    loaded_mach = JLSO.load("machine.jlso")[:machine]
+    restore!(loaded_mach)
+
+    predict(loaded_mach, X)
+    predict(mach, X)
+"""
+function serializable(mach::Machine{<:Any, C}) where C
+    # Returns a shallow copy of the machine to make it serializable, in particular:
+    # - Removes all data from caches, args and data fields
+    # - Makes all `fitresults` serializable
+    # - Annotates the state as -1
+    copymach = machine(mach.model, mach.args..., cache=C)
+
+    for fieldname in fieldnames(Machine)
+        if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
+            continue
+        elseif  fieldname == :state
+            setfield!(copymach, :state, -1)
+        elseif fieldname == :args 
+            setfield!(copymach, fieldname, ())
+        # Make fitresult ready for serialization
+        elseif fieldname == :fitresult
+            copymach.fitresult = save(mach.model, getfield(mach, fieldname))
+        else
+            setfield!(copymach, fieldname, getfield(mach, fieldname))
+        end
+    end
+
+    setreport!(copymach, mach.report)
+    
+    return copymach
+end
+
+"""
+    restore!(mach::Machine)
+
+Default method to restores the state of a machine that is currently serializable.
+Such a machine is annotated with `state=1`
+"""
+function restore!(mach::Machine)
+    mach.fitresult = restore(mach.model, mach.fitresult)
+    mach.state = 1
+    return mach
+end
+
+
+"""
+    MLJ.save(filename, mach::Machine)
+    MLJ.save(io, mach::Machine)
+
+    MLJBase.save(filename, mach::Machine)
+    MLJBase.save(io, mach::Machine)
+
+Serialize the machine `mach` to a file with path `filename`, or to an
+input/output stream `io` (at least `IOBuffer` instances are
+supported) using the Serialization module. 
+
+To serialise using a different format, see `serializable`.
+
+Machines are de-serialized using the `machine` constructor as shown in
+the example below. Data (or nodes) may be optionally passed to the
+constructor for retraining on new data using the saved model.
+
+
+### Example
+
+    using MLJ
+    Tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(Tree(), X, y))
+
+    MLJ.save("tree.jls", mach)
+    mach_predict_only = machine("tree.jls")
+    predict(mach_predict_only, X)
+
+    mach2 = machine("tree.jls", selectrows(X, 1:100), y[1:100])
+    predict(mach2, X) # same as above
+
+    fit!(mach2) # saved learned parameters are over-written
+    predict(mach2, X) # not same as above
+
+    # using a buffer:
+    io = IOBuffer()
+    MLJ.save(io, mach)
+    seekstart(io)
+    predict_only_mach = machine(io)
+    predict(predict_only_mach, X)
+
+!!! warning "Only load files from trusted sources"
+    Maliciously constructed JLS files, like pickles, and most other
+    general purpose serialization formats, can allow for arbitrary code
+    execution during loading. This means it is possible for someone
+    to use a JLS file that looks like a serialized MLJ machine as a
+    [Trojan
+    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
+"""
+function save(file::Union{String,IO},
+              mach::Machine)
+    isdefined(mach, :fitresult)  ||
+        error("Cannot save an untrained machine. ")
+
+    smach = serializable(mach)
+
+    serialize(file, smach)
+end
+
+
+setreport!(mach::Machine, report) = 
+    setfield!(mach, :report, report)
