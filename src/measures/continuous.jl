@@ -23,7 +23,8 @@ body=
 """
 ``\\text{mean absolute error} =  n^{-1}∑ᵢ|yᵢ-ŷᵢ|`` or
 ``\\text{mean absolute error} = n^{-1}∑ᵢwᵢ|yᵢ-ŷᵢ|``
-""")
+""",
+scitype=DOC_INFINITE)
 
 call(::MeanAbsoluteError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
     abs.(ŷ .- y) |> skipinvalid |> mean
@@ -55,7 +56,8 @@ body=
 """
 ``\\text{root mean squared error} = \\sqrt{n^{-1}∑ᵢ|yᵢ-ŷᵢ|^2}`` or
 ``\\text{root mean squared error} = \\sqrt{\\frac{∑ᵢwᵢ|yᵢ-ŷᵢ|^2}{∑ᵢwᵢ}}``
-""")
+""",
+scitype=DOC_INFINITE)
 
 call(::RootMeanSquaredError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
     (y .- ŷ).^2 |> skipinvalid |> mean |> sqrt
@@ -89,7 +91,8 @@ The R² (also known as R-squared or coefficient of determination) is suitable fo
 Let ``\\overline{y}`` denote the mean of ``y``, then
 
 ``\\text{R^2} = 1 - \\frac{∑ (\\hat{y} - y)^2}{∑ \\overline{y} - y)^2}.``
-""")
+""",
+scitype=DOC_INFINITE)
 
 function call(::RSquared, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real})
     num = (ŷ .- y).^2 |> skipinvalid |> sum
@@ -121,7 +124,8 @@ body=
 """
 Constructor signature: `LPLoss(p=2)`. Reports
 `|ŷ[i] - y[i]|^p` for every index `i`.
-""")
+""",
+scitype=DOC_INFINITE)
 
 single(m::LPLoss, ŷ::Real, y::Real) =  abs(y - ŷ)^(m.p)
 
@@ -146,7 +150,8 @@ body=
 ``\\text{root mean squared log error} =
 n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 """,
-footer="See also [`rmslp1`](@ref).")
+footer="See also [`rmslp1`](@ref).",
+scitype=DOC_INFINITE)
 
 call(::RootMeanSquaredLogError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
     (log.(y) - log.(ŷ)).^2 |> skipinvalid |> mean |> sqrt
@@ -185,7 +190,8 @@ Constructor signature: `RootMeanSquaredLogProportionalError(; offset = 1.0)`.
 ``\\text{root mean squared log proportional error} =
 n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\right)``
 """,
-footer="See also [`rmsl`](@ref). ")
+footer="See also [`rmsl`](@ref). ",
+scitype=DOC_INFINITE)
 
 call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
     (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |>
@@ -226,7 +232,7 @@ m^{-1}∑ᵢ \\left({yᵢ-ŷᵢ \\over yᵢ}\\right)^2``
 where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 
-""")
+""", scitype=DOC_INFINITE)
 
 function call(m::RootMeanSquaredProportionalError,
                ŷ::ArrMissing{<:Real},
@@ -274,7 +280,7 @@ Constructor key-word arguments: `tol` (default = `eps()`).
 
 where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
-""")
+""", scitype=DOC_INFINITE)
 
 function call(m::MeanAbsoluteProportionalError,
               ŷ::ArrMissing{<:Real},
@@ -311,7 +317,8 @@ const LogCosh = LogCoshLoss
 @create_aliases LogCoshLoss
 
 @create_docs(LogCoshLoss,
-body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ")
+             body="Reports ``\\log(\\cosh(ŷᵢ-yᵢ))`` for each index `i`. ",
+             scitype=DOC_INFINITE)
 
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))

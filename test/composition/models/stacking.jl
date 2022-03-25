@@ -251,13 +251,13 @@ end
     stack = Stack(metalearner=judge,
                 model1=model1,
                 model2=model2,
-                resampling=CV(;nfolds=3, shuffle=true, rng=rng))
+                resampling=CV(;nfolds=3, shuffle=true, rng=StableRNG(123)))
 
     Xs = source(X)
     ys = source(y)
-    folds = MLJBase.getfolds(ys, stack.resampling, n)
 
-    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, folds, Xs, ys)
+    ttp = MLJBase.train_test_pairs(stack.resampling, 1:n, X, y)
+    Zval, yval, folds_evaluations = MLJBase.oos_set(stack, Xs, ys, ttp)
 
     # No internal measure has been provided so the resulting
     # folds_evaluations contain nothing
@@ -274,19 +274,19 @@ end
 
     # The lines of yval should match the reordering indexes
     # of the original y (reordering given by the folds node)
-    reordering = vcat([x[2] for x in folds()]...)
+    reordering = vcat([x[2] for x in ttp]...)
     @test yval() == y[reordering]
     # And the same is true for Zval, let's check this for model1's output
     # on the first fold, ie (2 first rows, 3 first columns)
     # First we need to train the model
-    trainingrows = folds()[1][1]
+    trainingrows = ttp[1][1]
     Xtrain = selectrows(X, trainingrows)
     ytrain = selectrows(y, trainingrows)
     mach = machine(model1, Xtrain, ytrain)
     fit!(mach, verbosity=0)
 
     # Then predict on the validation rows
-    Xpred = selectrows(X, folds()[1][2])
+    Xpred = selectrows(X, ttp[1][2])
     Zval_expected_dist = predict(mach, Xpred)
     # This is a distribution, we need to apply the appropriate transformation
     Zval_expected = pdf(Zval_expected_dist, levels(first(Zval_expected_dist)))
@@ -402,10 +402,9 @@ end
         constant=evaluate(constant, X, y, resampling=resampling, measures=measures, verbosity=0),
         ridge=evaluate(ridge, X, y, resampling=resampling, measures=measures, verbosity=0)
     )
-
+    ttp = MLJBase.train_test_pairs(resampling, 1:nrows(y), X, y)
     # Testing internal_stack_report default with nothing
-    ys = source(y)
-    @test MLJBase.internal_stack_report(mystack, 0, ys, nothing, nothing) == NamedTuple{}()
+    @test MLJBase.internal_stack_report(mystack, 0, ttp, nothing, nothing) == NamedTuple{}()
 
     # Simulate the evaluation nodes which consist of
     # - The fold machine
@@ -425,15 +424,17 @@ end
     internalreport = MLJBase.internal_stack_report(
         mystack,
         0,
-        ys,
+        ttp,
         evaluation_nodes...
     ).report.cv_report()
 
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
 
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
-    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
-    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+    @test std_evaluation.constant.fitted_params_per_fold ==
+        internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold ==
+        internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -454,13 +455,18 @@ end
     internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        constant = evaluate(constant, X, y,
+                            measure=measures,
+                            resampling=resampling,
+                            verbosity=0),
         ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
 
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
-    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
-    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+    @test std_evaluation.constant.fitted_params_per_fold ==
+        internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold ==
+        internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -481,7 +487,10 @@ end
     internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        constant = evaluate(constant, X, y,
+                            measure=measures,
+                            resampling=resampling,
+                            verbosity=0),
         knn = evaluate(knn, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
 
@@ -497,6 +506,26 @@ end
         @test std_knn_fp.tree.data == intern_knn_fp.tree.data
     end
 
+end
+
+@testset "Test Holdout CV" begin
+    X, y = make_regression(100, 3; rng=rng)
+    resampling = Holdout()
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=resampling,
+                    measures=[rmse],
+                    ridge=ridge,
+                    constant=constant)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    for modelname in (:ridge, :constant)
+        model_perf = getproperty(report(mach).cv_report, modelname)
+        @test length(model_perf.per_fold) == 1
+        @test length(model_perf.train_test_rows) == 1
+    end
 end
 
 end

@@ -145,7 +145,8 @@ supported `Distributions.UnivariateDistribution` such as `Normal` or
 `Poisson`.
 
 See also [`LogLoss`](@ref), which differs only in sign.
-""")
+""",
+scitype=DOC_MULTI)
 
 # for single finite observation:
 single(c::LogScore, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
@@ -193,7 +194,8 @@ const CrossEntropy = LogLoss
 body=
 """
 For details, see [`LogScore`](@ref), which differs only by a sign.
-""")
+""",
+scitype=DOC_MULTI)
 
 # for single finite observation:
 single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
@@ -261,7 +263,7 @@ in the `Continuous` case (`p` the probablity density function) or
 
 in the `Count` cae (`p` the probablity mass function).
 """,
-scitype=DOC_FINITE)
+scitype=DOC_MULTI)
 
 # calling on single finite observation:
 function single(::BrierScore,
@@ -317,7 +319,8 @@ metadata_measure(BrierLoss;
 body=
 """
 For details, see [`BrierScore`](@ref), which differs only by a sign.
-""")
+""",
+scitype=DOC_MULTI)
 
 # calling on single finite observations:
 single(::BrierLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
@@ -370,7 +373,8 @@ where `α` is the measure parameter `alpha`.
 
 $DOC_DISTRIBUTIONS
 
-""")
+""",
+scitype=DOC_MULTI)
 
 # calling on single observations:
 function single(s::SphericalScore,

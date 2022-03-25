@@ -328,6 +328,13 @@ doubler(y) = 2*y
 
 end
 
+struct FooCarrot <: Deterministic end
+
+@testset "iteration parameter - nothing passes through" begin
+    pipe = FeatureSelector() |> FooCarrot()
+    @test iteration_parameter(pipe) === nothing
+end
+
 @testset "training_losses" begin
     model = MyDeterministic(:bla)
     pipe = Standardizer() |> model

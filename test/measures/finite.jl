@@ -67,6 +67,32 @@ end
     @test mcc(cm) ≈ 0.39312321239417797
 end
 
+@testset "kappa" begin
+    # Binary case
+    y_b = categorical([2, 2, 2, 1, 1, 1, 1, 1, 2, 2, 1, 2, 2, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2])
+    ŷ_b = categorical([1, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 2, 1, 2, 2, 2, 1, 1, 2, 2, 2, 1, 2, 1, 2, 2, 2, 2, 2, 2])
+    cm_b = MLJBase._confmat(y_b, ŷ_b, warn=false)
+    p0_b = (4+10)/30
+    pe_b = (13*11 + 17*19)/(30*30)
+
+    # Multiclass case
+    y_m = categorical([5, 5, 3, 5, 4, 4, 2, 2, 3, 2, 5, 2, 4, 3, 2, 1, 1, 5, 1, 4, 2, 5, 4, 5, 2, 3, 3, 4, 2, 4])
+    ŷ_m = categorical([1, 1, 1, 5, 4, 2, 1, 3, 4, 4, 2, 5, 4, 4, 1, 5, 5, 2, 3, 3, 1, 3, 2, 5, 5, 2, 3, 2, 5, 3])
+    cm_m = MLJBase._confmat(ŷ_m, y_m, warn=false)
+    p0_m = 5/30
+    pe_m = (3*6 + 8*6 + 5*6 + 7*5 + 7*7)/(30*30)
+
+    # Tests
+    @test kappa(y_m, ŷ_m) ≈ (p0_m - pe_m)/(1 - pe_m)
+    @test kappa(y_b, ŷ_b) ≈ (p0_b - pe_b)/(1 - pe_b)
+    @test kappa(cm_m)     == kappa(y_m, ŷ_m)
+    @test kappa(cm_b)     == kappa(y_b, ŷ_b)
+    @test kappa(ŷ_m, y_m) == kappa(y_m, ŷ_m)
+    @test kappa(ŷ_b, y_b) == kappa(y_b, ŷ_b)
+    @test kappa(y_m, y_m) == 1.0
+    @test kappa(y_b, y_b) == 1.0
+end
+
 @testset "confusion matrix {2}" begin
     # first class is 1 is assumed negative, second positive
     y = categorical([1, 2, 1, 2, 1, 1, 2])

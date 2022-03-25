@@ -47,22 +47,26 @@ function reduce_nested_field(ex)
 end
 
 """
-    prepend(s::Symbol, s::Symbol)
+    MLJBase.prepend(::Symbol, ::Union{Symbol,Expr,Nothing})
 
 For prepending symbols in expressions like `:(y.w)` and `:(x1.x2.x3)`.
 
-julia> compose(:x, :y)
+julia> prepend(:x, :y)
 :(x.y)
 
-julia> compose(:x, :(y.z))
+julia> prepend(:x, :(y.z))
 :(x.y.z)
 
-julia> compose(:w, ans)
+julia> prepend(:w, ans)
 :(w.x.y.z)
 
+If the second argument is `nothing`, then `nothing` is returned.
+
 """
+prepend(s::Symbol, ::Nothing) = nothing
 prepend(s::Symbol, t::Symbol) = Expr(:(.), s, QuoteNode(t))
 prepend(s::Symbol, ex::Expr) = Expr(:(.), prepend(s, ex.args[1]), ex.args[2])
+
 
 """
     recursive_getproperty(object, nested_name::Expr)
