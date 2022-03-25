@@ -264,7 +264,7 @@ end
     filename = "stack_mach.jls"
     X, y = make_regression(100, 1)
     model = Stack(
-        metalearner = DecisionTreeRegressor(), 
+        metalearner = DecisionTreeRegressor(),
         tree1 = DecisionTreeRegressor(min_samples_split=3),
         tree2 = DecisionTreeRegressor(),
         measures=rmse)
@@ -309,7 +309,7 @@ end
 
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
     model = Stack(
-        metalearner = DecisionTreeRegressor(), 
+        metalearner = DecisionTreeRegressor(),
         pipe = pipe)
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
@@ -335,7 +335,7 @@ end
 
 @testset "Test serialized filesize does not increase with datasize" begin
     model = Stack(
-        metalearner = FooBarRegressor(lambda=1.), 
+        metalearner = FooBarRegressor(lambda=1.),
         model_1 = DeterministicConstantRegressor(),
         model_2=ConstantRegressor())
 
