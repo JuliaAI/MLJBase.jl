@@ -12,6 +12,8 @@ using .Models
     f = categorical(b)
     g = categorical(c)
     h = categorical(d)
+    j = CategoricalArrays.CategoricalValue{Int64, UInt32}[e[1], e[1], e[1], e[1]]
+    k = CategoricalArrays.CategoricalValue{Int64, UInt32}[e[4], e[4], e[4], e[4]]
     rhs = (Set(1:5), Set(1:5))
     @test Set.(levels.(MLJBase._categorical(a, b))) == rhs
     @test Set.(levels.(MLJBase._categorical(a, d))) == rhs
@@ -25,6 +27,11 @@ using .Models
     @test Set.(levels.(MLJBase._categorical(d, c))) == rhs
     @test Set.(levels.(MLJBase._categorical(f, a))) == rhs
     @test Set.(levels.(MLJBase._categorical(h, a))) == rhs
+
+    @test Set.(levels.(MLJBase._categorical(j, k))) == (Set(1:3), Set(1:3))
+
+    # case of ordinary vector with CategoricalValue eltype:
+    acv = CategoricalArrays.CategoricalVector
 end
 
 @testset "basics" begin
