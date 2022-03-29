@@ -179,9 +179,8 @@ Specify `cache=false` to prioritize memory management over speed.
 If `check_level > 0` (default is `1`) then the scitype of each `arg`
 in `args` is computed, and this is compared with the scitypes expected
 by the model, unless `args` contains `Unknown` scitypes and
-`check_level < 4`, in which case no further type checks are
-applied. Warnings are issued or errors thrown as detailed in the
-following table:
+`check_level < 4`, in which case no further action is taken. Warnings
+are issued or errors thrown as detailed in the following table:
 
 `check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
 |:-----------:|:-----------------:|:------------------------:|:-------------------------:|
