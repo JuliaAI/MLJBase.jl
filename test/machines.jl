@@ -108,7 +108,7 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
 
 struct FooBarUnknown <: Model end
 
-@testset "machine argument check for generic model" begin
+@testset "machine check_level" begin
 
     X = [1, 2, 3, 4]
     y = rand(4)
@@ -144,10 +144,15 @@ struct FooBarUnknown <: Model end
     @test_logs machine(model, X, y; check_level)
     @test_logs machine(model, X; check_level)
 
+    warning = MLJBase.WARN_UNKNOWN_SCITYPE
     for check_level in [2, 3]
-        @test_logs (:info, MLJBase.INFO_UNKNOWN_SCITYPE) machine(model, X, y; check_level)
-        @test_logs (:info, MLJBase.INFO_UNKNOWN_SCITYPE) machine(model, X; check_level)
+        @test_logs (:warn, warning) machine(model, X, y; check_level)
+        @test_logs (:warn, warning) machine(model, X; check_level)
     end
+
+    check_level = 4
+    @test_throws ArgumentError(warning) machine(model, X, y; check_level)
+    @test_throws ArgumentError(warning) machine(model, X; check_level)
 
 end
 

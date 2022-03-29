@@ -102,8 +102,8 @@ warn_generic_scitype_mismatch(S, F, T) =
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
 
-const INFO_UNKNOWN_SCITYPE =
-    "Some data contains `Unknown` scitypes, which means scitype checks are skipped. "
+const WARN_UNKNOWN_SCITYPE =
+    "Some data contains `Unknown` scitypes, which might lead to model-data mismatches. "
 
 err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
@@ -119,10 +119,9 @@ function check(model::Model, check_level, args...)
 
     F = fit_data_scitype(model)
 
-    # if there are `Unknown`s an error will never be thrown and at
-    # worst we log this fact to `Info`:
     if _contains_unknown(F)
-        check_level >= 2 && @info INFO_UNKNOWN_SCITYPE
+        check_level in [2, 3] && @warn WARN_UNKNOWN_SCITYPE
+        check_level >= 4 && throw(ArgumentError(WARN_UNKNOWN_SCITYPE))
         return is_okay
     end
 
@@ -150,7 +149,7 @@ function check(model::Model, check_level, args...)
 end
 
 """
-    machine(model, args...; cache=true, check_level)
+    machine(model, args...; cache=true, check_level=1)
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
@@ -175,19 +174,26 @@ mach = machine(model, X, y)
 fit!(mach, rows=1:50)
 predict(mach, selectrows(X, 51:100)) # or predict(mach, rows=51:100)
 ```
-
 Specify `cache=false` to prioritize memory management over speed.
 
-If `args` contain `Unknown` scientific types, the `machine`
-constructor will not check that the specified `model` explicitly
-supports that type of data, and does so silently by default. Specify
-`check_level >= 2` to be notified in the event of check
-skipping. Specify `check_level=3` if you wish an error to be thrown if
-scientific type mismatches occur. Otherwise a warning only is
-issued.
+If `check_level > 0` (default is `1`) then the scitype of each `arg`
+in `args` is computed, and this is compared with the scitypes expected
+by the model, unless `args` contains `Unknown` scitypes and
+`check_level < 4`, in which case no further type checks are
+applied. Warnings are issued or errors thrown as detailed in the
+following table:
+
+`check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
+|:-----------:|:-----------------:|:------------------------:|:-------------------------:|
+0             | ×                 |                          |                           |
+1             | ✓                 |                          | warning                   |
+2             | ✓                 | warning                  | warning                   |
+3             | ✓                 | warning                  | error                     |
+4             | ✓                 | error                    | error                     |
 
 When building a learning network, `Node` objects can be substituted
-for the concrete data. 
+for the concrete data but no type or dimension checks are applied.
+
 
 ### Learning network machines
 
