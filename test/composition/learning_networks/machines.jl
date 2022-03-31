@@ -333,9 +333,28 @@ end
 
 end
 
+struct DummyRangeCV
+    cv
+end
+
+torange(x::UnitRange) = x
+torange(x) = minimum(x):maximum(x)
+
+function MLJBase.train_test_pairs(dcv::DummyRangeCV, rows, X, y)
+    ttp = MLJBase.train_test_pairs(dcv.cv, rows)
+    return [(torange(t),torange(e)) for (t,e) in ttp]
+end
+
 @testset "Test serialized filesize does not increase with datasize" begin
+    # At the moment it is necessary to resort to a custom resampling strategy,
+    # for this test. This is because partial functions working on nodes,
+    # such as `selectrows`in learning networks store data.
+    # A basic CV would store vectors which would grow in size as the dataset grows.
+
+    dcv = DummyRangeCV(CV(nfolds=3))
     model = Stack(
         metalearner = FooBarRegressor(lambda=1.),
+        resampling = dcv,
         model_1 = DeterministicConstantRegressor(),
         model_2=ConstantRegressor())
 
