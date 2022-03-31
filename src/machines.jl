@@ -1,3 +1,34 @@
+## SCITYPE CHECK LEVEL
+
+"""
+   default_scitype_check_level()
+
+Return the current global default value for scientific type checking
+when constructing machines.
+
+   default_scitype_check_level(i)
+
+Set the global default value for scientific type checking to `i`.
+
+The effect of the `scitype_check_level` option in calls of the form
+`machine(model, data, scitype_check_level=...)` is summarized below:
+
+`scitype_check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
+|:-----------:|:-----------------:|:------------------------:|:-------------------------:|
+0             | ×                 |                          |                           |
+1             | ✓                 |                          | warning                   |
+2             | ✓                 | warning                  | warning                   |
+3             | ✓                 | warning                  | error                     |
+4             | ✓                 | error                    | error                     |
+
+See also [`machine`](@ref)
+
+"""
+function default_scitype_check_level end
+default_scitype_check_level() = DEFAULT_SCITYPE_CHECK_LEVEL[]
+default_scitype_check_level(i) = (DEFAULT_SCITYPE_CHECK_LEVEL[] = i;)
+
+
 ## MACHINE TYPE
 
 struct NotTrainedError{M} <: Exception
@@ -96,8 +127,7 @@ warn_generic_scitype_mismatch(S, F, T) =
     "while most other models with `machine(model, X)`. " *
     "Here `X` are features, `y` a target, and `w` sample or class weights.\n\n" *
     "In general, data in `machine(model, data...)` must satisfy " *
-    "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
-    "right-hand side contains `Unknown` scitypes.\n"*
+    "`scitype(data) <: MLJ.fit_data_scitype(model)`.\n"*
     "In the present case:\n"*
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
@@ -111,17 +141,17 @@ err_length_mismatch(model) = DimensionMismatch(
 
 check(model::Any, args...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-function check(model::Model, check_level, args...)
+function check(model::Model, scitype_check_level, args...)
 
     is_okay = true
 
-    check_level >= 1 || return is_okay
+    scitype_check_level >= 1 || return is_okay
 
     F = fit_data_scitype(model)
 
     if _contains_unknown(F)
-        check_level in [2, 3] && @warn WARN_UNKNOWN_SCITYPE
-        check_level >= 4 && throw(ArgumentError(WARN_UNKNOWN_SCITYPE))
+        scitype_check_level in [2, 3] && @warn WARN_UNKNOWN_SCITYPE
+        scitype_check_level >= 4 && throw(ArgumentError(WARN_UNKNOWN_SCITYPE))
         return is_okay
     end
 
@@ -131,7 +161,7 @@ function check(model::Model, check_level, args...)
     if !(S <: F)
         is_okay = false
         message = warn_generic_scitype_mismatch(S, F, typeof(model))
-        if check_level >= 3
+        if scitype_check_level >= 3
             throw(ArgumentError(message))
         else
             @warn message
@@ -149,7 +179,7 @@ function check(model::Model, check_level, args...)
 end
 
 """
-    machine(model, args...; cache=true, check_level=1)
+    machine(model, args...; cache=true, scitype_check_level=1)
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
@@ -176,19 +206,12 @@ predict(mach, selectrows(X, 51:100)) # or predict(mach, rows=51:100)
 ```
 Specify `cache=false` to prioritize memory management over speed.
 
-If `check_level > 0` (default is `1`) then the scitype of each `arg`
-in `args` is computed, and this is compared with the scitypes expected
-by the model, unless `args` contains `Unknown` scitypes and
-`check_level < 4`, in which case no further action is taken. Warnings
-are issued or errors thrown as detailed in the following table:
-
-`check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
-|:-----------:|:-----------------:|:------------------------:|:-------------------------:|
-0             | ×                 |                          |                           |
-1             | ✓                 |                          | warning                   |
-2             | ✓                 | warning                  | warning                   |
-3             | ✓                 | warning                  | error                     |
-4             | ✓                 | error                    | error                     |
+If `scitype_check_level > 0` then the scitype of each `arg` in `args`
+is computed, and this is compared with the scitypes expected by the
+model, unless `args` contains `Unknown` scitypes and
+`scitype_check_level < 4`, in which case no further action is
+taken. Whether warnings are issued or errors thrown depends the
+level. See [`default_scitype_check_level`](@ref) for details.
 
 When building a learning network, `Node` objects can be substituted
 for the concrete data but no type or dimension checks are applied.
@@ -299,6 +322,9 @@ r = report(network_mach)
 @assert r.auc == auc(yhat(), ys())
 @assert r.accuracy == accuracy(yhat(), ys())
 ```
+
+See also [`fit`](@ref) and [`default_scitype_check_level`](@ref).
+
 """
 function machine end
 
@@ -333,10 +359,10 @@ machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
 function machine(model::Model,
                  raw_arg1,
                  raw_args...;
-                 check_level=1,
+                 scitype_check_level=default_scitype_check_level(),
                  kwargs...)
     args = source.((raw_arg1, raw_args...))
-    check(model, check_level, args...;)
+    check(model, scitype_check_level, args...;)
     return Machine(model, args...; kwargs...)
 end
 
@@ -585,8 +611,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
-                check_level = 1
-                if check(mach.model, check_level, source.(raw_args)...)
+                scitype_check_level = 1
+                if check(mach.model, scitype_check_level, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*

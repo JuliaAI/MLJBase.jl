@@ -108,7 +108,7 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
 
 struct FooBarUnknown <: Model end
 
-@testset "machine check_level" begin
+@testset "machine scitype_check_level" begin
 
     X = [1, 2, 3, 4]
     y = rand(4)
@@ -117,42 +117,55 @@ struct FooBarUnknown <: Model end
 
     model = FooBar()
 
-    for check_level in [1, 2]
-        @test_logs machine(model, X, y; check_level)
-        @test_logs machine(model, X; check_level)
+    for scitype_check_level in [1, 2]
+        @test_logs machine(model, X, y; scitype_check_level)
+        @test_logs machine(model, X; scitype_check_level)
         @test_logs((:warn,
                     MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
                                                           fit_data_scitype(model),
                                                           FooBar)),
-                   machine(model, y; check_level))
+                   machine(model, y; scitype_check_level))
     end
 
-    check_level = 3
-    @test_logs machine(model, X, y; check_level)
-    @test_logs machine(model, X; check_level)
+    scitype_check_level = 3
+    @test_logs machine(model, X, y; scitype_check_level)
+    @test_logs machine(model, X; scitype_check_level)
     @test_throws(ArgumentError(
         MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
                                               fit_data_scitype(model),
                                               FooBar)),
-                 machine(model, y; check_level))
+                 machine(model, y; scitype_check_level))
+
+    @test default_scitype_check_level() == 1
+    default_scitype_check_level(3)
+    @test default_scitype_check_level() == 3
+
+    @test_logs machine(model, X, y)
+    @test_logs machine(model, X)
+    @test_throws(ArgumentError(
+        MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+                                              fit_data_scitype(model),
+                                              FooBar)),
+                 machine(model, y))
+    default_scitype_check_level(1)
 
     # with Unknown scitypes
 
     model = FooBarUnknown()
 
-    check_level = 1
-    @test_logs machine(model, X, y; check_level)
-    @test_logs machine(model, X; check_level)
+    scitype_check_level = 1
+    @test_logs machine(model, X, y; scitype_check_level)
+    @test_logs machine(model, X; scitype_check_level)
 
     warning = MLJBase.WARN_UNKNOWN_SCITYPE
-    for check_level in [2, 3]
-        @test_logs (:warn, warning) machine(model, X, y; check_level)
-        @test_logs (:warn, warning) machine(model, X; check_level)
+    for scitype_check_level in [2, 3]
+        @test_logs (:warn, warning) machine(model, X, y; scitype_check_level)
+        @test_logs (:warn, warning) machine(model, X; scitype_check_level)
     end
 
-    check_level = 4
-    @test_throws ArgumentError(warning) machine(model, X, y; check_level)
-    @test_throws ArgumentError(warning) machine(model, X; check_level)
+    scitype_check_level = 4
+    @test_throws ArgumentError(warning) machine(model, X, y; scitype_check_level)
+    @test_throws ArgumentError(warning) machine(model, X; scitype_check_level)
 
 end
 
