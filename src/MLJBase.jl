@@ -94,6 +94,9 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # ===================================================================
 ## CONSTANTS
 
+const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
+const SHOW_COLOR = true
+
 const PREDICT_OPERATIONS = (:predict,
                             :predict_mean,
                             :predict_mode,

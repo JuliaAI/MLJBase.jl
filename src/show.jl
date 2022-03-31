@@ -25,6 +25,8 @@ end
 """
     @constant x = value
 
+Private method (used in testing).
+
 Equivalent to `const x = value` but registers the binding thus:
 
     MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
@@ -42,17 +44,6 @@ macro constant(ex)
     value = ex.args[2]
     quote
         const $(esc(handle)) = $(esc(value))
-        id = objectid($(esc(handle)))
-        HANDLE_GIVEN_ID[id] = @colon $handle
-        $(esc(handle))
-    end
-end
-macro bind(ex)
-    ex.head == :(=) || throw(error("Expression must be an assignment."))
-    handle = ex.args[1]
-    value = ex.args[2]
-    quote
-        $(esc(handle)) = $(esc(value))
         id = objectid($(esc(handle)))
         HANDLE_GIVEN_ID[id] = @colon $handle
         $(esc(handle))
