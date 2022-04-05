@@ -74,127 +74,65 @@ end
 # In these checks the args are abstract nodes but `full=true` only
 # makes sense if they are actually source nodes.
 
-err_supervised_nargs() = ArgumentError(
-    "`Supervised` models should have at least two "*
-    "training arguments. "*
-    "Use  `machine(model, X, y; ...)` or "*
-    "`machine(model, X, y, extras...; ...)`. ")
+# helper
 
-err_unsupervised_nargs() = ArgumentError(
-    "`Unsupervised` models should have one "*
-    "training argument, except `Static` models, which have none. "*
-    "Use  `machine(model, X; ...)` (usual case) or "*
-    "`machine(model; ...)` (static case). ")
+# Here `F` is some fit_data_scitype, and so is tuple of scitypes, or a
+# union of such tuples:
+_contains_unknown(F) = false
+_contains_unknown(F::Type{Unknown}) = true
+_contains_unknown(F::Union) = any(_contains_unknown, Base.uniontypes(F))
+function _contains_unknown(F::Type{<:Tuple})
+    # the first line seems necessary; see https://discourse.julialang.org/t/a-union-of-tuple-types-isa-tuple-type/75339?u=ablaom
+    F isa Union && return any(_contains_unknown, Base.uniontypes(F))
+    return any(_contains_unknown, F.parameters)
+end
 
-warn_scitype(model::Supervised, X) =
-    "The scitype of `X`, in `machine(model, X, ...)` "*
-    "is incompatible with "*
-    "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-    "input_scitype(model) = $(input_scitype(model))."
+warn_generic_scitype_mismatch(S, F, T) =
+    "The number and/or types of data arguments do not " *
+    "match what the specified model supports.\n"*
+    "Run `@doc $T` to learn more about your model's requirements.\n\n"*
+    "Commonly, but non exclusively, supervised models are constructed " *
+    "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
+    "while most other models with `machine(model, X)`. " *
+    "Here `X` are features, `y` a target, and `w` sample or class weights.\n" *
+    "In general, data in `machine(model, data...)` must satisfy " *
+    "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
+    "right-hand side contains `Unknown` scitypes.\n"*
+    "In the present case:\n"*
+    "scitype(data) = $S\n"*
+    "fit_data_scitype(model) = $F\n"
 
-warn_generic_scitype_mismatch(S, F) =
-    "The scitype of `args` in `machine(model, args...; kwargs)` "*
-    "does not match the scitype "*
-    "expected by model's `fit` method.\n"*
-    "  provided: $S\n  expected by fit: $F"
-
-warn_scitype(model::Supervised, X, y) =
-    "The scitype of `y`, in `machine(model, X, y, ...)` "*
-    "is incompatible with "*
-    "`model=$model`:\nscitype(y) = "*
-    "$(elscitype(y))\ntarget_scitype(model) "*
-    "= $(target_scitype(model))."
-
-warn_scitype(model::Unsupervised, X) =
-    "The scitype of `X`, in `machine(model, X)` is "*
-    "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
-    "input_scitype(model) = $(input_scitype(model))."
-
-err_length_mismatch(model::Supervised) = DimensionMismatch(
+err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
 check(model::Any, args...; kwargs...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-
-function check_supervised(model, full, args...)
-    nowarns = true
-
-    nargs = length(args)
-    nargs > 1 || throw(err_supervised_nargs())
-
-    full || return nowarns
-
-    X, y = args[1:2]
-
-    # checks on input type:
-    input_scitype(model) <: Unknown ||
-        elscitype(X) <: input_scitype(model) || begin
-            @warn warn_scitype(model, X)
-            nowarns=false
-        end
-
-    # checks on target type:
-    target_scitype(model) <: Unknown ||
-        elscitype(y) <: target_scitype(model) || begin
-            @warn warn_scitype(model, X, y)
-            nowarns=false
-        end
-
-    # checks on dimension matching:
-    scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
-        throw(err_length_mismatch(model))
-
-    return nowarns
-
-end
-
-function check_unsupervised(model, full, args...)
-    nowarns = true
-
-    nargs = length(args)
-    nargs <= 1 || throw(err_unsupervised_nargs())
-
-    if full && nargs == 1
-        X = args[1]
-        # check input scitype
-        input_scitype(model) <: Unknown ||
-            elscitype(X) <: input_scitype(model) || begin
-                @warn warn_scitype(model, X)
-                nowarns=false
-            end
-    end
-    return nowarns
-end
-
 function check(model::Model, args...; full=false)
     nowarns = true
 
     F = fit_data_scitype(model)
-    (F >: Unknown || F >: Tuple{Unknown} || F >: NTuple{<:Any,Unknown}) &&
-        return true
 
+    # skip checks if `Unknown` scitypes appear anywhere in
+    # `fit_data_scitype(model)`:
+    _contains_unknown(F) && return true
+
+    # we use `elscitype` here instead of `scitype` because the data is
+    # wrapped in source nodes:
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
-        @warn warn_generic_scitype_mismatch(S, F)
+        @warn warn_generic_scitype_mismatch(S, F, typeof(model))
         nowarns = false
     end
-end
 
-function check(model::Union{Supervised, SupervisedAnnotator}, args... ; full = false)
-    check_supervised(model, full, args...)
-end
+    if length(args) > 1 && is_supervised(model)
+        X, y = args[1:2]
 
-function check(model::Unsupervised, args...; full=false)
-    check_unsupervised(model, full, args...)
-end
-
-function check(model::UnsupervisedAnnotator, args... ; full = false)
-    if length(args) <= 1
-        check_unsupervised(model, full, args...)
-    else
-        check_supervised(model, full, args...)
+        # checks on dimension matching:
+        scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
+            throw(err_length_mismatch(model))
     end
+    return nowarns
 end
 
 """
@@ -335,6 +273,9 @@ r = report(network_mach)
 @assert r.auc == auc(yhat(), ys())
 @assert r.accuracy == accuracy(yhat(), ys())
 ```
+
+See also [MLJBase.save](@ref), [`serializable`](@ref).
+
 """
 function machine end
 
@@ -374,10 +315,28 @@ end
 
 function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
                  kwargs...)
-    check(model, arg1, args...)
     return Machine(model, arg1, args...; kwargs...)
 end
 
+
+warn_bad_deserialization(state) =
+    "Deserialized machine state is not -1 (got $state). "*
+    "This means that the machine has not been saved by a conventional MLJ routine.\n"
+    "For example, it's possible original training data is accessible from the deserialised object. "
+
+"""
+    machine(file::Union{String, IO})
+
+Rebuild from a file a machine that has been serialized using the default
+Serialization module.
+"""
+function machine(file::Union{String, IO})
+    smach = deserialize(file)
+    smach.state == -1 ||
+        @warn warn_bad_deserialization(smach.state)
+    restore!(smach)
+    return smach
+end
 
 ## INSPECTION AND MINOR MANIPULATION OF FIELDS
 
@@ -602,9 +561,9 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                 if check(mach.model, source.(raw_args)... ; full=true)
                     @info "Type checks okay. "
                 else
-                @info "It seems an upstream node in a learning "*
-                    "network is providing data of incompatible scitype. See "*
-                    "above. "
+                    @info "It seems an upstream node in a learning "*
+                        "network is providing data of incompatible scitype. See "*
+                        "above. "
                 end
                 rethrow()
             end
@@ -796,3 +755,157 @@ function training_losses(mach::Machine)
         throw(NotTrainedError(mach, :training_losses))
     end
 end
+
+
+###############################################################################
+#####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
+###############################################################################
+
+
+"""
+    serializable(mach::Machine)
+
+Returns a shallow copy of the machine to make it serializable. In particular,
+all training data is removed and, if necessary, learned parameters are replaced
+with persistent representations.
+
+Any general purpose Julia serialization may be applied to the output of
+`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
+the deserialised object `mach` before using it. See the example below.
+
+If using Julia's standard Serialization library, a shorter workflow is
+available using the [`save`](@ref) method.
+
+A machine returned by serializable is characterized by the property `mach.state == -1`.
+
+### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
+
+    using MLJ
+    using JLSO
+    Tree = @load DecisionTreeClassifier
+    tree = Tree()
+    X, y = @load_iris
+    mach = fit!(machine(tree, X, y))
+
+    # This machine can now be serialized
+    smach = serializable(mach)
+    JLSO.save("machine.jlso", machine => smach)
+
+    # Deserialize and restore learned parameters to useable form:
+    loaded_mach = JLSO.load("machine.jlso")[:machine]
+    restore!(loaded_mach)
+
+    predict(loaded_mach, X)
+    predict(mach, X)
+
+See also [`restore!`](@ref), [`save`](@ref).
+
+"""
+function serializable(mach::Machine{<:Any, C}) where C
+    # Returns a shallow copy of the machine to make it serializable, in particular:
+    # - Removes all data from caches, args and data fields
+    # - Makes all `fitresults` serializable
+    # - Annotates the state as -1
+    copymach = machine(mach.model, mach.args..., cache=C)
+
+    for fieldname in fieldnames(Machine)
+        if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
+            continue
+        elseif  fieldname == :state
+            setfield!(copymach, :state, -1)
+        elseif fieldname == :args
+            setfield!(copymach, fieldname, ())
+        # Make fitresult ready for serialization
+        elseif fieldname == :fitresult
+            copymach.fitresult = save(mach.model, getfield(mach, fieldname))
+        else
+            setfield!(copymach, fieldname, getfield(mach, fieldname))
+        end
+    end
+
+    setreport!(copymach, mach.report)
+
+    return copymach
+end
+
+"""
+    restore!(mach::Machine)
+
+Restore the state of a machine that is currently serializable but
+which may not be otherwise usable. For such a machine, `mach`, one has
+`mach.state=1`. Intended for restoring deserialized machine objects to a
+useable form.
+
+For an example see [`serializable`](@ref).
+
+"""
+function restore!(mach::Machine)
+    mach.fitresult = restore(mach.model, mach.fitresult)
+    mach.state = 1
+    return mach
+end
+
+
+"""
+    MLJ.save(filename, mach::Machine)
+    MLJ.save(io, mach::Machine)
+
+    MLJBase.save(filename, mach::Machine)
+    MLJBase.save(io, mach::Machine)
+
+Serialize the machine `mach` to a file with path `filename`, or to an
+input/output stream `io` (at least `IOBuffer` instances are
+supported) using the Serialization module.
+
+To serialise using a different format, see [`serializable`](@ref).
+
+Machines are deserialized using the `machine` constructor as shown in
+the example below. Data (or nodes) may be optionally passed to the
+constructor for retraining on new data using the saved model.
+
+> The implementation of `save` for machines changed in MLJ 0.18
+>  (MLJBase 0.20). You can only restore a machine saved using older
+>  versions of MLJ using an older version.
+
+### Example
+
+    using MLJ
+    Tree = @load DecisionTreeClassifier
+    X, y = @load_iris
+    mach = fit!(machine(Tree(), X, y))
+
+    MLJ.save("tree.jls", mach)
+    mach_predict_only = machine("tree.jls")
+    predict(mach_predict_only, X)
+
+    # using a buffer:
+    io = IOBuffer()
+    MLJ.save(io, mach)
+    seekstart(io)
+    predict_only_mach = machine(io)
+    predict(predict_only_mach, X)
+
+!!! warning "Only load files from trusted sources"
+    Maliciously constructed JLS files, like pickles, and most other
+    general purpose serialization formats, can allow for arbitrary code
+    execution during loading. This means it is possible for someone
+    to use a JLS file that looks like a serialized MLJ machine as a
+    [Trojan
+    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
+See also [`serializable`](@ref), [`machine`](@ref).
+
+"""
+function save(file::Union{String,IO},
+              mach::Machine)
+    isdefined(mach, :fitresult)  ||
+        error("Cannot save an untrained machine. ")
+
+    smach = serializable(mach)
+
+    serialize(file, smach)
+end
+
+
+setreport!(mach::Machine, report) =
+    setfield!(mach, :report, report)

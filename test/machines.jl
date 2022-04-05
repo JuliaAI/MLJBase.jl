@@ -4,11 +4,11 @@ using MLJBase
 using Test
 using Statistics
 using ..Models
-const MLJModelInterface = MLJBase.MLJModelInterface
 using StableRNGs
+using Serialization
 using ..TestUtilities
 
-DecisionTreeRegressor()
+const MLJModelInterface = MLJBase.MLJModelInterface
 
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
@@ -17,6 +17,20 @@ y = 2*X.a - X.c + 0.05*rand(N);
 train, test = partition(eachindex(y), 0.7);
 
 tree = DecisionTreeRegressor(max_depth=5)
+pca = PCA()
+
+@testset "_contains_unknown" begin
+    @test MLJBase._contains_unknown(Unknown)
+    @test MLJBase._contains_unknown(Tuple{Unknown})
+    @test MLJBase._contains_unknown(Tuple{Unknown, Int})
+    @test MLJBase._contains_unknown(Union{Tuple{Unknown}, Tuple{Int,Char}})
+    @test MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Unknown}})
+    @test !MLJBase._contains_unknown(Int)
+    @test !MLJBase._contains_unknown(Tuple{Int})
+    @test !MLJBase._contains_unknown(Tuple{Char, Int})
+    @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
+    @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
+end
 
 t = machine(tree, X, y)
 @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
@@ -53,10 +67,37 @@ freeze!(stand)
 
 @testset "warnings" begin
     @test_throws DimensionMismatch machine(tree, X, y[1:end-1])
-    @test_logs((:warn, r"The scitype of `y`"),
+
+    # supervised model with bad target:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(X), AbstractVector{Multiclass{N}}},
+                    MLJBase.fit_data_scitype(tree),
+                    typeof(tree)
+                    )
+                ),
                machine(tree, X, categorical(1:N)))
-    @test_logs((:warn, r"The scitype of `X`"),
-               machine(tree, (x=categorical(1:N),), y))
+
+    # ordinary transformer:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(42),},
+                    MLJBase.fit_data_scitype(pca),
+                    typeof(pca)
+                    )
+                ),
+               machine(pca, 42))
+    y2 = coerce(1:N, OrderedFactor);
+
+    # bad weight vector:
+    @test_logs((:warn,
+                MLJBase.warn_generic_scitype_mismatch(
+                    Tuple{scitype(X), scitype(y2), scitype(42)},
+                    MLJBase.fit_data_scitype(ConstantClassifier()),
+                    ConstantClassifier
+                    )
+                ),
+               machine(ConstantClassifier(), X, y2, 42))
 end
 
 struct FooBar <: Model end
@@ -73,7 +114,8 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
     @test_logs machine(model, X)
     @test_logs((:warn,
                 MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
-                                                      fit_data_scitype(model))),
+                                                      fit_data_scitype(model),
+                                                      FooBar)),
                 machine(model, y))
 end
 
@@ -260,6 +302,69 @@ end
     @test_logs((:info, "resampling X, y"),
                fit!(mach, rows=1:2, verbosity=0))
 
+end
+
+@testset "Test serializable method of Supervised Machine" begin
+    X, y = make_regression(100, 1)
+    filename = "decisiontree.jls"
+    mach = machine(DecisionTreeRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    @test smach.report == mach.report
+    @test smach.fitresult == mach.fitresult
+    @test_throws(ArgumentError, predict(smach))
+    @test_logs (:warn, MLJBase.warn_serializable_mach(predict)) predict(smach, X)
+
+    TestUtilities.generic_tests(mach, smach)
+    # Check restore! function
+    Serialization.serialize(filename, smach)
+    smach = Serialization.deserialize(filename)
+    MLJBase.restore!(smach)
+
+    @test smach.state == 1
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
+    @test fitted_params(smach) isa NamedTuple
+    @test report(smach) == report(mach)
+
+    rm(filename)
+
+    # End to end save and reload
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test smach.state == 1
+    @test predict(smach, X) == predict(mach, X)
+
+    rm(filename)
+end
+
+@testset "Test serializable method of Unsupervised Machine" begin
+    X, _ = make_regression(100, 1)
+    filename = "standardizer.jls"
+    mach = machine(Standardizer(), X)
+    fit!(mach, verbosity=0)
+
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+
+    @test transform(mach, X) == transform(smach, X)
+    @test_throws(ArgumentError, transform(smach))
+
+    # warning on non-restored machine
+    smach = deserialize(filename)
+    @test_logs (:warn, MLJBase.warn_serializable_mach(transform)) transform(smach, X)
+
+    rm(filename)
+end
+
+@testset "Test Misc functions used in `serializable`" begin
+    X, y = make_regression(100, 1)
+    mach = machine(DeterministicConstantRegressor(), X, y)
+    fit!(mach, verbosity=0)
+    # setreport! default
+    @test mach.report isa NamedTuple
+    MLJBase.setreport!(mach, "toto")
+    @test mach.report == "toto"
 end
 
 

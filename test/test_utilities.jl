@@ -93,4 +93,35 @@ macro test_model_sequence(fit_ex, sequence_exs...)
     end)
 end
 
+###############################################################################
+#####    THE FOLLOWINGS ARE USED TO TEST SERIALIZATION CAPACITIES         #####
+###############################################################################
+
+
+function test_args(mach)
+    # Check source nodes are empty if any
+    for arg in mach.args
+        if arg isa Source 
+            @test arg == source()
+        end
+    end
+end
+
+function test_data(mach)
+    @test !isdefined(mach, :old_rows)
+    @test !isdefined(mach, :data)
+    @test !isdefined(mach, :resampled_data)
+    @test !isdefined(mach, :cache)
+end
+
+function generic_tests(mach₁, mach₂)
+    test_args(mach₂)
+    test_data(mach₂)
+    @test mach₂.state == -1
+    for field in (:frozen, :model, :old_model, :old_upstream_state, :fit_okay)
+        @test getfield(mach₁, field) == getfield(mach₂, field)
+    end
+end
+
+
 end

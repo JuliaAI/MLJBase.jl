@@ -31,7 +31,7 @@ function update(model::M,
     # underlying learning network machine. For this it is necessary to
     # temporarily "de-anonymize" the source nodes.
 
-    network_model_names = cache.network_model_names
+    network_model_names = getfield(fitresult, :network_model_names)
     old_model = cache.old_model
 
     glb_node = glb(fitresult) # greatest lower bound
@@ -47,7 +47,8 @@ function update(model::M,
     end
 
     fit!(glb_node; verbosity=verbosity)
-    update!(fitresult) # updates report_additions
+    # Retrieve additional report values
+    report_additions_ = _call(_report_part(signature(fitresult)))
 
     # anonymize data again:
     for s in sources
@@ -57,13 +58,11 @@ function update(model::M,
     # record current model state:
     cache = (sources=cache.sources,
              data=cache.data,
-             network_model_names=cache.network_model_names,
              old_model = deepcopy(model))
-
+    
     return (fitresult,
             cache,
-            merge(report(glb_node),
-                  report_additions(fitresult)))
+            merge(report(glb_node), report_additions_))
 
 end
 

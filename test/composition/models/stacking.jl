@@ -32,7 +32,7 @@ function test_internal_evaluation(internalreport, std_evaluation, modelnames)
         @test model_ev.per_fold == std_ev.per_fold
         @test model_ev.measurement == std_ev.measurement
         @test model_ev.per_observation[1] === std_ev.per_observation[1] === missing
-        @test model_ev.per_observation[2] == std_ev.per_observation[2] 
+        @test model_ev.per_observation[2] == std_ev.per_observation[2]
         @test model_ev.operation == std_ev.operation
         @test model_ev.report_per_fold == std_ev.report_per_fold
         @test model_ev.train_test_rows == std_ev.train_test_rows
@@ -47,38 +47,38 @@ end
     # Testing performance
 
     # The dataset is a simple regression model with intercept
-    # No model in the stack can recover the true model on its own 
-    # Indeed, FooBarRegressor has no intercept 
+    # No model in the stack can recover the true model on its own
+    # Indeed, FooBarRegressor has no intercept
     # By combining models, the stack can generalize better than any submodel
     # And optimize the rmse
 
     models = (constant=DeterministicConstantRegressor(),
-                decisiontree=DecisionTreeRegressor(), 
-                ridge_lambda=FooBarRegressor(;lambda=0.1), 
+                decisiontree=DecisionTreeRegressor(),
+                ridge_lambda=FooBarRegressor(;lambda=0.1),
                 ridge=FooBarRegressor(;lambda=0))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=CV(;nfolds=3),
                     models...)
-    
+
     results = model_evaluation((stack=mystack, models...), X, y)
     @test argmin(results) == 1
 
     # Mixing ProbabilisticModels amd Deterministic models as members of the stack
     models = (constant=ConstantRegressor(),
-                decisiontree=DecisionTreeRegressor(), 
-                ridge_lambda=FooBarRegressor(;lambda=0.1), 
+                decisiontree=DecisionTreeRegressor(),
+                ridge_lambda=FooBarRegressor(;lambda=0.1),
                 ridge=FooBarRegressor(;lambda=0))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
                     resampling=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(mystack) == (:resampling, :metalearner, :constant, 
+    @test propertynames(mystack) == (:resampling, :metalearner, :constant,
                                     :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
-    
+
     @test target_scitype(mystack) == target_scitype(FooBarRegressor())
     @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
@@ -93,7 +93,7 @@ end
     @test nrows(getfield(fp, :ridge)) == 4
     @test nrows(getfield(fp, :ridge_lambda)) == 4
 
-    # The metalearner has been fit and has one coefficient 
+    # The metalearner has been fit and has one coefficient
     # for each model in the library (No intercept)
     @test fp.metalearner isa Vector{Float64}
     @test nrows(fp.metalearner) == 4
@@ -104,8 +104,8 @@ end
 
     @testset "Testing ProbabilisticStack" begin
         models = (constant=ConstantRegressor(),
-                    decisiontree=DecisionTreeRegressor(), 
-                    ridge_lambda=FooBarRegressor(;lambda=0.1), 
+                    decisiontree=DecisionTreeRegressor(),
+                    ridge_lambda=FooBarRegressor(;lambda=0.1),
                     ridge=FooBarRegressor(;lambda=0))
 
         # The type of the stack is determined by the type of the metalearner
@@ -129,14 +129,14 @@ end
     X, y = make_blobs(;rng=rng, shuffle=false)
 
     models = (constant=ConstantClassifier(),
-                decisiontree=DecisionTreeClassifier(), 
+                decisiontree=DecisionTreeClassifier(),
                 knn=KNNClassifier())
 
     mystack = Stack(;metalearner=DecisionTreeClassifier(),
                     resampling=StratifiedCV(;nfolds=3),
                     models...)
-    
-    
+
+
     # Check input and target scitypes
     @test target_scitype(mystack) == target_scitype(DecisionTreeClassifier())
     # Here the greatest lower bound is the scitype of the knn
@@ -158,10 +158,10 @@ end
 end
 
 
-@testset "Misc" begin 
+@testset "Misc" begin
     # Test setproperty! behaviour
     models = (constant=DeterministicConstantRegressor(),
-                decisiontree=DecisionTreeRegressor(), 
+                decisiontree=DecisionTreeRegressor(),
                 ridge_lambda=FooBarRegressor(;lambda=0.1))
 
     mystack = Stack(;metalearner=FooBarRegressor(),
@@ -171,7 +171,7 @@ end
     @test mystack.ridge_lambda.lambda == 0.1
     @test mystack.metalearner isa FooBarRegressor
     @test mystack.resampling isa CV
-    
+
     mystack.ridge_lambda = FooBarRegressor(;lambda=0.2)
     @test mystack.ridge_lambda.lambda == 0.2
 
@@ -205,7 +205,7 @@ end
     metalearner = KNNClassifier()
     inp_scitype, tg_scitype = MLJBase.input_target_scitypes(models, metalearner)
     @test tg_scitype == AbstractVector{<:Finite}
-    @test inp_scitype == Table{<:Union{AbstractVector{<:Continuous}, 
+    @test inp_scitype == Table{<:Union{AbstractVector{<:Continuous},
                                        AbstractVector{<:Count},
                                        AbstractVector{<:OrderedFactor}}}
 
@@ -217,7 +217,7 @@ end
     initial_stack.constant = ConstantClassifier()
     @test_throws DomainError clean!(initial_stack)
 
-    # Test check_stack_measures with 
+    # Test check_stack_measures with
     # probabilistic measure and deterministic model
     measures =[log_loss]
     stack = Stack(;metalearner=FooBarRegressor(),
@@ -227,11 +227,15 @@ end
                     fb=FooBarRegressor())
     X, y = make_regression()
 
-    @test_throws ArgumentError fit!(machine(stack, X, y), verbosity=0)
+    @test_logs((:error, r"Problem fitting"),
+               (:info, r"Running type"),
+               (:info, r"Type checks okay"),
+               @test_throws ArgumentError fit!(machine(stack, X, y), verbosity=0))
+
     @test_throws ArgumentError MLJBase.check_stack_measures(stack, 0, measures, y)
 
     # This will not raise
-    stack.measures = nothing 
+    stack.measures = nothing
     fit!(machine(stack, X, y), verbosity=0)
 end
 
@@ -251,19 +255,18 @@ end
 
     Xs = source(X)
     ys = source(y)
-    
-    ttp = MLJBase.train_test_pairs(stack.resampling, 1:n, X, y)
 
+    ttp = MLJBase.train_test_pairs(stack.resampling, 1:n, X, y)
     Zval, yval, folds_evaluations = MLJBase.oos_set(stack, Xs, ys, ttp)
-    
-    # No internal measure has been provided so the resulting 
+
+    # No internal measure has been provided so the resulting
     # folds_evaluations contain nothing
     @test all(x === nothing for x in folds_evaluations)
 
     # To be accessed, the machines need to be trained
     fit!(Zval, verbosity=0)
     # Each model in the library should output a 3-dim vector to be concatenated
-    # resulting in the table of shape (nrows, 6) here nrows=6 
+    # resulting in the table of shape (nrows, 6) here nrows=6
     # for future use by the metalearner
     sc = schema(Zval())
     @test nrows(Zval()) == 6
@@ -288,7 +291,7 @@ end
     # This is a distribution, we need to apply the appropriate transformation
     Zval_expected = pdf(Zval_expected_dist, levels(first(Zval_expected_dist)))
     @test matrix(Zval())[1:2, 1:3] == Zval_expected
-    
+
 end
 
 @testset "An integration test for stacked classification" begin
@@ -296,7 +299,7 @@ end
     # We train a stack by hand and compare with the canned version
     # `Stack(...)`. There are two base learners, with 3-fold
     # cross-validation used to construct the out-of-sample base model
-    # predictions. 
+    # predictions.
 
     probs(y) = pdf(y, levels(first(y)))
 
@@ -364,7 +367,7 @@ end
 
     # compare:
     @test yhat_matrix_stack ≈ yhat_matrix
-    
+
 end
 
 
@@ -413,23 +416,25 @@ end
             mach = machine(model, X, y)
             fit!(mach, verbosity=0, rows=train)
             Xtest = selectrows(X, test)
-            ytest = selectrows(y, test)    
+            ytest = selectrows(y, test)
             push!(evaluation_nodes, source((mach, Xtest, ytest)))
         end
     end
 
     internalreport = MLJBase.internal_stack_report(
-        mystack, 
-        0, 
-        ttp, 
+        mystack,
+        0,
+        ttp,
         evaluation_nodes...
     ).report.cv_report()
 
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
 
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
-    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
-    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+    @test std_evaluation.constant.fitted_params_per_fold ==
+        internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold ==
+        internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -450,13 +455,18 @@ end
     internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        constant = evaluate(constant, X, y,
+                            measure=measures,
+                            resampling=resampling,
+                            verbosity=0),
         ridge = evaluate(ridge, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
-    
+
     test_internal_evaluation(internalreport, std_evaluation, (:constant, :ridge))
-    @test std_evaluation.constant.fitted_params_per_fold == internalreport.constant.fitted_params_per_fold
-    @test std_evaluation.ridge.fitted_params_per_fold == internalreport.ridge.fitted_params_per_fold
+    @test std_evaluation.constant.fitted_params_per_fold ==
+        internalreport.constant.fitted_params_per_fold
+    @test std_evaluation.ridge.fitted_params_per_fold ==
+        internalreport.ridge.fitted_params_per_fold
 
 end
 
@@ -477,10 +487,13 @@ end
     internalreport = report(mach).cv_report
     # evaluate decisiontree and ridge out of stack and check results match
     std_evaluation = (
-        constant = evaluate(constant, X, y, measure=measures, resampling=resampling, verbosity=0),
+        constant = evaluate(constant, X, y,
+                            measure=measures,
+                            resampling=resampling,
+                            verbosity=0),
         knn = evaluate(knn, X, y, measure=measures, resampling=resampling, verbosity=0)
         )
-    
+
     test_internal_evaluation(internalreport, std_evaluation, (:knn, :constant))
     # Test fitted_params
     for i in 1:mystack.resampling.nfolds
