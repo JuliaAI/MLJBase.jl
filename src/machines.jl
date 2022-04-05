@@ -273,6 +273,9 @@ r = report(network_mach)
 @assert r.auc == auc(yhat(), ys())
 @assert r.accuracy == accuracy(yhat(), ys())
 ```
+
+See also [MLJBase.save](@ref), [`serializable`](@ref).
+
 """
 function machine end
 
@@ -316,7 +319,7 @@ function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
 end
 
 
-warn_bad_deserialization(state) = 
+warn_bad_deserialization(state) =
     "Deserialized machine state is not -1 (got $state). "*
     "This means that the machine has not been saved by a conventional MLJ routine.\n"
     "For example, it's possible original training data is accessible from the deserialised object. "
@@ -324,12 +327,12 @@ warn_bad_deserialization(state) =
 """
     machine(file::Union{String, IO})
 
-Rebuild from a file a machine that has been serialized using the default 
+Rebuild from a file a machine that has been serialized using the default
 Serialization module.
 """
 function machine(file::Union{String, IO})
     smach = deserialize(file)
-    smach.state == -1 || 
+    smach.state == -1 ||
         @warn warn_bad_deserialization(smach.state)
     restore!(smach)
     return smach
@@ -762,15 +765,15 @@ end
 """
     serializable(mach::Machine)
 
-Returns a shallow copy of the machine to make it serializable. In particular, 
-all training data is removed and, if necessary, learned parameters are replaced 
-with persistent representations. 
+Returns a shallow copy of the machine to make it serializable. In particular,
+all training data is removed and, if necessary, learned parameters are replaced
+with persistent representations.
 
-Any general purpose Julia serialization may be applied to the output of 
-`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on 
+Any general purpose Julia serialization may be applied to the output of
+`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
 the deserialised object `mach` before using it. See the example below.
 
-If using Julia's standard Serialization library, a shorter workflow is 
+If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
 
 A machine returned by serializable is characterized by the property `mach.state == -1`.
@@ -787,13 +790,16 @@ A machine returned by serializable is characterized by the property `mach.state 
     # This machine can now be serialized
     smach = serializable(mach)
     JLSO.save("machine.jlso", machine => smach)
-    
+
     # Deserialize and restore learned parameters to useable form:
     loaded_mach = JLSO.load("machine.jlso")[:machine]
     restore!(loaded_mach)
 
     predict(loaded_mach, X)
     predict(mach, X)
+
+See also [`restore!`](@ref), [`save`](@ref).
+
 """
 function serializable(mach::Machine{<:Any, C}) where C
     # Returns a shallow copy of the machine to make it serializable, in particular:
@@ -807,7 +813,7 @@ function serializable(mach::Machine{<:Any, C}) where C
             continue
         elseif  fieldname == :state
             setfield!(copymach, :state, -1)
-        elseif fieldname == :args 
+        elseif fieldname == :args
             setfield!(copymach, fieldname, ())
         # Make fitresult ready for serialization
         elseif fieldname == :fitresult
@@ -818,15 +824,20 @@ function serializable(mach::Machine{<:Any, C}) where C
     end
 
     setreport!(copymach, mach.report)
-    
+
     return copymach
 end
 
 """
     restore!(mach::Machine)
 
-Default method to restores the state of a machine that is currently serializable.
-Such a machine is annotated with `state=1`
+Restore the state of a machine that is currently serializable but
+which may not be otherwise usable. For such a machine, `mach`, one has
+`mach.state=1`. Intended for restoring deserialized machine objects to a
+useable form.
+
+For an example see [`serializable`](@ref).
+
 """
 function restore!(mach::Machine)
     mach.fitresult = restore(mach.model, mach.fitresult)
@@ -844,14 +855,17 @@ end
 
 Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
-supported) using the Serialization module. 
+supported) using the Serialization module.
 
-To serialise using a different format, see `serializable`.
+To serialise using a different format, see [`serializable`](@ref).
 
 Machines are de-serialized using the `machine` constructor as shown in
 the example below. Data (or nodes) may be optionally passed to the
 constructor for retraining on new data using the saved model.
 
+> The implementation of `save` for machines changed in MLJ 0.18
+>  (MLJBase 0.20). To restore a machine saved using older versions of
+>  MLJ you must load an earlier version of that that package.
 
 ### Example
 
@@ -885,6 +899,8 @@ constructor for retraining on new data using the saved model.
     [Trojan
     horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 
+See also [`serializable`](@ref), [`machine`](@ref).
+
 """
 function save(file::Union{String,IO},
               mach::Machine)
@@ -897,5 +913,5 @@ function save(file::Union{String,IO},
 end
 
 
-setreport!(mach::Machine, report) = 
+setreport!(mach::Machine, report) =
     setfield!(mach, :report, report)
