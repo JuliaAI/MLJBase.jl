@@ -864,8 +864,8 @@ the example below. Data (or nodes) may be optionally passed to the
 constructor for retraining on new data using the saved model.
 
 > The implementation of `save` for machines changed in MLJ 0.18
->  (MLJBase 0.20). To restore a machine saved using older versions of
->  MLJ you must load an earlier version of that that package.
+>  (MLJBase 0.20). You can only restore a machine saved using older
+>  versions of MLJ using an older version.
 
 ### Example
 
@@ -877,12 +877,6 @@ constructor for retraining on new data using the saved model.
     MLJ.save("tree.jls", mach)
     mach_predict_only = machine("tree.jls")
     predict(mach_predict_only, X)
-
-    mach2 = machine("tree.jls", selectrows(X, 1:100), y[1:100])
-    predict(mach2, X) # same as above
-
-    fit!(mach2) # saved learned parameters are over-written
-    predict(mach2, X) # not same as above
 
     # using a buffer:
     io = IOBuffer()
