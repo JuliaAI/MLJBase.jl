@@ -859,7 +859,7 @@ supported) using the Serialization module.
 
 To serialise using a different format, see [`serializable`](@ref).
 
-Machines are de-serialized using the `machine` constructor as shown in
+Machines are deserialized using the `machine` constructor as shown in
 the example below. Data (or nodes) may be optionally passed to the
 constructor for retraining on new data using the saved model.
 
