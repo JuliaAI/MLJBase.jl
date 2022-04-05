@@ -33,6 +33,10 @@ _err_serialized(operation) =
                         "deserialized machine with no data "*
                         "bound to it. "))
 
+warn_serializable_mach(operation) = "The operation $operation has been called on a "*
+                        "deserialised machine mach whose learned parameters "*
+                        "may be unusable. To be sure, first run restore!(mach)."
+
 # 0. operations on machine, given rows=...:
 
 for operation in OPERATIONS
@@ -77,6 +81,7 @@ for operation in OPERATIONS
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
             if mach.state != 0
+                mach.state == -1 && @warn warn_serializable_mach($operation)
                 return $(operation)(mach.model,
                                     mach.fitresult,
                                     reformat(mach.model, Xraw)...)
