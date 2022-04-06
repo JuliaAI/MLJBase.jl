@@ -101,18 +101,14 @@ end
 mutable struct CompositeFitresult
     signature
     glb
-    report_additions
+    network_model_names
     function CompositeFitresult(signature)
-        glb = MLJBase.glb(_nodes(signature)...)
-        new(signature, glb)
+        signature_node = glb(_nodes(signature)...)
+        new(signature, signature_node)
     end
 end
 signature(c::CompositeFitresult) = getfield(c, :signature)
 glb(c::CompositeFitresult) = getfield(c, :glb)
-report_additions(c::CompositeFitresult) = getfield(c, :report_additions)
-
-update!(c::CompositeFitresult) =
-    setfield!(c, :report_additions, _call(_report_part(signature(c))))
 
 # To accommodate pre-existing design (operations.jl) arrange
 # that `fitresult.predict` returns the predict node, etc:
@@ -251,9 +247,9 @@ See also [`machine`](@ref)
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb_node = glb(mach)
     fit!(glb_node; kwargs...)
-    update!(mach.fitresult) # updates `report_additions`
     mach.state += 1
-    mach.report = merge(report(glb_node), report_additions(mach.fitresult))
+    report_additions_ = _call(_report_part(signature(mach.fitresult)))
+    mach.report = merge(report(glb_node), report_additions_)
     return mach
 end
 
@@ -394,9 +390,10 @@ function return!(mach::Machine{<:Surrogate},
                  model::Union{Model,Nothing},
                  verbosity)
 
-    _network_model_names = network_model_names(model, mach)
+    network_model_names_ = network_model_names(model, mach)
 
     verbosity isa Nothing || fit!(mach, verbosity=verbosity)
+    setfield!(mach.fitresult, :network_model_names, network_model_names_)
 
     # anonymize the data
     sources = MLJBase.sources(glb(mach))
@@ -408,8 +405,11 @@ function return!(mach::Machine{<:Surrogate},
 
     cache = (sources = sources,
              data=data,
-             network_model_names=_network_model_names,
              old_model=old_model)
+
+    setfield!(mach.fitresult,
+        :network_model_names,
+        network_model_names(model, mach))
 
     return mach.fitresult, cache, mach.report
 
@@ -418,9 +418,136 @@ end
 network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
     nothing
 
+## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
-## DUPLICATING AND REPLACING PARTS OF A LEARNING NETWORK MACHINE
+"""
+    copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
 
+For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
+`save(::Machine, ...)`. A call from `Base.replace` with given `newmodel_given_old` will dispatch to this method.
+A new Machine is built with training data from node N.
+"""
+function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
+    train_args = [newnode_given_old[arg] for arg in N.machine.args]
+    return Machine(newmodel_given_old[N.machine.model],
+                train_args...)
+end
+
+"""
+    copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+
+For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
+`save(::Machine, ...)`. A call from `save` will set `newmodel_given_old` to `nothing` which will
+then dispatch to this method.
+In this circumstance, the purpose is to make the machine attached to node N serializable (see `serializable(::Machine)`).
+
+"""
+function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+    m = serializable(N.machine)
+    m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
+    return m
+end
+
+"""
+    update_mappings_with_node!(
+        newnode_given_old,
+        newmach_given_old,
+        newmodel_given_old,
+        N::AbstractNode)
+
+For Nodes that are not sources, update the appropriate mappings
+between elements of the learning networks to be copied and the copy itself.
+"""
+function update_mappings_with_node!(
+    newnode_given_old,
+    newmach_given_old,
+    newmodel_given_old,
+    N::AbstractNode)
+    args = [newnode_given_old[arg] for arg in N.args]
+    if N.machine === nothing
+        newnode_given_old[N] = node(N.operation, args...)
+    else
+        if N.machine in keys(newmach_given_old)
+            m = newmach_given_old[N.machine]
+        else
+            m = copy_or_replace_machine(N, newmodel_given_old, newnode_given_old)
+            newmach_given_old[N.machine] = m
+        end
+        newnode_given_old[N] = N.operation(m, args...)
+    end
+end
+
+update_mappings_with_node!(
+    newnode_given_old,
+    newmach_given_old,
+    newmodel_given_old,
+    N::Source) = nothing
+
+"""
+    copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
+
+Copies the given signature of a learning network. Contrary to Julia's convention,
+this method is actually mutating `newnode_given_old` and `newmodel_given_old` and not
+the first `signature` argument.
+
+# Arguments:
+- `signature`: signature of the learning network to be copied
+- `newnode_given_old`: initialized mapping between nodes of the
+learning network to be copied and the new one. At this stage it should
+contain only source nodes.
+- `newmodel_given_old`: initialized mapping between models of the
+learning network to be copied and the new one. This is `nothing` if `save` was
+the calling function which will result in a different behaviour of
+`update_mappings_with_node!`
+"""
+function copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
+    operation_nodes = values(_operation_part(signature))
+    report_nodes = values(_report_part(signature))
+    W = glb(operation_nodes..., report_nodes...)
+    # Note: We construct nodes of the new network as values of a
+    # dictionary keyed on the nodes of the old network. Additionally,
+    # there are dictionaries of models keyed on old models and
+    # machines keyed on old machines. The node and machine
+    # dictionaries must be built simultaneously.
+
+    # instantiate node and machine dictionaries:
+    newoperation_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newreport_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
+    newmach_given_old = IdDict{Machine,Machine}()
+
+    # build the new network:
+    for N in nodes(W)
+        update_mappings_with_node!(
+            newnode_given_old,
+            newmach_given_old,
+            newmodel_given_old,
+            N
+        )
+        if N in operation_nodes # could be `Source`
+            newoperation_node_given_old[N] = newnode_given_old[N]
+        elseif N in report_nodes
+            newreport_node_given_old[N] = newnode_given_old[N]
+        end
+    end
+    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
+                          operation_nodes)
+    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
+                            report_nodes)
+    report_tuple =
+        NamedTuple{keys(_report_part(signature))}(newreport_nodes)
+    operation_tuple =
+        NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
+
+    newsignature = if isempty(report_tuple)
+        operation_tuple
+    else
+        merge(operation_tuple, (report=report_tuple,))
+    end
+
+    return newsignature
+end
 
 """
     replace(mach, a1=>b1, a2=>b2, ...; empty_unspecified_sources=false)
@@ -443,13 +570,7 @@ function Base.replace(mach::Machine{<:Surrogate},
 
     W = glb(operation_nodes..., report_nodes...)
 
-    # Note: We construct nodes of the new network as values of a
-    # dictionary keyed on the nodes of the old network. Additionally,
-    # there are dictionaries of models keyed on old models and
-    # machines keyed on old machines. The node and machine
-    # dictionaries must be built simultaneously.
-
-    # build model dict:
+    # Instantiate model dictionary:
     model_pairs = filter(collect(pairs)) do pair
         first(pair) isa Model
     end
@@ -457,7 +578,6 @@ function Base.replace(mach::Machine{<:Surrogate},
     models_to_copy = setdiff(models_, first.(model_pairs))
     model_copy_pairs = [model=>deepcopy(model) for model in models_to_copy]
     newmodel_given_old = IdDict(vcat(model_pairs, model_copy_pairs))
-
     # build complete source replacement pairs:
     sources_ = sources(W)
     specified_source_pairs = filter(collect(pairs)) do pair
@@ -480,58 +600,57 @@ function Base.replace(mach::Machine{<:Surrogate},
     end
 
     all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
-
-    nodes_ = nodes(W)
-
-    # instantiate node and machine dictionaries:
     newnode_given_old =
         IdDict{AbstractNode,AbstractNode}(all_source_pairs)
-    newsources = [newnode_given_old[s] for s in sources_]
-    newoperation_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newreport_node_given_old =
-        IdDict{AbstractNode,AbstractNode}()
-    newmach_given_old = IdDict{Machine,Machine}()
+    newsources = [newnode_given_old[s] for s in sources(W)]
 
-    # build the new network:
-    for N in nodes_
-        if N isa Node # ie, not a `Source`
-            args = [newnode_given_old[arg] for arg in N.args]
-            if N.machine === nothing
-                newnode_given_old[N] = node(N.operation, args...)
-            else
-                if N.machine in keys(newmach_given_old)
-                    m = newmach_given_old[N.machine]
-                else
-                    train_args = [newnode_given_old[arg] for arg in N.machine.args]
-                    m = Machine(newmodel_given_old[N.machine.model],
-                                train_args...)
-                    newmach_given_old[N.machine] = m
-                end
-                newnode_given_old[N] = N.operation(m, args...)
-            end
-        end
-        if N in operation_nodes # could be `Source`
-            newoperation_node_given_old[N] = newnode_given_old[N]
-        elseif N in report_nodes
-            newreport_node_given_old[N] = newnode_given_old[N]
-        end
-    end
-    newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
-                          operation_nodes)
-    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
-                            report_nodes)
-    report_tuple =
-        NamedTuple{keys(_report_part(signature))}(newreport_nodes)
-    operation_tuple =
-        NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
+    newsignature = copysignature!(signature, newnode_given_old, newmodel_given_old=newmodel_given_old)
 
-    newsignature = if isempty(report_tuple)
-        operation_tuple
-    else
-        merge(operation_tuple, (report=report_tuple,))
-    end
 
     return machine(mach.model, newsources...; newsignature...)
 
+end
+
+
+###############################################################################
+#####              SAVE AND RESTORE FOR COMPOSITES                        #####
+###############################################################################
+
+
+# Returns a new `CompositeFitresult` that is a shallow copy of the original one.
+# To do so,  we build a copy of the learning network where each machine contained
+# in it needs to be called `serializable` upon.
+function save(model::Composite, fitresult)
+    signature = MLJBase.signature(fitresult)
+    operation_nodes = values(MLJBase._operation_part(signature))
+    report_nodes = values(MLJBase._report_part(signature))
+    W = glb(operation_nodes..., report_nodes...)
+    newnode_given_old =
+        IdDict{AbstractNode,AbstractNode}([old => source() for old in sources(W)])
+
+    newsignature = copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
+
+    newfitresult = MLJBase.CompositeFitresult(newsignature)
+    setfield!(newfitresult, :network_model_names, getfield(fitresult, :network_model_names))
+
+    return newfitresult
+end
+
+
+# Restores a machine of a composite model by restoring all
+# submachines contained in it.
+function restore!(mach::Machine{<:Composite})
+    glb_node = glb(mach)
+    for submach in machines(glb_node)
+        restore!(submach)
+    end
+    mach.state = 1
+    return mach
+end
+
+
+function setreport!(mach::Machine{<:Composite}, report)
+    basereport = MLJBase.report(glb(mach))
+    report_additions = Base.structdiff(report, basereport)
+    mach.report = merge(basereport, report_additions)
 end

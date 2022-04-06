@@ -30,9 +30,9 @@ X, y = make_regression(10, 2)
     yhat = predict(mach1, W)
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
     fitresult, cache, _ = return!(mach, model, 0)
-    @test cache.network_model_names == [:model_in_network, nothing]
+    network_model_names = getfield(fitresult, :network_model_names)
+    @test network_model_names == [:model_in_network, nothing]
     old_model = cache.old_model
-    network_model_names = cache.network_model_names
     glb_node = MLJBase.glb(mach)
     @test !MLJBase.fallback(model, old_model, network_model_names, glb_node)
 
@@ -191,41 +191,41 @@ end
 # julia bug? If I return the following test to a @testset block, then
 # the test marked with ******* fails (bizarre!)
 #@testset "second test of hand-exported network" begin
-    function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
-        Xs = source(X)
-        ys = source(y)
+function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
+    Xs = source(X)
+    ys = source(y)
 
-        stand = Standardizer()
-        standM = machine(stand, Xs)
-        W = transform(standM, Xs)
+    stand = Standardizer()
+    standM = machine(stand, Xs)
+    W = transform(standM, Xs)
 
-        boxcox = UnivariateBoxCoxTransformer()
-        boxcoxM = machine(boxcox, ys)
-        z = transform(boxcoxM, ys)
+    boxcox = UnivariateBoxCoxTransformer()
+    boxcoxM = machine(boxcox, ys)
+    z = transform(boxcoxM, ys)
 
-        ridgeM = machine(model.ridge, W, z)
-        zhat = predict(ridgeM, W)
-        yhat = inverse_transform(boxcoxM, zhat)
+    ridgeM = machine(model.ridge, W, z)
+    zhat = predict(ridgeM, W)
+    yhat = inverse_transform(boxcoxM, zhat)
 
-        mach = machine(Deterministic(), Xs, ys; predict=yhat)
-        return!(mach, model, verbosity)
-    end
+    mach = machine(Deterministic(), Xs, ys; predict=yhat)
+    return!(mach, model, verbosity)
+end
 
-    MLJBase.input_scitype(::Type{<:WrappedRidge}) =
-        Table(Continuous)
-    MLJBase.target_scitype(::Type{<:WrappedRidge}) =
-        AbstractVector{<:Continuous}
+MLJBase.input_scitype(::Type{<:WrappedRidge}) =
+    Table(Continuous)
+MLJBase.target_scitype(::Type{<:WrappedRidge}) =
+    AbstractVector{<:Continuous}
 
-    ridge = FooBarRegressor(lambda=0.1)
-    model_ = WrappedRidge(ridge)
-    mach = machine(model_, Xin, yin)
-    id = objectid(mach)
-    fit!(mach, verbosity=0)
-    @test  objectid(mach) == id  # *********
-    yhat=predict(mach, Xin);
-    ridge.lambda = 1.0
-    fit!(mach, verbosity=0)
-    @test predict(mach, Xin) != yhat
+ridge = FooBarRegressor(lambda=0.1)
+model_ = WrappedRidge(ridge)
+mach = machine(model_, Xin, yin)
+id = objectid(mach)
+fit!(mach, verbosity=0)
+@test  objectid(mach) == id  # *********
+yhat=predict(mach, Xin);
+ridge.lambda = 1.0
+fit!(mach, verbosity=0)
+@test predict(mach, Xin) != yhat
 
 #end
 

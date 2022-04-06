@@ -31,10 +31,35 @@ predict_median(m, fitresult, Xnew, ::Type{<:BadMedianTypes}) =
 MLJModelInterface.implemented_methods(::FI, M::Type{<:MLJType}) =
     getfield.(methodswith(M), :name) |> unique
 
-# serialization fallbacks:
-MLJModelInterface.save(filename, model, fitresult; kwargs...) = fitresult
+# The following serialization fallbacks should live in
+# MLJModelInterface when version 2.0 is released. At that time the
+# hack block could also be removed.
+
+#####################
+# hack block begins #
+#####################
+const ERR_SERIALIZATION_FAILURE = ErrorException(
+"Serialization failure. You are using a model that implements an outdated "*
+    "version of the serialization API. If you are using "*
+    "a model from XGBoost.jl, try using MLJXGBoostInterface 2.0 or "*
+    "or higher. "
+)
+const ERR_DESERIALIZATION_FAILURE = ErrorException(
+    "Deserialization failure. Your model must be deserialized using "*
+    "using MLJBase < 0.20 and MLJSerialization < 2.0. If this is an "*
+    "XGBoost.jl model, be sure to use MLJXGBoostInterface < 2.0. "
+)
+MLJModelInterface.save(filename, model, fitresult; kwargs...) =
+    throw(ERR_SERIALIZATION_FAILURE)
 MLJModelInterface.restore(filename, model, serializable_fitresult) =
-                          serializable_fitresult
+    throw(ERR_DESERIALIZATION_FAILURE)
+###################
+# hack block ends #
+###################
+
+MLJModelInterface.save(model, fitresult; kwargs...) = fitresult
+MLJModelInterface.restore(model, serializable_fitresult) =
+    serializable_fitresult
 
 # to suppress inclusion of abstract types in the model registry.
 for T in (:Supervised, :Unsupervised,
