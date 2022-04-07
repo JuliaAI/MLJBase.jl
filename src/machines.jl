@@ -776,7 +776,8 @@ the deserialised object `mach` before using it. See the example below.
 If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
 
-A machine returned by serializable is characterized by the property `mach.state == -1`.
+A machine returned by `serializable` is characterized by the property
+`mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
 
