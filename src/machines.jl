@@ -860,8 +860,7 @@ supported) using the Serialization module.
 To serialise using a different format, see [`serializable`](@ref).
 
 Machines are deserialized using the `machine` constructor as shown in
-the example below. Data (or nodes) may be optionally passed to the
-constructor for retraining on new data using the saved model.
+the example below.
 
 > The implementation of `save` for machines changed in MLJ 0.18
 >  (MLJBase 0.20). You can only restore a machine saved using older
