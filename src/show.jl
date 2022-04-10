@@ -139,6 +139,16 @@ end
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
     str = simple_repr(typeof(object))
+    L = length(propertynames(object))
+    if L > 0
+        first_name = propertynames(object) |> first
+        value = getproperty(object, first_name)
+        str *= "($first_name = $value"
+        L > 1 && (str *= ", …")
+        str *= ")"
+    else
+        str *= "()"
+    end
     show_handle(object) && (str *= " $(handle(object))")
     if false # !isempty(propertynames(object))
         printstyled(IOContext(stream, :color=> SHOW_COLOR),
@@ -185,9 +195,13 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
             show_compact(object) ||
                 print(stream, crind(n + length(prefix) - anti))
             print(stream, "$(names[k]) = ")
-            fancy(stream, value, current_depth + 1, depth, n + length(prefix)
-                  - anti + length("$k = "))
-            k == n_names || print(stream, ",")
+            if show_compact(object)
+                show(stream, value)
+            else
+                fancy(stream, value, current_depth + 1, depth, n + length(prefix)
+                      - anti + length("$k = "))
+            end
+            k == n_names || print(stream, ", ")
         end
         print(stream, ")")
         if current_depth == 0 && show_handle(object)
