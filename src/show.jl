@@ -120,19 +120,22 @@ show_handle(object) = false
 function simple_repr(T)
     repr = string(T.name.name)
     parameters = T.parameters
-    p_string = ""
-    if length(parameters) > 0
-        p = parameters[1]
-        if p isa DataType
-            p_string = simple_repr(p)
-        elseif p isa Symbol
-            p_string = string(":", p)
-        end
-        if length(parameters) > 1
-            p_string *= ",…"
-        end
-    end
-    isempty(p_string) || (repr *= "{"*p_string*"}")
+
+    # # add abbreviated type parameters:
+    # p_string = ""
+    # if length(parameters) > 0
+    #     p = parameters[1]
+    #     if p isa DataType
+    #         p_string = simple_repr(p)
+    #     elseif p isa Symbol
+    #         p_string = string(":", p)
+    #     end
+    #     if length(parameters) > 1
+    #         p_string *= ",…"
+    #     end
+    # end
+    # isempty(p_string) || (repr *= "{"*p_string*"}")
+
     return repr
 end
 
