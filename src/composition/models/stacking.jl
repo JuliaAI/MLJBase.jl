@@ -369,7 +369,7 @@ This function is building the out-of-sample dataset that is later used by the `j
 for its own training. It also returns the folds_evaluations object if internal 
 cross-validation results are requested.
 """
-function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
+function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs; cache=true)
     Zval = []
     yval = []
     folds_evaluations = []
@@ -384,7 +384,7 @@ function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
         # predictions are subsequently used as an input to the metalearner
         Zfold = []
         for model in getfield(m, :models)
-            mach = machine(model, Xtrain, ytrain)
+            mach = machine(model, Xtrain, ytrain, cache=cache)
             ypred = predict(mach, Xtest)
             # Internal evaluation on the fold if required
             push!(folds_evaluations, store_for_evaluation(mach, Xtest, ytest, m.measures))
@@ -440,4 +440,75 @@ function fit(m::Stack, verbosity::Int, X, y)
     mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
     
     return!(mach, m, verbosity)
+end
+
+
+"""
+    learning_network(mach::Machine{<:Composite}, X, y; verbosity=0::Int, force=false, kwargs...)
+
+A user defined learning network for a composite model. This definition enables access to the 
+parent machine and other options (keyword arguments) by the downstream sub-machines.
+
+### Arguments
+
+- `mach`: A machine of a composite model.
+- `args...`: The data arguments taken by the model: usually `X`, `y` for a supervised model.
+
+### Keyword Arguments
+
+- `verbosity`: Verbosity level
+- `force`: To force retraining
+- ...
+
+The output of this method should be a `signature`, ie a `NamedTuple` of nodes of interest like
+any valid operation in `OPERATIONS` and additional report nodes.
+
+"""
+function learning_network end
+
+
+"""
+This is the learning network definition for the `Stack` model.
+see: `learning_network`
+"""
+function learning_network(mach::Machine{<:Stack, C}, X, y; verbosity=0::Int, kwargs...) where C
+    check_stack_measures(mach.model, verbosity, mach.model.measures, y)
+    tt_pairs = train_test_pairs(mach.model.resampling, 1:nrows(y), X, y)
+
+    Xs = source(X)
+    ys = source(y)
+
+    Zval, yval, folds_evaluations = oos_set(mach.model, Xs, ys, tt_pairs, cache=C)
+
+    metamach = machine(mach.model.metalearner, Zval, yval, cache=C)
+
+    # Each model is retrained on the original full training set
+    Zpred = []
+    for model in getfield(mach.model, :models)
+        submach = machine(model, Xs, ys, cache=C)
+        ypred = predict(submach, Xs)
+        ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
+        push!(Zpred, ypred)
+    end
+
+    Zpred = MLJBase.table(hcat(Zpred...))
+    ŷ = predict(metamach, Zpred)
+
+    internal_report = internal_stack_report(mach.model, verbosity, tt_pairs, folds_evaluations...)
+
+    return (predict=ŷ, internal_report...)
+end
+
+"""
+In order to keep backward compatibility, this method has to be defined 
+(understand copied with a change in the machine's model type) for each
+new composite model. In the future we can just define:
+    
+`fit_(mach::Machine{<:Composite}, resampled_data...; kwargs...)`
+
+for all composite models.
+"""
+function fit_(mach::Machine{<:Stack}, resampled_data...; kwargs...)
+    signature = learning_network(mach, resampled_data...; kwargs...)
+    return finalize(mach, signature; kwargs...)
 end

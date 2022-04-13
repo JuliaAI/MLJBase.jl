@@ -284,9 +284,9 @@ const ERR_IDENTICAL_MODELS = ArgumentError(
 # `models(glb(mach))`) using `nothing` when the model is not
 # associated with any property.
 function network_model_names(model::M,
-                             mach::Machine{<:Surrogate}) where M<:Model
+                             mach_or_fitresult) where M<:Model
 
-    network_model_ids = objectid.(MLJBase.models(glb(mach)))
+    network_model_ids = objectid.(MLJBase.models(glb(mach_or_fitresult)))
 
     names = propertynames(model)
 
@@ -417,6 +417,37 @@ function return!(mach::Machine{<:Surrogate},
 
     return mach.fitresult, cache, mach.report
 
+end
+
+
+function finalize(mach::Machine{<:Composite}, signature, verbosity=0; kwargs...)
+    check_signature(signature)
+    # Build composite Fitresult
+    fitresult = CompositeFitresult(signature)
+    fitresult.network_model_names = network_model_names(mach.model, fitresult)
+
+    # Fit all machines in the learning network
+    glb_node = glb(fitresult)
+    fit!(glb_node; kwargs...)
+
+    # Build report
+    report_additions_ = _call(_report_part(MLJBase.signature(fitresult)))
+    report = merge(MLJBase.report(glb_node), report_additions_)
+
+    # anonymize the data
+    sources = MLJBase.sources(glb_node)
+    data = Tuple(s.data for s in sources)
+    [MLJBase.rebind!(s, nothing) for s in sources]
+
+    # record the current hyper-parameter values:
+    old_model = deepcopy(mach.model)
+
+    cache = (sources = sources,
+             data=data,
+             old_model=old_model)
+
+
+    return fitresult, cache, report
 end
 
 network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
