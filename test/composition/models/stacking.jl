@@ -117,9 +117,16 @@ end
         @test target_scitype(mystack) == target_scitype(metalearner)
         @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
-        mach = machine(mystack, X, y)
+        # Let's set the cache to false and check no data is kept in 
+        # data fields
+        mach = machine(mystack, X, y, cache=false)
         fit!(mach, verbosity=0)
         @test predict(mach) isa Vector{Distributions.Cauchy{Float64}}
+
+        @test !isdefined(mach, :data)
+        for submach in report(mach).machines
+            @test !isdefined(submach, :data)
+        end
 
     end
 
