@@ -420,6 +420,42 @@ function return!(mach::Machine{<:Surrogate},
 end
 
 
+"""
+    learning_network(mach::Machine{<:Composite}, X, y; verbosity=0::Int, force=false, kwargs...)
+
+A user defined learning network for a composite model. This definition enables access to the 
+parent machine and other options (keyword arguments) by the downstream sub-machines.
+
+### Arguments
+
+- `mach`: A machine of a composite model.
+- `args...`: The data arguments taken by the model: usually `X`, `y` for a supervised model.
+
+### Keyword Arguments
+
+- `verbosity`: Verbosity level
+- `force`: To force retraining
+- ...
+
+The output of this method should be a `signature`, ie a `NamedTuple` of nodes of interest like
+any valid operation in `OPERATIONS` and additional report nodes.
+
+"""
+function learning_network end
+
+"""
+In order to keep backward compatibility, a check is performed to see if a `learning_network` 
+method exists for the composite model. This can be removed in the future.
+"""
+function fit_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwargs...)
+    if applicable(learning_network, mach, resampled_data...)
+        signature = learning_network(mach, resampled_data...; verbosity=verbosity, kwargs...)
+        return finalize(mach, signature; verbosity=verbosity, kwargs...)
+    else
+        return fit(mach.model, verbosity, resampled_data...)
+    end
+end
+
 function finalize(mach::Machine{<:Composite}, signature, verbosity=0; kwargs...)
     check_signature(signature)
     # Build composite Fitresult

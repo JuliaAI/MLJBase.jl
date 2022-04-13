@@ -408,63 +408,6 @@ end
 #######################################
 ################# Fit #################
 #######################################
-"""
-    fit(m::Stack, verbosity::Int, X, y)
-"""
-function fit(m::Stack, verbosity::Int, X, y)
-    check_stack_measures(m, verbosity, m.measures, y)
-    tt_pairs = train_test_pairs(m.resampling, 1:nrows(y), X, y)
-
-    Xs = source(X)
-    ys = source(y)
-        
-    Zval, yval, folds_evaluations = oos_set(m, Xs, ys, tt_pairs)
-
-    metamach = machine(m.metalearner, Zval, yval)
-
-    # Each model is retrained on the original full training set
-    Zpred = []
-    for model in getfield(m, :models)
-        mach = machine(model, Xs, ys)
-        ypred = predict(mach, Xs)
-        ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
-        push!(Zpred, ypred)
-    end
-
-    Zpred = MLJBase.table(hcat(Zpred...))
-    ŷ = predict(metamach, Zpred)
-
-    internal_report = internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
-
-    # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
-    
-    return!(mach, m, verbosity)
-end
-
-
-"""
-    learning_network(mach::Machine{<:Composite}, X, y; verbosity=0::Int, force=false, kwargs...)
-
-A user defined learning network for a composite model. This definition enables access to the 
-parent machine and other options (keyword arguments) by the downstream sub-machines.
-
-### Arguments
-
-- `mach`: A machine of a composite model.
-- `args...`: The data arguments taken by the model: usually `X`, `y` for a supervised model.
-
-### Keyword Arguments
-
-- `verbosity`: Verbosity level
-- `force`: To force retraining
-- ...
-
-The output of this method should be a `signature`, ie a `NamedTuple` of nodes of interest like
-any valid operation in `OPERATIONS` and additional report nodes.
-
-"""
-function learning_network end
 
 
 """
@@ -497,18 +440,4 @@ function learning_network(mach::Machine{<:Stack, C}, X, y; verbosity=0::Int, kwa
     internal_report = internal_stack_report(mach.model, verbosity, tt_pairs, folds_evaluations...)
 
     return (predict=ŷ, internal_report...)
-end
-
-"""
-In order to keep backward compatibility, this method has to be defined 
-(understand copied with a change in the machine's model type) for each
-new composite model. In the future we can just define:
-    
-`fit_(mach::Machine{<:Composite}, resampled_data...; kwargs...)`
-
-for all composite models.
-"""
-function fit_(mach::Machine{<:Stack}, resampled_data...; kwargs...)
-    signature = learning_network(mach, resampled_data...; kwargs...)
-    return finalize(mach, signature; kwargs...)
 end
