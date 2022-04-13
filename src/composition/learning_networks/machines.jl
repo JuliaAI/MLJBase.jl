@@ -164,12 +164,7 @@ function check_surrogate_machine(::Union{Unsupervised},
     return nothing
 end
 
-function machine(model::Surrogate, _sources::Source...; pair_itr...)
-
-    # named tuple, such as `(predict=yhat, transform=W)`:
-    signature = (; pair_itr...)
-
-    # signature checks:
+function check_signature(signature)
     isempty(_operations(signature)) && throw(ERR_MUST_OPERATE)
     for k in keys(signature)
         if k in OPERATIONS
@@ -182,6 +177,15 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
             throw(ERR_BAD_SIGNATURE)
         end
     end
+end
+
+function machine(model::Surrogate, _sources::Source...; pair_itr...)
+
+    # named tuple, such as `(predict=yhat, transform=W)`:
+    signature = (; pair_itr...)
+
+    # signature checks:
+    check_signature(signature)
 
     check_surrogate_machine(model, signature, _sources)
 
