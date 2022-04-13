@@ -499,7 +499,8 @@ more on these lower-level training methods.
 function fit_only!(mach::Machine{<:Model,cache_data};
                    rows=nothing,
                    verbosity=1,
-                   force=false) where cache_data
+                   force=false,
+                   kwargs...) where cache_data
 
     if mach.frozen
         # no-op; do not increment `state`.
@@ -548,7 +549,7 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         fitlog(mach, :train, verbosity)
         mach.fitresult, mach.cache, mach.report =
             try
-                fit(mach.model, verbosity, _resampled_data(mach, rows)...)
+                fit_(mach, _resampled_data(mach, rows)..., verbosity=verbosity, force=force, kwargs...)
             catch exception
                 @error "Problem fitting the machine $mach. "
                 _sources = sources(glb(mach.args...))
@@ -599,6 +600,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
 
     return mach
 end
+
+fit_(mach::Machine, resampled_data...; verbosity=0::Int, kwargs...) = fit(mach.model, verbosity, resampled_data...)
 
 """
 
