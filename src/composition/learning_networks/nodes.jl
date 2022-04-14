@@ -230,6 +230,24 @@ function fit!(y::Node, ::CPU1; kwargs...)
 
     return y
 end
+
+function fit!(y::Node, ::CPUThreads; kwargs...)
+    _machines = machines(y)
+
+    # flush the fit_okay channels:
+    for mach in _machines
+        flush!(mach.fit_okay)
+    end
+
+    # fit the machines in Multithreading mode
+    @sync for mach in _machines
+        Threads.@spawn fit_only!(mach, true; kwargs...)
+    end
+
+    return y
+
+end
+
 fit!(S::Source; args...) = S
 
 # allow arguments of `Nodes` and `Machine`s to appear
