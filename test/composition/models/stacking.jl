@@ -121,6 +121,7 @@ end
         # data fields
         mach = machine(mystack, X, y, cache=false)
         fit!(mach, verbosity=0)
+
         @test predict(mach) isa Vector{Distributions.Cauchy{Float64}}
 
         @test !isdefined(mach, :data)
@@ -153,6 +154,33 @@ end
     fit!(mach, verbosity=0)
     @test predict(mach) isa Vector{<:MLJBase.UnivariateFinite}
 
+    # Try refit with new model hyperparameter fitting
+    # Only the KNN should be refit
+    mach.model.knn.K = 10
+    fit!(mach, verbosity=0)
+
+    type_to_fit_counts = Dict(
+        Machine{ConstantClassifier, true} => 0,
+        Machine{DecisionTreeClassifier, true} => 0,
+        Machine{KNNClassifier, true} => 0,
+        )
+    for submach in report(mach).machines
+        type_to_fit_counts[typeof(submach)] += submach.state
+    end
+
+    # ConstantClassifier: base models not refit
+    @test type_to_fit_counts[Machine{ConstantClassifier, true}] == 4
+    # DecisionTreeClassifier: metalearner refit, base models not refit
+    @test type_to_fit_counts[Machine{DecisionTreeClassifier, true}] == 6
+    # KNNClassifier: base models refit
+    @test type_to_fit_counts[Machine{KNNClassifier, true}] == 8
+
+    # Try to change completely a model
+    # The learning network is rebuilt and no machine should have
+    # type Machine{ConstantClassifier}
+    mach.model.constant = KNNClassifier()
+    fit!(mach, verbosity=0)
+    @test !any(x isa Machine{ConstantClassifier} for x in report(mach).machines)
 end
 
 @testset "Stack constructor valid argument checks" begin

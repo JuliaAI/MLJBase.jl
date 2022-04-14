@@ -421,7 +421,7 @@ end
 
 
 """
-    learning_network(mach::Machine{<:Composite}, X, y; verbosity=0::Int, force=false, kwargs...)
+    learning_network(mach::Machine{<:Composite}, X, y; verbosity=0::Int, kwargs...)
 
 A user defined learning network for a composite model. This definition enables access to the 
 parent machine and other options (keyword arguments) by the downstream sub-machines.
@@ -434,7 +434,6 @@ parent machine and other options (keyword arguments) by the downstream sub-machi
 ### Keyword Arguments
 
 - `verbosity`: Verbosity level
-- `force`: To force retraining
 - ...
 
 The output of this method should be a `signature`, ie a `NamedTuple` of nodes of interest like
@@ -456,7 +455,42 @@ function fit_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwargs
     end
 end
 
-function finalize(mach::Machine{<:Composite}, signature, verbosity=0; kwargs...)
+"""
+Update rule for machines of composite models
+"""
+function update_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwargs...)
+    # This method falls back to `fit` to force rebuilding the
+    # underlying learning network if, since the last fit:
+    #
+    # (i) Any hyper-parameter associated with a model in the learning network
+    #     has been replaced with a new model instance (and not merely
+    #     mutated), OR
+
+    # (ii) Any OTHER hyper-parameter has changed it's value (in the sense
+    # of `==`).
+
+    # Otherwise, a "smart" fit is carried out by calling `fit!` on a
+    # greatest lower bound node for nodes in the signature of the
+    # underlying learning network machine. For this it is necessary to
+    # temporarily "de-anonymize" the source nodes.
+    model = mach.model
+    fitresult = mach.fitresult
+    cache = mach.cache
+
+    network_model_names = getfield(fitresult, :network_model_names)
+    old_model = cache.old_model
+
+    glb_node = glb(fitresult) # greatest lower bound
+
+    if fallback(model, old_model, network_model_names, glb_node)
+        return fit_(mach, resampled_data...; verbosity=verbosity, kwargs...)
+    else
+        return update_from_glb(glb_node, model, verbosity, fitresult, cache)
+    end
+
+end
+
+function finalize(mach::Machine{<:Composite}, signature; kwargs...)
     check_signature(signature)
     # Build composite Fitresult
     fitresult = CompositeFitresult(signature)

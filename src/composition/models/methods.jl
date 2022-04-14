@@ -10,6 +10,16 @@ caches_data_by_default(::Type{<:Composite}) = true
 fitted_params(::Union{Composite,Surrogate}, fitresult::CompositeFitresult) =
     fitted_params(glb(fitresult))
 
+"""
+    update(model::M,
+            verbosity::Integer,
+            fitresult::CompositeFitresult,
+            cache,
+            args...) where M <: Composite
+
+This method is an almost duplicate of `update_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwargs...)`
+The only reason it exists is to allow for a user to update a composite model without using a machine.
+"""
 function update(model::M,
                 verbosity::Integer,
                 fitresult::CompositeFitresult,
@@ -38,8 +48,12 @@ function update(model::M,
 
     if fallback(model, old_model, network_model_names, glb_node)
         return fit(model, verbosity, args...)
+    else
+        return update_from_glb(glb_node, model, verbosity, fitresult, cache)
     end
+end
 
+function update_from_glb(glb_node, model, verbosity, fitresult, cache)
     # return data to source nodes for fitting:
     sources, data = cache.sources, cache.data
     for k in eachindex(sources)
@@ -57,13 +71,12 @@ function update(model::M,
 
     # record current model state:
     cache = (sources=cache.sources,
-             data=cache.data,
-             old_model = deepcopy(model))
+                data=cache.data,
+                old_model = deepcopy(model))
     
     return (fitresult,
             cache,
             merge(report(glb_node), report_additions_))
-
 end
 
 # helper for preceding method (where logic is explained):

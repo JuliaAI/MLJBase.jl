@@ -549,7 +549,7 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         fitlog(mach, :train, verbosity)
         mach.fitresult, mach.cache, mach.report =
             try
-                fit_(mach, _resampled_data(mach, rows)..., verbosity=verbosity, force=force, kwargs...)
+                fit_(mach, _resampled_data(mach, rows)...; verbosity=verbosity, kwargs...)
             catch exception
                 @error "Problem fitting the machine $mach. "
                 _sources = sources(glb(mach.args...))
@@ -574,11 +574,7 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         # update the model:
         fitlog(mach, :update, verbosity)
         mach.fitresult, mach.cache, mach.report =
-            update(mach.model,
-                   verbosity,
-                   mach.fitresult,
-                   mach.cache,
-                   _resampled_data(mach, rows)...)
+            update_(mach, _resampled_data(mach, rows)...; verbosity=verbosity, kwargs...)
 
     else
 
@@ -601,7 +597,16 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     return mach
 end
 
+"""
+Basic fallback for machines of non composite models
+"""
 fit_(mach::Machine, resampled_data...; verbosity=0::Int, kwargs...) = fit(mach.model, verbosity, resampled_data...)
+
+"""
+Basic fallback for machines of non composite models
+"""
+update_(mach::Machine, resampled_data...; verbosity=0, kwargs...) = 
+    update(mach.model, verbosity, mach.fitresult, mach.cache, resampled_data...)
 
 """
 
