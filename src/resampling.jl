@@ -531,8 +531,11 @@ _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    data = hcat(e.measure, round3.(e.measurement), e.operation,
-                [round3.(v) for v in e.per_fold])
+    _measure =  e.measure
+    _measurement = round3.(e.measurement)
+    _per_fold = [round3.(v) for v in e.per_fold]
+
+    data = hcat(_measure, _measurement, e.operation, _per_fold)
     header = ["measure", "measurement", "operation", "per_fold"]
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
