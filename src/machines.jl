@@ -183,10 +183,11 @@ end
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
-`args`. Calling `fit!` on a `Machine` object stores in the machine
-object the outcomes of applying the algorithm. This in turn enables
-generalization to new data using operations such as `predict` or
-`transform`:
+`args`. Calling [`fit!`](@ref) on a `Machine` instance `mach` stores
+outcomes of applying the algorithm in `mach`, which can be inspected
+using `fitted_params(mach)` (learned paramters) and `report(mach)`
+(other outcomes). This in turn enables generalization to new data
+using operations such as `predict` or `transform`:
 
 ```julia
 using MLJModels
@@ -206,16 +207,21 @@ predict(mach, selectrows(X, 51:100)) # or predict(mach, rows=51:100)
 ```
 Specify `cache=false` to prioritize memory management over speed.
 
+When building a learning network, `Node` objects can be substituted
+for the concrete data but no type or dimension checks are applied.
+
+### Checks on the types of training data
+
+A model articulates it's data requirements using [scientific
+types](https://juliaai.github.io/ScientificTypes.jl/dev/), i.e.,
+using the [`scitype`](@ref) function instead of the `typeof` function.
+
 If `scitype_check_level > 0` then the scitype of each `arg` in `args`
 is computed, and this is compared with the scitypes expected by the
 model, unless `args` contains `Unknown` scitypes and
 `scitype_check_level < 4`, in which case no further action is
 taken. Whether warnings are issued or errors thrown depends the
 level. See [`default_scitype_check_level`](@ref) for details.
-
-When building a learning network, `Node` objects can be substituted
-for the concrete data but no type or dimension checks are applied.
-
 
 ### Learning network machines
 
@@ -323,7 +329,8 @@ r = report(network_mach)
 @assert r.accuracy == accuracy(yhat(), ys())
 ```
 
-See also [`fit`](@ref) and [`default_scitype_check_level`](@ref).
+See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
+[`MLJBase.save`](@ref), [`serializable`](@ref).
 
 """
 function machine end
@@ -823,14 +830,19 @@ Returns a shallow copy of the machine to make it serializable. In particular,
 all training data is removed and, if necessary, learned parameters are replaced
 with persistent representations.
 
+<<<<<<< HEAD
 Any general purpose Julia serialization may be applied to the output of
+=======
+Any general purpose Julia serializer may be applied to the output of
+>>>>>>> dev
 `serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
 the deserialised object `mach` before using it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
 
-A machine returned by serializable is characterized by the property `mach.state == -1`.
+A machine returned by `serializable` is characterized by the property
+`mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
 
@@ -851,6 +863,9 @@ A machine returned by serializable is characterized by the property `mach.state 
 
     predict(loaded_mach, X)
     predict(mach, X)
+
+See also [`restore!`](@ref), [`save`](@ref).
+
 """
 function serializable(mach::Machine{<:Any, C}) where C
     # Returns a shallow copy of the machine to make it serializable, in particular:
@@ -882,8 +897,13 @@ end
 """
     restore!(mach::Machine)
 
-Default method to restores the state of a machine that is currently serializable.
-Such a machine is annotated with `state=1`
+Restore the state of a machine that is currently serializable but
+which may not be otherwise usable. For such a machine, `mach`, one has
+`mach.state=1`. Intended for restoring deserialized machine objects to a
+useable form.
+
+For an example see [`serializable`](@ref).
+
 """
 function restore!(mach::Machine)
     mach.fitresult = restore(mach.model, mach.fitresult)
@@ -903,12 +923,14 @@ Serialize the machine `mach` to a file with path `filename`, or to an
 input/output stream `io` (at least `IOBuffer` instances are
 supported) using the Serialization module.
 
-To serialise using a different format, see `serializable`.
+To serialise using a different format, see [`serializable`](@ref).
 
-Machines are de-serialized using the `machine` constructor as shown in
-the example below. Data (or nodes) may be optionally passed to the
-constructor for retraining on new data using the saved model.
+Machines are deserialized using the `machine` constructor as shown in
+the example below.
 
+> The implementation of `save` for machines changed in MLJ 0.18
+>  (MLJBase 0.20). You can only restore a machine saved using older
+>  versions of MLJ using an older version.
 
 ### Example
 
@@ -920,12 +942,6 @@ constructor for retraining on new data using the saved model.
     MLJ.save("tree.jls", mach)
     mach_predict_only = machine("tree.jls")
     predict(mach_predict_only, X)
-
-    mach2 = machine("tree.jls", selectrows(X, 1:100), y[1:100])
-    predict(mach2, X) # same as above
-
-    fit!(mach2) # saved learned parameters are over-written
-    predict(mach2, X) # not same as above
 
     # using a buffer:
     io = IOBuffer()
@@ -941,6 +957,8 @@ constructor for retraining on new data using the saved model.
     to use a JLS file that looks like a serialized MLJ machine as a
     [Trojan
     horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+
+See also [`serializable`](@ref), [`machine`](@ref).
 
 """
 function save(file::Union{String,IO},

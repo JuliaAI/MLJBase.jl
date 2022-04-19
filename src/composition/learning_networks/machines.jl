@@ -407,8 +407,8 @@ function return!(mach::Machine{<:Surrogate},
              data=data,
              old_model=old_model)
 
-    setfield!(mach.fitresult, 
-        :network_model_names, 
+    setfield!(mach.fitresult,
+        :network_model_names,
         network_model_names(model, mach))
 
     return mach.fitresult, cache, mach.report
@@ -437,9 +437,9 @@ end
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
 
 For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
-`save(::Machine, ...)`. A call from `save` will set `newmodel_given_old` to `nothing` which will 
+`save(::Machine, ...)`. A call from `save` will set `newmodel_given_old` to `nothing` which will
 then dispatch to this method.
-In this circumstance, the purpose is to make the machine attached to node N serializable (see `serializable(::Machine)`). 
+In this circumstance, the purpose is to make the machine attached to node N serializable (see `serializable(::Machine)`).
 
 """
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
@@ -450,18 +450,18 @@ end
 
 """
     update_mappings_with_node!(
-        newnode_given_old, 
-        newmach_given_old, 
-        newmodel_given_old, 
+        newnode_given_old,
+        newmach_given_old,
+        newmodel_given_old,
         N::AbstractNode)
 
-For Nodes that are not sources, update the appropriate mappings 
+For Nodes that are not sources, update the appropriate mappings
 between elements of the learning networks to be copied and the copy itself.
 """
 function update_mappings_with_node!(
-    newnode_given_old, 
-    newmach_given_old, 
-    newmodel_given_old, 
+    newnode_given_old,
+    newmach_given_old,
+    newmodel_given_old,
     N::AbstractNode)
     args = [newnode_given_old[arg] for arg in N.args]
     if N.machine === nothing
@@ -478,26 +478,26 @@ function update_mappings_with_node!(
 end
 
 update_mappings_with_node!(
-    newnode_given_old, 
-    newmach_given_old, 
-    newmodel_given_old, 
+    newnode_given_old,
+    newmach_given_old,
+    newmodel_given_old,
     N::Source) = nothing
 
 """
     copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
 
 Copies the given signature of a learning network. Contrary to Julia's convention,
-this method is actually mutating `newnode_given_old` and `newmodel_given_old` and not 
+this method is actually mutating `newnode_given_old` and `newmodel_given_old` and not
 the first `signature` argument.
 
 # Arguments:
 - `signature`: signature of the learning network to be copied
-- `newnode_given_old`: initialized mapping between nodes of the 
-learning network to be copied and the new one. At this stage it should 
+- `newnode_given_old`: initialized mapping between nodes of the
+learning network to be copied and the new one. At this stage it should
 contain only source nodes.
-- `newmodel_given_old`: initialized mapping between models of the 
-learning network to be copied and the new one. This is `nothing` if `save` was 
-the calling function which will result in a different behaviour of 
+- `newmodel_given_old`: initialized mapping between models of the
+learning network to be copied and the new one. This is `nothing` if `save` was
+the calling function which will result in a different behaviour of
 `update_mappings_with_node!`
 """
 function copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
@@ -520,9 +520,9 @@ function copysignature!(signature, newnode_given_old; newmodel_given_old=nothing
     # build the new network:
     for N in nodes(W)
         update_mappings_with_node!(
-            newnode_given_old, 
-            newmach_given_old, 
-            newmodel_given_old, 
+            newnode_given_old,
+            newmach_given_old,
+            newmodel_given_old,
             N
         )
         if N in operation_nodes # could be `Source`
@@ -605,7 +605,7 @@ function Base.replace(mach::Machine{<:Surrogate},
     newsources = [newnode_given_old[s] for s in sources(W)]
 
     newsignature = copysignature!(signature, newnode_given_old, newmodel_given_old=newmodel_given_old)
-    
+
 
     return machine(mach.model, newsources...; newsignature...)
 
@@ -617,13 +617,9 @@ end
 ###############################################################################
 
 
-"""
-    save(model::Composite, fitresult)
-
-Returns a new `CompositeFitresult` that is a shallow copy of the original one.
-To do so,  we build a copy of the learning network where each machine contained 
-in it needs to be called `serializable` upon.
-"""
+# Returns a new `CompositeFitresult` that is a shallow copy of the original one.
+# To do so,  we build a copy of the learning network where each machine contained
+# in it needs to be called `serializable` upon.
 function save(model::Composite, fitresult)
     signature = MLJBase.signature(fitresult)
     operation_nodes = values(MLJBase._operation_part(signature))
@@ -640,12 +636,9 @@ function save(model::Composite, fitresult)
     return newfitresult
 end
 
-"""
-    restore!(mach::Machine{<:Composite})
 
-Restores a machine of a composite model by restoring all 
-submachines contained in it.
-"""
+# Restores a machine of a composite model by restoring all
+# submachines contained in it.
 function restore!(mach::Machine{<:Composite})
     glb_node = glb(mach)
     for submach in machines(glb_node)

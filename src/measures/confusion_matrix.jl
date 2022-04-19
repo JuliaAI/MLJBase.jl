@@ -43,6 +43,10 @@ _categorical(y1::CategoricalArray{V1,N},
              y2::CategoricalArray{V2,N}) where
     {V, V1<:Union{Missing,V}, V2<:Union{Missing,V}, N} =
     y1, y2
+_categorical(y1::AbstractArray{<:CategoricalArrays.CategoricalValue},
+             y2::AbstractArray{<:CategoricalArrays.CategoricalValue}) =
+    broadcast(identity, y1), broadcast(identity, y2)
+
 
 """
     _confmat(ŷ, y; rev=false)
