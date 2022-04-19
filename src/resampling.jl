@@ -503,6 +503,9 @@ struct.
   machine `mach` training in resampling - one machine per train/test
   pair.
 
+- `train_test_rows`: a vector of vectors containing the train-test
+  pairs used to evaluate the model.
+
 """
 struct PerformanceEvaluation{M,
                              Measurement,
@@ -617,7 +620,7 @@ function _check_measure(measure, operation, model, y)
 
 end
 
-_check_measures(measures, operations, model, y) = begin
+function _check_measures(measures, operations, model, y)
     all(eachindex(measures)) do j
         _check_measure(measures[j], operations[j], model, y)
     end
