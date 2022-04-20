@@ -503,9 +503,8 @@ struct.
   machine `mach` training in resampling - one machine per train/test
   pair.
 
-- `train_test_rows`: a vector of vectors containing the train-test
-  pairs used to evaluate the model.
-
+- `train_test_rows`: a vector of tuples, each of the form `(train, test)`, where `train` and `test` 
+   are vectors of row (observation) indices for training and evaluation respectively. 
 """
 struct PerformanceEvaluation{M,
                              Measurement,
