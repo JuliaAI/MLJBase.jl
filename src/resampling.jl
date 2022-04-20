@@ -503,6 +503,8 @@ struct.
   machine `mach` training in resampling - one machine per train/test
   pair.
 
+- `train_test_rows`: a vector of tuples, each of the form `(train, test)`, where `train` and `test` 
+   are vectors of row (observation) indices for training and evaluation respectively. 
 """
 struct PerformanceEvaluation{M,
                              Measurement,
@@ -538,7 +540,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
             "with these fields:")
     println(io, "  measure, measurement, operation, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
-            "  report_per_fold, train_test_pairs")
+            "  report_per_fold, train_test_rows")
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR
     color_off()
@@ -617,7 +619,7 @@ function _check_measure(measure, operation, model, y)
 
 end
 
-_check_measures(measures, operations, model, y) = begin
+function _check_measures(measures, operations, model, y)
     all(eachindex(measures)) do j
         _check_measure(measures[j], operations[j], model, y)
     end
