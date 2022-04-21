@@ -766,5 +766,23 @@ end
              measures=[LogLoss(), BrierScore()], verbosity=0)
 end
 
+@testset "reported fields in documentation" begin
+    # Using `evaluate` to obtain a `PerformanceEvaluation` object.
+    clf = ConstantClassifier()
+    X, y = make_moons(100)
+    evaluations = evaluate(clf, X, y, resampling=CV())
+    T = typeof(evaluations)
+    @test T <: PerformanceEvaluation
+
+    show_text = sprint(show, MIME"text/plain"(), evaluations)
+    docstring_text = string(@doc(PerformanceEvaluation))
+    for fieldname in fieldnames(PerformanceEvaluation)
+        @test contains(show_text, string(fieldname))
+        # string(text::Markdown.MD) converts `-` list items to `*`.
+        @test contains(docstring_text, " * `$fieldname`")
+    end
+end
+
 #end
 true
+

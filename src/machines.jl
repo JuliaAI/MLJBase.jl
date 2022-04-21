@@ -769,14 +769,15 @@ Returns a shallow copy of the machine to make it serializable. In particular,
 all training data is removed and, if necessary, learned parameters are replaced
 with persistent representations.
 
-Any general purpose Julia serialization may be applied to the output of
+Any general purpose Julia serializer may be applied to the output of
 `serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
 the deserialised object `mach` before using it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
 
-A machine returned by serializable is characterized by the property `mach.state == -1`.
+A machine returned by `serializable` is characterized by the property
+`mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
 
@@ -860,8 +861,7 @@ supported) using the Serialization module.
 To serialise using a different format, see [`serializable`](@ref).
 
 Machines are deserialized using the `machine` constructor as shown in
-the example below. Data (or nodes) may be optionally passed to the
-constructor for retraining on new data using the saved model.
+the example below.
 
 > The implementation of `save` for machines changed in MLJ 0.18
 >  (MLJBase 0.20). You can only restore a machine saved using older
