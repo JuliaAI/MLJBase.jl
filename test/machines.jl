@@ -70,7 +70,7 @@ freeze!(stand)
 
     # supervised model with bad target:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(X), AbstractVector{Multiclass{N}}},
                     MLJBase.fit_data_scitype(tree),
                     typeof(tree)
@@ -80,7 +80,7 @@ freeze!(stand)
 
     # ordinary transformer:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(42),},
                     MLJBase.fit_data_scitype(pca),
                     typeof(pca)
@@ -91,7 +91,7 @@ freeze!(stand)
 
     # bad weight vector:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(X), scitype(y2), scitype(42)},
                     MLJBase.fit_data_scitype(ConstantClassifier()),
                     ConstantClassifier
@@ -121,7 +121,7 @@ struct FooBarUnknown <: Model end
         @test_logs machine(model, X, y; scitype_check_level)
         @test_logs machine(model, X; scitype_check_level)
         @test_logs((:warn,
-                    MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+                    MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
                                                           fit_data_scitype(model),
                                                           FooBar)),
                    machine(model, y; scitype_check_level))
@@ -131,7 +131,7 @@ struct FooBarUnknown <: Model end
     @test_logs machine(model, X, y; scitype_check_level)
     @test_logs machine(model, X; scitype_check_level)
     @test_throws(ArgumentError(
-        MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+        MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
                                               fit_data_scitype(model),
                                               FooBar)),
                  machine(model, y; scitype_check_level))
@@ -143,7 +143,7 @@ struct FooBarUnknown <: Model end
     @test_logs machine(model, X, y)
     @test_logs machine(model, X)
     @test_throws(ArgumentError(
-        MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
+        MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
                                               fit_data_scitype(model),
                                               FooBar)),
                  machine(model, y))

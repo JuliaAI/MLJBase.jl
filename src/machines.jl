@@ -118,15 +118,16 @@ function _contains_unknown(F::Type{<:Tuple})
     return any(_contains_unknown, F.parameters)
 end
 
-warn_generic_scitype_mismatch(S, F, T) =
+alert_generic_scitype_mismatch(S, F, T) =
     "The number and/or types of data arguments do not " *
-    "match what the specified model supports.\n"*
-    "Run `@doc $T` to learn more about your model's requirements.\n\n"*
+    "match what the specified model supports. Suppress this "*
+    "type check by specifying `scitype_check_level=0`.\n\n"*
+    "Run `@doc $T` to learn more about your model's requirements.\n"*
     "Commonly, but non exclusively, supervised models are constructed " *
     "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
-    "while most other models with `machine(model, X)`. " *
+    "while most other models are constructed with `machine(model, X)`. " *
     "Here `X` are features, `y` a target, and `w` sample or class weights.\n\n" *
-    "In general, data in `machine(model, data...)` must satisfy " *
+    "In general, data in `machine(model, data...)` is expected to satisfy " *
     "`scitype(data) <: MLJ.fit_data_scitype(model)`.\n"*
     "In the present case:\n"*
     "scitype(data) = $S\n"*
@@ -160,7 +161,7 @@ function check(model::Model, scitype_check_level, args...)
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
         is_okay = false
-        message = warn_generic_scitype_mismatch(S, F, typeof(model))
+        message = alert_generic_scitype_mismatch(S, F, typeof(model))
         if scitype_check_level >= 3
             throw(ArgumentError(message))
         else
@@ -221,7 +222,8 @@ is computed, and this is compared with the scitypes expected by the
 model, unless `args` contains `Unknown` scitypes and
 `scitype_check_level < 4`, in which case no further action is
 taken. Whether warnings are issued or errors thrown depends the
-level. See [`default_scitype_check_level`](@ref) for details.
+level. The method `default_scitype_check_level`](@ref) controls the
+default level (`1` at startup).
 
 ### Learning network machines
 
