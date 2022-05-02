@@ -536,5 +536,29 @@ end
     end
 end
 
+@testset "Test multithreaded version" begin
+    X, y = make_regression(50000, 5; rng=StableRNG(1234))
+    models = (constant=DeterministicConstantRegressor(),
+                ridge_lambda=FooBarRegressor(;lambda=0.1),
+                ridge=FooBarRegressor(;lambda=0))
+
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    models...)
+
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity=0)
+    fp_singlethread = fitted_params(mach)
+    y_singlethread = predict(mach)
+
+    mach.model.acceleration=CPUThreads()
+    fit!(mach, verbosity=0)
+    fp_multithreaded = fitted_params(mach)
+    y_multithreaded = predict(mach)
+
+    @test y_singlethread ≈ y_multithreaded
+    @test fp_singlethread.metalearner ≈ fp_multithreaded.metalearner
+    @test fp_singlethread.ridge ≈ fp_multithreaded.ridge
+end
 end
 true

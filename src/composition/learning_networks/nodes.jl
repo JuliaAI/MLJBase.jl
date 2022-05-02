@@ -210,21 +210,23 @@ fit!(y::Node; acceleration=CPU1(), kwargs...) =
 fit!(y::Node, ::AbstractResource; kwargs...) =
         error("Only `acceleration=CPU1()` currently supported")
 
-function fit!(y::Node, ::CPU1; kwargs...)
+function fit!(y::Node, acceleration::Union{CPU1,CPUThreads}; kwargs...)
 
     _machines = machines(y)
 
     # flush the fit_okay channels:
-    @sync begin
-        for mach in _machines
-            @async flush!(mach.fit_okay)
-        end
+    for mach in _machines
+        flush!(mach.fit_okay)
     end
 
     # fit the machines asynchronously;
     @sync begin
         for mach in _machines
-            @async fit_only!(mach, true; kwargs...)
+            if acceleration isa CPU1
+                @async fit_only!(mach, true; kwargs...)
+            else
+                Threads.@spawn fit_only!(mach, true; kwargs...)
+            end
         end
     end
 
