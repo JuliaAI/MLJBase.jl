@@ -41,7 +41,8 @@ mutable struct Machine{M<:Model,C} <: MLJType
     # cleared by fit!(::Node) calls; put! by `fit_only!(machine, true)` calls:
     fit_okay::Channel{Bool}
 
-    # mode of acceleration to be used when training any downstream machines:
+    # mode of acceleration to be used when training downstream
+    # machines in a `fit!(mach)` call (ignored in `fit_only!(mach)` call):
     acceleration::AbstractResource
 
     function Machine(model::M, args::AbstractNode...;

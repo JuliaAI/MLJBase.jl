@@ -248,7 +248,7 @@ See also [`machine`](@ref)
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb_node = glb(mach)
-    fit!(glb_node; kwargs...)
+    fit!(glb_node; acceleration=mach.acceleration, kwargs...)
     mach.state += 1
     report_additions_ = _call(_report_part(signature(mach.fitresult)))
     mach.report = merge(report(glb_node), report_additions_)
