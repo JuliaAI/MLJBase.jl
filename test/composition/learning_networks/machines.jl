@@ -309,7 +309,7 @@ end
 
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
     model = Stack(
-        metalearner = DecisionTreeRegressor(), 
+        metalearner = DecisionTreeRegressor(),
         pipe = pipe)
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)

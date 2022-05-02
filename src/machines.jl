@@ -41,7 +41,11 @@ mutable struct Machine{M<:Model,C} <: MLJType
     # cleared by fit!(::Node) calls; put! by `fit_only!(machine, true)` calls:
     fit_okay::Channel{Bool}
 
+    # mode of acceleration to be used when training any downstream machines:
+    acceleration::AbstractResource
+
     function Machine(model::M, args::AbstractNode...;
+                     acceleration=CPU1(),
                      cache=caches_data_by_default(M)) where M<:Model
         mach = new{M,cache}(model)
         mach.frozen = false
@@ -49,6 +53,7 @@ mutable struct Machine{M<:Model,C} <: MLJType
         mach.args = args
         mach.old_upstream_state = upstream(mach)
         mach.fit_okay = Channel{Bool}(1)
+        mach.acceleration=acceleration
         return mach
     end
 
@@ -616,7 +621,7 @@ To attempt to fit a machine without touching any other machine, use
 """
 function fit!(mach::Machine; kwargs...)
     glb_node = glb(mach.args...) # greatest lower bound node of arguments
-    fit!(glb_node; kwargs...)
+    fit!(glb_node; acceleration=mach.acceleration, kwargs...)
     fit_only!(mach; kwargs...)
 end
 

@@ -74,8 +74,9 @@ end
                     resampling=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(mystack) == (:resampling, :metalearner, :constant,
-                                    :decisiontree, :ridge_lambda, :ridge)
+        @test propertynames(mystack) == (:resampling, :metalearner, :measures,
+                                         :acceleration, :constant,
+                                         :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
 
@@ -191,7 +192,14 @@ end
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing)
+    MLJBase.DeterministicStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        nothing,
+        CPU1()
+    )
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]

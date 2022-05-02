@@ -35,6 +35,7 @@ function _operation_part(signature)
     ops = filter(in(OPERATIONS), keys(signature))
     return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
 end
+
 function _report_part(signature)
     :report in keys(signature) || return NamedTuple()
     return signature.report
@@ -164,7 +165,7 @@ function check_surrogate_machine(::Union{Unsupervised},
     return nothing
 end
 
-function machine(model::Surrogate, _sources::Source...; pair_itr...)
+function machine(model::Surrogate, _sources::Source...; acceleration=CPU1(), pair_itr...)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
@@ -185,7 +186,7 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
     check_surrogate_machine(model, signature, _sources)
 
-    mach = Machine(model, _sources...)
+    mach = Machine(model, _sources...; acceleration=acceleration)
 
     mach.fitresult = CompositeFitresult(signature)
 
@@ -211,6 +212,7 @@ function machine(_sources::Source...; pair_itr...)
     return machine(model, _sources...; pair_itr...)
 
 end
+
 
 """
     N = glb(mach::Machine{<:Union{Composite,Surrogate}})

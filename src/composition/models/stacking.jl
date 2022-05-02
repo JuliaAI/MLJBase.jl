@@ -26,27 +26,64 @@ function input_target_scitypes(models, metalearner)
 end
 
 
-mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: DeterministicComposite
-   models::Vector{Supervised}
-   metalearner::Deterministic
-   resampling
-   measures::Union{Nothing,AbstractVector}
-   function DeterministicStack(modelnames, models, metalearner, resampling, measures)
+mutable struct DeterministicStack{
+    modelnames,
+    inp_scitype,
+    tg_scitype
+} <: DeterministicComposite
+
+    models::Vector{Supervised}
+    metalearner::Deterministic
+    resampling
+    measures::Union{Nothing,AbstractVector}
+    acceleration::AbstractResource
+    
+    function DeterministicStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        measures,
+        acceleration
+    )
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
+        return new{modelnames, inp_scitype, tg_scitype}(
+            models,
+            metalearner,
+            resampling,
+            measures,
+            acceleration)
    end
 end
 
-mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: ProbabilisticComposite
+mutable struct ProbabilisticStack{
+    modelnames,
+    inp_scitype,
+    tg_scitype
+} <: ProbabilisticComposite
+    
     models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
     measures::Union{Nothing,AbstractVector}
-    function ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
+    acceleration::AbstractResource
+    
+    function ProbabilisticStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        measures,
+        acceleration)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
+        return new{modelnames, inp_scitype, tg_scitype}(
+            models,
+            metalearner,
+            resampling,
+            measures,
+            acceleration)
     end
- end
+end
 
 
 const Stack{modelnames, inp_scitype, tg_scitype} =
@@ -147,7 +184,14 @@ report(mach).cv_report
 ```
 
 """
-function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, named_models...)
+function Stack(
+    ;metalearner=nothing,
+    resampling=CV(),
+    measure=nothing,
+    measures=measure,
+    acceleration=CPU1(),
+    named_models...
+)
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
@@ -159,9 +203,22 @@ function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=
     end
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, resampling, measures)
+        stack =  DeterministicStack(
+            modelnames,
+            models,
+            metalearner,
+            resampling,
+            measures,
+            acceleration
+        )
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
+        stack = ProbabilisticStack(
+            modelnames,
+            models,
+            metalearner,
+            resampling,
+            measures,
+            acceleration)
     else
         throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))
@@ -202,13 +259,15 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {mo
 end
 
 
-Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:resampling, :metalearner, modelnames...)
+Base.propertynames(::Stack{modelnames}) where modelnames =
+    tuple(:resampling, :metalearner, :measures, :acceleration, modelnames...)
 
 
 function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
     name === :metalearner && return getfield(stack, :metalearner)
     name === :resampling && return getfield(stack, :resampling)
     name == :measures && return getfield(stack, :measures)
+    name == :acceleration && return getfield(stack, :acceleration)
     models = getfield(stack, :models)
     for j in eachindex(modelnames)
         name === modelnames[j] && return models[j]
@@ -216,11 +275,11 @@ function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnam
     error("type Stack has no property $name")
 end
 
-
 function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where modelnames
     _name === :metalearner && return setfield!(stack, :metalearner, val)
     _name === :resampling && return setfield!(stack, :resampling, val)
     _name === :measures && return setfield!(stack, :measures, val)
+    _name == :acceleration && return setfield!(stack, :acceleration, val)
     idx = findfirst(==(_name), modelnames)
     idx isa Nothing || return getfield(stack, :models)[idx] = val
     error("type Stack has no property $name")
@@ -437,7 +496,13 @@ function fit(m::Stack, verbosity::Int, X, y)
     internal_report = internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
 
     # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
+    mach = machine(
+        supertype(supertype(typeof(m)))(),
+        Xs,
+        ys;
+        predict=ŷ,
+        acceleration = m.acceleration,
+        internal_report...)
     
     return!(mach, m, verbosity)
 end
