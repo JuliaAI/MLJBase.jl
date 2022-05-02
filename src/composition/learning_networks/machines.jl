@@ -48,6 +48,11 @@ function _nodes(signature)
             values(_report_part(signature))...)
 end
 
+function _acceleration(signature)
+    :accleration in keys(signature) || return CPU1()
+    return signature.acceleration
+end
+
 function _call(nt::NamedTuple)
     _call(n) = deepcopy(n())
     _keys = keys(nt)
@@ -212,7 +217,6 @@ function machine(_sources::Source...; pair_itr...)
     return machine(model, _sources...; pair_itr...)
 
 end
-
 
 """
     N = glb(mach::Machine{<:Union{Composite,Surrogate}})

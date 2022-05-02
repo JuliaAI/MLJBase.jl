@@ -37,7 +37,7 @@ mutable struct DeterministicStack{
     resampling
     measures::Union{Nothing,AbstractVector}
     acceleration::AbstractResource
-    
+
     function DeterministicStack(
         modelnames,
         models,
@@ -67,7 +67,7 @@ mutable struct ProbabilisticStack{
     resampling
     measures::Union{Nothing,AbstractVector}
     acceleration::AbstractResource
-    
+
     function ProbabilisticStack(
         modelnames,
         models,

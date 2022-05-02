@@ -608,6 +608,9 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     return mach
 end
 
+# fallback for machines that are not Machine{<:Composite}:
+_acceleration(mach) = CPU1()
+
 """
 
     fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
