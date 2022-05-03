@@ -1,21 +1,19 @@
 ## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
 
-const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
-SHOW_COLOR = true
 """
     color_on()
 
 Enable color and bold output at the REPL, for enhanced display of MLJ objects.
 
 """
-color_on() = (global SHOW_COLOR=true;)
+color_on() = (SHOW_COLOR[] = true;)
 """
     color_off()
 
 Suppress color and bold output at the REPL for displaying MLJ objects.
 
 """
-color_off() = (global SHOW_COLOR=false;)
+color_off() = (SHOW_COLOR[] = false;)
 
 
 macro colon(p)
@@ -24,6 +22,8 @@ end
 
 """
     @constant x = value
+
+Private method (used in testing).
 
 Equivalent to `const x = value` but registers the binding thus:
 
@@ -42,17 +42,6 @@ macro constant(ex)
     value = ex.args[2]
     quote
         const $(esc(handle)) = $(esc(value))
-        id = objectid($(esc(handle)))
-        HANDLE_GIVEN_ID[id] = @colon $handle
-        $(esc(handle))
-    end
-end
-macro bind(ex)
-    ex.head == :(=) || throw(error("Expression must be an assignment."))
-    handle = ex.args[1]
-    value = ex.args[2]
-    quote
-        $(esc(handle)) = $(esc(value))
         id = objectid($(esc(handle)))
         HANDLE_GIVEN_ID[id] = @colon $handle
         $(esc(handle))
@@ -154,7 +143,7 @@ function Base.show(stream::IO, object::MLJType)
     end
     show_handle(object) && (str *= " $(handle(object))")
     if false # !isempty(propertynames(object))
-        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+        printstyled(IOContext(stream, :color=> SHOW_COLOR[]),
                     str, bold=false, color=:blue)
     else
         print(stream, str)
@@ -209,7 +198,7 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
         print(stream, ")")
         if current_depth == 0 && show_handle(object)
             description = " $(handle(object))"
-            printstyled(IOContext(stream, :color=> SHOW_COLOR),
+            printstyled(IOContext(stream, :color=> SHOW_COLOR[]),
                         description, bold=false, color=:blue)
         end
     end

@@ -249,10 +249,10 @@ function _formula(stream, X::Node, depth, indent)
     n_args = length(X.args)
     if X.machine !== nothing
         print(stream, crind(indent + length(operation_name) - anti))
-        printstyled(IOContext(stream, :color=>SHOW_COLOR),
+        printstyled(IOContext(stream, :color=>SHOW_COLOR[]),
 #                        handle(X.machine),
                         X.machine,
-                        bold=SHOW_COLOR)
+                        bold=SHOW_COLOR[])
         n_args == 0 || print(stream, ", ")
     end
     for k in 1:n_args
@@ -277,7 +277,7 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
     print(io, "  formula:\n")
     _formula(io, X, 4)
     # print(io, " ")
-    # printstyled(IOContext(io, :color=>SHOW_COLOR),
+    # printstyled(IOContext(io, :color=>SHOW_COLOR[]),
     #             handle(X),
     #             color=color(X))
 end

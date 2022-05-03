@@ -229,7 +229,7 @@ function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
     else
         header  = (names, )
     end
-    show_color = MLJBase.SHOW_COLOR
+    show_color = MLJBase.SHOW_COLOR[]
     color_off()
     try
         PrettyTables.pretty_table(io, MLJBase.matrix(X),

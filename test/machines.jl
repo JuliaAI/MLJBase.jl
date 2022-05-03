@@ -70,7 +70,7 @@ freeze!(stand)
 
     # supervised model with bad target:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(X), AbstractVector{Multiclass{N}}},
                     MLJBase.fit_data_scitype(tree),
                     typeof(tree)
@@ -80,7 +80,7 @@ freeze!(stand)
 
     # ordinary transformer:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(42),},
                     MLJBase.fit_data_scitype(pca),
                     typeof(pca)
@@ -91,7 +91,7 @@ freeze!(stand)
 
     # bad weight vector:
     @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(
+                MLJBase.alert_generic_scitype_mismatch(
                     Tuple{scitype(X), scitype(y2), scitype(42)},
                     MLJBase.fit_data_scitype(ConstantClassifier()),
                     ConstantClassifier
@@ -106,17 +106,67 @@ MLJBase.fit_data_scitype(::Type{<:FooBar}) =
     Union{Tuple{AbstractVector{Count}},
           Tuple{AbstractVector{Count},AbstractVector{Continuous}}}
 
-@testset "machine argument check for generic model" begin
+struct FooBarUnknown <: Model end
+
+@testset "machine scitype_check_level" begin
+
     X = [1, 2, 3, 4]
     y = rand(4)
+
+    # with no Unknown scitypes
+
     model = FooBar()
+
+    for scitype_check_level in [1, 2]
+        @test_logs machine(model, X, y; scitype_check_level)
+        @test_logs machine(model, X; scitype_check_level)
+        @test_logs((:warn,
+                    MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
+                                                          fit_data_scitype(model),
+                                                          FooBar)),
+                   machine(model, y; scitype_check_level))
+    end
+
+    scitype_check_level = 3
+    @test_logs machine(model, X, y; scitype_check_level)
+    @test_logs machine(model, X; scitype_check_level)
+    @test_throws(ArgumentError(
+        MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
+                                              fit_data_scitype(model),
+                                              FooBar)),
+                 machine(model, y; scitype_check_level))
+
+    @test default_scitype_check_level() == 1
+    default_scitype_check_level(3)
+    @test default_scitype_check_level() == 3
+
     @test_logs machine(model, X, y)
     @test_logs machine(model, X)
-    @test_logs((:warn,
-                MLJBase.warn_generic_scitype_mismatch(Tuple{scitype(y)},
-                                                      fit_data_scitype(model),
-                                                      FooBar)),
-                machine(model, y))
+    @test_throws(ArgumentError(
+        MLJBase.alert_generic_scitype_mismatch(Tuple{scitype(y)},
+                                              fit_data_scitype(model),
+                                              FooBar)),
+                 machine(model, y))
+    default_scitype_check_level(1)
+
+    # with Unknown scitypes
+
+    model = FooBarUnknown()
+
+    scitype_check_level = 1
+    @test_logs machine(model, X, y; scitype_check_level)
+    @test_logs machine(model, X; scitype_check_level)
+
+    warning = MLJBase.WARN_UNKNOWN_SCITYPE
+    for scitype_check_level in [2, 3]
+        @test_logs (:warn, warning) machine(model, X, y; scitype_check_level)
+        @test_logs (:warn, warning) machine(model, X; scitype_check_level)
+    end
+
+    scitype_check_level = 4
+    @test_throws ArgumentError(warning) machine(model, X, y; scitype_check_level)
+    @test_throws ArgumentError(warning) machine(model, X; scitype_check_level)
+
 end
 
 @testset "weights" begin

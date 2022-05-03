@@ -1,3 +1,34 @@
+## SCITYPE CHECK LEVEL
+
+"""
+   default_scitype_check_level()
+
+Return the current global default value for scientific type checking
+when constructing machines.
+
+   default_scitype_check_level(i::Integer)
+
+Set the global default value for scientific type checking to `i`.
+
+The effect of the `scitype_check_level` option in calls of the form
+`machine(model, data, scitype_check_level=...)` is summarized below:
+
+`scitype_check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
+|:-------------------:|:-----------------:|:------------------------:|:-------------------------:|
+0                     | ×                 |                          |                           |
+1 (value at startup)  | ✓                 |                          | warning                   |
+2                     | ✓                 | warning                  | warning                   |
+3                     | ✓                 | warning                  | error                     |
+4                     | ✓                 | error                    | error                     |
+
+See also [`machine`](@ref)
+
+"""
+function default_scitype_check_level end
+default_scitype_check_level() = DEFAULT_SCITYPE_CHECK_LEVEL[]
+default_scitype_check_level(i) = (DEFAULT_SCITYPE_CHECK_LEVEL[] = i;)
+
+
 ## MACHINE TYPE
 
 struct NotTrainedError{M} <: Exception
@@ -87,42 +118,55 @@ function _contains_unknown(F::Type{<:Tuple})
     return any(_contains_unknown, F.parameters)
 end
 
-warn_generic_scitype_mismatch(S, F, T) =
+alert_generic_scitype_mismatch(S, F, T) =
     "The number and/or types of data arguments do not " *
-    "match what the specified model supports.\n"*
-    "Run `@doc $T` to learn more about your model's requirements.\n\n"*
+    "match what the specified model supports. Suppress this "*
+    "type check by specifying `scitype_check_level=0`.\n\n"*
+    "Run `@doc $T` to learn more about your model's requirements.\n"*
     "Commonly, but non exclusively, supervised models are constructed " *
     "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
-    "while most other models with `machine(model, X)`. " *
-    "Here `X` are features, `y` a target, and `w` sample or class weights.\n" *
-    "In general, data in `machine(model, data...)` must satisfy " *
-    "`scitype(data) <: MLJ.fit_data_scitype(model)` unless the " *
-    "right-hand side contains `Unknown` scitypes.\n"*
+    "while most other models are constructed with `machine(model, X)`. " *
+    "Here `X` are features, `y` a target, and `w` sample or class weights.\n\n" *
+    "In general, data in `machine(model, data...)` is expected to satisfy " *
+    "`scitype(data) <: MLJ.fit_data_scitype(model)`.\n"*
     "In the present case:\n"*
     "scitype(data) = $S\n"*
     "fit_data_scitype(model) = $F\n"
+
+const WARN_UNKNOWN_SCITYPE =
+    "Some data contains `Unknown` scitypes, which might lead to model-data mismatches. "
 
 err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
-check(model::Any, args...; kwargs...) =
+check(model::Any, args...) =
     throw(ArgumentError("Expected a `Model` instance, got $model. "))
-function check(model::Model, args...; full=false)
-    nowarns = true
+function check(model::Model, scitype_check_level, args...)
+
+    is_okay = true
+
+    scitype_check_level >= 1 || return is_okay
 
     F = fit_data_scitype(model)
 
-    # skip checks if `Unknown` scitypes appear anywhere in
-    # `fit_data_scitype(model)`:
-    _contains_unknown(F) && return true
+    if _contains_unknown(F)
+        scitype_check_level in [2, 3] && @warn WARN_UNKNOWN_SCITYPE
+        scitype_check_level >= 4 && throw(ArgumentError(WARN_UNKNOWN_SCITYPE))
+        return is_okay
+    end
 
     # we use `elscitype` here instead of `scitype` because the data is
     # wrapped in source nodes:
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
-        @warn warn_generic_scitype_mismatch(S, F, typeof(model))
-        nowarns = false
+        is_okay = false
+        message = alert_generic_scitype_mismatch(S, F, typeof(model))
+        if scitype_check_level >= 3
+            throw(ArgumentError(message))
+        else
+            @warn message
+        end
     end
 
     if length(args) > 1 && is_supervised(model)
@@ -132,18 +176,19 @@ function check(model::Model, args...; full=false)
         scitype(X) == CallableReturning{Nothing} || nrows(X()) == nrows(y()) ||
             throw(err_length_mismatch(model))
     end
-    return nowarns
+    return is_okay
 end
 
 """
-    machine(model, args...; cache=true)
+    machine(model, args...; cache=true, scitype_check_level=1)
 
 Construct a `Machine` object binding a `model`, storing
 hyper-parameters of some machine learning algorithm, to some data,
-`args`. Calling `fit!` on a `Machine` object stores in the machine
-object the outcomes of applying the algorithm. This in turn enables
-generalization to new data using operations such as `predict` or
-`transform`:
+`args`. Calling [`fit!`](@ref) on a `Machine` instance `mach` stores
+outcomes of applying the algorithm in `mach`, which can be inspected
+using `fitted_params(mach)` (learned paramters) and `report(mach)`
+(other outcomes). This in turn enables generalization to new data
+using operations such as `predict` or `transform`:
 
 ```julia
 using MLJModels
@@ -161,12 +206,24 @@ mach = machine(model, X, y)
 fit!(mach, rows=1:50)
 predict(mach, selectrows(X, 51:100)) # or predict(mach, rows=51:100)
 ```
-
-Specify `cache=false` to prioritize memory management over speed, and
-to guarantee data anonymity when serializing composite models.
+Specify `cache=false` to prioritize memory management over speed.
 
 When building a learning network, `Node` objects can be substituted
-for the concrete data.
+for the concrete data but no type or dimension checks are applied.
+
+### Checks on the types of training data
+
+A model articulates its data requirements using [scientific
+types](https://juliaai.github.io/ScientificTypes.jl/dev/), i.e.,
+using the [`scitype`](@ref) function instead of the `typeof` function.
+
+If `scitype_check_level > 0` then the scitype of each `arg` in `args`
+is computed, and this is compared with the scitypes expected by the
+model, unless `args` contains `Unknown` scitypes and
+`scitype_check_level < 4`, in which case no further action is
+taken. Whether warnings are issued or errors thrown depends the
+level. For details, see `default_scitype_check_level`](@ref), a method
+to inspect or change the default level (`1` at startup).
 
 ### Learning network machines
 
@@ -274,7 +331,8 @@ r = report(network_mach)
 @assert r.accuracy == accuracy(yhat(), ys())
 ```
 
-See also [MLJBase.save](@ref), [`serializable`](@ref).
+See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
+[`MLJBase.save`](@ref), [`serializable`](@ref).
 
 """
 function machine end
@@ -307,9 +365,13 @@ machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
     error("Mixing concrete data with `Node` training arguments "*
           "is not allowed. ")
 
-function machine(model::Model, raw_arg1, raw_args...; kwargs...)
+function machine(model::Model,
+                 raw_arg1,
+                 raw_args...;
+                 scitype_check_level=default_scitype_check_level(),
+                 kwargs...)
     args = source.((raw_arg1, raw_args...))
-    check(model, args...; full=true)
+    check(model, scitype_check_level, args...;)
     return Machine(model, args...; kwargs...)
 end
 
@@ -560,7 +622,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
-                if check(mach.model, source.(raw_args)... ; full=true)
+                scitype_check_level = 1
+                if check(mach.model, scitype_check_level, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*
@@ -772,8 +835,9 @@ all training data is removed and, if necessary, learned parameters are replaced
 with persistent representations.
 
 Any general purpose Julia serializer may be applied to the output of
-`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
-the deserialised object `mach` before using it. See the example below.
+`serializable` (eg, JLSO, BSON, JLD) but you must call
+`restore!(mach)` on the deserialised object `mach` before using
+it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
