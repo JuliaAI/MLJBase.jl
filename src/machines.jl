@@ -832,13 +832,10 @@ Returns a shallow copy of the machine to make it serializable. In particular,
 all training data is removed and, if necessary, learned parameters are replaced
 with persistent representations.
 
-<<<<<<< HEAD
-Any general purpose Julia serialization may be applied to the output of
-=======
 Any general purpose Julia serializer may be applied to the output of
->>>>>>> dev
-`serializable` (eg, JLSO, BSON, JLD) but you must call `restore!(mach)` on
-the deserialised object `mach` before using it. See the example below.
+`serializable` (eg, JLSO, BSON, JLD) but you must call
+`restore!(mach)` on the deserialised object `mach` before using
+it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
 available using the [`save`](@ref) method.
