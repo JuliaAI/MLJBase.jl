@@ -6,7 +6,7 @@
 Return the current global default value for scientific type checking
 when constructing machines.
 
-   default_scitype_check_level(i)
+   default_scitype_check_level(i::Integer)
 
 Set the global default value for scientific type checking to `i`.
 
@@ -213,7 +213,7 @@ for the concrete data but no type or dimension checks are applied.
 
 ### Checks on the types of training data
 
-A model articulates it's data requirements using [scientific
+A model articulates its data requirements using [scientific
 types](https://juliaai.github.io/ScientificTypes.jl/dev/), i.e.,
 using the [`scitype`](@ref) function instead of the `typeof` function.
 
