@@ -16,7 +16,7 @@ The effect of the `scitype_check_level` option in calls of the form
 `scitype_check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
 |:-----------:|:-----------------:|:------------------------:|:-------------------------:|
 0             | ×                 |                          |                           |
-1             | ✓                 |                          | warning                   |
+1 (startup)   | ✓                 |                          | warning                   |
 2             | ✓                 | warning                  | warning                   |
 3             | ✓                 | warning                  | error                     |
 4             | ✓                 | error                    | error                     |
