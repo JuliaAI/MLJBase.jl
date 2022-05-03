@@ -222,8 +222,8 @@ is computed, and this is compared with the scitypes expected by the
 model, unless `args` contains `Unknown` scitypes and
 `scitype_check_level < 4`, in which case no further action is
 taken. Whether warnings are issued or errors thrown depends the
-level. The method `default_scitype_check_level`](@ref) controls the
-default level (`1` at startup).
+level. For details, see `default_scitype_check_level`](@ref), a method
+to inspect or change the default level (`1` at startup).
 
 ### Learning network machines
 
