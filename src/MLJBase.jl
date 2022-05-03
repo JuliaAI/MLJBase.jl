@@ -94,6 +94,8 @@ using Statistics, LinearAlgebra, Random, InteractiveUtils
 # ===================================================================
 ## CONSTANTS
 
+# for variable global constants, see src/init.jl
+
 const PREDICT_OPERATIONS = (:predict,
                             :predict_mean,
                             :predict_mode,
@@ -110,7 +112,7 @@ const COLUMN_WIDTH = 24
 # how deep to display fields of `MLJType` objects:
 const DEFAULT_SHOW_DEPTH = 0
 const DEFAULT_AS_CONSTRUCTED_SHOW_DEPTH = 2
-const INDENT = 4
+const INDENT = 2
 
 const Arr = AbstractArray
 const Vec = AbstractVector
@@ -181,7 +183,7 @@ const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
 # default_resource allows to switch the mode of parallelization
 
 default_resource()    = DEFAULT_RESOURCE[]
-default_resource(res) = (DEFAULT_RESOURCE[] = res)
+default_resource(res) = (DEFAULT_RESOURCE[] = res;)
 
 # ===================================================================
 # Includes
@@ -297,7 +299,7 @@ export flat_values, recursive_setproperty!,
     recursive_getproperty, pretty, unwind
 
 # show.jl
-export HANDLE_GIVEN_ID, @more, @constant, @bind, color_on, color_off
+export HANDLE_GIVEN_ID, @more, @constant, color_on, color_off
 
 # datasets.jl:
 export load_boston, load_ames, load_iris, load_sunspots,
@@ -309,7 +311,7 @@ export load_boston, load_ames, load_iris, load_sunspots,
 export source, Source, CallableReturning
 
 # machines.jl:
-export machine, Machine, fit!, report, fit_only!
+export machine, Machine, fit!, report, fit_only!, default_scitype_check_level
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression

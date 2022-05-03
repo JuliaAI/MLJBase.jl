@@ -149,8 +149,6 @@ end
 
 # display:
 show_as_constructed(::Type{<:Measure}) = true
-show_compact(::Type{<:Measure}) = true
-Base.show(io::IO, m::Measure) = show(io, MIME("text/plain"), m)
 
 # info
 function StatisticalTraits.info(M::Type{<:Measure})

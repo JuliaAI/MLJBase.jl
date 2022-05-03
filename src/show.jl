@@ -1,21 +1,19 @@
 ## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
 
-const HANDLE_GIVEN_ID = Dict{UInt64,Symbol}()
-SHOW_COLOR = true
 """
     color_on()
 
 Enable color and bold output at the REPL, for enhanced display of MLJ objects.
 
 """
-color_on() = (global SHOW_COLOR=true;)
+color_on() = (SHOW_COLOR[] = true;)
 """
     color_off()
 
 Suppress color and bold output at the REPL for displaying MLJ objects.
 
 """
-color_off() = (global SHOW_COLOR=false;)
+color_off() = (SHOW_COLOR[] = false;)
 
 
 macro colon(p)
@@ -24,6 +22,8 @@ end
 
 """
     @constant x = value
+
+Private method (used in testing).
 
 Equivalent to `const x = value` but registers the binding thus:
 
@@ -42,17 +42,6 @@ macro constant(ex)
     value = ex.args[2]
     quote
         const $(esc(handle)) = $(esc(value))
-        id = objectid($(esc(handle)))
-        HANDLE_GIVEN_ID[id] = @colon $handle
-        $(esc(handle))
-    end
-end
-macro bind(ex)
-    ex.head == :(=) || throw(error("Expression must be an assignment."))
-    handle = ex.args[1]
-    value = ex.args[2]
-    quote
-        $(esc(handle)) = $(esc(value))
         id = objectid($(esc(handle)))
         HANDLE_GIVEN_ID[id] = @colon $handle
         $(esc(handle))
@@ -120,28 +109,41 @@ show_handle(object) = false
 function simple_repr(T)
     repr = string(T.name.name)
     parameters = T.parameters
-    p_string = ""
-    if length(parameters) > 0
-        p = parameters[1]
-        if p isa DataType
-            p_string = simple_repr(p)
-        elseif p isa Symbol
-            p_string = string(":", p)
-        end
-        if length(parameters) > 1
-            p_string *= ",…"
-        end
-    end
-    isempty(p_string) || (repr *= "{"*p_string*"}")
+
+    # # add abbreviated type parameters:
+    # p_string = ""
+    # if length(parameters) > 0
+    #     p = parameters[1]
+    #     if p isa DataType
+    #         p_string = simple_repr(p)
+    #     elseif p isa Symbol
+    #         p_string = string(":", p)
+    #     end
+    #     if length(parameters) > 1
+    #         p_string *= ",…"
+    #     end
+    # end
+    # isempty(p_string) || (repr *= "{"*p_string*"}")
+
     return repr
 end
 
 # short version of showing a `MLJType` object:
 function Base.show(stream::IO, object::MLJType)
     str = simple_repr(typeof(object))
+    L = length(propertynames(object))
+    if L > 0
+        first_name = propertynames(object) |> first
+        value = getproperty(object, first_name)
+        str *= "($first_name = $value"
+        L > 1 && (str *= ", …")
+        str *= ")"
+    else
+        str *= "()"
+    end
     show_handle(object) && (str *= " $(handle(object))")
     if false # !isempty(propertynames(object))
-        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+        printstyled(IOContext(stream, :color=> SHOW_COLOR[]),
                     str, bold=false, color=:blue)
     else
         print(stream, str)
@@ -185,14 +187,18 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
             show_compact(object) ||
                 print(stream, crind(n + length(prefix) - anti))
             print(stream, "$(names[k]) = ")
-            fancy(stream, value, current_depth + 1, depth, n + length(prefix)
-                  - anti + length("$k = "))
-            k == n_names || print(stream, ",")
+            if show_compact(object)
+                show(stream, value)
+            else
+                fancy(stream, value, current_depth + 1, depth, n + length(prefix)
+                      - anti + length("$k = "))
+            end
+            k == n_names || print(stream, ", ")
         end
         print(stream, ")")
         if current_depth == 0 && show_handle(object)
             description = " $(handle(object))"
-            printstyled(IOContext(stream, :color=> SHOW_COLOR),
+            printstyled(IOContext(stream, :color=> SHOW_COLOR[]),
                         description, bold=false, color=:blue)
         end
     end

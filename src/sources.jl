@@ -129,7 +129,7 @@ function Base.show(stream::IO, object::AbstractNode)
     str = simple_repr(typeof(object))
     show_handle(object) && (str *= " $(handle(object))")
     if false
-        printstyled(IOContext(stream, :color=> SHOW_COLOR),
+        printstyled(IOContext(stream, :color=> SHOW_COLOR[]),
                     str, bold=false, color=:blue)
     else
         print(stream, str)

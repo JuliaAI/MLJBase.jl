@@ -400,7 +400,7 @@ end
     p.constant_classifier = ConstantRegressor()
     @test_logs((:error, r"^Problem"),
            (:info, r"^Running type"),
-               (:warn, MLJBase.warn_generic_scitype_mismatch(
+               (:warn, MLJBase.alert_generic_scitype_mismatch(
                    scitype((X, y)),
                    MLJBase.fit_data_scitype(ConstantRegressor()),
                    typeof(ConstantRegressor())

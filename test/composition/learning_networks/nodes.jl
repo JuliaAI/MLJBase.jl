@@ -26,7 +26,7 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
     yhat = predict(mach2, W)
     @test_logs((:error, r"Problem fitting"),
                (:info, r"Running type checks"),
-               (:warn, MLJBase.warn_generic_scitype_mismatch(
+               (:warn, MLJBase.alert_generic_scitype_mismatch(
                    scitype((X, y)),
                    MLJBase.fit_data_scitype(mach2.model),
                    typeof(mach2.model)
@@ -40,7 +40,7 @@ y = 2X.x1  - X.x2 + 0.05*rand(N);
     @test_logs((:error, r"Problem fitting"),
                (:warn, r"^Some learning network source"),
                (:info, r"Running type checks"),
-               (:warn, MLJBase.warn_generic_scitype_mismatch(
+               (:warn, MLJBase.alert_generic_scitype_mismatch(
                    Tuple{Nothing},
                    MLJBase.fit_data_scitype(mach1.model),
                    typeof(mach1.model)
