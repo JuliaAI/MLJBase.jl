@@ -31,9 +31,10 @@ mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: Determ
    metalearner::Deterministic
    resampling
    measures::Union{Nothing,AbstractVector}
-   function DeterministicStack(modelnames, models, metalearner, resampling, measures)
+   acceleration::Union{AbstractResource, Nothing}
+   function DeterministicStack(modelnames, models, metalearner, resampling, measures, acceleration)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures, acceleration)
    end
 end
 
@@ -42,9 +43,10 @@ mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: Probab
     metalearner::Probabilistic
     resampling
     measures::Union{Nothing,AbstractVector}
-    function ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
+    acceleration::Union{AbstractResource, Nothing}
+    function ProbabilisticStack(modelnames, models, metalearner, resampling, measures, acceleration)
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures)
+        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures, acceleration)
     end
  end
 
@@ -147,7 +149,7 @@ report(mach).cv_report
 ```
 
 """
-function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, named_models...)
+function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, acceleration=nothing, named_models...)
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
@@ -159,9 +161,9 @@ function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=
     end
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, resampling, measures)
+        stack =  DeterministicStack(modelnames, models, metalearner, resampling, measures, acceleration)
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, measures)
+        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, measures, acceleration)
     else
         throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))

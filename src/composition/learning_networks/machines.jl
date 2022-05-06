@@ -449,7 +449,7 @@ method exists for the composite model. This can be removed in the future.
 function fit_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwargs...)
     if applicable(learning_network, mach, resampled_data...)
         signature = learning_network(mach, resampled_data...; verbosity=verbosity, kwargs...)
-        return finalize(mach, signature; verbosity=verbosity, kwargs...)
+        return finalize!(mach, signature; verbosity=verbosity, kwargs...)
     else
         return fit(mach.model, verbosity, resampled_data...)
     end
@@ -490,7 +490,7 @@ function update_(mach::Machine{<:Composite}, resampled_data...; verbosity=0, kwa
 
 end
 
-function finalize(mach::Machine{<:Composite}, signature; kwargs...)
+function finalize!(mach::Machine{T}, signature; acceleration=CPU1(), kwargs...) where T <:Composite
     check_signature(signature)
     # Build composite Fitresult
     fitresult = CompositeFitresult(signature)
@@ -498,7 +498,9 @@ function finalize(mach::Machine{<:Composite}, signature; kwargs...)
 
     # Fit all machines in the learning network
     glb_node = glb(fitresult)
-    fit!(glb_node; kwargs...)
+    acceleration = hasfield(T, :acceleration) && getfield(mach.model, :acceleration) !== nothing ? 
+        getfield(mach.model, :acceleration) : acceleration
+    fit!(glb_node; acceleration=acceleration, kwargs...)
 
     # Build report
     report_additions_ = _call(_report_part(MLJBase.signature(fitresult)))
