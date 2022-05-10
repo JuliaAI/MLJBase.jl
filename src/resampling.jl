@@ -533,25 +533,20 @@ _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
-function _fold_std(per_fold::AbstractVector)
-    length(per_fold) == 1 && return nothing
-    return std(per_fold)
-end
-
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     _measure = [repr(MIME("text/plain"), m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
-    _std = round3.(_fold_std.(e.per_fold))
+    _std = round3.(std.(e.per_fold))
 
     # Only show the standard deviation if the number of folds is higher than 1.
-    all_nothings = all(_std .=== nothing)
-    data = all_nothings ?
-        hcat(_measure, e.operation, _measurement, _per_fold) :
-        hcat(_measure, e.operation, _measurement, _std, _per_fold)
-    header = all_nothings ?
-        ["measure", "operation", "measurement", "per_fold"] :
-        ["measure", "operation", "measurement", "std", "per_fold"]
+    show_std = any(!isnan, _std)
+    data = show_std ?
+        hcat(_measure, e.operation, _measurement, _std, _per_fold) :
+        hcat(_measure, e.operation, _measurement, _per_fold)
+    header = show_std ?
+        ["measure", "operation", "measurement", "std", "per_fold"] :
+        ["measure", "operation", "measurement", "per_fold"]
 
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
