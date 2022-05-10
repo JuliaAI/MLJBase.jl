@@ -462,8 +462,8 @@ outlier detection model.
 When `evaluate`/`evaluate!` is called, a number of train/test pairs
 ("folds") of row indices are generated, according to the options
 provided, which are discussed in the [`evaluate!`](@ref)
-doc-string. Rows correspond to observations.  The train/test pairs
-generated are recorded in the `train_test_rows` field of the
+doc-string. Rows correspond to observations. The generated train/test
+pairs are recorded in the `train_test_rows` field of the
 `PerformanceEvaluation` struct, and the corresponding estimates,
 aggregated over all train/test pairs, are recorded in `measurement`, a
 vector with one entry for each measure (metric) recorded in `measure`.
@@ -503,8 +503,9 @@ struct.
   machine `mach` training in resampling - one machine per train/test
   pair.
 
-- `train_test_rows`: a vector of tuples, each of the form `(train, test)`, where `train` and `test` 
-   are vectors of row (observation) indices for training and evaluation respectively. 
+- `train_test_rows`: a vector of tuples, each of the form `(train, test)`,
+  where `train` and `test` are vectors of row (observation) indices for
+  training and evaluation respectively.
 """
 struct PerformanceEvaluation{M,
                              Measurement,
@@ -533,14 +534,13 @@ _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    _measure =  map(e.measure) do m
-        repr(MIME("text/plain"), m)
-    end
+    _measure = [repr(MIME("text/plain"), m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
+    _std = round3.(std.(e.per_fold))
 
-    data = hcat(_measure, _measurement, e.operation, _per_fold)
-    header = ["measure", "measurement", "operation", "per_fold"]
+    data = hcat(_measure, e.operation, _measurement, _std, _per_fold)
+    header = ["measure", "operation", "measurement", "std", "per_fold"]
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
     println(io, "  measure, measurement, operation, per_fold,\n"*

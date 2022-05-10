@@ -775,6 +775,7 @@ end
     @test T <: PerformanceEvaluation
 
     show_text = sprint(show, MIME"text/plain"(), evaluations)
+    print(show_text)
     docstring_text = string(@doc(PerformanceEvaluation))
     for fieldname in fieldnames(PerformanceEvaluation)
         @test contains(show_text, string(fieldname))
