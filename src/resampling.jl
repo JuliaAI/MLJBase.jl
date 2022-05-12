@@ -533,19 +533,30 @@ _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
+function _standard_errors(e::PerformanceEvaluation)
+    factor = 1.96 # For the 95% confidence interval.
+    measure = e.measure
+    nfolds = length(e.per_fold[1])
+    nfolds == 1 && return [nothing]
+    std_errors = map(e.per_fold) do per_fold
+        factor * std(per_fold) / sqrt(nfolds - 1)
+    end
+    return std_errors
+end
+
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     _measure = [repr(MIME("text/plain"), m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
-    _std = round3.(std.(e.per_fold))
+    _sterr = round3.(_standard_errors(e))
 
-    # Only show the standard deviation if the number of folds is higher than 1.
-    show_std = any(!isnan, _std)
-    data = show_std ?
-        hcat(_measure, e.operation, _measurement, _std, _per_fold) :
+    # Only show the standard error if the number of folds is higher than 1.
+    show_sterr = any(!isnothing, _sterr)
+    data = show_sterr ?
+        hcat(_measure, e.operation, _measurement, _sterr, _per_fold) :
         hcat(_measure, e.operation, _measurement, _per_fold)
-    header = show_std ?
-        ["measure", "operation", "measurement", "std", "per_fold"] :
+    header = show_sterr ?
+        ["measure", "operation", "measurement", "sterr", "per_fold"] :
         ["measure", "operation", "measurement", "per_fold"]
 
     println(io, "PerformanceEvaluation object "*
@@ -553,6 +564,15 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "  measure, measurement, operation, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_rows")
+    if show_sterr
+        println(io, "\nNote. The sterr column gives the standard error \n" *
+            "  over the folds with a 95% confidence interval \n" *
+            "  `(1.96 * std / sqrt(nfolds - 1)`. This number can be useful \n" *
+            "  to get an idea of the variability of the scores, but \n" *
+            "  beware that the estimate shouldn't be used for hypothesis \n" *
+            "  testing (e.g., https://arxiv.org/abs/2104.00673).\n"
+            )
+    end
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
