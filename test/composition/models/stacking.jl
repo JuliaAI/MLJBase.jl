@@ -190,8 +190,10 @@ end
     models = [DeterministicConstantRegressor(), FooBarRegressor(;lambda=0)]
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
+    cache = true
+    acceleration = CPU1()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing)
+    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing, cache, acceleration)
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]
@@ -526,6 +528,50 @@ end
         @test length(model_perf.per_fold) == 1
         @test length(model_perf.train_test_rows) == 1
     end
+end
+
+@testset "Test cache is forwarded to submodels" begin
+    X, y = make_regression(100, 3; rng=rng)
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    cache=false,
+                    ridge=ridge,
+                    constant=constant)
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity = 0)
+    # The data and resampled_data have not been populated
+    for mach in fitted_params(mach).machines
+        @test !isdefined(mach, :data)
+        @test !isdefined(mach, :resampled_data)
+    end
+end
+
+@testset "Test multithreaded version" begin
+    X, y = make_regression(100, 5; rng=StableRNG(1234))
+    models = (constant=DeterministicConstantRegressor(),
+                ridge_lambda=FooBarRegressor(;lambda=0.1),
+                ridge=FooBarRegressor(;lambda=0))
+
+    stack = Stack(;metalearner=FooBarRegressor(),
+                    resampling=CV(;nfolds=3),
+                    acceleration=CPU1(),
+                    models...)
+
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+    cpu_fp = fitted_params(mach)
+    cpu_ypred = predict(mach)
+
+    stack.acceleration = CPUThreads()
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+    thread_fp = fitted_params(mach)
+    thread_ypred = predict(mach)
+
+    @test cpu_ypred ≈ thread_ypred 
+    @test cpu_fp.metalearner ≈ thread_fp.metalearner 
+    @test cpu_fp.ridge ≈ thread_fp.ridge
 end
 
 end
