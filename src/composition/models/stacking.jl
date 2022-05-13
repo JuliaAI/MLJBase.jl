@@ -58,7 +58,7 @@ const Stack{modelnames, inp_scitype, tg_scitype} =
             ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
-    Stack(;metalearner=nothing, resampling=CV(), name1=model1, name2=model2, ...)
+    Stack(;metalearner=nothing, resampling=CV(), name1=model1, cache=true, acceleration=CPU1(), name2=model2, ...)
 
 Implements the two-layer generalized stack algorithm introduced by
 [Wolpert
@@ -98,6 +98,11 @@ When training a machine bound to such an instance:
 - `measures`: A measure or iterable over measures, to perform an internal 
   evaluation of the learners in the Stack while training. This is not for the
   evaluation of the Stack itself.
+
+- `cache`: Weither machines created in the learning network will cache data or not.
+
+- `acceleration`: A supported `AbstractResource` to define the training parallelization
+  mode of the learning network.
 
 - `name1=model1, name2=model2, ...`: the `Supervised` model instances
   to be used as base learners.  The provided names become properties

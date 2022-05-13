@@ -328,7 +328,7 @@ end
 
 """
 
-    return!(mach::Machine{<:Surrogate}, model, verbosity)
+    return!(mach::Machine{<:Surrogate}, model, verbosity; acceleration=CPU1())
 
 The last call in custom code defining the `MLJBase.fit` method for a
 new composite model type. Here `model` is the instance of the new type
@@ -345,7 +345,7 @@ the following:
   handles smart updating (namely, an `MLJBase.update` fallback for
   composite models).
 
-- Calls `fit!(mach, verbosity=verbosity)`.
+- Calls `fit!(mach, verbosity=verbosity, acceleration=acceleration)`.
 
 - Moves any data in source nodes of the learning network into `cache`
   (for data-anonymization purposes).
