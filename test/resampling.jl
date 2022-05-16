@@ -775,7 +775,7 @@ end
     @test T <: PerformanceEvaluation
 
     show_text = sprint(show, MIME"text/plain"(), evaluations)
-    cols = ["measure", "operation", "measurement", "sterr", "per_fold"]
+    cols = ["measure", "operation", "measurement", "1.96*SE", "per_fold"]
     @test all(contains.(show_text, cols))
     print(show_text)
     docstring_text = string(@doc(PerformanceEvaluation))

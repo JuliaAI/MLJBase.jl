@@ -556,23 +556,14 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
         hcat(_measure, e.operation, _measurement, _sterr, _per_fold) :
         hcat(_measure, e.operation, _measurement, _per_fold)
     header = show_sterr ?
-        ["measure", "operation", "measurement", "sterr", "per_fold"] :
+        ["measure", "operation", "measurement", "1.96*SE", "per_fold"] :
         ["measure", "operation", "measurement", "per_fold"]
 
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
-    println(io, "  measure, measurement, operation, per_fold,\n"*
+    println(io, "  measure, operation, measurement, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_rows")
-    if show_sterr
-        println(io, "\nNote. The sterr column gives the standard error \n" *
-            "  over the folds with a 95% confidence interval \n" *
-            "  `(1.96 * std / sqrt(nfolds - 1)`. This number can be useful \n" *
-            "  to get an idea of the variability of the scores, but \n" *
-            "  beware that the estimate shouldn't be used for hypothesis \n" *
-            "  testing (e.g., https://arxiv.org/abs/2104.00673).\n"
-            )
-    end
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
