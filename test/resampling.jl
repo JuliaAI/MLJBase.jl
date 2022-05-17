@@ -775,12 +775,21 @@ end
     @test T <: PerformanceEvaluation
 
     show_text = sprint(show, MIME"text/plain"(), evaluations)
+    cols = ["measure", "operation", "measurement", "1.96*SE", "per_fold"]
+    @test all(contains.(show_text, cols))
+    print(show_text)
     docstring_text = string(@doc(PerformanceEvaluation))
     for fieldname in fieldnames(PerformanceEvaluation)
         @test contains(show_text, string(fieldname))
         # string(text::Markdown.MD) converts `-` list items to `*`.
         @test contains(docstring_text, " * `$fieldname`")
     end
+
+    measures = [LogLoss(), Accuracy()]
+    evaluations = evaluate(clf, X, y; measures, resampling=Holdout())
+    show_text = sprint(show, MIME"text/plain"(), evaluations)
+    print(show_text)
+    @test !contains(show_text, "std")
 end
 
 #end
