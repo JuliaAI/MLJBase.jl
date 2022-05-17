@@ -468,6 +468,13 @@ pairs are recorded in the `train_test_rows` field of the
 aggregated over all train/test pairs, are recorded in `measurement`, a
 vector with one entry for each measure (metric) recorded in `measure`.
 
+When displayed, a `PerformanceEvalution` object includes a value under
+the heading `1.96*SE`, derived from the standard error of the `per_fold`
+entries. This value is suitable for constructing a formal 95%
+confidence interval for the given `measurement`. Such intervals should
+be interpreted with caution. See, for example, Bates et al.
+[2021](https://arxiv.org/abs/2104.00673).
+
 ### Fields
 
 These fields are part of the public API of the `PerformanceEvaluation`
