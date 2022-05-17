@@ -462,11 +462,18 @@ outlier detection model.
 When `evaluate`/`evaluate!` is called, a number of train/test pairs
 ("folds") of row indices are generated, according to the options
 provided, which are discussed in the [`evaluate!`](@ref)
-doc-string. Rows correspond to observations.  The train/test pairs
-generated are recorded in the `train_test_rows` field of the
+doc-string. Rows correspond to observations. The generated train/test
+pairs are recorded in the `train_test_rows` field of the
 `PerformanceEvaluation` struct, and the corresponding estimates,
 aggregated over all train/test pairs, are recorded in `measurement`, a
 vector with one entry for each measure (metric) recorded in `measure`.
+
+When displayed, a `PerformanceEvalution` object includes a value under
+the heading `1.96*SE`, derived from the standard error of the `per_fold`
+entries. This value is suitable for constructing a formal 95%
+confidence interval for the given `measurement`. Such intervals should
+be interpreted with caution. See, for example, Bates et al.
+[(2021)](https://arxiv.org/abs/2104.00673).
 
 ### Fields
 
@@ -503,8 +510,9 @@ struct.
   machine `mach` training in resampling - one machine per train/test
   pair.
 
-- `train_test_rows`: a vector of tuples, each of the form `(train, test)`, where `train` and `test` 
-   are vectors of row (observation) indices for training and evaluation respectively. 
+- `train_test_rows`: a vector of tuples, each of the form `(train, test)`,
+  where `train` and `test` are vectors of row (observation) indices for
+  training and evaluation respectively.
 """
 struct PerformanceEvaluation{M,
                              Measurement,
@@ -532,18 +540,35 @@ _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
-function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    _measure =  map(e.measure) do m
-        repr(MIME("text/plain"), m)
+function _standard_errors(e::PerformanceEvaluation)
+    factor = 1.96 # For the 95% confidence interval.
+    measure = e.measure
+    nfolds = length(e.per_fold[1])
+    nfolds == 1 && return [nothing]
+    std_errors = map(e.per_fold) do per_fold
+        factor * std(per_fold) / sqrt(nfolds - 1)
     end
+    return std_errors
+end
+
+function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
+    _measure = [repr(MIME("text/plain"), m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
+    _sterr = round3.(_standard_errors(e))
 
-    data = hcat(_measure, _measurement, e.operation, _per_fold)
-    header = ["measure", "measurement", "operation", "per_fold"]
+    # Only show the standard error if the number of folds is higher than 1.
+    show_sterr = any(!isnothing, _sterr)
+    data = show_sterr ?
+        hcat(_measure, e.operation, _measurement, _sterr, _per_fold) :
+        hcat(_measure, e.operation, _measurement, _per_fold)
+    header = show_sterr ?
+        ["measure", "operation", "measurement", "1.96*SE", "per_fold"] :
+        ["measure", "operation", "measurement", "per_fold"]
+
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
-    println(io, "  measure, measurement, operation, per_fold,\n"*
+    println(io, "  measure, operation, measurement, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
             "  report_per_fold, train_test_rows")
     println(io, "Extract:")
