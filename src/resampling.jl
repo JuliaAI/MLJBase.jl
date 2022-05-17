@@ -473,7 +473,7 @@ the heading `1.96*SE`, derived from the standard error of the `per_fold`
 entries. This value is suitable for constructing a formal 95%
 confidence interval for the given `measurement`. Such intervals should
 be interpreted with caution. See, for example, Bates et al.
-[2021](https://arxiv.org/abs/2104.00673).
+[(2021)](https://arxiv.org/abs/2104.00673).
 
 ### Fields
 
