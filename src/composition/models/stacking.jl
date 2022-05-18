@@ -99,10 +99,10 @@ When training a machine bound to such an instance:
   evaluation of the learners in the Stack while training. This is not for the
   evaluation of the Stack itself.
 
-- `cache`: Weither machines created in the learning network will cache data or not.
+- `cache`: Whether machines created in the learning network will cache data or not.
 
 - `acceleration`: A supported `AbstractResource` to define the training parallelization
-  mode of the learning network.
+  mode of the stack.
 
 - `name1=model1, name2=model2, ...`: the `Supervised` model instances
   to be used as base learners.  The provided names become properties
