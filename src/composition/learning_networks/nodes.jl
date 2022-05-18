@@ -208,7 +208,7 @@ fit!(y::Node; acceleration=CPU1(), kwargs...) =
     fit!(y::Node, acceleration; kwargs...)
 
 fit!(y::Node, ::AbstractResource; kwargs...) =
-        error("Only `acceleration=CPU1()` currently supported")
+    error("Only `acceleration=CPU1()` and `acceleration=CPUThreads()` currently supported")
 
 function fit!(y::Node, ::CPU1; kwargs...)
 
