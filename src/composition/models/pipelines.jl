@@ -188,7 +188,7 @@ Names for the component fields are automatically generated unless
 explicitly specified, as in
 
 ```
-Pipeline(endoder=ContinuousEncoder(drop_last=false),
+Pipeline(encoder=ContinuousEncoder(drop_last=false),
          stand=Standardizer())
 ```
 
