@@ -74,8 +74,8 @@ end
                     resampling=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(mystack) == (:resampling, :metalearner, :constant,
-                                    :decisiontree, :ridge_lambda, :ridge)
+    @test propertynames(mystack) == (:metalearner, :resampling, :measures, :cache, :acceleration, 
+        :constant, :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
 
