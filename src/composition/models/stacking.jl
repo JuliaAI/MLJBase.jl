@@ -211,7 +211,8 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {mo
 end
 
 
-Base.propertynames(::Stack{modelnames}) where modelnames = tuple(:resampling, :metalearner, modelnames...)
+Base.propertynames(::Stack{modelnames}) where modelnames = 
+    tuple(:metalearner, :resampling, :measures, :cache, :acceleration, modelnames...)
 
 
 function Base.getproperty(stack::Stack{modelnames}, name::Symbol) where modelnames
