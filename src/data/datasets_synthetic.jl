@@ -198,7 +198,7 @@ function make_circles(n::Integer=100;
         throw(ArgumentError(
             "Factor argument must be strictly between 0 and 1."))
     end
-    
+
     rng = init_rng(rng)
     # Generate points on a 2D circle
     θs = runif_ab(rng, n, 1, 0, 2pi)
@@ -384,6 +384,7 @@ X, y = make_regression(100, 5; noise=0.5, sparse=0.2, outliers=0.1)
 """
 function make_regression(n::Int=100,
                          p::Int=2;
+                         n_targets::Int=1,
                          intercept::Bool=true,
                          sparse::Real=0,
                          noise::Real=0.1,
@@ -397,6 +398,10 @@ function make_regression(n::Int=100,
     if n < 1 || p < 1
         throw(ArgumentError(
             "Expected `n` and `p` to be at least 1."))
+    end
+    if n_targets < 1
+        throw(ArgumentError(
+            "Expected `n_targets` to be at least 1."))
     end
     if !(0 <= sparse < 1)
         throw(ArgumentError(
@@ -413,16 +418,18 @@ function make_regression(n::Int=100,
 
     rng = init_rng(rng)
     X = augment_X(randn(rng, n, p), intercept)
-    θ = randn(rng, p + Int(intercept))
+    y_shape = n_targets > 1 ? (n, n_targets) : n
+    theta_shape = n_targets > 1 ? (p + Int(intercept), n_targets) : (p + Int(intercept))
+    θ = randn(rng, theta_shape)
     sparse > 0 && sparsify!(rng, θ, sparse)
     y = X * θ
 
     if !iszero(noise)
-        y .+= noise .* randn(rng, n)
+        y .+= noise .* randn(rng, y_shape)
     end
 
     if binary
-        y = rand(rng, n) .< sigmoid.(y)
+        y = rand(rng, y_shape) .< sigmoid.(y)
     else
         if !iszero(outliers)
             outlify!(rng, y, outliers)
