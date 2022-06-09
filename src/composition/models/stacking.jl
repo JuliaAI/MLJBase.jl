@@ -58,7 +58,7 @@ const Stack{modelnames, inp_scitype, tg_scitype} =
             ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
-    Stack(;metalearner=nothing, name1=model1, name2=model2, keyword_options...)
+    Stack(; metalearner=nothing, name1=model1, name2=model2, ..., keyword_options...)
 
 Implements the two-layer generalized stack algorithm introduced by
 [Wolpert
@@ -93,9 +93,9 @@ When training a machine bound to such an instance:
   model will optimize the squared error.
 
 - `resampling`: The resampling strategy used
-  to prepare out-of-sample predictions of the base learners. 
+  to prepare out-of-sample predictions of the base learners.
 
-- `measures`: A measure or iterable over measures, to perform an internal 
+- `measures`: A measure or iterable over measures, to perform an internal
   evaluation of the learners in the Stack while training. This is not for the
   evaluation of the Stack itself.
 
@@ -148,7 +148,7 @@ evaluate!(mach; resampling=Holdout(), measure=rmse)
 
 ```
 
-The internal evaluation report can be accessed like this 
+The internal evaluation report can be accessed like this
 and provides a PerformanceEvaluation object for each model:
 
 ```julia
@@ -211,7 +211,7 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {mo
 end
 
 
-Base.propertynames(::Stack{modelnames}) where modelnames = 
+Base.propertynames(::Stack{modelnames}) where modelnames =
     tuple(:metalearner, :resampling, :measures, :cache, :acceleration, modelnames...)
 
 
@@ -286,7 +286,7 @@ internal_stack_report(m::Stack, verbosity::Int, tt_pairs, folds_evaluations::Var
 """
     internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
 
-When measure/measures is provided, the folds_evaluation will have been filled by `store_for_evaluation`. This function is 
+When measure/measures is provided, the folds_evaluation will have been filled by `store_for_evaluation`. This function is
 not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
 can be evaluated later.
 """
@@ -318,10 +318,10 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pai
             fitted_params_per_fold=[],
             report_per_fold=[],
             train_test_pairs=tt_pairs
-            ) 
+            )
         for model in getfield(stack, :models)]
     )
-    
+
     # Update the results
     index = 1
     for foldid in 1:nfolds
@@ -344,7 +344,7 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pai
                 end
 
                 # Update per_fold
-                model_results.per_fold[i][foldid] = 
+                model_results.per_fold[i][foldid] =
                     reports_each_observation(measure) ? MLJBase.aggregate(loss, measure) : loss
             end
             index += 1
@@ -380,7 +380,7 @@ end
     oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
 
 This function is building the out-of-sample dataset that is later used by the `judge`
-for its own training. It also returns the folds_evaluations object if internal 
+for its own training. It also returns the folds_evaluations object if internal
 cross-validation results are requested.
 """
 function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
@@ -431,7 +431,7 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     Xs = source(X)
     ys = source(y)
-        
+
     Zval, yval, folds_evaluations = oos_set(m, Xs, ys, tt_pairs)
 
     metamach = machine(m.metalearner, Zval, yval, cache=m.cache)
@@ -452,6 +452,6 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     # We can infer the Surrogate by two calls to supertype
     mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
-    
+
     return!(mach, m, verbosity, acceleration=m.acceleration)
 end
