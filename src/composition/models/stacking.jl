@@ -58,7 +58,7 @@ const Stack{modelnames, inp_scitype, tg_scitype} =
             ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
 
 """
-    Stack(;metalearner=nothing, resampling=CV(), name1=model1, cache=true, acceleration=CPU1(), name2=model2, ...)
+    Stack(;metalearner=nothing, name1=model1, name2=model2, keyword_options...)
 
 Implements the two-layer generalized stack algorithm introduced by
 [Wolpert
