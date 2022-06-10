@@ -105,7 +105,7 @@ function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     end
 end
 
-function MMI.selectcols(::FI, ::Val{:table}, X, c::AbstractArray)
+function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Colon, AbstractArray})
     if !isdataframe(X)
         cols = Tables.columntable(X) # named tuple of vectors
         newcols = project(cols, c)
