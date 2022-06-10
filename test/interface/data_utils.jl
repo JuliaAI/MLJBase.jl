@@ -1,3 +1,5 @@
+import DataFrames
+
 rng = StableRNGs.StableRNG(123)
 
 @testset "categorical" begin
@@ -23,7 +25,7 @@ end
     b = categorical(["a", "b", "c"])
     c = categorical(["a", "b", "c"]; ordered=true)
     X = (x1=x, x2=z, x3=b, x4=c)
-    @test MLJModelInterface.scitype(x) == ST.scitype(x)    
+    @test MLJModelInterface.scitype(x) == ST.scitype(x)
     @test MLJModelInterface.scitype(y) == ST.scitype(y)
     @test MLJModelInterface.scitype(z) == ST.scitype(z)
     @test MLJModelInterface.scitype(a) == ST.scitype(a)
@@ -39,7 +41,7 @@ end
     b = categorical(["a", "b", "c"])
     c = categorical(["a", "b", "c"]; ordered=true)
     X = (x1=x, x2=z, x3=b, x4=c)
-    @test_throws ArgumentError MLJModelInterface.schema(x)    
+    @test_throws ArgumentError MLJModelInterface.schema(x)
     @test MLJModelInterface.schema(X) == ST.schema(X)
 end
 
@@ -195,6 +197,15 @@ end
     v = categorical(collect("asdfasdf"))
     tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
+end
+
+# https://github.com/JuliaAI/MLJBase.jl/issues/784
+@testset "typename and dataframes" begin
+    df = DataFrames.DataFrame(x=[1,2,3], y=[2,3,4], z=[4,5,6])
+    @test MLJBase.typename(df) == "AbstractDataFrame"
+    @test MLJBase.isdataframe(df)
+    @test selectrows(df, 2:3) == df[2:3, :]
+    @test selectcols(df, [:x, :z]) == df[!, [:x, :z]]
 end
 
 true
