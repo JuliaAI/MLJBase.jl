@@ -97,21 +97,17 @@ function MMI.selectrows(::FI, ::Val{:table}, X, r)
 end
 
 function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
-    if !isdataframe(X)
-        cols = Tables.columns(X)
-        return Tables.getcolumn(cols, c)
-    else
-        return X[!, c]
-    end
+    cols = Tables.columns(X)
+    return Tables.getcolumn(cols, c)
 end
 
 function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Colon, AbstractArray})
-    if !isdataframe(X)
+    if isdataframe(X)
+        return X[!, c]
+    else
         cols = Tables.columntable(X) # named tuple of vectors
         newcols = project(cols, c)
         return Tables.materializer(X)(newcols)
-    else
-        return X[!, c]
     end
 end
 
