@@ -98,7 +98,7 @@ end
 
 function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     if !isdataframe(X)
-        cols = Tables.columntable(X) # named tuple of vectors
+        cols = Tables.columns(X)
         return cols[c]
     else
         return X[!, c]
