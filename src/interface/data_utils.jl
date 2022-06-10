@@ -99,7 +99,7 @@ end
 function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     if !isdataframe(X)
         cols = Tables.columns(X)
-        return cols[c]
+        return Tables.getcolumn(cols, c)
     else
         return X[!, c]
     end
