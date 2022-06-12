@@ -1,12 +1,12 @@
 ## SCITYPE CHECK LEVEL
 
 """
-   default_scitype_check_level()
+    default_scitype_check_level()
 
 Return the current global default value for scientific type checking
 when constructing machines.
 
-   default_scitype_check_level(i::Integer)
+    default_scitype_check_level(i::Integer)
 
 Set the global default value for scientific type checking to `i`.
 

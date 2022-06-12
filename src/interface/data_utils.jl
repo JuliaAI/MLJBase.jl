@@ -97,14 +97,18 @@ function MMI.selectrows(::FI, ::Val{:table}, X, r)
 end
 
 function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
-    cols = Tables.columntable(X) # named tuple of vectors
-    return cols[c]
+    cols = Tables.columns(X)
+    return Tables.getcolumn(cols, c)
 end
 
-function MMI.selectcols(::FI, ::Val{:table}, X, c::AbstractArray)
-    cols = Tables.columntable(X) # named tuple of vectors
-    newcols = project(cols, c)
-    return Tables.materializer(X)(newcols)
+function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Colon, AbstractArray})
+    if isdataframe(X)
+        return X[!, c]
+    else
+        cols = Tables.columntable(X) # named tuple of vectors
+        newcols = project(cols, c)
+        return Tables.materializer(X)(newcols)
+    end
 end
 
 # -------------------------------
@@ -124,7 +128,7 @@ function project(t::NamedTuple, indices::AbstractArray{<:Integer})
 end
 
 # utils for selectrows
-typename(X) = split(string(supertype(typeof(X)).name), '.')[end]
+typename(X) = split(string(supertype(typeof(X))), '.')[end]
 isdataframe(X) = typename(X) == "AbstractDataFrame"
 
 # ----------------------------------------------------------------
