@@ -45,6 +45,13 @@ function testset_accelerated(name::String, var, ex; exclude=[])
     return esc(final_ex)
 end
 
+"""
+    sedate!(fit_ex)
+
+The input is a fit expression as `fit!(mach, kws...)`. This function 
+throws an error if the verbosity level is set and sets the verbosity level 
+to -5000 otherwise.
+"""
 function sedate!(fit_ex)
     kwarg_exs = filter(fit_ex.args) do arg
         arg isa Expr && arg.head == :kw
