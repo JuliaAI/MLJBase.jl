@@ -74,8 +74,8 @@ end
                     resampling=CV(;nfolds=3),
                     models...)
     # Testing attribute access of the stack
-    @test propertynames(mystack) == (:resampling, :metalearner, :constant,
-                                    :decisiontree, :ridge_lambda, :ridge)
+    @test propertynames(mystack) == (:metalearner, :resampling, :measures, :cache, :acceleration, 
+        :constant, :decisiontree, :ridge_lambda, :ridge)
 
     @test mystack.decisiontree isa DecisionTreeRegressor
 
@@ -190,8 +190,10 @@ end
     models = [DeterministicConstantRegressor(), FooBarRegressor(;lambda=0)]
     metalearner = DeterministicConstantRegressor()
     resampling = CV()
+    cache = true
+    acceleration = CPU1()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing)
+    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing, cache, acceleration)
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]
@@ -526,6 +528,63 @@ end
         @test length(model_perf.per_fold) == 1
         @test length(model_perf.train_test_rows) == 1
     end
+end
+
+@testset "Test cache is forwarded to submodels" begin
+    X, y = make_regression(100, 3; rng=rng)
+    constant = ConstantRegressor()
+    ridge = FooBarRegressor()
+    mystack = Stack(;metalearner=FooBarRegressor(),
+                    cache=false,
+                    ridge=ridge,
+                    constant=constant)
+    mach = machine(mystack, X, y)
+    fit!(mach, verbosity = 0)
+    # The data and resampled_data have not been populated
+    for mach in fitted_params(mach).machines
+        @test !isdefined(mach, :data)
+        @test !isdefined(mach, :resampled_data)
+    end
+end
+
+# a regression `Stack` which has `model` as one of the base models:
+function _stack(model, resource)
+    models = (constant=DeterministicConstantRegressor(),
+                ridge_lambda=FooBarRegressor(;lambda=0.1),
+                model=model)
+    Stack(;
+        metalearner=FooBarRegressor(;lambda=0.05),
+        resampling=CV(;nfolds=3),
+        acceleration=resource,
+        models...
+    )
+end
+
+# return a nested stack in which `model` appears at two levels, with
+# both layers accelerated using `resource`:
+_double_stack(model, resource) =
+    _stack(_stack(model, resource), resource)
+
+@testset "Test multithreaded version" begin
+    X, y = make_regression(100, 5; rng=StableRNG(1234))
+
+    stack = _double_stack(FooBarRegressor(;lambda=0.07), CPU1())
+
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+    cpu_fp = fitted_params(mach)
+    cpu_ypred = predict(mach)
+
+    stack = _double_stack(FooBarRegressor(;lambda=0.07), CPUThreads())
+
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+    thread_fp = fitted_params(mach)
+    thread_ypred = predict(mach)
+
+    @test cpu_ypred ≈ thread_ypred
+    @test cpu_fp.metalearner ≈ thread_fp.metalearner
+    @test cpu_fp.ridge_lambda ≈ thread_fp.ridge_lambda
 end
 
 end

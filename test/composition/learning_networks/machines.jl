@@ -155,9 +155,9 @@ zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
 enode = @node mae(ys, yhat)
 
-@testset "replace method for learning network machines" begin
+@testset "replace method for learning network machines, acceleration: $(typeof(accel))" for accel in (CPU1(), CPUThreads())
 
-    fit!(yhat, verbosity=0)
+    fit!(yhat, verbosity=0, acceleration=accel)
 
     # test nested reporting:
     r = MLJBase.report(yhat)
@@ -199,7 +199,7 @@ enode = @node mae(ys, yhat)
     knnM2 = machines(yhat2, knn) |> first
     hotM2 = machines(yhat2, hot) |> first
 
-    @test_mach_sequence(fit!(yhat2, force=true),
+    @test_mach_sequence(fit!(yhat2, force=true, acceleration=accel),
                         [(:train, standM2), (:train, hotM2),
                          (:train, knnM2), (:train, oakM2)],
                         [(:train, hotM2), (:train, standM2),
@@ -218,7 +218,7 @@ enode = @node mae(ys, yhat)
     # this change should trigger retraining of all machines except the
     # univariate standardizer:
     hot2.drop_last = true
-    @test_mach_sequence(fit!(yhat2),
+    @test_mach_sequence(fit!(yhat2, acceleration=accel),
                         [(:skip, standM2), (:update, hotM2),
                          (:train, knnM2), (:train, oakM2)],
                         [(:update, hotM2), (:skip, standM2),
