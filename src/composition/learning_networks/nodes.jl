@@ -201,7 +201,10 @@ end
          acceleration=CPU1())
 
 Train all machines required to call the node `N`, in an appropriate
-order.  These machines are those returned by `machines(N)`.
+order, but parallelizing where possible using specified `acceleration`
+mode.  These machines are those returned by `machines(N)`.
+
+Supported modes of `acceleration`: `CPU1()`, `CPUThreads()`.
 
 """
 fit!(y::Node; acceleration=CPU1(), kwargs...) =
