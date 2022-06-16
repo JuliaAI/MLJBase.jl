@@ -827,11 +827,11 @@ measure or vector.
 
 Do `subtypes(MLJ.ResamplingStrategy)` to obtain a list of available
 resampling strategies. If `resampling` is not an object of type
-`MLJ.ResamplingStrategy`, then a vector of pairs (of the form
+`MLJ.ResamplingStrategy`, then a vector of tuples (of the form
 `(train_rows, test_rows)` is expected. For example, setting
 
-    resampling = [(1:100), (101:200)),
-                   (101:200), (1:100)]
+    resampling = [((1:100), (101:200)),
+                   ((101:200), (1:100))]
 
 gives two-fold cross-validation using the first 200 rows of data.
 
@@ -1164,7 +1164,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     if !(resampling isa TrainTestPairs)
         error("`resampling` must be an "*
-              "`MLJ.ResamplingStrategy` or tuple of pairs "*
+              "`MLJ.ResamplingStrategy` or tuple of rows "*
               "of the form `(train_rows, test_rows)`")
     end
 
