@@ -1164,7 +1164,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     if !(resampling isa TrainTestPairs)
         error("`resampling` must be an "*
-              "`MLJ.ResamplingStrategy` or tuple of pairs "*
+              "`MLJ.ResamplingStrategy` or tuple of rows "*
               "of the form `(train_rows, test_rows)`")
     end
 
