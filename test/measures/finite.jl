@@ -284,6 +284,28 @@ end
     2 ./ ( 1 ./ ( sum(cm_tp) ./ sum(cm_fp.+cm_tp) ) + 1 ./ ( sum(cm_tp) ./ sum(cm_fn.+cm_tp) ) )
 end
 
+@testset "issue #630" begin
+    # multiclass fscore corner case of absent class
+
+    y = coerce([1, 2, 2, 2, 3], OrderedFactor)[1:4]
+    # [1, 2, 2, 2] # but 3 is in the pool
+    yhat = reverse(y)
+    # [2, 2, 2, 1]
+
+    # In this case, assigning "3" as "positive" gives all true negative,
+    # and so NaN for that class's contribution to the average F1Score,
+    # which should accordingly be skipped.
+
+    # postive class | TP | FP | FN | score for that class
+    # --------------|----|----|----|---------------------
+    #  1            | 0  | 1  | 2  | 0
+    #  2            | 2  | 1  | 1  | 2/3
+    #  3            | 0  | 0  | 0  | NaN
+
+    # mean score with skippin NaN is 1/3
+    @test MulticlassFScore()(yhat, y) ≈ 1/3
+end
+
 @testset "Metadata binary" begin
     for m in (accuracy, recall, Precision(), f1score, specificity)
         e = info(m)
