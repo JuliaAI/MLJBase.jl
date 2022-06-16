@@ -486,24 +486,43 @@ end
 end
 
 @testset_accelerated "class weights in evaluation" accel begin
-    x = [1,2,3,4,5,6,7]
-    X, y = Tables.table([x x x x x x]), coerce([1,2,1,3,1,2,2], Multiclass)
+    X, y = make_blobs(rng=rng)
+    cv=CV(nfolds = 2)
+    fold1, fold2 = partition(eachindex(y), 0.5)
+    m = MLJBase.MulticlassFScore()
+    class_w = Dict(1=>1, 2=>2, 3=>3)
+
     model = Models.DeterministicConstantClassifier()
     mach = machine(model, X, y)
-    cv=CV(nfolds = 2)
-    class_w = Dict(1=>1, 2=>2, 3=>3)
-    e = evaluate!(mach,
-                  resampling=cv,
-                  measure=MLJBase.MulticlassFScore(return_type=Vector),
-                  class_weights=class_w,
-                  verbosity=verb,
-                  acceleration=accel).measurement[1]
-    @test round(e, digits=3) ≈ 0.217
+
+    # fscore by hand:
+    fit!(mach, rows=fold1, verbosity=0)
+    score1 = m(predict(mach, rows=fold2), y[fold2], class_w)
+    fit!(mach, rows=fold2, verbosity=0)
+    score2 = m(predict(mach, rows=fold1), y[fold1], class_w)
+    score_by_hand = mean([score1, score2])
+
+    # fscore by evaluate!:
+    score = evaluate!(
+        mach,
+        resampling=cv,
+        measure=m,
+        class_weights=class_w,
+        verbosity=verb,
+        acceleration=accel,
+    ).measurement[1]
+
+    @test score ≈ score_by_hand
 
     # if class weights in `evaluate!` isn't specified:
-    e = evaluate!(mach, resampling=cv, measure=multiclass_f1score,
-                  verbosity=verb, acceleration=accel).measurement[1]
-    @test e ≈ 0.15
+    plain_score = evaluate!(
+        mach,
+        resampling=cv,
+        measure=m,
+        verbosity=verb,
+        acceleration=accel,
+    ).measurement[1]
+    @test !(score ≈ plain_score)
 end
 
 @testset_accelerated "resampler as machine" accel begin
@@ -794,4 +813,3 @@ end
 
 #end
 true
-
