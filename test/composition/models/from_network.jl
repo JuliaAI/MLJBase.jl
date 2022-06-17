@@ -295,11 +295,6 @@ knn = model_.knn_rgs
 
 @test MLJBase.tree(mach.fitresult.predict).arg1.arg1.arg1.arg1.model.K == 55
 
-# check data anonymity:
-@test all(x->(x===nothing),
-          [s.data for s in sources(mach.fitresult.predict)])
-
-
 multistand = Standardizer()
 multistandM = machine(multistand, W)
 W2 = transform(multistandM, W)
@@ -327,10 +322,6 @@ hot = model_.one_hot
 FP = MLJBase.fitted_params(mach)
 @test keys(FP) == (:one_hot, :machines, :fitted_params_given_machine)
 @test Set(FP.one_hot.fitresult.all_features) == Set(keys(X))
-
-# check data anomynity:
-@test all(x->(x===nothing),
-          [s.data for s in sources(mach.fitresult.transform)])
 
 transform(mach, X);
 
