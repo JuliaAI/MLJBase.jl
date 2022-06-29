@@ -39,7 +39,7 @@ end
     @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
     @test_throws MLJBase.NotTrainedError(t, :report) report(t)
     @test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
-    @test_throws MLJBase.NotTrainedError(t, :training_losses) intrinsic_importances(t)
+    @test_throws MLJBase.NotTrainedError(t, :intrinsic_importances) intrinsic_importances(t)
 
     @test_logs (:info, r"Training") fit!(t)
     @test_logs (:info, r"Training") fit!(t, rows=train)
@@ -49,8 +49,8 @@ end
     @test_logs (:info, r"Updating") fit!(t)
 
     # The following tests only pass when machine `t` has been fitted 
-    @test fitted_params(t) == MMI.fitted_params(mach.model, mach.fitresult)
-    @test report(t) == mach.report
+    @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
+    @test report(t) == t.report
     @test training_losses(t) === nothing
     @test intrinsic_importances(t) == MMI.intrinsic_importances(
         t.model, fitted_params(t), report(t)

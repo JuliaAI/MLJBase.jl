@@ -833,7 +833,7 @@ function intrinsic_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
         return MMI.intrinsic_importances(mach.model, mach.fitresult, mach.report)
     else
-        throw(NotTrainedError(mach, :feature_importances))
+        throw(NotTrainedError(mach, :intrinsic_importances))
     end
 end
 
