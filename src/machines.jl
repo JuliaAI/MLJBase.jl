@@ -821,6 +821,21 @@ function training_losses(mach::Machine)
     end
 end
 
+"""
+    intrinsic_importances(mach::Machine)
+
+Return a list of feature => importance pairs for a fitted machine, `mach` if it's underlying model 
+supports intrinsic feature importances. Otherwise, returns `nothing`.
+
+"""
+
+function intrinsic_importances(mach::Machine)
+    if isdefined(mach, :report) && isdefined(mach, :fitresult)
+        return MMI.intrinsic_importances(mach.model, mach.fitresult, mach.report)
+    else
+        throw(NotTrainedError(mach, :feature_importances))
+    end
+end
 
 ###############################################################################
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####

@@ -9,6 +9,7 @@ using Serialization
 using ..TestUtilities
 
 const MLJModelInterface = MLJBase.MLJModelInterface
+const MMI = MLJModelInterface
 
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
@@ -32,40 +33,51 @@ pca = PCA()
     @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
 end
 
-t = machine(tree, X, y)
-@test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
-@test_throws MLJBase.NotTrainedError(t, :report) report(t)
-@test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
-@test_logs (:info, r"Training") fit!(t)
-@test_logs (:info, r"Training") fit!(t, rows=train)
-@test_logs (:info, r"Not retraining") fit!(t, rows=train)
-@test_logs (:info, r"Training") fit!(t)
-t.model.max_depth = 1
-@test_logs (:info, r"Updating") fit!(t)
+@testset "machine training and inpection" begin
+    t = machine(tree, X, y)
+    
+    @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
+    @test_throws MLJBase.NotTrainedError(t, :report) report(t)
+    @test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
+    @test_throws MLJBase.NotTrainedError(t, :training_losses) intrinsic_importances(t)
 
-@test training_losses(t) === nothing
+    @test_logs (:info, r"Training") fit!(t)
+    @test_logs (:info, r"Training") fit!(t, rows=train)
+    @test_logs (:info, r"Not retraining") fit!(t, rows=train)
+    @test_logs (:info, r"Training") fit!(t)
+    t.model.max_depth = 1
+    @test_logs (:info, r"Updating") fit!(t)
 
-predict(t, selectrows(X,test));
-@test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
+    # The following tests only pass when machine `t` has been fitted 
+    @test fitted_params(t) == MMI.fitted_params(mach.model, mach.fitresult)
+    @test report(t) == mach.report
+    @test training_losses(t) === nothing
+    @test intrinsic_importances(t) == MMI.intrinsic_importances(
+        t.model, fitted_params(t), report(t)
+    )
 
-mach = machine(ConstantRegressor(), X, y)
-@test_logs (:info, r"Training") fit!(mach)
-yhat = predict_mean(mach, X);
+    predict(t, selectrows(X,test));
+    @test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
 
-n = nrows(X)
-@test rms(yhat, y) ≈ std(y)*sqrt(1 - 1/n)
+    mach = machine(ConstantRegressor(), X, y)
+    @test_logs (:info, r"Training") fit!(mach)
+    yhat = predict_mean(mach, X);
 
-# test an unsupervised univariate case:
-mach = machine(UnivariateStandardizer(), float.(1:5))
-@test_logs (:info, r"Training") fit!(mach)
-@test isempty(params(mach))
+    n = nrows(X)
+    @test rms(yhat, y) ≈ std(y)*sqrt(1 - 1/n)
 
-# test a frozen Machine
-stand = machine(Standardizer(), source((x1=rand(10),)))
-freeze!(stand)
-@test_logs (:warn, r"not trained as it is frozen\.$") fit!(stand)
+    # test an unsupervised univariate case:
+    mach = machine(UnivariateStandardizer(), float.(1:5))
+    @test_logs (:info, r"Training") fit!(mach)
+    @test isempty(params(mach))
 
-@testset "warnings" begin
+    # test a frozen Machine
+    stand = machine(Standardizer(), source((x1=rand(10),)))
+    freeze!(stand)
+    @test_logs (:warn, r"not trained as it is frozen\.$") fit!(stand)
+end
+
+@testset "machine instantiation warnings" begin
     @test_throws DimensionMismatch machine(tree, X, y[1:end-1])
 
     # supervised model with bad target:
