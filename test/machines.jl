@@ -53,7 +53,7 @@ end
     @test report(t) == t.report
     @test training_losses(t) === nothing
     @test intrinsic_importances(t) == MMI.intrinsic_importances(
-        t.model, fitted_params(t), report(t)
+        t.model, t.fitresult, t.report
     )
 
     predict(t, selectrows(X,test));
