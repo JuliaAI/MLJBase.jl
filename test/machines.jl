@@ -39,7 +39,7 @@ end
     @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
     @test_throws MLJBase.NotTrainedError(t, :report) report(t)
     @test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
-    @test_throws MLJBase.NotTrainedError(t, :intrinsic_importances) intrinsic_importances(t)
+    @test_throws MLJBase.NotTrainedError(t, :feature_importances) feature_importances(t)
 
     @test_logs (:info, r"Training") fit!(t)
     @test_logs (:info, r"Training") fit!(t, rows=train)
@@ -52,7 +52,7 @@ end
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
     @test report(t) == t.report
     @test training_losses(t) === nothing
-    @test intrinsic_importances(t) == MMI.intrinsic_importances(
+    @test feature_importances(t) == MMI.feature_importances(
         t.model, t.fitresult, t.report
     )
 

@@ -258,7 +258,7 @@ export @mlj_model, metadata_pkg, metadata_model
 export fit, update, update_data, transform, inverse_transform,
     fitted_params, predict, predict_mode, predict_mean,
     predict_median, predict_joint,
-    evaluate, clean!, training_losses, intrinsic_importances
+    evaluate, clean!, training_losses, feature_importances
 
 # data operations
 export matrix, int, classes, decoder, table,
