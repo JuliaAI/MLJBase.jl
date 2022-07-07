@@ -831,12 +831,19 @@ supports intrinsic feature importances. Otherwise, returns `nothing`.
 
 function feature_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
-        return MMI.feature_importances(mach.model, mach.fitresult, mach.report)
+        return _feature_importances(mach.model, mach.fitresult, mach.report)
     else
         throw(NotTrainedError(mach, :feature_importances))
     end
 end
 
+function _feature_importances(model, fitresult, report)
+    if reports_feature_importances(model)
+        return MMI.feature_importances(mach.model, fitresult, report)
+    else
+        return nothing
+    end
+end
 ###############################################################################
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################
