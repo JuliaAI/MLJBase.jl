@@ -52,9 +52,7 @@ end
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
     @test report(t) == t.report
     @test training_losses(t) === nothing
-    @test feature_importances(t) == MMI.feature_importances(
-        t.model, t.fitresult, t.report
-    )
+    @test feature_importances(t) === nothing
 
     predict(t, selectrows(X,test));
     @test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
