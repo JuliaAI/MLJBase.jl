@@ -821,7 +821,30 @@ function training_losses(mach::Machine)
     end
 end
 
+"""
+    feature_importances(mach::Machine)
 
+Return a list of `feature => importance` pairs for a fitted machine, 
+`mach`,  if supported by the underlying model, i.e., if 
+`reports_feature_importances(mach.model) == true`.  Otherwise return
+`nothing`.
+
+"""
+function feature_importances(mach::Machine)
+    if isdefined(mach, :report) && isdefined(mach, :fitresult)
+        return _feature_importances(mach.model, mach.fitresult, mach.report)
+    else
+        throw(NotTrainedError(mach, :feature_importances))
+    end
+end
+
+function _feature_importances(model, fitresult, report)
+    if reports_feature_importances(model)
+        return MMI.feature_importances(mach.model, fitresult, report)
+    else
+        return nothing
+    end
+end
 ###############################################################################
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################
