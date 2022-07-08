@@ -128,10 +128,6 @@ selector_model = FeatureSelector()
 
     fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
 
-    # test data anonymity:
-    ss = sources(glb(values(MLJBase.signature(fitresult))...))
-    @test all(isempty, ss)
-
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
     selector = MLJBase.machines(fitresult.predict)[2]
