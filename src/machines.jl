@@ -222,7 +222,7 @@ is computed, and this is compared with the scitypes expected by the
 model, unless `args` contains `Unknown` scitypes and
 `scitype_check_level < 4`, in which case no further action is
 taken. Whether warnings are issued or errors thrown depends the
-level. For details, see `default_scitype_check_level`](@ref), a method
+level. For details, see [`default_scitype_check_level`](@ref), a method
 to inspect or change the default level (`1` at startup).
 
 ### Learning network machines
@@ -821,7 +821,30 @@ function training_losses(mach::Machine)
     end
 end
 
+"""
+    feature_importances(mach::Machine)
 
+Return a list of `feature => importance` pairs for a fitted machine, 
+`mach`,  if supported by the underlying model, i.e., if 
+`reports_feature_importances(mach.model) == true`.  Otherwise return
+`nothing`.
+
+"""
+function feature_importances(mach::Machine)
+    if isdefined(mach, :report) && isdefined(mach, :fitresult)
+        return _feature_importances(mach.model, mach.fitresult, mach.report)
+    else
+        throw(NotTrainedError(mach, :feature_importances))
+    end
+end
+
+function _feature_importances(model, fitresult, report)
+    if reports_feature_importances(model)
+        return MMI.feature_importances(mach.model, fitresult, report)
+    else
+        return nothing
+    end
+end
 ###############################################################################
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################

@@ -28,8 +28,7 @@ function update(model::M,
 
     # Otherwise, a "smart" fit is carried out by calling `fit!` on a
     # greatest lower bound node for nodes in the signature of the
-    # underlying learning network machine. For this it is necessary to
-    # temporarily "de-anonymize" the source nodes.
+    # underlying learning network machine.
 
     network_model_names = getfield(fitresult, :network_model_names)
     old_model = cache.old_model
@@ -40,26 +39,13 @@ function update(model::M,
         return fit(model, verbosity, args...)
     end
 
-    # return data to source nodes for fitting:
-    sources, data = cache.sources, cache.data
-    for k in eachindex(sources)
-        rebind!(sources[k], data[k])
-    end
-
     fit!(glb_node; verbosity=verbosity)
     # Retrieve additional report values
     report_additions_ = _call(_report_part(signature(fitresult)))
 
-    # anonymize data again:
-    for s in sources
-        rebind!(s, nothing)
-    end
-
     # record current model state:
-    cache = (sources=cache.sources,
-             data=cache.data,
-             old_model = deepcopy(model))
-    
+    cache = (; old_model = deepcopy(model))
+
     return (fitresult,
             cache,
             merge(report(glb_node), report_additions_))

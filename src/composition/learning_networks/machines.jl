@@ -347,10 +347,7 @@ the following:
 
 - Calls `fit!(mach, verbosity=verbosity, acceleration=acceleration)`.
 
-- Moves any data in source nodes of the learning network into `cache`
-  (for data-anonymization purposes).
-
-- Records a copy of `model` in `cache`.
+- Records a copy of `model` in a variable called `cache`.
 
 - Returns `cache` and outcomes of training in an appropriate form
   (specifically, `(mach.fitresult, cache, mach.report)`; see [Adding
@@ -396,17 +393,10 @@ function return!(mach::Machine{<:Surrogate},
     verbosity isa Nothing || fit!(mach, verbosity=verbosity, acceleration=acceleration)
     setfield!(mach.fitresult, :network_model_names, network_model_names_)
 
-    # anonymize the data
-    sources = MLJBase.sources(glb(mach))
-    data = Tuple(s.data for s in sources)
-    [MLJBase.rebind!(s, nothing) for s in sources]
-
     # record the current hyper-parameter values:
     old_model = deepcopy(model)
 
-    cache = (sources = sources,
-             data=data,
-             old_model=old_model)
+    cache = (; old_model)
 
     setfield!(mach.fitresult,
         :network_model_names,
@@ -424,9 +414,11 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
 """
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
 
-For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
-`save(::Machine, ...)`. A call from `Base.replace` with given `newmodel_given_old` will dispatch to this method.
-A new Machine is built with training data from node N.
+For now, two top functions will lead to a call of this function:
+`Base.replace(::Machine, ...)` and `save(::Machine, ...)`. A call from
+`Base.replace` with given `newmodel_given_old` will dispatch to this
+method.  A new Machine is built with training data from node N.
+
 """
 function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
     train_args = [newnode_given_old[arg] for arg in N.machine.args]
@@ -437,13 +429,19 @@ end
 """
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
 
-For now, two top functions will lead to a call of this function: `Base.replace(::Machine, ...)` and
-`save(::Machine, ...)`. A call from `save` will set `newmodel_given_old` to `nothing` which will
-then dispatch to this method.
-In this circumstance, the purpose is to make the machine attached to node N serializable (see `serializable(::Machine)`).
+For now, two top functions will lead to a call of this function:
+`Base.replace(::Machine, ...)` and `save(::Machine, ...)`. A call from
+`save` will set `newmodel_given_old` to `nothing` which will then
+dispatch to this method.  In this circumstance, the purpose is to make
+the machine attached to node N serializable (see
+`serializable(::Machine)`).
 
 """
-function copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+function copy_or_replace_machine(
+    N::AbstractNode,
+    newmodel_given_old::Nothing,
+    newnode_given_old
+)
     m = serializable(N.machine)
     m.args = Tuple(newnode_given_old[s] for s in N.machine.args)
     return m

@@ -21,8 +21,7 @@ The key components of a Node are:
 When a node `N` is called, as in `N()`, it applies the operation on
 the machine (if there is one) together with the outcome of calls to
 its node arguments, to compute the return value. For details on a
-node's calling behavior, see the [`node`](ref), which is used to
-construct `Node` objects.
+node's calling behavior, see [`node`](@ref).
 
 See also [`node`](@ref), [`Source`](@ref), [`origins`](@ref),
 [`sources`](@ref), [`fit!`](@ref).
