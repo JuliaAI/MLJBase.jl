@@ -174,12 +174,10 @@ metadata_model(KNNRegressor,
     input=MLJBase.Table(MLJBase.Continuous),
     target=AbstractVector{MLJBase.Continuous},
     weights=true,
-    descr=KNNRegressorDescription
     )
 
 metadata_model(KNNClassifier,
     input=MLJBase.Table(MLJBase.Continuous),
     target=AbstractVector{<:MLJBase.Finite},
     weights=true,
-    descr=KNNClassifierDescription
     )

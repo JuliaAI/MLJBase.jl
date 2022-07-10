@@ -209,11 +209,9 @@ metadata_pkg.((DecisionTreeClassifier, DecisionTreeRegressor),
 metadata_model(DecisionTreeClassifier,
                input=MLJBase.Table(Continuous, Count, OrderedFactor),
                target=AbstractVector{<:MLJBase.Finite},
-               weights=false,
-               descr=DTC_DESCR)
+               weights=false,)
 
 metadata_model(DecisionTreeRegressor,
                input=MLJBase.Table(Continuous, Count, OrderedFactor),
                target=AbstractVector{MLJBase.Continuous},
-               weights=false,
-               descr=DTR_DESCR)
+               weights=false,)
