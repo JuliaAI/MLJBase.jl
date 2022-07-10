@@ -37,37 +37,59 @@ warn_serializable_mach(operation) = "The operation $operation has been called on
                         "deserialised machine mach whose learned parameters "*
                         "may be unusable. To be sure, first run restore!(mach)."
 
+# Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
+# `ret` in the ordinary case that the operation does not include an "report" component ;
+# otherwise update `mach.report` with that component and return the non-report part of
+# `ret`:
+function get!(ret, operation, mach)
+    if operation in reporting_operations(mach.model)
+        report = last(ret)
+        if mach.report == nothing || isempty(mach.report)
+            mach.report = report
+        else
+            mach.report = merge(mach.report, report)
+        end
+        return first(ret)
+    end
+    return ret
+end
+
 # 0. operations on machine, given rows=...:
 
 for operation in OPERATIONS
 
-    if operation != :inverse_transform
+    quoted_operation = QuoteNode(operation) # eg, :(:predict)
 
-        ex = quote
-            function $(operation)(mach::Machine{<:Model,false}; rows=:)
-                # catch deserialized machine with no data:
-                isempty(mach.args) && _err_serialized($operation)
-                return ($operation)(mach, mach.args[1](rows=rows))
-            end
-            function $(operation)(mach::Machine{<:Model,true}; rows=:)
-                # catch deserialized machine with no data:
-                isempty(mach.args) && _err_serialized($operation)
-                model = mach.model
-                return ($operation)(model,
-                                    mach.fitresult,
-                                    selectrows(model, rows, mach.data[1])...)
-            end
+    operation == :inverse_transform && continue
+
+    ex = quote
+        function $(operation)(mach::Machine{<:Model,false}; rows=:)
+            # catch deserialized machine with no data:
+            isempty(mach.args) && _err_serialized($operation)
+            ret = ($operation)(mach, mach.args[1](rows=rows))
+            return get!(ret, $quoted_operation, mach)
         end
-        eval(ex)
-
+        function $(operation)(mach::Machine{<:Model,true}; rows=:)
+            # catch deserialized machine with no data:
+            isempty(mach.args) && _err_serialized($operation)
+            model = mach.model
+            ret = ($operation)(
+                model,
+                mach.fitresult,
+                selectrows(model, rows, mach.data[1])...,
+            )
+            return get!(ret, $quoted_operation, mach)
+        end
     end
+    eval(ex)
+
 end
 
 # special case of Static models (no training arguments):
 transform(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
 
 inverse_transform(mach::Machine; rows=:) =
-            throw(ArgumentError("`inverse_transform()(mach)` and "*
+            throw(ArgumentError("`inverse_transform(mach)` and "*
                                 "`inverse_transform(mach, rows=...)` are "*
                                 "not supported. Data or nodes "*
                                 "must be explictly specified, "*
@@ -77,22 +99,33 @@ _symbol(f) = Base.Core.Typeof(f).name.mt.name
 
 for operation in OPERATIONS
 
+    quoted_operation = QuoteNode(operation) # eg, :(:predict)
+
     ex = quote
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
             if mach.state != 0
                 mach.state == -1 && @warn warn_serializable_mach($operation)
-                return $(operation)(mach.model,
-                                    mach.fitresult,
-                                    reformat(mach.model, Xraw)...)
+                ret = $(operation)(
+                    mach.model,
+                    mach.fitresult,
+                    reformat(mach.model, Xraw)...,
+                )
+                get!(ret, $quoted_operation, mach)
             else
                 error("$mach has not been trained.")
             end
         end
 
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
-            return $(operation)(mach.model, mach.fitresult,
-                                    Xraw, Xraw_more...)
+            isdefined(mach, :fitresult) || (mach.fitresult = nothing)
+            ret = $(operation)(
+                mach.model,
+                mach.fitresult,
+                Xraw,
+                Xraw_more...,
+            )
+            get!(ret, $quoted_operation, mach)
         end
 
         # 2. operations on machines, given *dynamic* data (nodes):
