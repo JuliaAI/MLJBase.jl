@@ -53,10 +53,12 @@ end
 mutable struct StaticKefir <: Static
     alpha::Float64 # non-zero to be invertible
 end
-kefir(X, alpha) = X > 0 ? X * alpha : X / alpha
 
-MLJBase.transform(model::StaticKefir, _, X) = kefir(model.alpha, X)
-MLJBase.inverse_transform(model::StaticKefir, _, W) = kefir(1/(model.alpha), W)
+# for `alpha != 0` the map `x -> kefir(x, alpha) is invertible:
+kefir(x, alpha) = x > 0 ? x * alpha : x / alpha
+
+MLJBase.transform(model::StaticKefir, _, X) = broadcast(kefir, model.alpha, X)
+MLJBase.inverse_transform(model::StaticKefir, _, W) = broadcast(kefir, 1/(model.alpha), W)
 
 d = MyDeterministic(:d)
 p = MyProbabilistic(:p)
