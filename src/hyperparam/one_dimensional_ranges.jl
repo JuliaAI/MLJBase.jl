@@ -27,17 +27,40 @@ struct NominalRange{T,N} <: ParamRange{T}
     values::NTuple{N,T}
 end
 
+# return a suitable string representation of `r.field`, applying a transformation in the
+# case that `r.scale` is not a symbol, and returning "?" if applying the transformation
+# throws an exception:
+function _repr(r::NumericRange{T}, field) where T
+    value = getproperty(r, field)
+    r.scale isa Symbol && return repr(value)
+    return try
+        scaled = (r.scale)(value)
+        @show field scaled
+        if T <: Integer
+            round(T, scaled)
+        else
+            round(scaled, sigdigits=4)
+        end
+    catch
+        "?"
+    end
+end
+
 function Base.show(stream::IO,
 #                   ::MIME"text/plain",
                    r::NumericRange{T}) where T
     fstr = string(r.field)
-    repr = "NumericRange($(r.lower) ≤ $fstr ≤ $(r.upper); "*
-        "origin=$(r.origin), unit=$(r.unit))"
+    prefix = ""
+    suffix = ""
     if r.scale isa Symbol
-        r.scale !== :linear && (repr *= " on $(r.scale) scale")
+        if r.scale !== :linear
+            suffix = "; on $(r.scale) scale"
+        end
     else
-        repr = "transformed "*repr
+        prefix = "after scaling: "
     end
+    repr = "NumericRange($(_repr(r, :lower)) ≤ $fstr ≤ $(_repr(r, :upper)); "*
+        prefix*"origin=$(_repr(r, :origin)), unit=$(_repr(r, :unit))$suffix)"
     print(stream, repr)
     return nothing
 end
