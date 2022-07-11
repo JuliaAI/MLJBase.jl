@@ -44,7 +44,7 @@ warn_serializable_mach(operation) = "The operation $operation has been called on
 function get!(ret, operation, mach)
     if operation in reporting_operations(mach.model)
         report = last(ret)
-        if mach.report == nothing || isempty(mach.report)
+        if isnothing(mach.report) || isempty(mach.report)
             mach.report = report
         else
             mach.report = merge(mach.report, report)
@@ -118,7 +118,6 @@ for operation in OPERATIONS
         end
 
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
-            isdefined(mach, :fitresult) || (mach.fitresult = nothing)
             ret = $(operation)(
                 mach.model,
                 mach.fitresult,
