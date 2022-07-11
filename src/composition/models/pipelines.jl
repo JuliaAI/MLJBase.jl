@@ -487,14 +487,11 @@ function pipeline_network_machine(super_type,
     final_front = foldl(_extend, components, init=front)
     pnode, tnode = final_front.predict, final_front.transform
 
-    # backwards pass to get `inverse_transform` node:
+    # `inverse_transform` node (constructed even if not supported for some component):
     if all(c -> c isa Unsupervised, components)
         inode = source0
-        node = tnode
-        for i in eachindex(components)
-            mach = node.machine
+        for mach in machines(tnode)
             inode = inverse_transform(mach, inode)
-            node =  first(mach.args)
         end
         return machine(super_type(), source0, sources...;
                        predict=pnode, transform=tnode, inverse_transform=inode)

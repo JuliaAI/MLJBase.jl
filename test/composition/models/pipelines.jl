@@ -50,6 +50,16 @@ mutable struct MyInterval <: Interval
     x::Symbol
 end
 
+mutable struct StaticKefir <: Static
+    alpha::Float64 # non-zero to be invertible
+end
+
+# for `alpha != 0` the map `x -> kefir(x, alpha) is invertible:
+kefir(x, alpha) = x > 0 ? x * alpha : x / alpha
+
+MLJBase.transform(model::StaticKefir, _, X) = broadcast(kefir, model.alpha, X)
+MLJBase.inverse_transform(model::StaticKefir, _, W) = broadcast(kefir, 1/(model.alpha), W)
+
 d = MyDeterministic(:d)
 p = MyProbabilistic(:p)
 u = MyUnsupervised(:u)
@@ -576,6 +586,18 @@ end
     @test MLJBase.as_type(:unsupervised) == Unsupervised
 end
 
+@testset "inverse transform for pipes with static components" begin
+    X = randn(rng, 20)
+    pipe = StaticKefir(3) |> UnivariateStandardizer() |>
+        StaticKefir(5) |> UnivariateStandardizer()
+
+    mach = machine(pipe, X)
+    fit!(mach, verbosity=0)
+    @test inverse_transform(mach, transform(mach, X)) ≈ X
+    @test transform(mach, inverse_transform(mach, X)) ≈ X
+end
+
 end
 
 true
+

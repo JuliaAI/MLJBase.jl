@@ -134,11 +134,9 @@ metadata_pkg.((RidgeRegressor, PCA),
 metadata_model(RidgeRegressor,
                input=MLJBase.Table(MLJBase.Continuous),
                target=AbstractVector{MLJBase.Continuous},
-               weights=false,
-               descr=RIDGE_DESCR)
+               weights=false,)
 
 metadata_model(PCA,
                input=MLJBase.Table(MLJBase.Continuous),
                target=MLJBase.Table(MLJBase.Continuous),
-               weights=false,
-               descr=PCA_DESCR)
+               weights=false,)

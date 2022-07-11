@@ -583,40 +583,34 @@ metadata_model(FeatureSelector,
                input=MLJBase.Table,
                output=MLJBase.Table,
                weights=false,
-               descr=FEATURE_SELECTOR_DESCR,
                path="MLJBase.FeatureSelector")
 
 metadata_model(UnivariateDiscretizer,
                input=AbstractVector{<:MLJBase.Continuous},
                output=AbstractVector{<:MLJBase.OrderedFactor},
                weights=false,
-               descr=UNIVARIATE_DISCR_DESCR,
                path="MLJBase.UnivariateDiscretizer")
 
 metadata_model(UnivariateStandardizer,
                input=AbstractVector{<:MLJBase.Infinite},
                output=AbstractVector{MLJBase.Continuous},
                weights=false,
-               descr=UNIVARIATE_STD_DESCR,
                path="MLJBase.UnivariateStandardizer")
 
 metadata_model(Standardizer,
                input=MLJBase.Table,
                output=MLJBase.Table,
                weights=false,
-               descr=STANDARDIZER_DESCR,
                path="MLJBase.Standardizer")
 
 metadata_model(UnivariateBoxCoxTransformer,
                input=AbstractVector{MLJBase.Continuous},
                output=AbstractVector{MLJBase.Continuous},
                weights=false,
-               descr=UNIVARIATE_BOX_COX_DESCR,
                path="MLJBase.UnivariateBoxCoxTransformer")
 
 metadata_model(OneHotEncoder,
                input=MLJBase.Table,
                output=MLJBase.Table,
                weights=false,
-               descr=ONE_HOT_DESCR,
                path="MLJBase.OneHotEncoder")
