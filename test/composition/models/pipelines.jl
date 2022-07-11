@@ -588,7 +588,8 @@ end
 
 @testset "inverse transform for pipes with static components" begin
     X = randn(rng, 20)
-    pipe = StaticKefir(3) |> Standardizer() |> StaticKefir(5) |> Standardizer()
+    pipe = StaticKefir(3) |> UnivariateStandardizer() |>
+        StaticKefir(5) |> UnivariateStandardizer()
 
     mach = machine(pipe, X)
     fit!(mach, verbosity=0)
