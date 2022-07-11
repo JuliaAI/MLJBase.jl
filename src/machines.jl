@@ -337,23 +337,25 @@ See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
 """
 function machine end
 
+const ERR_STATIC_ARGUMENTS = ArgumentError(
+    "A `Static` transformer "*
+    "has no training arguments. "*
+    "Use `machine(model)`. "
+)
+
 machine(T::Type{<:Model}, args...; kwargs...) =
     throw(ArgumentError("Model *type* provided where "*
                         "model *instance* expected. "))
 
-static_error() =
-    throw(ArgumentError("A `Static` transformer "*
-                        "has no training arguments. "*
-                        "Use `machine(model)`. "))
 
-function machine(model::Static, args...; kwargs...)
-    isempty(args) || static_error()
-    return Machine(model; kwargs...)
+function machine(model::Static, args...; cache=false, kwargs...)
+    isempty(args) || throw(ERR_STATIC_ARGUMENTS)
+    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
 end
 
-function machine(model::Static, args::AbstractNode...; kwargs...)
-    isempty(args) || static_error()
-    return Machine(model; kwargs...)
+function machine(model::Static, args::AbstractNode...; cache=false, kwargs...)
+    isempty(args) || throw(ERR_STATIC_ARGUMENTS)
+    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
 end
 
 machine(model::Model, raw_arg1, arg2::AbstractNode, args::AbstractNode...;
@@ -547,7 +549,7 @@ In any of the cases (i) - (iv), `mach` is trained ab initio. If only
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
 
-### Implementation detail
+### Implementation details
 
 The data to which a machine is bound is stored in `mach.args`. Each
 element of `args` is either a `Node` object, or, in the case that
