@@ -33,9 +33,15 @@ pca = PCA()
     @test !MLJBase._contains_unknown(Union{Tuple{Int}, Tuple{Int,Char}})
 end
 
+struct StaticYoghurt <: Static end
+MLJBase.transform(::StaticYoghurt, _, X) = X
+
+@testset "machine constructor for Static models" begin
+end
+
 @testset "machine training and inpection" begin
     t = machine(tree, X, y)
-    
+
     @test_throws MLJBase.NotTrainedError(t, :fitted_params) fitted_params(t)
     @test_throws MLJBase.NotTrainedError(t, :report) report(t)
     @test_throws MLJBase.NotTrainedError(t, :training_losses) training_losses(t)
@@ -48,7 +54,7 @@ end
     t.model.max_depth = 1
     @test_logs (:info, r"Updating") fit!(t)
 
-    # The following tests only pass when machine `t` has been fitted 
+    # The following tests only pass when machine `t` has been fitted
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
     @test report(t) == t.report
     @test training_losses(t) === nothing
@@ -217,13 +223,21 @@ end
 @testset "static transformer machines" begin
     s = Scale(2)
     X = ones(2, 3)
-    Xt = MLJBase.table(X)
 
-    @test_throws ArgumentError machine(Scale(2), X)
-    @test_throws ArgumentError machine(Scale(2), source(X))
+    mach = @test_logs machine(Scale(2))
+    @test mach isa Machine{Scale, false}
+    @test report(mach) in [nothing, NamedTuple()]
+    @test isnothing(fitted_params(mach).fitresult)
+    @test_throws(
+        MLJBase.ERR_STATIC_ARGUMENTS,
+        machine(Scale(2), X),
+    )
+    @test_throws(
+        MLJBase.ERR_STATIC_ARGUMENTS,
+        machine(Scale(2), source(X)),
+    )
 
-    mach = machine(Scale(2))
-    @test_logs (:info, r"Training") fit!(mach) # no-op
+    @test_logs (:info, r"Not retraining") fit!(mach) # no-op
     state = mach.state
 
     R  = transform(mach, X)
