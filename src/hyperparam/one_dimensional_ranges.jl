@@ -35,7 +35,6 @@ function _repr(r::NumericRange{T}, field) where T
     r.scale isa Symbol && return repr(value)
     return try
         scaled = (r.scale)(value)
-        @show field scaled
         if T <: Integer
             round(T, scaled)
         else
