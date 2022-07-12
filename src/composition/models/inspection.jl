@@ -27,8 +27,23 @@ function tuple_keyed_on_model_names(item_given_machine, mach)
 end
 
 function report(mach::Machine{<:Composite})
-    dict = mach.report.report_given_machine
-    return merge(tuple_keyed_on_model_names(dict, mach), mach.report)
+    # We have two different ways to get the report. One uses `mach.cache` and is slightly
+    # more up-to-date because it includes effects of report-altering operations (such as
+    # `transform`) post-`fit!` for special components with non-empty `reporting_operations`
+    # trait. However, if a machine is a deserialized one, then it has no `cache` and we
+    # fallback to report at last `fit!`.
+    if isdefined(mach, :cache)
+        glb_report = report(mach.cache.glb)
+        dict = glb_report.report_given_machine
+        return merge(
+            tuple_keyed_on_model_names(dict, mach),
+            glb_report,
+            mach.cache.report_additions,
+        )
+    else
+        dict = mach.report.report_given_machine
+        return merge(tuple_keyed_on_model_names(dict, mach), mach.report)
+    end
 end
 
 function fitted_params(mach::Machine{<:Composite})

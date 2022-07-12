@@ -33,22 +33,22 @@ function update(model::M,
     network_model_names = getfield(fitresult, :network_model_names)
     old_model = cache.old_model
 
-    glb_node = glb(fitresult) # greatest lower bound
+    glb = cache.glb # greatest lower bound, a node
 
-    if fallback(model, old_model, network_model_names, glb_node)
+    if fallback(model, old_model, network_model_names, glb)
         return fit(model, verbosity, args...)
     end
 
-    fit!(glb_node; verbosity=verbosity)
+    fit!(glb; verbosity=verbosity)
     # Retrieve additional report values
-    report_additions_ = _call(_report_part(signature(fitresult)))
+    report_additions = _call(_report_part(signature(fitresult)))
 
     # record current model state:
-    cache = (; old_model = deepcopy(model))
+    cache = (; old_model = deepcopy(model), glb, report_additions)
 
     return (fitresult,
             cache,
-            merge(report(glb_node), report_additions_))
+            merge(report(glb), report_additions))
 
 end
 

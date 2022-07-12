@@ -248,8 +248,9 @@ function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb_node = glb(mach)
     fit!(glb_node; kwargs...)
     mach.state += 1
-    report_additions_ = _call(_report_part(signature(mach.fitresult)))
-    mach.report = merge(report(glb_node), report_additions_)
+    report_additions = _call(_report_part(signature(mach.fitresult)))
+    mach.cache = (glb_node, report_additions)
+    mach.report = merge(report(glb_node), report_additions)
     return mach
 end
 
@@ -347,7 +348,7 @@ the following:
 
 - Calls `fit!(mach, verbosity=verbosity, acceleration=acceleration)`.
 
-- Records a copy of `model` in a variable called `cache`.
+- Records (among other things) a copy of `model` in a variable called `cache`
 
 - Returns `cache` and outcomes of training in an appropriate form
   (specifically, `(mach.fitresult, cache, mach.report)`; see [Adding
@@ -396,7 +397,8 @@ function return!(mach::Machine{<:Surrogate},
     # record the current hyper-parameter values:
     old_model = deepcopy(model)
 
-    cache = (; old_model)
+    glb, report_additions = mach.cache
+    cache = (; old_model, glb, report_additions)
 
     setfield!(mach.fitresult,
         :network_model_names,

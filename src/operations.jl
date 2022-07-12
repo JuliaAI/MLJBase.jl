@@ -44,6 +44,7 @@ warn_serializable_mach(operation) = "The operation $operation has been called on
 function get!(ret, operation, mach)
     if operation in reporting_operations(mach.model)
         report = last(ret)
+        @show mach report mach.report
         if isnothing(mach.report) || isempty(mach.report)
             mach.report = report
         else
