@@ -469,10 +469,11 @@ end
 # Not one, but *two*, fit methods are defined for machines here,
 # `fit!` and `fit_only!`.
 
-# - `fit_only!`: trains a machine without touching the learned
-#   parameters (`fitresult`) of any other machine. It may error if
-#   another machine on which it depends (through its node training
-#   arguments `N1, N2, ...`) has not been trained.
+# - `fit_only!`: trains a machine without touching the learned parameters (`fitresult`) of
+#   any other machine. It may error if another machine on which it depends (through its node
+#   training arguments `N1, N2, ...`) has not been trained. It's possible that a dependent
+#   machine `mach` may have it's report mutated if `reporting_operations(mach.model)` is
+#   non-empty.
 
 # - `fit!`: trains a machine after first progressively training all
 #   machines on which the machine depends. Implicitly this involves
@@ -909,13 +910,14 @@ function serializable(mach::Machine{<:Any, C}) where C
             setfield!(copymach, fieldname, ())
         # Make fitresult ready for serialization
         elseif fieldname == :fitresult
+            # this `save` does the actual emptying of fields
             copymach.fitresult = save(mach.model, getfield(mach, fieldname))
         else
             setfield!(copymach, fieldname, getfield(mach, fieldname))
         end
     end
 
-    setreport!(copymach, mach.report)
+    setreport!(copymach, mach)
 
     return copymach
 end
@@ -997,6 +999,8 @@ function save(file::Union{String,IO},
     serialize(file, smach)
 end
 
+setreport!(copymach, mach) =
+    setfield!(copymach, :report, mach.report)
 
-setreport!(mach::Machine, report) =
-    setfield!(mach, :report, report)
+# NOTE. there is also a specialization for `setreport!` for `Composite` models, defined in
+# /src/composition/learning_networks/machines/
