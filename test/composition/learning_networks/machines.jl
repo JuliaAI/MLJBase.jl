@@ -88,7 +88,6 @@ end
     @test Θ.transform == Wout
     Θ.report.some_stuff == rnode
     @test report(mach).some_stuff == :stuff
-
     @test report(mach).machines == fitted_params(mach).machines
 
     # supervised
@@ -281,7 +280,7 @@ end
     end
 
     # Testing extra report field : it is a deepcopy
-    @test smach.report.cv_report === mach.report.cv_report
+    @test report(smach).cv_report === report(mach).cv_report
 
     @test smach.fitresult isa MLJBase.CompositeFitresult
 
@@ -356,7 +355,8 @@ end
         metalearner = FooBarRegressor(lambda=1.),
         resampling = dcv,
         model_1 = DeterministicConstantRegressor(),
-        model_2=ConstantRegressor())
+        model_2=ConstantRegressor()
+    )
 
     filesizes = []
     for n in [100, 500, 1000]

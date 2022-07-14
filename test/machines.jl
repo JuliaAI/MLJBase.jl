@@ -431,17 +431,6 @@ end
     rm(filename)
 end
 
-@testset "Test Misc functions used in `serializable`" begin
-    X, y = make_regression(100, 1)
-    mach = machine(DeterministicConstantRegressor(), X, y)
-    fit!(mach, verbosity=0)
-    # setreport! default
-    @test mach.report isa NamedTuple
-    MLJBase.setreport!(mach, "toto")
-    @test mach.report == "toto"
-end
-
-
 end # module
 
 true

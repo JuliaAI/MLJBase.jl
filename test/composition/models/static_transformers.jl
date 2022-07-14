@@ -9,18 +9,35 @@ import Random.seed!
 seed!(1234)
 
 
-struct YourTransformer <: Static
+struct PlainTransformer <: Static
     ftr::Symbol
 end
 
-MLJBase.transform(transf::YourTransformer, verbosity, X) =
+MLJBase.transform(transf::PlainTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
 @testset "nodal machine constructor for static transformers" begin
     X = (x1=rand(3), x2=[1, 2, 3]);
-    mach = machine(YourTransformer(:x2))
-    fit!(mach, verbosity=0)
+    mach = machine(PlainTransformer(:x2))
     @test transform(mach, X) == [1, 2, 3]
+end
+
+struct YourTransformer <: Static
+    ftr::Symbol
+end
+MLJBase.reporting_operations(::Type{<:YourTransformer}) = (:transform,)
+
+# returns `(output, report)`:
+MLJBase.transform(transf::YourTransformer, verbosity, X) =
+    (selectcols(X, transf.ftr), (; nrows=nrows(X)))
+
+@testset "nodal machine constructor for static transformers" begin
+    X = (x1=rand(3), x2=[1, 2, 3]);
+    mach = machine(YourTransformer(:x2))
+    @test transform(mach, X) == [1, 2, 3]
+    @test report(mach).nrows == 3
+    transform(mach, (x2=["a", "b"],))
+    @test report(mach).nrows == 2
 end
 
 x1 = rand(30)
