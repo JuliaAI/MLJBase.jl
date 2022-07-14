@@ -910,13 +910,14 @@ function serializable(mach::Machine{<:Any, C}) where C
             setfield!(copymach, fieldname, ())
         # Make fitresult ready for serialization
         elseif fieldname == :fitresult
+            # this `save` does the actual emptying of fields
             copymach.fitresult = save(mach.model, getfield(mach, fieldname))
         else
             setfield!(copymach, fieldname, getfield(mach, fieldname))
         end
     end
 
-    setreport!(copymach, mach.report)
+    setreport!(copymach, mach)
 
     return copymach
 end
@@ -998,6 +999,8 @@ function save(file::Union{String,IO},
     serialize(file, smach)
 end
 
+setreport!(copymach, mach) =
+    setfield!(copymach, :report, mach.report)
 
-setreport!(mach::Machine, report) =
-    setfield!(mach, :report, report)
+# NOTE. there is also a specialization for `setreport!` for `Composite` models, defined in
+# /src/composition/learning_networks/machines/

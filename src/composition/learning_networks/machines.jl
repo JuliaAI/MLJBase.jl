@@ -225,6 +225,22 @@ $DOC_SIGNATURES
 """
 glb(mach::Machine{<:Union{Composite,Surrogate}}) = glb(mach.fitresult)
 
+"""
+    report(fitresult::CompositeFitresult)
+
+Return a tuple combining the report from `fitresult.glb` (a `Node` report) with the
+additions coming from nodes declared as report nodes in `fitresult.signature`, but without
+merging the two.
+
+$DOC_SIGNATURES
+
+**Private method**
+"""
+function report(fitresult::CompositeFitresult)
+    basic = report(glb(fitresult))
+    additions = _call(_report_part(signature(fitresult)))
+    return (; basic, additions)
+end
 
 """
     fit!(mach::Machine{<:Surrogate};
@@ -245,12 +261,10 @@ See also [`machine`](@ref)
 
 """
 function fit!(mach::Machine{<:Surrogate}; kwargs...)
-    glb_node = glb(mach)
-    fit!(glb_node; kwargs...)
+    glb = MLJBase.glb(mach)
+    fit!(glb; kwargs...)
     mach.state += 1
-    report_additions = _call(_report_part(signature(mach.fitresult)))
-    mach.cache = (glb_node, report_additions)
-    mach.report = merge(report(glb_node), report_additions)
+    mach.report = MLJBase.report(mach.fitresult)
     return mach
 end
 
@@ -397,8 +411,8 @@ function return!(mach::Machine{<:Surrogate},
     # record the current hyper-parameter values:
     old_model = deepcopy(model)
 
-    glb, report_additions = mach.cache
-    cache = (; old_model, glb, report_additions)
+    glb = MLJBase.glb(mach)
+    cache = (; old_model)
 
     setfield!(mach.fitresult,
         :network_model_names,
@@ -649,9 +663,8 @@ function restore!(mach::Machine{<:Composite})
     return mach
 end
 
-
-function setreport!(mach::Machine{<:Composite}, report)
-    basereport = MLJBase.report(glb(mach))
-    report_additions = Base.structdiff(report, basereport)
-    mach.report = merge(basereport, report_additions)
+function setreport!(copymach::Machine{<:Composite}, mach)
+    basic = report(glb(copymach.fitresult))
+    additions = mach.report.additions
+    copymach.report = (; basic, additions)
 end

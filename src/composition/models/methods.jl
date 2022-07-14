@@ -31,24 +31,25 @@ function update(model::M,
     # underlying learning network machine.
 
     network_model_names = getfield(fitresult, :network_model_names)
-    old_model = cache.old_model
 
-    glb = cache.glb # greatest lower bound, a node
+    old_model = cache.old_model
+    glb = MLJBase.glb(fitresult) # greatest lower bound of network, a node
 
     if fallback(model, old_model, network_model_names, glb)
         return fit(model, verbosity, args...)
     end
 
     fit!(glb; verbosity=verbosity)
+
     # Retrieve additional report values
-    report_additions = _call(_report_part(signature(fitresult)))
+    report = MLJBase.report(fitresult)
 
     # record current model state:
-    cache = (; old_model = deepcopy(model), glb, report_additions)
+    cache = (; old_model = deepcopy(model))
 
     return (fitresult,
             cache,
-            merge(report(glb), report_additions))
+            report)
 
 end
 
