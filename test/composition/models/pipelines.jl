@@ -355,16 +355,19 @@ end
 
 @testset "training_losses" begin
     model = MyDeterministic(:bla)
-    pipe = Standardizer() |> model
+    tmodel = TransformedTargetModel(model, target=UnivariateStandardizer)
+    pipe = Standardizer() |> tmodel
 
     # test helpers:
-    @test MLJBase.supervised_component_name(pipe) == :my_deterministic
-    @test MLJBase.supervised_component(pipe) == model
+    @test MLJBase.supervised_component_name(pipe) ==
+        :transformed_target_model_deterministic
+    @test MLJBase.supervised_component(pipe) == tmodel
 
     @test supports_training_losses(pipe)
     _, _, rp = MLJBase.fit(pipe, 0, X, y)
     @test training_losses(pipe, rp) == ones(3)
-    @test iteration_parameter(pipe) == :(my_deterministic.x)
+    @test iteration_parameter(pipe) ==
+        :(transformed_target_model_deterministic.model.x)
 end
 
 
