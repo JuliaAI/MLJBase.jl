@@ -224,8 +224,6 @@ end
 # # TRAINING LOSSES
 
 function training_losses(model::SomeTT, tt_report)
-    @show keys(tt_report)
-    @show model
     mach = first(tt_report.basic.machines)
     return training_losses(mach)
 end
