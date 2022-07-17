@@ -609,6 +609,6 @@ MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(
 
 function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
     mach = supervised(pipe_report.basic.machines)
-    _report = report(mach)
+    _report = mach.report
     return training_losses(mach.model, _report)
 end
