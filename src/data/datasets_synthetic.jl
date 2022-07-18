@@ -18,6 +18,9 @@ const EXTRA_CLASSIFICATION =
 Internal function to  finalize the `make_*` functions.
 
 """
+x = [1 2 3 ; 4 5 6]
+x
+length(size(collect(1:3))) # (
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
@@ -27,9 +30,15 @@ function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
                 X = convert.(eltype, X)
         end
         # return as matrix if as_table=false
-        as_table || return X, y
+    as_table || return X, y
+    clf && return MLJBase.table(X), (categorical(y))
+    if length(size(y)) > 1
+        names = ((x) -> Symbol(string("target", x))).(collect(1:size(y)))
+        return MLJBase.table(X), MLJBase.table(y; names)
+    else
         clf && return MLJBase.table(X), categorical(y)
         return MLJBase.table(X), y
+    end
 end
 
 ### CLASSIFICATION TOY DATASETS
@@ -360,7 +369,9 @@ observations `y`.
 
 ### Keywords
 
-* `intercept=true: whether to generate data from a model with
+* `n_targets=1`: Number of target variables to generate.
+
+* `intercept=true`: whether to generate data from a model with
   intercept,
 
 * `sparse=0`: portion of the generating weight vector that is sparse,
