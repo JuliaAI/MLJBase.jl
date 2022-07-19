@@ -18,6 +18,9 @@ const EXTRA_CLASSIFICATION =
 Internal function to  finalize the `make_*` functions.
 
 """
+x = [1 2 3 ; 4 5 6]
+x
+length(size(collect(1:3))) # (
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
@@ -27,9 +30,15 @@ function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
                 X = convert.(eltype, X)
         end
         # return as matrix if as_table=false
-        as_table || return X, y
+    as_table || return X, y
+    clf && return MLJBase.table(X), (categorical(y))
+    if length(size(y)) > 1
+        names = ((x) -> Symbol(string("target", x))).(collect(1:size(y)))
+        return MLJBase.table(X), MLJBase.table(y; names)
+    else
         clf && return MLJBase.table(X), categorical(y)
         return MLJBase.table(X), y
+    end
 end
 
 ### CLASSIFICATION TOY DATASETS
@@ -198,7 +207,7 @@ function make_circles(n::Integer=100;
         throw(ArgumentError(
             "Factor argument must be strictly between 0 and 1."))
     end
-    
+
     rng = init_rng(rng)
     # Generate points on a 2D circle
     θs = runif_ab(rng, n, 1, 0, 2pi)
@@ -360,7 +369,9 @@ observations `y`.
 
 ### Keywords
 
-* `intercept=true: whether to generate data from a model with
+* `n_targets=1`: Number of target variables to generate.
+
+* `intercept=true`: whether to generate data from a model with
   intercept,
 
 * `sparse=0`: portion of the generating weight vector that is sparse,
@@ -384,6 +395,7 @@ X, y = make_regression(100, 5; noise=0.5, sparse=0.2, outliers=0.1)
 """
 function make_regression(n::Int=100,
                          p::Int=2;
+                         n_targets::Int=1,
                          intercept::Bool=true,
                          sparse::Real=0,
                          noise::Real=0.1,
@@ -397,6 +409,10 @@ function make_regression(n::Int=100,
     if n < 1 || p < 1
         throw(ArgumentError(
             "Expected `n` and `p` to be at least 1."))
+    end
+    if n_targets < 1
+        throw(ArgumentError(
+            "Expected `n_targets` to be at least 1."))
     end
     if !(0 <= sparse < 1)
         throw(ArgumentError(
@@ -413,16 +429,18 @@ function make_regression(n::Int=100,
 
     rng = init_rng(rng)
     X = augment_X(randn(rng, n, p), intercept)
-    θ = randn(rng, p + Int(intercept))
+    y_shape = n_targets > 1 ? (n, n_targets) : n
+    theta_shape = n_targets > 1 ? (p + Int(intercept), n_targets) : (p + Int(intercept))
+    θ = randn(rng, theta_shape)
     sparse > 0 && sparsify!(rng, θ, sparse)
     y = X * θ
 
     if !iszero(noise)
-        y .+= noise .* randn(rng, n)
+        y .+= noise .* randn(rng, y_shape)
     end
 
     if binary
-        y = rand(rng, n) .< sigmoid.(y)
+        y = rand(rng, y_shape) .< sigmoid.(y)
     else
         if !iszero(outliers)
             outlify!(rng, y, outliers)
