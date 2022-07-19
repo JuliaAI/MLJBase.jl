@@ -108,7 +108,7 @@ end
 
     X, y = make_regression(n, p; n_targets = 4)
     @test MLJBase.Tables.istable(y)  == true
-    @test MLJBase.Tables.columnames(y) == [:target1, :target2, :target3, :target4]
+    @test MLJBase.Tables.columnnames(y) == [:target1, :target2, :target3, :target4]
 end
 
 end # module
