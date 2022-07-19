@@ -31,9 +31,9 @@ function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
         end
         # return as matrix if as_table=false
     as_table || return X, y
-    clf && return MLJBase.table(X), (categorical(y))
+    clf && return MLJBase.table(X), categorical(y)
     if length(size(y)) > 1
-        names = ((x) -> Symbol(string("target", x))).(collect(1:size(y)))
+        names = ((x) -> Symbol(string("target", x))).(collect(1:size(y, 2)))
         return MLJBase.table(X), MLJBase.table(y; names)
     else
         clf && return MLJBase.table(X), categorical(y)
