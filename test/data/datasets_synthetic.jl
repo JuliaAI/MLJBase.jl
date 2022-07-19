@@ -105,6 +105,10 @@ end
     @test_throws ArgumentError make_regression(noise=-1)
     @test_throws ArgumentError make_regression(sparse=-1)
     @test_throws ArgumentError make_regression(outliers=-1)
+
+    X, y = make_regression(n, p; n_targets = 4)
+    @test MLJBase.Tables.istable(y)  == true
+    @test MLJBase.Tables.columnnames(y) == [:target1, :target2, :target3, :target4]
 end
 
 end # module

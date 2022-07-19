@@ -18,6 +18,9 @@ const EXTRA_CLASSIFICATION =
 Internal function to  finalize the `make_*` functions.
 
 """
+x = [1 2 3 ; 4 5 6]
+x
+length(size(collect(1:3))) # (
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
@@ -27,9 +30,15 @@ function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
                 X = convert.(eltype, X)
         end
         # return as matrix if as_table=false
-        as_table || return X, y
+    as_table || return X, y
+    clf && return MLJBase.table(X), categorical(y)
+    if length(size(y)) > 1
+        names = ((x) -> Symbol(string("target", x))).(collect(1:size(y, 2)))
+        return MLJBase.table(X), MLJBase.table(y; names)
+    else
         clf && return MLJBase.table(X), categorical(y)
         return MLJBase.table(X), y
+    end
 end
 
 ### CLASSIFICATION TOY DATASETS
@@ -198,7 +207,7 @@ function make_circles(n::Integer=100;
         throw(ArgumentError(
             "Factor argument must be strictly between 0 and 1."))
     end
-    
+
     rng = init_rng(rng)
     # Generate points on a 2D circle
     θs = runif_ab(rng, n, 1, 0, 2pi)
@@ -354,25 +363,31 @@ noise, for use with regression models.
 
 ### Return value
 
-By default, a table `X` with `p` columns and `n` rows (observations),
+By default, a tuple `(X, y)` where table `X` has `p` columns and `n` rows (observations),
 together with a corresponding vector of `n` `Continuous` target
 observations `y`.
 
 ### Keywords
 
-* `intercept=true: whether to generate data from a model with
-  intercept,
+* `intercept=true`: Whether to generate data from a model with
+  intercept.
 
-* `sparse=0`: portion of the generating weight vector that is sparse,
+* `n_targets=1`: Number of columns in the target.
 
-* `noise=0.1`: standard deviation of the Gaussian noise added to the
-  response,
+* `sparse=0`: Proportion of the generating weight vector that is sparse.
 
-* `outliers=0`: portion of the response vector to make as outliers by
+* `noise=0.1`: Standard deviation of the Gaussian noise added to the
+  response (target).
+
+* `outliers=0`: Proportion of the response vector to make as outliers by
   adding a random quantity with high variance. (Only applied if
-  `binary` is `false`)
+  `binary` is `false`.)
 
-* `binary=false`: whether the target should be binarized (via a sigmoid).
+* `as_table=true`: Whether `X` (and `y`, if `n_targets > 1`) should be a table or a matrix.
+
+* `eltype=Float64`: Element type for `X` and `y`. Must subtype `AbstractFloat`.
+
+* `binary=false`: Whether the target should be binarized (via a sigmoid).
 $EXTRA_KW_MAKE
 
 ### Example
@@ -384,6 +399,7 @@ X, y = make_regression(100, 5; noise=0.5, sparse=0.2, outliers=0.1)
 """
 function make_regression(n::Int=100,
                          p::Int=2;
+                         n_targets::Int=1,
                          intercept::Bool=true,
                          sparse::Real=0,
                          noise::Real=0.1,
@@ -397,6 +413,10 @@ function make_regression(n::Int=100,
     if n < 1 || p < 1
         throw(ArgumentError(
             "Expected `n` and `p` to be at least 1."))
+    end
+    if n_targets < 1
+        throw(ArgumentError(
+            "Expected `n_targets` to be at least 1."))
     end
     if !(0 <= sparse < 1)
         throw(ArgumentError(
@@ -413,16 +433,18 @@ function make_regression(n::Int=100,
 
     rng = init_rng(rng)
     X = augment_X(randn(rng, n, p), intercept)
-    θ = randn(rng, p + Int(intercept))
+    y_shape = n_targets > 1 ? (n, n_targets) : n
+    theta_shape = n_targets > 1 ? (p + Int(intercept), n_targets) : (p + Int(intercept))
+    θ = randn(rng, theta_shape)
     sparse > 0 && sparsify!(rng, θ, sparse)
     y = X * θ
 
     if !iszero(noise)
-        y .+= noise .* randn(rng, n)
+        y .+= noise .* randn(rng, y_shape)
     end
 
     if binary
-        y = rand(rng, n) .< sigmoid.(y)
+        y = rand(rng, y_shape) .< sigmoid.(y)
     else
         if !iszero(outliers)
             outlify!(rng, y, outliers)
