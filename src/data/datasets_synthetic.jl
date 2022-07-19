@@ -363,27 +363,31 @@ noise, for use with regression models.
 
 ### Return value
 
-By default, a table `X` with `p` columns and `n` rows (observations),
+By default, a tuple `(X, y)` where table `X` has `p` columns and `n` rows (observations),
 together with a corresponding vector of `n` `Continuous` target
 observations `y`.
 
 ### Keywords
 
-* `n_targets=1`: Number of target variables to generate.
+* `intercept=true`: Whether to generate data from a model with
+  intercept.
 
-* `intercept=true`: whether to generate data from a model with
-  intercept,
+* `n_targets=1`: Number of columns in the target.
 
-* `sparse=0`: portion of the generating weight vector that is sparse,
+* `sparse=0`: Proportion of the generating weight vector that is sparse.
 
-* `noise=0.1`: standard deviation of the Gaussian noise added to the
-  response,
+* `noise=0.1`: Standard deviation of the Gaussian noise added to the
+  response (target).
 
-* `outliers=0`: portion of the response vector to make as outliers by
+* `outliers=0`: Proportion of the response vector to make as outliers by
   adding a random quantity with high variance. (Only applied if
-  `binary` is `false`)
+  `binary` is `false`.)
 
-* `binary=false`: whether the target should be binarized (via a sigmoid).
+* `as_table=true`: Whether `X` (and `y`, if `n_targets > 1`) should be a table or a matrix.
+
+* `eltype=Float64`: Element type for `X` and `y`. Must subtype `AbstractFloat`.
+
+* `binary=false`: Whether the target should be binarized (via a sigmoid).
 $EXTRA_KW_MAKE
 
 ### Example
