@@ -16,7 +16,7 @@ end
 MLJBase.transform(transf::PlainTransformer, verbosity, X) =
     selectcols(X, transf.ftr)
 
-@testset "nodal machine constructor for static transformers" begin
+@testset "machine constructor for static transformers" begin
     X = (x1=rand(3), x2=[1, 2, 3]);
     mach = machine(PlainTransformer(:x2))
     @test transform(mach, X) == [1, 2, 3]
@@ -31,10 +31,14 @@ MLJBase.reporting_operations(::Type{<:YourTransformer}) = (:transform,)
 MLJBase.transform(transf::YourTransformer, verbosity, X) =
     (selectcols(X, transf.ftr), (; nrows=nrows(X)))
 
+MLJBase.predict(transf::YourTransformer, verbosity, X) =
+    collect(1:nrows(X)) |> reverse
+
 @testset "nodal machine constructor for static transformers" begin
     X = (x1=rand(3), x2=[1, 2, 3]);
     mach = machine(YourTransformer(:x2))
     @test transform(mach, X) == [1, 2, 3]
+    @test predict(mach, X) == [3, 2, 1]
     @test report(mach).nrows == 3
     transform(mach, (x2=["a", "b"],))
     @test report(mach).nrows == 2

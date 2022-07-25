@@ -23,7 +23,8 @@
 ## predict(::Machine, ) and transform(::Machine, )
 
 _err_rows_not_allowed() =
-    throw(ArgumentError("Calling `transform(mach, rows=...)` when "*
+    throw(ArgumentError("Calling `transform(mach, rows=...)` or "*
+                        "`predict(mach, rows=...)` when "*
                         "`mach.model isa Static` is not allowed, as no data "*
                         "is bound to `mach` in this case. Specify a explicit "*
                         "data or node, as in `transform(mach, X)`, or "*
@@ -80,13 +81,13 @@ for operation in OPERATIONS
             )
             return get!(ret, $quoted_operation, mach)
         end
+
+        # special case of Static models (no training arguments):
+        $operation(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
     end
     eval(ex)
 
 end
-
-# special case of Static models (no training arguments):
-transform(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
 
 inverse_transform(mach::Machine; rows=:) =
             throw(ArgumentError("`inverse_transform(mach)` and "*
