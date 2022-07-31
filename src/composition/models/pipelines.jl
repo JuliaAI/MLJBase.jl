@@ -1,614 +1,304 @@
-# Code to construct pipelines without macros
+const PROPER_SCORING_RULES = "[Gneiting and Raftery (2007), \"Strictly"*
+    "Proper Scoring Rules, Prediction, and Estimation\""*
+    "](https://doi.org/10.1198/016214506000001437)"
+const DOC_FINITE =
+    "`AbstractArray{<:Union{Finite,Missing}` (multiclass classification)"
+const DOC_FINITE_BINARY =
+    "`AbstractArray{<:Union{Finite{2},Missing}}` (binary classification)"
+const DOC_ORDERED_FACTOR =
+    "`AbstractArray{<:Union{OrderedFactor,Missing}}` (classification of ordered target)"
+const DOC_ORDERED_FACTOR_BINARY =
+    "`AbstractArray{<:Union{OrderedFactor{2},Missing}}` "*
+    "(binary classification where choice of \"true\" effects the measure)"
+const DOC_CONTINUOUS = "`AbstractArray{<:Union{Continuous,Missing}}` (regression)"
+const DOC_COUNT = "`AbstractArray{<:Union{Count,Missing}}`"
+const DOC_MULTI = "`AbtractArray{<:Union{Missing,T}` where `T` is `Continuous` "*
+    "or `Count` (for respectively continuous or discrete Distribution.jl objects in "*
+    "`ŷ`) or  `OrderedFactor` or `Multiclass` "*
+    "(for `UnivariateFinite` distributions in `ŷ`)"
 
-# ## Note on mutability.
+const DOC_INFINITE = "`AbstractArray{<:Union{Infinite,Missing}}`"
+const INVARIANT_LABEL =
+    "This metric is invariant to class reordering."
+const VARIANT_LABEL =
+    "This metric is *not* invariant to class re-ordering"
 
-# The components in a pipeline, as defined here, can be replaced so
-# long as their "abstract supertype" (eg, `Probabilistic`) remains the
-# same. This is the type returned by `abstract_type()`; in the present
-# code it will always be one of the types listed in
-# `SUPPORTED_TYPES_FOR_PIPELINES` below, or `Any`, if `component` is
-# not a model (which, by assumption, means it is callable).
+is_measure_type(::Any) = false
+
+# Each of the following traits, with fallbacks defined in
+# StatisticalTraits.jl, make sense for some or all measures:
+
+const MEASURE_TRAITS = [
+    :name,
+    :instances,
+    :human_name,
+    :target_scitype,
+    :supports_weights,
+    :supports_class_weights,
+    :prediction_type,
+    :orientation,
+    :reports_each_observation,
+    :aggregation,
+    :is_feature_dependent,
+    :docstring,
+    :distribution_type
+]
+
+# # FOR BUILT-IN MEASURES (subtyping Measure)
+
+abstract type Measure <: MLJType end
+abstract type Aggregated <: Measure end
+abstract type Unaggregated <: Measure end
+
+StatisticalTraits.reports_each_observation(::Type{<:Aggregated}) = false
+StatisticalTraits.reports_each_observation(::Type{<:Unaggregated}) = true
 
 
-# # HELPERS
+# # FALLBACK CHECKS
+extra_check(::Measure, args...) = nothing
+function _check(measure::Measure, yhat, y)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y)
+end
+function _check(measure::Measure, yhat, y, w)
+    check_dimensions(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure, yhat, y, w::Arr)
+    check_dimensions(yhat, y)
+    check_dimensions(y, w)
+    extra_check(measure, yhat, y, w)
+end
+function _check(measure::Measure, yhat::Arr{<:UnivariateFinite})
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y)
+end
 
-# modify collection of symbols to guarantee uniqueness. For example,
-# individuate([:x, :y, :x, :x]) = [:x, :y, :x2, :x3])
-function individuate(v)
-    isempty(v) && return v
-    ret = Symbol[first(v),]
-    for s in v[2:end]
-        s in ret || (push!(ret, s); continue)
-        n = 2
-        candidate = s
-        while true
-            candidate = string(s, n) |> Symbol
-            candidate in ret || break
-            n += 1
-        end
-        push!(ret, candidate)
-    end
+function _check(
+    measure::Measure,
+    yhat::Arr{<:UnivariateFinite},
+    y,
+    w::Arr
+)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    extra_check(measure, yhat, y, w)
+end
+
+function _check(
+    measure::Measure,
+    yhat::Arr{<:UnivariateFinite},
+    y,
+    w::AbstractDict
+)
+    check_dimensions(yhat, y)
+    check_pools(yhat, y)
+    check_pools(yhat, w)
+    extra_check(measure, yhat, y, w)
+end
+
+# # METHODS TO EVALUATE MEASURES
+
+# See measures/README.md for details
+
+single(::Unaggregated, η̂::Missing, η) = missing
+single(::Unaggregated, η̂, η::Missing) = missing
+
+const Label = Union{CategoricalValue, Number, AbstractString, Symbol, AbstractChar}
+
+# closure for broadcasting:
+single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
+
+call(measure::Unaggregated, yhat, y) = broadcast(single(measure), yhat, y)
+function call(measure::Unaggregated, yhat, y, w::Arr)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    return w .* unweighted
+end
+function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
+    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    w = @inbounds broadcast(η -> weight_given_class[η], y)
+    return w .* unweighted
+end
+
+# ## Top level
+function (measure::Measure)(args...)
+    _check(measure, args...)
+    call(measure, args...)
+end
+
+# # TRAITS
+
+# user-bespoke measures will subtype `Measure` directly and the
+# following will therefore not apply:
+StatisticalTraits.supports_weights(::Type{<:Union{Aggregated, Unaggregated}}) = true
+
+is_measure_type(::Type{<:Measure}) = true
+is_measure(m) = is_measure_type(typeof(m))
+
+# docstring fall-back:
+_decorate(s::AbstractString) = "`$s`"
+_decorate(v::Vector{<:AbstractString}) = join(_decorate.(v), ", ")
+function MMI.docstring(M::Type{<:Measure})
+    list = _decorate(instances(M))
+    ret = "`$(name(M))` - $(human_name(M)) type"
+    isempty(list) || (ret *= " with instances $list")
+    ret *= ". "
     return ret
 end
 
-function as_type(prediction_type::Symbol)
-    if prediction_type == :deterministic
-        return Deterministic
-    elseif prediction_type == :probabilistic
-        return Probabilistic
-    elseif prediction_type == :interval
-        return Interval
-    else
-        return Unsupervised
-    end
+# display:
+show_as_constructed(::Type{<:Measure}) = true
+
+# info
+function StatisticalTraits.info(M::Type{<:Measure})
+    values = Tuple(@eval($trait($M)) for trait in MEASURE_TRAITS)
+    return NamedTuple{Tuple(MEASURE_TRAITS)}(values)
 end
 
-_instance(x) = x
-_instance(T::Type{<:Model}) = T()
+StatisticalTraits.info(m::Measure) = StatisticalTraits.info(typeof(m))
 
 
-# # TYPES
+# # AGGREGATION
 
-const SUPPORTED_TYPES_FOR_PIPELINES = [
-    :Deterministic,
-    :Probabilistic,
-    :Interval,
-    :Unsupervised,
-    :Static]
+(::Sum)(v) = sum(skipinvalid(v))
+(::Sum)(v::LittleDict) = sum(values(v))
 
-const PIPELINE_TYPE_GIVEN_TYPE = Dict(
-    :Deterministic => :DeterministicPipeline,
-    :Probabilistic => :ProbabilisticPipeline,
-    :Interval      => :IntervalPipeline,
-    :Unsupervised  => :UnsupervisedPipeline,
-    :Static        => :StaticPipeline)
+(::Mean)(v) = mean(skipinvalid(v))
+(::Mean)(v::LittleDict) = mean(values(v))
 
-const COMPOSITE_TYPE_GIVEN_TYPE = Dict(
-    :Deterministic => :DeterministicComposite,
-    :Probabilistic => :ProbabilisticComposite,
-    :Interval      => :IntervalComposite,
-    :Unsupervised  => :UnsupervisedComposite,
-    :Static        => :StaticComposite)
+(::RootMeanSquare)(v) = sqrt(mean(skipinvalid(v).^2))
 
-const PREDICTION_TYPE_OPTIONS = [:deterministic,
-                                 :probabilistic,
-                                 :interval]
+aggregate(v, measure) = aggregation(measure)(v)
 
-for T_ex in SUPPORTED_TYPES_FOR_PIPELINES
-    P_ex = PIPELINE_TYPE_GIVEN_TYPE[T_ex]
-    C_ex = COMPOSITE_TYPE_GIVEN_TYPE[T_ex]
-    quote
-        mutable struct $P_ex{N<:NamedTuple,operation} <: $C_ex
-            named_components::N
-            cache::Bool
-            $P_ex(operation, named_components::N, cache) where N =
-                new{N,operation}(named_components, cache)
-        end
-    end |> eval
+# aggregation is no-op on scalars:
+const MeasureValue = Union{Real,Tuple{<:Real,<:Real}} # number or interval
+aggregate(x::MeasureValue, measure) = x
+
+
+# # UNIVERSAL CALLING SYNTAX
+
+# yhat - predictions (point or probabilistic)
+# X - features
+# y - target observations
+# w - per-observation weights
+
+function value(measure, yhat, X, y, w)
+    vfdep     = Val(is_feature_dependent(measure))
+    vsweights = Val(supports_weights(measure) ||
+                    supports_class_weights(measure))
+    return value(measure, yhat, X, y, w, vfdep, vsweights)
 end
 
-# hack an alias for the union type, `SomePipeline{N,operation}` (not
-# exported):
-const _TYPE_EXS = map(values(PIPELINE_TYPE_GIVEN_TYPE)) do P_ex
-    :($P_ex{N,operation})
-end
-quote
-    const SomePipeline{N,operation} =
-        Union{$(_TYPE_EXS...)}
-end |> eval
+# # UNIVERSAL CALLING INTERFACE
 
-# not exported:
-const SupervisedPipeline{N,operation} =
-    Union{DeterministicPipeline{N,operation},
-          ProbabilisticPipeline{N,operation},
-          IntervalPipeline{N,operation}}
+#  is feature independent, weights not supported:
+value(m, yhat, X, y, w, ::Val{false}, ::Val{false}) = m(yhat, y)
 
-components(p::SomePipeline) = values(getfield(p, :named_components))
-names(p::SomePipeline) = keys(getfield(p, :named_components))
-operation(p::SomePipeline{N,O}) where {N,O} = O
+#  is feature dependent:, weights not supported:
+value(m, yhat, X, y, w, ::Val{true}, ::Val{false}) = m(yhat, X, y)
 
+#  is feature independent, weights supported:
+value(m, yhat, X, y, w,         ::Val{false}, ::Val{true}) = m(yhat, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{false}, ::Val{true}) = m(yhat, y)
 
-# # GENERIC CONSTRUCTOR
+#  is feature dependent, weights supported:
+value(m, yhat, X, y, w,         ::Val{true}, ::Val{true}) = m(yhat, X, y, w)
+value(m, yhat, X, y, ::Nothing, ::Val{true}, ::Val{true}) = m(yhat, X, y)
 
-const PRETTY_PREDICTION_OPTIONS =
-    join([string("`:", opt, "`") for opt in PREDICTION_TYPE_OPTIONS],
-         ", ",
-         ", and ")
-const ERR_TOO_MANY_SUPERVISED = ArgumentError(
-    "More than one supervised model in a pipeline is not permitted")
-const ERR_EMPTY_PIPELINE = ArgumentError(
-    "Cannot create an empty pipeline. ")
-err_prediction_type_conflict(supervised_model, prediction_type) =
-    ArgumentError("The pipeline's last component model has type "*
-                  "`$(typeof(supervised_model))`, which conflicts "*
-                  "with the declaration "*
-                  "`prediction_type=$prediction_type`. ")
-const INFO_TREATING_AS_DETERMINISTIC =
-    "Treating pipeline as a `Deterministic` predictor.\n"*
-    "To override, use `Pipeline` constructor with `prediction_type=...`. "*
-    "Options are $PRETTY_PREDICTION_OPTIONS. "
-const ERR_INVALID_PREDICTION_TYPE = ArgumentError(
-    "Invalid `prediction_type`. Options are $PRETTY_PREDICTION_OPTIONS. ")
-const WARN_IGNORING_PREDICTION_TYPE =
-    "Pipeline appears to have no supervised "*
-    "component models. Ignoring declaration "*
-    "`prediction_type=$(prediction_type)`. "
-const ERR_MIXED_PIPELINE_SPEC = ArgumentError(
-    "Either specify all pipeline components without names, as in "*
-    "`Pipeline(model1, model2)` or specify names for all "*
-    "components, as in `Pipeline(myfirstmodel=model1, mysecondmodel=model2)`. ")
-const ERR_USING_TARGET_KWARG = ArgumentError(
-    "You are not permitted to name a pipeline component \"target\", "*
-    "as this may be confused with the `target` keyword argument for "*
-    "the older `@pipeline` macro. `Pipeline` does not support target "*
-    "transformations. To implement one, wrap a supervised "*
-    "`model` using `TransformedTargetModel`, as in "*
-    "`TransformedTargetModel(model, target=Standardizer())`. ")
+# # helpers
 
-# The following combines its arguments into a named tuple, performing
-# a number of checks and modifications. Specifically, it checks
-# `components` is a valid sequence, modifies `names` to make them
-# unique, and replaces the types appearing in the named tuple type
-# parameters with their abstract supertypes. See the "Note on
-# mutability" above.
-function pipe_named_tuple(names, components)
+_scale(x, w::Arr, i) = x*w[i]
+_scale(x, ::Nothing, i::Any) = x
 
-    isempty(names) && throw(ERR_EMPTY_PIPELINE)
-
-    # make keys unique:
-    names = names |> individuate |> Tuple
-
-    # check sequence:
-    supervised_components = filter(components) do c
-        c isa Supervised
-    end
-    length(supervised_components) < 2 ||
-        throw(ERR_TOO_MANY_SUPERVISED)
-
-    # return the named tuple:
-    types = abstract_type.(components)
-    NamedTuple{names,Tuple{types...}}(components)
-
+function check_pools(ŷ, y)
+    levels(y) == levels(ŷ[1]) ||
+        error("Conflicting categorical pools found "*
+              "in observations and predictions. ")
+    return nothing
 end
 
-"""
-    Pipeline(component1, component2, ... , componentk; options...)
-    Pipeline(name1=component1, name2=component2, ..., namek=componentk; options...)
-    component1 |> component2 |> ... |> componentk
-
-Create an instance of a composite model type which sequentially composes
-the specified components in order. This means `component1` receives
-inputs, whose output is passed to `component2`, and so forth. A
-"component" is either a `Model` instance, a model type (converted
-immediately to its default instance) or any callable object. Here the
-"output" of a model is what `predict` returns if it is `Supervised`,
-or what `transform` returns if it is `Unsupervised`.
-
-Names for the component fields are automatically generated unless
-explicitly specified, as in
-
-```
-Pipeline(encoder=ContinuousEncoder(drop_last=false),
-         stand=Standardizer())
-```
-
-The `Pipeline` constructor accepts keyword `options` discussed further
-below.
-
-Ordinary functions (and other callables) may be inserted in the
-pipeline as shown in the following example:
-
-    Pipeline(X->coerce(X, :age=>Continuous), OneHotEncoder, ConstantClassifier)
-
-### Syntactic sugar
-
-The `|>` operator is overloaded to construct pipelines out of models,
-callables, and existing pipelines:
-
-```julia
-LinearRegressor = @load LinearRegressor pkg=MLJLinearModels add=true
-PCA = @load PCA pkg=MultivariateStats add=true
-
-pipe1 = MLJBase.table |> ContinuousEncoder |> Standardizer
-pipe2 = PCA |> LinearRegressor
-pipe1 |> pipe2
-```
-
-At most one of the components may be a supervised model, but this
-model can appear in any position. A pipeline with a `Supervised`
-component is itself `Supervised` and implements the `predict`
-operation.  It is otherwise `Unsupervised` (possibly `Static`) and
-implements `transform`.
-
-### Special operations
-
-If all the `components` are invertible unsupervised models (ie,
-implement `inverse_transform`) then `inverse_transform` is implemented
-for the pipeline. If there are no supervised models, then `predict` is
-nevertheless implemented, assuming the last component is a model that
-implements it (some clustering models). Similarly, calling `transform`
-on a supervised pipeline calls `transform` on the supervised
-component.
-
-### Optional key-word arguments
-
-- `prediction_type`  -
-  prediction type of the pipeline; possible values: `:deterministic`,
-  `:probabilistic`, `:interval` (default=`:deterministic` if not inferable)
-
-- `operation` - operation applied to the supervised component model,
-  when present; possible values: `predict`, `predict_mean`,
-  `predict_median`, `predict_mode` (default=`predict`)
-
-- `cache` - whether the internal machines created for component models
-  should cache model-specific representations of data (see
-  [`machine`](@ref)) (default=`true`)
-
-!!! warning
-
-    Set `cache=false` to guarantee data anonymization.
-
-To build more complicated non-branching pipelines, refer to the MLJ
-manual sections on composing models.
-
-"""
-function Pipeline(args...; prediction_type=nothing,
-                  operation=predict,
-                  cache=true,
-                  kwargs...)
-
-    # Components appear either as `args` (with names to be
-    # automatically generated) or in `kwargs`, but not both.
-
-    # This public constructor does checks and constructs a valid named
-    # tuple, `named_components`, to be passed onto a secondary
-    # constructor.
-
-    isempty(args) || isempty(kwargs) ||
-        throw(ERR_MIXED_PIPELINE_SPEC)
-
-    operation in eval.(PREDICT_OPERATIONS) ||
-        throw(ERR_INVALID_OPERATION)
-
-    prediction_type in PREDICTION_TYPE_OPTIONS || prediction_type === nothing ||
-        throw(ERR_INVALID_PREDICTION_TYPE)
-
-    # construct the named tuple of components:
-    if isempty(args)
-        _names = keys(kwargs)
-        :target in _names && throw(ERR_USING_TARGET_KWARG)
-        _components = values(values(kwargs))
-    else
-        _names = Symbol[]
-        for c in args
-            generate_name!(c, _names, only=Model)
-        end
-        _components = args
-    end
-
-    # in case some components are specified as model *types* instead
-    # of instances:
-    components = _instance.(_components)
-
-    named_components = pipe_named_tuple(_names, components)
-
-    pipe = _pipeline(named_components, prediction_type, operation, cache)
-    message = clean!(pipe)
-    isempty(message) || @warn message
-
-    return pipe
+function check_pools(ŷ, w::AbstractDict)
+    Set(levels(ŷ[1])) == Set(keys(w)) ||
+        error("Conflicting categorical pools found "*
+              "in class weights and predictions. ")
+    return nothing
 end
 
-function _pipeline(named_components::NamedTuple,
-                   prediction_type,
-                   operation,
-                   cache)
+# # INCLUDE SPECIFIC MEASURES AND TOOLS
 
-    # This method assumes all arguments are valid and includes the
-    # logic that determines which concrete pipeline's constructor
-    # needs calling.
+include("meta_utilities.jl")
+include("roc.jl")
+include("confusion_matrix.jl")
+include("continuous.jl")
+include("finite.jl")
+include("probabilistic.jl")
+include("loss_functions_interface.jl")
 
-    components = values(named_components)
 
-    # Is this a supervised pipeline?
-    idx = findfirst(components) do c
-        c isa Supervised
-    end
-    is_supervised = idx !== nothing
-    is_supervised && @inbounds supervised_model = components[idx]
+# # DEFAULT MEASURES
 
-    # Is this a static pipeline? A component is *static* if it is an
-    # instance of `Static <: Unsupervised` *or* a callable (anything
-    # that is not a model, by assumption). When all the components are
-    # static, the pipeline will be a `StaticPipeline`.
-    static_components = filter(components) do m
-        !(m isa Model) || m isa Static
-    end
+default_measure(T, S) = nothing
 
-    is_static = length(static_components) == length(components)
-
-    # To make final pipeline type determination, we need to determine
-    # the corresonding abstract type (eg, `Probablistic`) here called
-    # `super_type`:
-    if is_supervised
-        supervised_is_last = last(components) === supervised_model
-        if prediction_type !== nothing
-            super_type = as_type(prediction_type)
-            supervised_is_last && !(supervised_model isa super_type) &&
-                throw(err_prediction_type_conflict(supervised_model,
-                                                   prediction_type))
-        elseif supervised_is_last
-            if operation != predict
-                super_type = Deterministic
-            else
-                super_type = abstract_type(supervised_model)
-            end
-        else
-            A = abstract_type(supervised_model)
-            A == Deterministic || operation !== predict ||
-                @info INFO_TREATING_AS_DETERMINISTIC
-            super_type = Deterministic
-        end
-    else
-        prediction_type === nothing ||
-            @warn WARN_IGNORING_PREDICTION_TYPE
-        super_type = is_static ? Static : Unsupervised
-    end
-
-    # dispatch on `super_type` to construct the appropriate type:
-    _pipeline(super_type, operation, named_components, cache)
+# Deterministic + Continuous / Count ==> RMS
+function default_measure(
+    ::Type{<:Deterministic},
+    ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
+    Vec{<:Union{Missing,Count}}}}
+)
+   return rms
 end
 
-# where the method called in the last line will be one of these:
-for T_ex in SUPPORTED_TYPES_FOR_PIPELINES
-    P_ex = PIPELINE_TYPE_GIVEN_TYPE[T_ex]
-    quote
-        _pipeline(::Type{<:$T_ex}, args...) =
-            $P_ex(args...)
-    end |> eval
+# Deterministic + Finite ==> Misclassification rate
+function default_measure(
+    ::Type{<:Deterministic},
+    ::Type{<:Vec{<:Union{Missing,Finite}}}
+)
+    return misclassification_rate
 end
 
-
-# # CLEAN METHOD
-
-clean!(pipe::SomePipeline) = ""
-
-
-# # PROPERTY ACCESS
-
-err_pipeline_bad_property(p, name) = ErrorException(
-    "pipeline has no component `$name`")
-
-Base.propertynames(p::SomePipeline{<:NamedTuple{names}}) where names =
-    (names..., :cache)
-
-function Base.getproperty(p::SomePipeline{<:NamedTuple{names}},
-                          name::Symbol) where names
-    name === :cache && return getfield(p, :cache)
-    name in names && return getproperty(getfield(p, :named_components), name)
-    throw(err_pipeline_bad_property(p, name))
+# Probabilistic + Finite ==> log loss
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing,Finite}}}
+)
+    return log_loss
 end
 
-function Base.setproperty!(p::SomePipeline{<:NamedTuple{names,types}},
-                           name::Symbol, value) where {names,types}
-    name === :cache && return setfield!(p, :cache, value)
-    idx = findfirst(==(name), names)
-    idx === nothing && throw(err_pipeline_bad_property(p, name))
-    components = getfield(p, :named_components) |> values |> collect
-    @inbounds components[idx] = value
-    named_components = NamedTuple{names,types}(Tuple(components))
-    setfield!(p, :named_components, named_components)
+# Probabilistic + Continuous ==> Log loss
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing,Continuous}}}
+)
+    return log_loss
 end
 
-
-# # LEARNING NETWORK MACHINES FOR PIPELINES
-
-# https://alan-turing-institute.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
-
-
-# ## Methods to extend a pipeline learning network
-
-# The "front" of a pipeline network, as we grow it, consists of a
-# "predict" and a "transform" node. Once the pipeline is complete
-# (after a series of `extend` operations - see below) the "transform"
-# node is what is used to deliver the output of `transform(pipe)` in
-# the exported model, and the "predict" node is what will be used to
-# deliver the output of `predict(pipe). Both nodes can be changed by
-# `extend` but only the "active" node is propagated.  Initially
-# "transform" is active and "predict" only becomes active when a
-# supervised model is encountered; this change is permanent.
-# https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
-
-# `A == true` means `transform` is active
-struct Front{A,P<:AbstractNode,N<:AbstractNode}
-    predict::P
-    transform::N
-    Front(p::P, t::N, A) where {P,N} = new{A,P,N}(p, t)
-end
-active(f::Front{true})  = f.transform
-active(f::Front{false}) = f.predict
-
-function extend(front::Front{true},
-                component::Supervised,
-                cache,
-                op,
-                sources...)
-    a = active(front)
-    mach = machine(component, a, sources...; cache=cache)
-    Front(op(mach, a), transform(mach, a), false)
+# Probabilistic + Count ==> Log score
+function default_measure(
+    ::Type{<:Probabilistic},
+    ::Type{<:Vec{<:Union{Missing, Count}}}
+)
+    return log_loss
 end
 
-function extend(front::Front{true}, component::Static, cache, args...)
-    mach = machine(component; cache=cache)
-    Front(front.predict, transform(mach, active(front)), true)
+function default_measure(
+    ::Type{<:MMI.ProbabilisticDetector},
+    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+)
+    return area_under_curve
 end
 
-function extend(front::Front{false}, component::Static, cache, args...)
-    mach = machine(component; cache=cache)
-    Front(transform(mach, active(front)), front.transform, false)
+function default_measure(
+    ::Type{<:MMI.DeterministicDetector},
+    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+)
+    return balanced_accuracy
 end
 
-function extend(front::Front{true}, component::Unsupervised, cache, args...)
-    a = active(front)
-    mach = machine(component, a; cache=cache)
-    Front(predict(mach, a), transform(mach, a), true)
-end
+# Fallbacks
+default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
+default_measure(::M) where M <: Supervised = default_measure(M)
 
-function extend(front::Front{false}, component::Unsupervised, cache, args...)
-    a = active(front)
-    mach = machine(component, a; cache=cache)
-    Front(transform(mach, a), front.transform, false)
-end
+default_measure(M::Type{<:Annotator}) = default_measure(M, target_scitype(M))
+default_measure(::M) where M <: Annotator = default_measure(M)
 
-# fallback assumes `component` is a callable object:
-extend(front::Front{true}, component, args...) =
-    Front(front.predict, node(component, active(front)), true)
-extend(front::Front{false}, component, args...) =
-    Front(node(component, active(front)), front.transform, false)
-
-
-# ## The learning network machine
-
-function pipeline_network_machine(super_type,
-                                  cache,
-                                  operation,
-                                  components,
-                                  source0,
-                                  sources...)
-
-    # initialize the network front:
-    front = Front(source0, source0, true)
-
-    # closure to use in reduction:
-    _extend(front, component) =
-        extend(front, component, cache, operation, sources...)
-
-    # reduce to get the `predict` and `transform` nodes:
-    final_front = foldl(_extend, components, init=front)
-    pnode, tnode = final_front.predict, final_front.transform
-
-    # `inverse_transform` node (constructed even if not supported for some component):
-    if all(c -> c isa Unsupervised, components)
-        inode = source0
-        for mach in machines(tnode)
-            inode = inverse_transform(mach, inode)
-        end
-        return machine(super_type(), source0, sources...;
-                       predict=pnode, transform=tnode, inverse_transform=inode)
-    end
-
-    return machine(super_type(), source0, sources...;
-                       predict=pnode, transform=tnode)
-
-end
-
-
-# # FIT METHOD
-
-function MMI.fit(pipe::SomePipeline{N,operation},
-                 verbosity::Integer,
-                 arg0=source(),
-                 args...) where {N,operation}
-
-    source0 = source(arg0)
-    sources = source.(args)
-
-    _components = components(pipe)
-
-    mach = pipeline_network_machine(abstract_type(pipe),
-                                    pipe.cache,
-                                    operation,
-                                    _components,
-                                    source0,
-                                    sources...)
-    return!(mach, pipe, verbosity)
-end
-
-
-# # SYNTACTIC SUGAR
-
-const INFO_AMBIGUOUS_CACHE =
-    "Joining pipelines with conflicting `cache` values. Using `cache=false`. "
-
-import Base.(|>)
-const compose = (|>)
-
-Pipeline(p::SomePipeline) = p
-
-const FuzzyModel = Union{Model,Type{<:Model}}
-
-function compose(m1::FuzzyModel, m2::FuzzyModel)
-
-    # no-ops for pipelines:
-    p1 = Pipeline(m1)
-    p2 = Pipeline(m2)
-
-    _components = (components(p1)..., components(p2)...)
-    _names = (names(p1)..., names(p2)...)
-
-    named_components = pipe_named_tuple(_names, _components)
-
-    # `cache` is only `true` if `true` for both pipelines:
-    cache = false
-    if p1.cache && p2.cache
-        cache = true
-    elseif p1.cache ⊻ p2.cache
-        @info INFO_AMBIGUOUS_CACHE
-    end
-
-    _pipeline(named_components, nothing, operation(p2), cache)
-end
-
-compose(p1, p2::FuzzyModel) = compose(Pipeline(p1), p2)
-compose(p1::FuzzyModel, p2) = compose(p1, Pipeline(p2))
-
-
-# # TRAINING LOSSES
-
-# ## Helpers
-
-function supervised_component_name(pipe::SupervisedPipeline)
-    idx = findfirst(model -> model isa Supervised, components(pipe))
-    return names(pipe)[idx]
-end
-
-function supervised_component(pipe::SupervisedPipeline)
-    name = supervised_component_name(pipe)
-    named_components = getfield(pipe, :named_components)
-    return getproperty(named_components, name)
-end
-
-model_type(::Machine{M}) where M = M
-function supervised(machines)
-    model_types = model_type.(machines)
-    idx = findfirst(M -> M <: Supervised, model_types)
-    return machines[idx]
-end
-
-
-# ## Traits
-
-# We cannot provide the following traits at the level of types because
-# the pipeline type does not know the precise type of the supervised
-# component, only its `abstract_type`. See comment at top of page.
-
-MMI.supports_training_losses(pipe::SupervisedPipeline) =
-    MMI.supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
-
-# This trait cannot be defined at the level of types (see previous comment):
-function MMI.iteration_parameter(pipe::SupervisedPipeline)
-    model = supervised_component(pipe)
-    name =  supervised_component_name(pipe)
-    MLJBase.prepend(name, iteration_parameter(model))
-end
-
-MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
-
-
-# ## Training losses
-
-function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
-    mach = supervised(pipe_report.basic.machines)
-    _report = mach.report
-    return training_losses(mach.model, _report)
-end
