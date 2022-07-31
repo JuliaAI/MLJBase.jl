@@ -65,7 +65,7 @@ Implements the two-layer generalized stack algorithm introduced by
 (1992)](https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231)
 and generalized by [Van der Laan et al
 (2007)](https://biostats.bepress.com/ucbbiostat/paper222/). Returns an
-instance of type `ProbablisiticStack` or `DeterministicStack`,
+instance of type `ProbabilisticStack` or `DeterministicStack`,
 depending on the prediction type of `metalearner`.
 
 When training a machine bound to such an instance:
