@@ -265,7 +265,7 @@ function default_measure(
     return log_loss
 end
 
-# Probablistic + Continuous ==> Log loss
+# Probabilistic + Continuous ==> Log loss
 function default_measure(
     ::Type{<:Probabilistic},
     ::Type{<:Vec{<:Union{Missing,Continuous}}}
@@ -273,7 +273,7 @@ function default_measure(
     return log_loss
 end
 
-# Probablistic + Count ==> Log score
+# Probabilistic + Count ==> Log score
 function default_measure(
     ::Type{<:Probabilistic},
     ::Type{<:Vec{<:Union{Missing, Count}}}
