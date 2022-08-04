@@ -587,5 +587,33 @@ _double_stack(model, resource) =
     @test cpu_fp.ridge_lambda ≈ thread_fp.ridge_lambda
 end
 
+mutable struct Parsnip <: MLJBase.Probabilistic
+    bogus::Int
+end
+function MLJBase.fit(::Parsnip, verbosity::Int, A, y)
+    y1 = skipmissing(y) |> collect
+    fitresult = MLJBase.Distributions.fit(MLJBase.UnivariateFinite, y1)
+    cache     = nothing
+    report    = NamedTuple
+    return fitresult, cache, report
+end
+MLJBase.predict(::Parsnip, fitresult, Xnew) =
+    fill(fitresult, nrows(Xnew))
+MLJBase.target_scitype(::Type{<:Parsnip}) = AbstractVector{<:Union{Missing,Finite}}
+MLJBase.input_scitype(::Type{<:Parsnip}) = Table(Union{Missing,Continuous})
+
+@testset "Adjudicators that support missings works #816" begin
+    # get a data set with missings in target
+    X, y0 = @load_crabs
+    y = vcat([missing, ], y0[2:end])
+    stack = Stack(
+        metalearner=Parsnip(1),
+        model1 = Parsnip(2),
+        model2 = Parsnip(3),
+    )
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
+end
+
 end
 true
