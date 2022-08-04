@@ -283,8 +283,8 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {
     # Checking the target scitype is consistent with either Probabilistic/Deterministic
     # Stack:
     target_scitype(stack.metalearner) <: Union{
-        AbstractArray{<:Continuous},
-        AbstractArray{<:Finite},
+        AbstractArray{<:Union{Missing,Continuous}},
+        AbstractArray{<:Union{Missing,Finite}},
     } || throw(ArgumentError(
         "The metalearner should have target_scitype: "*
         "$(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"
@@ -346,19 +346,19 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 pre_judge_transform(
     ŷ::Node,
     ::Type{<:Probabilistic},
-    ::Type{<:AbstractArray{<:Finite}},
+    ::Type{<:AbstractArray{<:Union{Missing,Finite}}},
 ) =  node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
 pre_judge_transform(
     ŷ::Node,
     ::Type{<:Probabilistic},
-    ::Type{<:AbstractArray{<:Continuous}},
+    ::Type{<:AbstractArray{<:Union{Missing,Continuous}}},
 ) = node(ŷ->mean.(ŷ), ŷ)
 
 pre_judge_transform(
     ŷ::Node,
     ::Type{<:Deterministic},
-    ::Type{<:AbstractArray{<:Continuous}},
+    ::Type{<:AbstractArray{<:Union{Missing,Continuous}}},
 ) = ŷ
 
 
