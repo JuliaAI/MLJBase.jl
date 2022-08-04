@@ -26,36 +26,78 @@ function input_target_scitypes(models, metalearner)
 end
 
 
-mutable struct DeterministicStack{modelnames, inp_scitype, tg_scitype} <: DeterministicComposite
-   models::Vector{Supervised}
-   metalearner::Deterministic
-   resampling
-   measures::Union{Nothing,AbstractVector}
-   cache::Bool
-   acceleration::AbstractResource
-   function DeterministicStack(modelnames, models, metalearner, resampling, measures, cache, acceleration)
+mutable struct DeterministicStack{
+    modelnames,
+    inp_scitype,
+    tg_scitype
+} <: DeterministicComposite
+
+    models::Vector{Supervised}
+    metalearner::Deterministic
+    resampling
+    measures::Union{Nothing,AbstractVector}
+    cache::Bool
+    acceleration::AbstractResource
+    function DeterministicStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        measures,
+        cache,
+        acceleration
+    )
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures, cache, acceleration)
-   end
+        return new{modelnames, inp_scitype, tg_scitype}(
+            models,
+            metalearner,
+            resampling,
+            measures,
+            cache,
+            acceleration
+        )
+    end
 end
 
-mutable struct ProbabilisticStack{modelnames, inp_scitype, tg_scitype} <: ProbabilisticComposite
+mutable struct ProbabilisticStack{
+    modelnames,
+    inp_scitype,
+    tg_scitype
+} <: ProbabilisticComposite
+
     models::Vector{Supervised}
     metalearner::Probabilistic
     resampling
     measures::Union{Nothing,AbstractVector}
     cache::Bool
     acceleration::AbstractResource
-    function ProbabilisticStack(modelnames, models, metalearner, resampling, measures, cache, acceleration)
+    function ProbabilisticStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        measures,
+        cache,
+        acceleration
+    )
+
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
-        return new{modelnames, inp_scitype, tg_scitype}(models, metalearner, resampling, measures, cache, acceleration)
+        return new{modelnames, inp_scitype, tg_scitype}(
+            models,
+            metalearner,
+            resampling,
+            measures,
+            cache,
+            acceleration
+        )
     end
  end
 
 
-const Stack{modelnames, inp_scitype, tg_scitype} =
-    Union{DeterministicStack{modelnames, inp_scitype, tg_scitype},
-            ProbabilisticStack{modelnames, inp_scitype, tg_scitype}}
+const Stack{modelnames, inp_scitype, tg_scitype} = Union{
+    DeterministicStack{modelnames, inp_scitype, tg_scitype},
+    ProbabilisticStack{modelnames, inp_scitype, tg_scitype}
+}
 
 """
     Stack(; metalearner=nothing, name1=model1, name2=model2, ..., keyword_options...)
@@ -156,7 +198,16 @@ report(mach).cv_report
 ```
 
 """
-function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=measure, cache=true, acceleration=CPU1(), named_models...)
+function Stack(
+    ;metalearner=nothing,
+    resampling=CV(),
+    measure=nothing,
+    measures=measure,
+    cache=true,
+    acceleration=CPU1(),
+    named_models...
+)
+
     metalearner === nothing &&
         throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
 
@@ -168,9 +219,25 @@ function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=
     end
 
     if metalearner isa Deterministic
-        stack =  DeterministicStack(modelnames, models, metalearner, resampling, measures, cache, acceleration)
+        stack =  DeterministicStack(
+            modelnames,
+            models,
+            metalearner,
+            resampling,
+            measures,
+            cache,
+            acceleration
+        )
     elseif metalearner isa Probabilistic
-        stack = ProbabilisticStack(modelnames, models, metalearner, resampling, measures, cache, acceleration)
+        stack = ProbabilisticStack(
+            modelnames,
+            models,
+            metalearner,
+            resampling,
+            measures,
+            cache,
+            acceleration,
+        )
     else
         throw(ArgumentError("The metalearner should be a subtype
                     of $(Union{Deterministic, Probabilistic})"))
@@ -189,23 +256,39 @@ function Stack(;metalearner=nothing, resampling=CV(), measure=nothing, measures=
 end
 
 
-function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {modelnames,inp_scitype,tg_scitype}
+function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {
+    modelnames,
+    inp_scitype,
+    tg_scitype
+}
+
     # We only carry checks and don't try to correct the arguments here
     message = ""
-    # Checking target_scitype and input_scitype have not been changed from the original stack
-    glb_inp_scitype, glb_tg_scitype = input_target_scitypes(getfield(stack, :models), stack.metalearner)
-    glb_inp_scitype == inp_scitype ||
-            throw(DomainError(inp_scitype, "The newly inferred input_scitype of the stack doesn't
-            match its original one. You have probably changed one of the base models or the metalearner
-            to a non compatible type."))
-    glb_tg_scitype == tg_scitype ||
-            throw(DomainError(tg_scitype, "The newly inferred target_scitype of the stack doesn't
-            match its original one. You have probably changed one of the base model or the metalearner
-            to a non compatible type."))
-    # Checking the target scitype is consistent with either Probabilistic/Deterministic Stack
-    target_scitype(stack.metalearner) <: Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}} ||
-        throw(ArgumentError("The metalearner should have target_scitype:
-                $(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"))
+    # Checking target_scitype and input_scitype have not been changed from the original
+    # stack:
+    glb_inp_scitype, glb_tg_scitype =
+        input_target_scitypes(getfield(stack, :models), stack.metalearner)
+    glb_inp_scitype == inp_scitype ||throw(DomainError(
+            inp_scitype,
+            "The newly inferred input_scitype of the stack doesn't "*
+            "match its original one. You have probably changed one of "*
+            "the base models or the metalearner to a non compatible type."
+        ))
+    glb_tg_scitype == tg_scitype || throw(DomainError(
+            tg_scitype,
+            "The newly inferred target_scitype of the stack doesn't "*
+            "match its original one. You have probably changed one of "*
+            "the base model or the metalearner to a non compatible type."
+        ))
+    # Checking the target scitype is consistent with either Probabilistic/Deterministic
+    # Stack:
+    target_scitype(stack.metalearner) <: Union{
+        AbstractArray{<:Continuous},
+        AbstractArray{<:Finite},
+    } || throw(ArgumentError(
+        "The metalearner should have target_scitype: "*
+        "$(Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}})"
+    ))
 
     return message
 end
@@ -260,66 +343,122 @@ MLJBase.package_license(::Type{<:Stack}) = "MIT"
 ################# Node operations Methods #################
 ###########################################################
 
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Finite}}) =
-    node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
+pre_judge_transform(
+    ŷ::Node,
+    ::Type{<:Probabilistic},
+    ::Type{<:AbstractArray{<:Finite}},
+) =  node(ŷ -> pdf(ŷ, levels(first(ŷ))), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Probabilistic}, ::Type{<:AbstractArray{<:Continuous}}) =
-    node(ŷ->mean.(ŷ), ŷ)
+pre_judge_transform(
+    ŷ::Node,
+    ::Type{<:Probabilistic},
+    ::Type{<:AbstractArray{<:Continuous}},
+) = node(ŷ->mean.(ŷ), ŷ)
 
-pre_judge_transform(ŷ::Node, ::Type{<:Deterministic}, ::Type{<:AbstractArray{<:Continuous}}) =
-    ŷ
+pre_judge_transform(
+    ŷ::Node,
+    ::Type{<:Deterministic},
+    ::Type{<:AbstractArray{<:Continuous}},
+) = ŷ
 
 
-store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures::Nothing) = nothing
-function store_for_evaluation(mach::Machine, Xtest::AbstractNode, ytest::AbstractNode, measures)
-    node((ytest, Xtest) -> [mach, Xtest, ytest], ytest, Xtest)
-end
+store_for_evaluation(
+    mach::Machine,
+    Xtest::AbstractNode,
+    ytest::AbstractNode,
+    measures::Nothing,
+) = nothing
+
+store_for_evaluation(
+    mach::Machine,
+    Xtest::AbstractNode,
+    ytest::AbstractNode,
+    measures,
+) = node((ytest, Xtest) -> [mach, Xtest, ytest], ytest, Xtest)
+
 
 """
-    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{Nothing})
+    internal_stack_report(
+        m::Stack,
+        verbosity::Int,
+        y::AbstractNode,
+        folds_evaluations::Vararg{Nothing},
+    )
 
-When measure/measures is a Nothing, the folds_evaluation won't have been filled by `store_for_evaluation`
-and we thus return an empty NamedTuple.
-"""
-internal_stack_report(m::Stack, verbosity::Int, tt_pairs, folds_evaluations::Vararg{Nothing}) = NamedTuple{}()
+When measure/measures is a Nothing, the folds_evaluation won't have been filled by
+`store_for_evaluation` and we thus return an empty NamedTuple.
 
 """
-    internal_stack_report(m::Stack, verbosity::Int, y::AbstractNode, folds_evaluations::Vararg{AbstractNode})
+internal_stack_report(
+    m::Stack,
+    verbosity::Int,
+    tt_pairs,
+    folds_evaluations::Vararg{Nothing},
+) = NamedTuple{}()
 
-When measure/measures is provided, the folds_evaluation will have been filled by `store_for_evaluation`. This function is
-not doing any heavy work (not constructing nodes corresponding to measures) but just unpacking all the folds_evaluations in a single node that
-can be evaluated later.
 """
-function internal_stack_report(m::Stack, verbosity::Int, tt_pairs, folds_evaluations::Vararg{AbstractNode})
+internal_stack_report(
+    m::Stack,
+    verbosity::Int,
+    y::AbstractNode,
+    folds_evaluations::Vararg{AbstractNode},
+)
+
+When measure/measures is provided, the folds_evaluation will have been filled by
+`store_for_evaluation`. This function is not doing any heavy work (not constructing nodes
+corresponding to measures) but just unpacking all the folds_evaluations in a single node
+that can be evaluated later.
+
+"""
+function internal_stack_report(
+    m::Stack,
+    verbosity::Int,
+    tt_pairs,
+    folds_evaluations::Vararg{AbstractNode}
+)
     _internal_stack_report(folds_evaluations...) =
         internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
     return (report=(cv_report=node(_internal_stack_report, folds_evaluations...),),)
 end
 
 """
-    internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, y, folds_evaluations...) where modelnames
+    internal_stack_report(
+        stack::Stack{modelnames,},
+        verbosity::Int,
+        y,
+        folds_evaluations...
+    ) where modelnames
 
-Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. The folds_evaluations
-are  built in a flatten array respecting the order given by:
-(fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1, model_2, ...), ...)
+Returns a `NamedTuple` of `PerformanceEvaluation` objects, one for each model. The
+folds_evaluations are built in a flatten array respecting the order given by:
+(fold_1:(model_1:[mach, Xtest, ytest], model_2:[mach, Xtest, ytest], ...), fold_2:(model_1,
+model_2, ...), ...)
+
 """
-function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pairs, folds_evaluations...) where modelnames
+function internal_stack_report(
+    stack::Stack{modelnames,},
+    verbosity::Int,
+    tt_pairs,
+    folds_evaluations...
+) where modelnames
 
     n_measures = length(stack.measures)
     nfolds = length(tt_pairs)
 
     # For each model we record the results mimicking the fields PerformanceEvaluation
-    results = NamedTuple{modelnames}([
-            (measure=stack.measures,
-            measurement=Vector{Any}(undef, n_measures),
-            operation=_actual_operations(nothing, stack.measures, model, verbosity),
-            per_fold=[Vector{Any}(undef, nfolds) for _ in 1:n_measures],
-            per_observation=Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
-            fitted_params_per_fold=[],
-            report_per_fold=[],
-            train_test_pairs=tt_pairs
-            )
-        for model in getfield(stack, :models)]
+    results = NamedTuple{modelnames}(
+        [(
+            measure = stack.measures,
+            measurement = Vector{Any}(undef, n_measures),
+            operation = _actual_operations(nothing, stack.measures, model, verbosity),
+            per_fold = [Vector{Any}(undef, nfolds) for _ in 1:n_measures],
+            per_observation = Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
+            fitted_params_per_fold = [],
+            report_per_fold = [],
+            train_test_pairs = tt_pairs
+        )
+         for model in getfield(stack, :models)
+         ]
     )
 
     # Update the results
@@ -332,7 +471,10 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pai
             push!(model_results.fitted_params_per_fold, fitted_params(mach))
             push!(model_results.report_per_fold, report(mach))
             # Loop over measures to update per_observation and per_fold
-            for (i, (measure, operation)) in enumerate(zip(stack.measures, model_results.operation))
+            for (i, (measure, operation)) in enumerate(zip(
+                stack.measures,
+                model_results.operation,
+            ))
                 ypred = operation(mach, Xtest)
                 loss = measure(ypred, ytest)
                 # Update per_observation
@@ -345,7 +487,8 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pai
 
                 # Update per_fold
                 model_results.per_fold[i][foldid] =
-                    reports_each_observation(measure) ? MLJBase.aggregate(loss, measure) : loss
+                    reports_each_observation(measure) ?
+                    MLJBase.aggregate(loss, measure) : loss
             end
             index += 1
         end
@@ -355,7 +498,8 @@ function internal_stack_report(stack::Stack{modelnames,}, verbosity::Int, tt_pai
     for modelname in modelnames
         for (i, measure) in enumerate(stack.measures)
             model_results = results[modelname]
-            model_results.measurement[i] = MLJBase.aggregate(model_results.per_fold[i], measure)
+            model_results.measurement[i] =
+                MLJBase.aggregate(model_results.per_fold[i], measure)
         end
     end
 
@@ -368,6 +512,7 @@ check_stack_measures(stack, verbosity::Int, measures::Nothing, y) = nothing
     check_stack_measures(stack, measures, y)
 
 Check the measures compatibility for each model in the Stack.
+
 """
 function check_stack_measures(stack, verbosity::Int, measures, y)
     for model in getfield(stack, :models)
@@ -379,9 +524,10 @@ end
 """
     oos_set(m::Stack, folds::AbstractNode, Xs::Source, ys::Source)
 
-This function is building the out-of-sample dataset that is later used by the `judge`
-for its own training. It also returns the folds_evaluations object if internal
-cross-validation results are requested.
+This function is building the out-of-sample dataset that is later used by the `judge` for
+its own training. It also returns the folds_evaluations object if internal cross-validation
+results are requested.
+
 """
 function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
     Zval = []
