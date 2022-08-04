@@ -45,6 +45,10 @@ end
     @test include("sources.jl")
 end
 
+@conditional_testset "models" begin
+    @test include("models.jl")
+end
+
 @conditional_testset "machines" begin
     @test include("machines.jl")
 end

@@ -149,14 +149,32 @@ end
 end
 
 @testset "Stack constructor valid argument checks" begin
-    # metalearner should have target_scitype:
-    # Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}}
-    @test_throws ArgumentError Stack(;metalearner=Standardizer(),
-                        constant=ConstantClassifier())
-
-    @test_throws ArgumentError Stack(;constant=KNNRegressor())
+    # metalearner should be `Deterministic` or `Probablisitic`:
+    @test_throws(
+        MLJBase.ERR_BAD_METALEARNER,
+        Stack(;metalearner=Standardizer(), constant=ConstantClassifier()),
+    )
+    # must specify a metalearner:
+    @test_throws(
+        MLJBase.ERR_NO_METALEARNER,
+        Stack(;constant=ConstantRegressor()),
+    )
+    # informative error for spelling mistakes (#796):
+    @test_throws(
+        MLJBase.err_expecting_model(CPU1(), spelling=true),
+        Stack(metalearner=ConstantRegressor(), knn=ConstantRegressor(), acclraton=CPU1()),
+    )
+    # informative error is type used in place of instance (in a base model):
+    @test_throws(
+        MLJBase.err_expecting_model(ConstantRegressor),
+        Stack(metalearner=ConstantRegressor(), knn=ConstantRegressor),
+    )
+    # informative error is type used in place of instance (in metalearner):
+    @test_throws(
+        MLJBase.err_expecting_model(ConstantRegressor),
+        Stack(metalearner=ConstantRegressor, knn=ConstantRegressor()),
+    )
 end
-
 
 @testset "Misc" begin
     # Test setproperty! behaviour

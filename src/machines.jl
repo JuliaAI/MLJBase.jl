@@ -140,9 +140,9 @@ err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
-check(model::Any, args...) =
-    throw(ArgumentError("Expected a `Model` instance, got $model. "))
 function check(model::Model, scitype_check_level, args...)
+
+    check_ismodel(model)
 
     is_okay = true
 
@@ -827,8 +827,8 @@ end
 """
     feature_importances(mach::Machine)
 
-Return a list of `feature => importance` pairs for a fitted machine, 
-`mach`,  if supported by the underlying model, i.e., if 
+Return a list of `feature => importance` pairs for a fitted machine,
+`mach`,  if supported by the underlying model, i.e., if
 `reports_feature_importances(mach.model) == true`.  Otherwise return
 `nothing`.
 

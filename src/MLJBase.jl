@@ -194,6 +194,7 @@ include("show.jl")
 include("interface/data_utils.jl")
 include("interface/model_api.jl")
 
+include("models.jl")
 include("sources.jl")
 include("machines.jl")
 
