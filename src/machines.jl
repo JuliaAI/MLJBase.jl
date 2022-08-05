@@ -119,19 +119,27 @@ function _contains_unknown(F::Type{<:Tuple})
 end
 
 alert_generic_scitype_mismatch(S, F, T) =
-    "The number and/or types of data arguments do not " *
-    "match what the specified model supports. Suppress this "*
-    "type check by specifying `scitype_check_level=0`.\n\n"*
-    "Run `@doc $T` to learn more about your model's requirements.\n"*
-    "Commonly, but non exclusively, supervised models are constructed " *
-    "using the syntax `machine(model, X, y)` or `machine(model, X, y, w)` " *
-    "while most other models are constructed with `machine(model, X)`. " *
-    "Here `X` are features, `y` a target, and `w` sample or class weights.\n\n" *
-    "In general, data in `machine(model, data...)` is expected to satisfy " *
-    "`scitype(data) <: MLJ.fit_data_scitype(model)`.\n"*
-    "In the present case:\n"*
-    "scitype(data) = $S\n"*
-    "fit_data_scitype(model) = $F\n"
+    """
+    The number and/or types of data arguments do not match what the specified model
+    supports. Suppress this type check by specifying `scitype_check_level=0`.
+
+    Run `@doc $(package_name(T)).$(name(T))` to learn more about your model's requirements.
+
+    Commonly, but non exclusively, supervised models are constructed using the syntax
+    `machine(model, X, y)` or `machine(model, X, y, w)` while most other models are
+    constructed with `machine(model, X)`.  Here `X` are features, `y` a target, and `w`
+    sample or class weights.
+
+    In general, data in `machine(model, data...)` is expected to satisfy
+
+        scitype(data) <: MLJ.fit_data_scitype(model)
+
+    In the present case:
+
+    scitype(data) = $S
+
+    fit_data_scitype(model) = $F
+    """
 
 const WARN_UNKNOWN_SCITYPE =
     "Some data contains `Unknown` scitypes, which might lead to model-data mismatches. "
@@ -140,9 +148,9 @@ err_length_mismatch(model) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
-check(model::Any, args...) =
-    throw(ArgumentError("Expected a `Model` instance, got $model. "))
 function check(model::Model, scitype_check_level, args...)
+
+    check_ismodel(model)
 
     is_okay = true
 
@@ -827,8 +835,8 @@ end
 """
     feature_importances(mach::Machine)
 
-Return a list of `feature => importance` pairs for a fitted machine, 
-`mach`,  if supported by the underlying model, i.e., if 
+Return a list of `feature => importance` pairs for a fitted machine,
+`mach`,  if supported by the underlying model, i.e., if
 `reports_feature_importances(mach.model) == true`.  Otherwise return
 `nothing`.
 

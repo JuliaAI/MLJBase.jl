@@ -149,14 +149,32 @@ end
 end
 
 @testset "Stack constructor valid argument checks" begin
-    # metalearner should have target_scitype:
-    # Union{AbstractArray{<:Continuous}, AbstractArray{<:Finite}}
-    @test_throws ArgumentError Stack(;metalearner=Standardizer(),
-                        constant=ConstantClassifier())
-
-    @test_throws ArgumentError Stack(;constant=KNNRegressor())
+    # metalearner should be `Deterministic` or `Probablisitic`:
+    @test_throws(
+        MLJBase.ERR_BAD_METALEARNER,
+        Stack(;metalearner=Standardizer(), constant=ConstantClassifier()),
+    )
+    # must specify a metalearner:
+    @test_throws(
+        MLJBase.ERR_NO_METALEARNER,
+        Stack(;constant=ConstantRegressor()),
+    )
+    # informative error for spelling mistakes (#796):
+    @test_throws(
+        MLJBase.err_expecting_model(CPU1(), spelling=true),
+        Stack(metalearner=ConstantRegressor(), knn=ConstantRegressor(), acclraton=CPU1()),
+    )
+    # informative error is type used in place of instance (in a base model):
+    @test_throws(
+        MLJBase.err_expecting_model(ConstantRegressor),
+        Stack(metalearner=ConstantRegressor(), knn=ConstantRegressor),
+    )
+    # informative error is type used in place of instance (in metalearner):
+    @test_throws(
+        MLJBase.err_expecting_model(ConstantRegressor),
+        Stack(metalearner=ConstantRegressor, knn=ConstantRegressor()),
+    )
 end
-
 
 @testset "Misc" begin
     # Test setproperty! behaviour
@@ -585,6 +603,34 @@ _double_stack(model, resource) =
     @test cpu_ypred ≈ thread_ypred
     @test cpu_fp.metalearner ≈ thread_fp.metalearner
     @test cpu_fp.ridge_lambda ≈ thread_fp.ridge_lambda
+end
+
+mutable struct Parsnip <: MLJBase.Probabilistic
+    bogus::Int
+end
+function MLJBase.fit(::Parsnip, verbosity::Int, A, y)
+    y1 = skipmissing(y) |> collect
+    fitresult = MLJBase.Distributions.fit(MLJBase.UnivariateFinite, y1)
+    cache     = nothing
+    report    = NamedTuple
+    return fitresult, cache, report
+end
+MLJBase.predict(::Parsnip, fitresult, Xnew) =
+    fill(fitresult, nrows(Xnew))
+MLJBase.target_scitype(::Type{<:Parsnip}) = AbstractVector{<:Union{Missing,Finite}}
+MLJBase.input_scitype(::Type{<:Parsnip}) = Table(Union{Missing,Continuous})
+
+@testset "Adjudicators that support missings works #816" begin
+    # get a data set with missings in target
+    X, y0 = @load_crabs
+    y = vcat([missing, ], y0[2:end])
+    stack = Stack(
+        metalearner=Parsnip(1),
+        model1 = Parsnip(2),
+        model2 = Parsnip(3),
+    )
+    mach = machine(stack, X, y)
+    fit!(mach, verbosity=0)
 end
 
 end
