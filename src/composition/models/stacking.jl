@@ -1,7 +1,6 @@
 ############################################
-################ Structures ################
+################ Helpers ###################
 ############################################
-
 
 function glb(types...)
     # If a lower bound is in the types then it is greatest
@@ -26,6 +25,19 @@ function input_target_scitypes(models, metalearner)
 end
 
 
+############################################
+################ Structures ################
+############################################
+
+const ERR_BAD_METALEARNER = ArgumentError(
+    "The metalearner should be a subtype "*
+    "of $(Union{Deterministic, Probabilistic})"
+)
+
+const ERR_NO_METALEARNER = ArgumentError(
+    "No metalearner specified. Use Stack(metalearner=..., model1=..., model2=...)"
+)
+
 mutable struct DeterministicStack{
     modelnames,
     inp_scitype,
@@ -47,6 +59,9 @@ mutable struct DeterministicStack{
         cache,
         acceleration
     )
+        map(models) do m
+            check_ismodel(m, spelling=true)
+        end
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
         return new{modelnames, inp_scitype, tg_scitype}(
             models,
@@ -80,7 +95,9 @@ mutable struct ProbabilisticStack{
         cache,
         acceleration
     )
-
+        map(models) do m
+            check_ismodel(m, spelling=true)
+        end
         inp_scitype, tg_scitype = input_target_scitypes(models, metalearner)
         return new{modelnames, inp_scitype, tg_scitype}(
             models,
@@ -208,8 +225,7 @@ function Stack(
     named_models...
 )
 
-    metalearner === nothing &&
-        throw(ArgumentError("No metalearner specified. Use Stack(metalearner=...)"))
+    metalearner === nothing && throw(ERR_NO_METALEARNER)
 
     nt = NamedTuple(named_models)
     modelnames = keys(nt)
@@ -218,6 +234,7 @@ function Stack(
         measures = [measures, ]
     end
 
+    check_ismodel(metalearner)
     if metalearner isa Deterministic
         stack =  DeterministicStack(
             modelnames,
@@ -239,8 +256,7 @@ function Stack(
             acceleration,
         )
     else
-        throw(ArgumentError("The metalearner should be a subtype
-                    of $(Union{Deterministic, Probabilistic})"))
+        throw(ERR_BAD_METALEARNER)
     end
     # Issuing clean! statement
     message = MMI.clean!(stack)
