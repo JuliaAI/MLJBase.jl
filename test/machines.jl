@@ -273,7 +273,7 @@ MLJBase.MLJModelInterface.reformat(model::Fozy, user_data) =
 MLJBase.selectrows(model::Fozy, I, X...) = (Box(X[1].matrix[I,:]),)
 
 
-## BABY SUPERVISED MODEL WITH AN UPDATE METHOD
+## BABY SUPERVISED MODEL WITH AN UPDATE METHOD AND FEATURE IMPORTANCE
 
 mutable struct SomeModel <: Deterministic
     n::Int
@@ -316,9 +316,23 @@ function MLJModelInterface.predict(::SomeModel, fitresult, Xnew)
     return Anew*fitresult
 end
 
+const dummy_importances = [:x1 => 1.0, ]
+MLJModelInterface.reports_feature_importances(::Type{<:SomeModel}) = true
+MLJModelInterface.feature_importances(::SomeModel, fitresult, report) = dummy_importances
+
 MLJModelInterface.reformat(model::SomeModel, X, y) = (MLJBase.matrix(X), y)
 MLJModelInterface.selectrows(model::SomeModel, I, A, y) =
     (view(A, I, :), view(y, I))
+
+@testset "feature_importances" begin
+    mach = machine(SomeModel(1), make_regression(10)...)
+    fit!(mach, verbosity=0)
+    @test feature_importances(mach) == dummy_importances
+
+    mach = machine(KNNClassifier(), make_blobs(10)...)
+    fit!(mach, verbosity=0)
+    @test isnothing(feature_importances(mach))
+end
 
 @testset "overloading reformat(::Model, ...), selectrows(::Model, ...)" begin
 

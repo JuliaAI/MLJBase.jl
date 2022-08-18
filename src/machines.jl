@@ -851,7 +851,7 @@ end
 
 function _feature_importances(model, fitresult, report)
     if reports_feature_importances(model)
-        return MMI.feature_importances(mach.model, fitresult, report)
+        return MMI.feature_importances(model, fitresult, report)
     else
         return nothing
     end
