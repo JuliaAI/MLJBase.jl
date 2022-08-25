@@ -444,27 +444,25 @@ machines(::Source) = Machine[]
 
 ## DISPLAY
 
-_cache_status(::Machine{<:Any,true}) = " caches data"
-_cache_status(::Machine{<:Any,false}) = " does not cache data"
+_cache_status(::Machine{<:Any,true}) = "caches model-specific representations of data"
+_cache_status(::Machine{<:Any,false}) = "does not cache data"
 
 Base.show(io::IO, mach::Machine) = print(io, "machine($(mach.model), …)")
 function Base.show(io::IO, ::MIME"text/plain", mach::Machine{M}) where M
-    #show(io, mach)
-    print(io, "Machine")
-    print(io, " trained $(mach.state) time")
-    if mach.state == 1
-        print(io, ";")
-    else
-        print(io, "s;")
-    end
-    println(io, _cache_status(mach))
+    header =
+        mach.state == -1 ? "serializable " :
+        mach.state ==  0 ? "untrained " :
+        "trained "
+    header *= "Machine"
+    mach.state >= 0 && (header *= "; "*_cache_status(mach))
+    println(io, header)
     println(io, "  model: $(mach.model)")
     println(io, "  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
         print(io, "    $i:\t$arg")
         if arg isa Source
-            println(io, " \u23CE `$(elscitype(arg))`")
+            println(io, " \u23CE $(elscitype(arg))")
         else
             println(io)
         end
