@@ -427,6 +427,10 @@ network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
 
 ## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
+# The methods in this section are required to support `serializable` for preparation for
+# serialization (emptying machines of data, etc), and `fit_method`, needed by
+# `@from_network` macro. 
+
 """
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
 
