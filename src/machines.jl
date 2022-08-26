@@ -102,8 +102,8 @@ end
 
 ## CONSTRUCTORS
 
-# In these checks the args are abstract nodes but `full=true` only
-# makes sense if they are actually source nodes.
+# In the checks `args` is expected to be `Vector{<:AbstractNode}` (eg, a vector of source
+# nodes) not raw data.
 
 # helper
 
