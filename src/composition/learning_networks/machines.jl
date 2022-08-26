@@ -294,8 +294,9 @@ const ERR_IDENTICAL_MODELS = ArgumentError(
 # associated with each model in the network (in the order appearing in
 # `models(glb(mach))`) using `nothing` when the model is not
 # associated with any property.
-function network_model_names(model::M,
-                             mach::Machine{<:Surrogate}) where M<:Model
+network_model_names(model::Nothing, mach::Machine{<:Surrogate}) = nothing
+
+function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
     network_model_ids = objectid.(MLJBase.models(glb(mach)))
 
@@ -414,16 +415,10 @@ function return!(mach::Machine{<:Surrogate},
     glb = MLJBase.glb(mach)
     cache = (; old_model)
 
-    setfield!(mach.fitresult,
-        :network_model_names,
-        network_model_names(model, mach))
-
     return mach.fitresult, cache, mach.report
 
 end
 
-network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
-    nothing
 
 ## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
 
