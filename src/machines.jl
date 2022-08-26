@@ -694,9 +694,9 @@ end
 
 # version of fit_only! for calling by scheduler (a node), which waits
 # on the specified `machines` to fit:
-function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
+function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
 
-    wait_on_downstream || fit_only!(mach; kwargs...)
+    wait_on_upstream || fit_only!(mach; kwargs...)
 
     upstream_machines = machines(glb(mach.args...))
 
