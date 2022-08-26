@@ -50,7 +50,7 @@ exactly once.
 """
 function models(W::AbstractNode)
     models_ = filter(flat_values(tree(W)) |> collect) do model
-        model isa Model
+        model isa Union{Model,Symbol}
     end
     return unique(models_)
 end

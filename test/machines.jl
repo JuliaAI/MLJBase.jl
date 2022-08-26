@@ -11,6 +11,8 @@ using ..TestUtilities
 const MLJModelInterface = MLJBase.MLJModelInterface
 const MMI = MLJModelInterface
 
+verbosity = 0
+
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
 y = 2*X.a - X.c + 0.05*rand(N);
@@ -241,6 +243,7 @@ end
     @test_logs (:info, r"Not retraining") fit!(mach) # no-op
     state = mach.state
 
+
     R  = transform(mach, X)
     IR = inverse_transform(mach, R)
     @test IR ≈ X
@@ -456,6 +459,32 @@ MLJBase.reporting_operations(::Type{<:ReportingDynamic}) = (:transform, )
     mach = fit!(machine(model, [1,2,3]), verbosity=0)
     @test transform(mach, rows=:) == [1, 2, 3]
     @test transform(mach, rows=1:2) == [1, 2]
+end
+
+@testset "machines with symbolic model placeholders" begin
+    struct BerryComposite
+        clf
+    end
+    composite = BerryComposite(ConstantClassifier())
+    X = MLJBase.table(rand(3, 2))
+    y = coerce(fill(42, 3), Multiclass)
+    mach  = machine(:clf, X, y)
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    mach.old_model = :clf
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    fit!(mach; composite, verbosity)
+    @test MLJBase.recent_model(mach) == composite.clf
+    @test predict_mode(mach, MLJBase.table(rand(2, 2))) == [42, 42]
+
+    # no training arguments:
+    composite = BerryComposite(StaticYoghurt())
+    mach = machine(:clf)
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    mach.old_model = :clf
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    @test_throws MLJBase.err_no_real_model(mach) transform(mach, X)
+    fit!(mach; composite, verbosity)
+    @test transform(mach, X) == X
 end
 
 end # module
