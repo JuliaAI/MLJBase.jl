@@ -349,7 +349,7 @@ The last call in custom code defining the `MLJBase.fit` method for a
 new composite model type. Here `model` is the instance of the new type
 appearing in the `MLJBase.fit` signature, while `mach` is a learning
 network machine constructed using `model`. Not relevant when defining
-composite models using `@pipeline` or `@from_network`.
+composite models using `@pipeline` (deprecated) or `@from_network`.
 
 For usage, see the example given below. Specifically, the call does
 the following:
