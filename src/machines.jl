@@ -43,13 +43,14 @@ Base.showerror(io::IO, e::NotTrainedError) =
           "learning network `Node`, "*
           "use the syntax `node($(e.operation), mach::Machine)`. ")
 
-caches_data_by_default(::Type{<:Model}) = true
-caches_data_by_default(m::M) where M<:Model = caches_data_by_default(M)
+caches_data_by_default(m) = caches_data_by_default(typeof(m))
+caches_data_by_default(::Type) = true
+caches_data_by_default(::Type{<:Symbol}) = false
 
-mutable struct Machine{M<:Model,C} <: MLJType
+mutable struct Machine{M,C} <: MLJType
 
     model::M
-    old_model::M # for remembering the model used in last call to `fit!`
+    old_model  # for remembering the model used in last call to `fit!`
     fitresult
     cache
 
@@ -72,8 +73,10 @@ mutable struct Machine{M<:Model,C} <: MLJType
     # cleared by fit!(::Node) calls; put! by `fit_only!(machine, true)` calls:
     fit_okay::Channel{Bool}
 
-    function Machine(model::M, args::AbstractNode...;
-                     cache=caches_data_by_default(M)) where M<:Model
+    function Machine(
+        model::M, args::AbstractNode...;
+        cache=caches_data_by_default(model),
+    ) where M
         mach = new{M,cache}(model)
         mach.frozen = false
         mach.state = 0
@@ -100,12 +103,12 @@ function ancestors(mach::Machine; self=false)
 end
 
 
-## CONSTRUCTORS
+# # CONSTRUCTORS
 
 # In the checks `args` is expected to be `Vector{<:AbstractNode}` (eg, a vector of source
 # nodes) not raw data.
 
-# helper
+# # Helpers
 
 # Here `F` is some fit_data_scitype, and so is tuple of scitypes, or a
 # union of such tuples:
@@ -186,6 +189,9 @@ function check(model::Model, scitype_check_level, args...)
     end
     return is_okay
 end
+
+
+# # Constructors
 
 """
     machine(model, args...; cache=true, scitype_check_level=1)
@@ -355,41 +361,51 @@ machine(T::Type{<:Model}, args...; kwargs...) =
     throw(ArgumentError("Model *type* provided where "*
                         "model *instance* expected. "))
 
-
 function machine(model::Static, args...; cache=false, kwargs...)
     isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return Machine(model; cache, kwargs...)
+    return Machine(model; cache=false, kwargs...)
 end
 
-function machine(model::Static, args::AbstractNode...; cache=false, kwargs...)
-    isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return Machine(model; cache, kwargs...)
+function machine(
+    model::Static,
+    args::AbstractNode...;
+    cache=false,
+    kwargs...,
+)
+    isempty(args) || model isa Symbol || throw(ERR_STATIC_ARGUMENTS)
+    mach = Machine(model; cache=false, kwargs...)
+    return mach
 end
 
-machine(model::Model, raw_arg1, arg2::AbstractNode, args::AbstractNode...;
+machine(model::Symbol; cache=false, kwargs...) =
+    Machine(model; cache, kwargs...)
+
+machine(model::Union{Model,Symbol}, raw_arg1, arg2::AbstractNode, args::AbstractNode...;
         kwargs...) =
-    error("Mixing concrete data with `Node` training arguments "*
-          "is not allowed. ")
+            error("Mixing concrete data with `Node` training arguments "*
+                  "is not allowed. ")
 
-machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
-    error("Mixing concrete data with `Node` training arguments "*
-          "is not allowed. ")
-
-function machine(model::Model,
-                 raw_arg1,
-                 raw_args...;
-                 scitype_check_level=default_scitype_check_level(),
-                 kwargs...)
+function machine(
+    model::Union{Model,Symbol},
+    raw_arg1,
+    raw_args...;
+    scitype_check_level=default_scitype_check_level(),
+    kwargs...,
+)
     args = source.((raw_arg1, raw_args...))
-    check(model, scitype_check_level, args...;)
+    model isa Symbol || check(model, scitype_check_level, args...;)
     return Machine(model, args...; kwargs...)
 end
 
-function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
+function machine(model::Union{Model,Symbol}, arg1::AbstractNode, args::AbstractNode...;
                  kwargs...)
     return Machine(model, arg1, args...; kwargs...)
 end
 
+function machine(model::Symbol, arg1::AbstractNode, args::AbstractNode...;
+                 kwargs...)
+    return Machine(model, arg1, args...; kwargs...)
+end
 
 warn_bad_deserialization(state) =
     "Deserialized machine state is not -1 (got $state). "*
@@ -505,12 +521,17 @@ end
 # for getting model specific representation of the row-restricted
 # training data from a machine, according to the value of the machine
 # type parameter `C` (`true` or `false`):
-_resampled_data(mach::Machine{<:Model,true}, rows) = mach.resampled_data
-function _resampled_data(mach::Machine{<:Model,false}, rows)
+_resampled_data(mach::Machine{<:Any,true}, model, rows) = mach.resampled_data
+function _resampled_data(mach::Machine{<:Any,false}, model, rows)
     raw_args = map(N -> N(), mach.args)
-    data = MMI.reformat(mach.model, raw_args...)
-    return selectrows(mach.model, rows, data...)
+    data = MMI.reformat(model, raw_args...)
+    return selectrows(model, rows, data...)
 end
+
+err_no_real_model(mach) = ErrorException(
+    "Cannot train $mach, which has a `Symbol` as model. "*
+    "Call `fit!` on the machine, specifiying `composite=... `"
+)
 
 """
     MLJBase.fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
@@ -536,6 +557,9 @@ bound to it, and restricting the data to `rows` if specified:
 
 For the action to be a no-operation, either `mach.frozen == true` or
 or none of the following apply:
+
+In all other cases, the action is a no-operation if and only if `mach.frozen == true` or
+none of the following apply:
 
 - (i) `mach` has never been trained (`mach.state == 0`).
 
@@ -569,10 +593,13 @@ and either `MLJBase.fit` (ab initio training) or `MLJBase.update`
 more on these lower-level training methods.
 
 """
-function fit_only!(mach::Machine{<:Model,cache_data};
-                   rows=nothing,
-                   verbosity=1,
-                   force=false) where cache_data
+function fit_only!(
+    mach::Machine{<:Any,cache_data};
+    rows=nothing,
+    verbosity=1,
+    force=false,
+    composite=nothing,
+) where cache_data
 
     if mach.frozen
         # no-op; do not increment `state`.
@@ -581,12 +608,23 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     end
 
     # catch deserialized machines not bound to data:
-    !(mach.model isa Static) && isempty(mach.args) &&
+    if isempty(mach.args) && !(mach.model isa Static) && !(mach.model isa Symbol)
         error("This machine is not bound to any data and so "*
               "cannot be trained. ")
+    end
+
+    # If `mach.model` is a symbol, then we want to replace it with the bone fide model
+    # `getproperty(composite, mach.model)`:
+    model = if mach.model isa Symbol
+        isnothing(composite) && throw(err_no_real_model(mach))
+        mach.model in propertynames(composite)
+        getproperty(composite, mach.model)
+    else
+        mach.model
+    end
 
     # take action if model has been mutated illegally:
-    warning = clean!(mach.model)
+    warning = clean!(model)
     isempty(warning) || verbosity < 0 || @warn warning
 
     upstream_state = upstream(mach)
@@ -603,37 +641,37 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     # build or update cached `data` if necessary:
     if cache_data && !data_is_valid
         raw_args = map(N -> N(), mach.args)
-        mach.data = MMI.reformat(mach.model, raw_args...)
+        mach.data = MMI.reformat(model, raw_args...)
     end
 
     # build or update cached `resampled_data` if necessary (`mach.data` is already defined
     # above if needed here):
     if cache_data && (!data_is_valid || condition_iv)
-        mach.resampled_data = selectrows(mach.model, rows, mach.data...)
+        mach.resampled_data = selectrows(model, rows, mach.data...)
     end
 
     # `fit`, `update`, or return untouched:
     if mach.state == 0 ||       # condition (i)
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
-        condition_iv
+        condition_iv            # condition (iv)
 
         # fit the model:
         fitlog(mach, :train, verbosity)
         mach.fitresult, mach.cache, mach.report =
             try
-                fit(mach.model, verbosity, _resampled_data(mach, rows)...)
+                fit(model, verbosity, _resampled_data(mach, model, rows)...)
             catch exception
                 @error "Problem fitting the machine $mach. "
                 _sources = sources(glb(mach.args...))
                 length(_sources) > 2 ||
-                    mach.model isa Composite ||
+                    model isa Composite ||
                     all((!isempty).(_sources)) ||
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
                 scitype_check_level = 1
-                if check(mach.model, scitype_check_level, source.(raw_args)...)
+                if check(model, scitype_check_level, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*
@@ -643,16 +681,16 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                 rethrow()
             end
 
-    elseif mach.model != mach.old_model # condition (v)
+    elseif model != mach.old_model # condition (v)
 
         # update the model:
         fitlog(mach, :update, verbosity)
         mach.fitresult, mach.cache, mach.report =
-            update(mach.model,
+            update(model,
                    verbosity,
                    mach.fitresult,
                    mach.cache,
-                   _resampled_data(mach, rows)...)
+                   _resampled_data(mach, model, rows)...)
 
     else
 
@@ -668,33 +706,15 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         mach.old_rows = deepcopy(rows)
     end
 
-    mach.old_model = deepcopy(mach.model)
+    mach.old_model = deepcopy(model)
     mach.old_upstream_state = upstream_state
     mach.state = mach.state + 1
 
     return mach
 end
 
-"""
-
-    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
-
-Fit the machine `mach`. In the case that `mach` has `Node` arguments,
-first train all other machines on which `mach` depends.
-
-To attempt to fit a machine without touching any other machine, use
-`fit_only!`. For more on the internal logic of fitting see
-[`fit_only!`](@ref)
-
-"""
-function fit!(mach::Machine; kwargs...)
-    glb_node = glb(mach.args...) # greatest lower bound node of arguments
-    fit!(glb_node; kwargs...)
-    fit_only!(mach; kwargs...)
-end
-
-# version of fit_only! for calling by scheduler (a node), which waits
-# on the specified `machines` to fit:
+# version of fit_only! for calling by scheduler (a node), which waits on all upstream
+# `machines` to fit:
 function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
 
     wait_on_upstream || fit_only!(mach; kwargs...)
@@ -721,6 +741,24 @@ function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
     put!(mach.fit_okay, true)
     return mach
 
+end
+
+"""
+
+    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
+
+Fit the machine `mach`. In the case that `mach` has `Node` arguments,
+first train all other machines on which `mach` depends.
+
+To attempt to fit a machine without touching any other machine, use
+`fit_only!`. For more on the internal logic of fitting see
+[`fit_only!`](@ref)
+
+"""
+function fit!(mach::Machine; kwargs...)
+    glb_node = glb(mach.args...) # greatest lower bound node of arguments
+    fit!(glb_node; kwargs...)
+    fit_only!(mach; kwargs...)
 end
 
 

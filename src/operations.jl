@@ -36,17 +36,24 @@ _err_serialized(operation) =
                         "deserialized machine with no data "*
                         "bound to it. "))
 
-WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
+const WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
     "deserialised machine whose learned parameters "*
     "may be unusable. To be sure they are usable, "*
     "first run restore!(mach)."
+
+recent_model(mach) = !(mach.model isa Symbol)     ? mach.model :
+    !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
+    !(mach.old_model isa Symbol) ? mach.old_model :
+                     throw(err_no_real_model(mach))
+
 
 # Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
 # `ret` in the ordinary case that the operation does not include an "report" component ;
 # otherwise update `mach.report` with that component and return the non-report part of
 # `ret`:
 function get!(ret, operation, mach)
-    if operation in reporting_operations(mach.model)
+    model = recent_model(mach)
+    if operation in reporting_operations(model)
         report = last(ret)
         if isnothing(mach.report) || isempty(mach.report)
             mach.report = report
@@ -76,7 +83,7 @@ for operation in OPERATIONS
         function $(operation)(mach::Machine{<:Model,true}; rows=:)
             # catch deserialized machine with no data:
             isempty(mach.args) && _err_serialized($operation)
-            model = mach.model
+            model = recent_model(mach)
             ret = ($operation)(
                 model,
                 mach.fitresult,
@@ -122,10 +129,11 @@ for operation in OPERATIONS
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
             _check_and_fit_if_warranted!(mach)
+            model = recent_model(mach)
             ret = $(operation)(
-                mach.model,
+                model,
                 mach.fitresult,
-                reformat(mach.model, Xraw)...,
+                reformat(model, Xraw)...,
             )
             get!(ret, $quoted_operation, mach)
         end
@@ -133,7 +141,7 @@ for operation in OPERATIONS
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
             _check_and_fit_if_warranted!(mach)
             ret = $(operation)(
-                mach.model,
+                recent_model(mach),
                 mach.fitresult,
                 Xraw,
                 Xraw_more...,
