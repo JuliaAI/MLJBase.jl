@@ -606,7 +606,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         mach.data = MMI.reformat(mach.model, raw_args...)
     end
 
-    # build or update cached `resampled_data` if necessary:
+    # build or update cached `resampled_data` if necessary (`mach.data` is already defined
+    # above if needed here):
     if cache_data && (!data_is_valid || condition_iv)
         mach.resampled_data = selectrows(mach.model, rows, mach.data...)
     end
