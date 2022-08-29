@@ -358,12 +358,12 @@ machine(T::Type{<:Model}, args...; kwargs...) =
 
 function machine(model::Static, args...; cache=false, kwargs...)
     isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
+    return Machine(model; cache, kwargs...)
 end
 
 function machine(model::Static, args::AbstractNode...; cache=false, kwargs...)
     isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
+    return Machine(model; cache, kwargs...)
 end
 
 machine(model::Model, raw_arg1, arg2::AbstractNode, args::AbstractNode...;

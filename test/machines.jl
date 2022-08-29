@@ -226,6 +226,7 @@ end
 
     mach = @test_logs machine(Scale(2))
     @test mach isa Machine{Scale, false}
+    transform(mach, X) # triggers training of `mach`, ie is mutating
     @test report(mach) in [nothing, NamedTuple()]
     @test isnothing(fitted_params(mach).fitresult)
     @test_throws(
@@ -402,7 +403,7 @@ end
     @test smach.report == mach.report
     @test smach.fitresult == mach.fitresult
     @test_throws(ArgumentError, predict(smach))
-    @test_logs (:warn, MLJBase.warn_serializable_mach(predict)) predict(smach, X)
+    @test_logs (:warn, MLJBase.WARN_SERIALIZABLE_MACH) predict(smach, X)
 
     TestUtilities.generic_tests(mach, smach)
     # Check restore! function
@@ -440,7 +441,7 @@ end
 
     # warning on non-restored machine
     smach = deserialize(filename)
-    @test_logs (:warn, MLJBase.warn_serializable_mach(transform)) transform(smach, X)
+    @test_logs (:warn, MLJBase.WARN_SERIALIZABLE_MACH) transform(smach, X)
 
     rm(filename)
 end

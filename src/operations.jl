@@ -37,9 +37,12 @@ err_serialized(operation) = ArgumentError(
     "bound to it. "
 )
 
-warn_serializable_mach(operation) = "The operation $operation has been called on a "*
-                        "deserialised machine mach whose learned parameters "*
-                        "may be unusable. To be sure, first run restore!(mach)."
+const err_untrained(mach) = ErrorException("$mach has not been trained. ")
+
+WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
+    "deserialised machine whose learned parameters "*
+    "may be unusable. To be sure they are usable, "*
+    "first run restore!(mach)."
 
 # Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
 # `ret` in the ordinary case that the operation does not include an "report" component ;
@@ -103,6 +106,19 @@ inverse_transform(mach::Machine; rows=:) =
 
 _symbol(f) = Base.Core.Typeof(f).name.mt.name
 
+# catches improperly deserialized machines and silently fits the machine if it is
+# untrained and has no training arguments:
+function _check_and_fit_if_warranted!(mach)
+    mach.state == -1 && @warn WARN_SERIALIZABLE_MACH
+    if mach.state == 0
+        if isempty(mach.args)
+            fit!(mach, verbosity=0)
+        else
+            throw(err_untrained(mach))
+        end
+    end
+end
+
 for operation in OPERATIONS
 
     quoted_operation = QuoteNode(operation) # eg, :(:predict)
@@ -110,20 +126,17 @@ for operation in OPERATIONS
     ex = quote
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
-            if mach.state != 0
-                mach.state == -1 && @warn warn_serializable_mach($operation)
-                ret = $(operation)(
-                    mach.model,
-                    mach.fitresult,
-                    reformat(mach.model, Xraw)...,
-                )
-                get!(ret, $quoted_operation, mach)
-            else
-                error("$mach has not been trained.")
-            end
+            _check_and_fit_if_warranted!(mach)
+            ret = $(operation)(
+                mach.model,
+                mach.fitresult,
+                reformat(mach.model, Xraw)...,
+            )
+            get!(ret, $quoted_operation, mach)
         end
 
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
+            _check_and_fit_if_warranted!(mach)
             ret = $(operation)(
                 mach.model,
                 mach.fitresult,
