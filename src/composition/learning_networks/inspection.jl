@@ -150,21 +150,3 @@ MLJModelInterface.input_scitype(N::Node) = Unknown
 MLJModelInterface.input_scitype(N::Node{<:Machine}) =
     input_scitype(N.machine.model)
 
-
-## MANIPULATING LEARNING NETWORKS
-
-"""
-    reset!(N::Node)
-
-Place the learning network terminating at node `N` into a state in
-which `fit!(N)` will retrain from scratch all machines in its
-dependency tape. Does not actually train any machine or alter
-fit-results. (The method simply resets `m.state` to zero, for every
-machine `m` in the network.)
-
-"""
-function reset!(W::Node)
-    for mach in machines(W)
-        mach.state = 0 # to do: replace with dagger object
-    end
-end
