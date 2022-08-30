@@ -1,7 +1,9 @@
 # # DUPLICATING LEARNING NETWORKS WITH MODEL REPLACEMENT
 
+# currently needed for @from_network and for save/restore for <: Composite models
+
 """
-    copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
+    replacement_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
 
 For now, two top functions will lead to a call of this function:
 `Base.replace(::Machine, ...)` and `save(::Machine, ...)`. A call from
@@ -9,14 +11,14 @@ For now, two top functions will lead to a call of this function:
 method.  A new Machine is built with training data from node N.
 
 """
-function copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
+function replacement_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)
     train_args = [newnode_given_old[arg] for arg in N.machine.args]
     return Machine(newmodel_given_old[N.machine.model],
                 train_args...)
 end
 
 """
-    copy_or_replace_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
+    replacement_machine(N::AbstractNode, newmodel_given_old::Nothing, newnode_given_old)
 
 For now, two top functions will lead to a call of this function:
 `Base.replace(::Machine, ...)` and `save(::Machine, ...)`. A call from
@@ -26,7 +28,7 @@ the machine attached to node N serializable (see
 `serializable(::Machine)`).
 
 """
-function copy_or_replace_machine(
+function replacement_machine(
     N::AbstractNode,
     newmodel_given_old::Nothing,
     newnode_given_old
@@ -58,7 +60,7 @@ function update_mappings_with_node!(
         if N.machine in keys(newmach_given_old)
             m = newmach_given_old[N.machine]
         else
-            m = copy_or_replace_machine(N, newmodel_given_old, newnode_given_old)
+            m = replacement_machine(N, newmodel_given_old, newnode_given_old)
             newmach_given_old[N.machine] = m
         end
         newnode_given_old[N] = N.operation(m, args...)
