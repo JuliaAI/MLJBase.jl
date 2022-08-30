@@ -199,6 +199,7 @@ include("sources.jl")
 include("machines.jl")
 
 include("composition/abstract_types.jl")
+include("composition/deprecated.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/machines.jl")
