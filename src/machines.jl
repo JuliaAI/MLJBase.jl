@@ -534,11 +534,17 @@ err_no_real_model(mach) = ErrorException(
 )
 
 """
-    MLJBase.fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
+    MLJBase.fit_only!(
+        mach::Machine;
+        rows=nothing,
+        verbosity=1,
+        force=false,
+        composite=nothing
+    )
 
-Without mutating any other machine on which it may depend, perform one of
-the following actions to the machine `mach`, using the data and model
-bound to it, and restricting the data to `rows` if specified:
+Without mutating any other machine on which it may depend, perform one of the following
+actions to the machine `mach`, using the data and model bound to it, and restricting the
+data to `rows` if specified:
 
 - *Ab initio training.* Ignoring any previous learned parameters and
   cache, compute and store new learned parameters. Increment `mach.state`.
@@ -551,6 +557,9 @@ bound to it, and restricting the data to `rows` if specified:
 
 - *No-operation.* Leave existing learned parameters untouched. Do not
    increment `mach.state`.
+
+If the model, `model`, bound to `mach` is a symbol, then instead perform the action using
+the true model `getproperty(composite, model)`.
 
 
 ### Training action logic
@@ -569,10 +578,20 @@ or none of the following apply:
 - (iv) The specified `rows` have changed since the last retraining and
   `mach.model` does not have `Static` type.
 
-- (v) `mach.model` has changed since the last retraining.
+- (v) `mach.model` is a model and different from the last model used for training, but has
+  the same type.
 
-In any of the cases (i) - (iv), `mach` is trained ab initio. If only
-(v) fails, then a training update is applied.
+- (vi) `mach.model` is a model but has a type different from the last model used for
+  training.
+
+- (vii) `mach.model` is a symbol and `(composite, mach.model)` is different from the last
+  model used for training, but has the same type.
+
+- (viii) `mach.model` is a symbol and `(composite, mach.model)` has a different type from
+  the last model used for training.
+
+In any of the cases (i) - (iv), (vi), or (viii), `mach` is trained ab initio. If (v) or
+(vii) is true, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -620,6 +639,10 @@ function fit_only!(
         mach.model
     end
 
+    modeltype_changed = !isdefined(mach, :old_model) ? true  :
+            typeof(model) === typeof(mach.old_model) ? false :
+                                                       true
+
     # take action if model has been mutated illegally:
     warning = clean!(model)
     isempty(warning) || verbosity < 0 || @warn warning
@@ -651,7 +674,8 @@ function fit_only!(
     if mach.state == 0 ||       # condition (i)
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
-        condition_iv            # condition (iv)
+        condition_iv ||         # condition (iv)
+        modeltype_changed      # conditions (vi) or (vii)
 
         # fit the model:
         fitlog(mach, :train, verbosity)

@@ -453,22 +453,27 @@ end
     struct BerryComposite
         clf
     end
-    composite = BerryComposite(ConstantClassifier())
-    X = MLJBase.table(rand(3, 2))
-    y = coerce(fill(42, 3), Multiclass)
+    composite = BerryComposite(KNNClassifier(K=5))
+    X = MLJBase.table(rand(10, 2))
+    y = coerce(fill(42, 10), Multiclass)
     mach  = machine(:clf, X, y)
-    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
-    mach.old_model = :clf
     @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
     fit!(mach; composite, verbosity)
     @test MLJBase.recent_model(mach) == composite.clf
-    @test predict_mode(mach, MLJBase.table(rand(2, 2))) == [42, 42]
+    Xnew = MLJBase.table(rand(2, 2))
+    @test predict_mode(mach, Xnew) == [42, 42]
+
+    # if composite.clf is changed, but keeps same type, get an update:
+    composite = BerryComposite(KNNClassifier(K=3))
+    @test_logs (:info, r"Updating") fit!(mach; composite)
+
+    # if composite.clf is changed, but type changes, retrain from scratch:
+    composite = BerryComposite(ConstantClassifier())
+    @test_logs (:info, r"Training") fit!(mach; composite)
 
     # no training arguments:
     composite = BerryComposite(StaticYoghurt())
     mach = machine(:clf)
-    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
-    mach.old_model = :clf
     @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
     @test_throws MLJBase.err_no_real_model(mach) transform(mach, X)
     fit!(mach; composite, verbosity)
