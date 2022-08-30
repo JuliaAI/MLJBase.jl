@@ -550,8 +550,8 @@ or none of the following apply:
 
 - (v) `mach.model` has changed since the last retraining.
 
-In any of the cases (i) - (iv), `mach` is trained ab initio. If only
-(v) fails, then a training update is applied.
+In any of the cases (i) - (iv), `mach` is trained ab initio. If (v) holds, then a training
+update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
