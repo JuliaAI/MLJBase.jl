@@ -1,101 +1,3 @@
-# # SIGNATURES
-
-const DOC_SIGNATURES =
-"""
-A learning network *signature* is an intermediate object defined when
-a user constructs a learning network machine, `mach`. They are named
-tuples whose values are the nodes consitituting interface points
-between the network and the machine.  Examples are
-
-    (predict=yhat, )
-    (transform=Xsmall,)
-    (predict=yhat, transform=W, report=(loss=loss_node,))
-
-where `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
-
-If a key `k` is the name of an operation (such as `:predict`,
-`:predict_mode`, `:transform`, `inverse_transform`) then `k(mach, X)`
-returns `n(X)` where `n` is the corresponding node value.  Each such
-node must have a unique origin (`length(origins(n)) === 1`).
-
-The only other allowed key is `:report`, whose corresponding value
-must be a named tuple
-
-    (k1=n1, k2=n2, ...)
-
-whose keys are arbitrary, and whose values are nodes of the
-network. For each such key-value pair `k=n`, the value returned by
-`n()` is included in the named tuple `report(mach)`, with
-corresponding key `k`. So, in the third example above,
-`report(mach).loss` will return the value of `loss_node()`.
-
-"""
-
-function _operation_part(signature)
-    ops = filter(in(OPERATIONS), keys(signature))
-    return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
-end
-function _report_part(signature)
-    :report in keys(signature) || return NamedTuple()
-    return signature.report
-end
-
-_operations(signature) = keys(_operation_part(signature))
-
-function _nodes(signature)
-    return (values(_operation_part(signature))...,
-            values(_report_part(signature))...)
-end
-
-function _call(nt::NamedTuple)
-    _call(n) = deepcopy(n())
-    _keys = keys(nt)
-    _values = values(nt)
-    return NamedTuple{_keys}(_call.(_values))
-end
-
-"""
-    model_supertype(signature)
-
-Return, if this can be inferred, which of `Deterministic`,
-`Probabilistic` and `Unsupervised` is the appropriate supertype for a
-composite model obtained by exporting a learning network with the
-specified `signature`.
-
-$DOC_SIGNATURES
-
-If a supertype cannot be inferred, `nothing` is returned.
-
-If the network with given `signature` is not exportable, this method
-will not error but it will not a give meaningful return value either.
-
-**Private method.**
-
-"""
-function model_supertype(signature)
-
-    operations = _operations(signature)
-
-    length(intersect(operations, (:predict_mean, :predict_median))) == 1 &&
-        return Deterministic
-
-    if :predict in operations
-        node = signature.predict
-        if node isa Source
-            return Deterministic
-        end
-        if node.machine !== nothing
-            model = node.machine.model
-            model isa Deterministic && return Deterministic
-            model isa Probabilistic && return Probabilistic
-        end
-    end
-
-    return nothing
-
-end
-
-
 # # FITRESULTS FOR COMPOSITE MODELS
 
 mutable struct CompositeFitresult
@@ -224,6 +126,13 @@ $DOC_SIGNATURES
 
 """
 glb(mach::Machine{<:Union{Composite,Surrogate}}) = glb(mach.fitresult)
+
+function _call(nt::NamedTuple)
+    _call(n) = deepcopy(n())
+    _keys = keys(nt)
+    _values = values(nt)
+    return NamedTuple{_keys}(_call.(_values))
+end
 
 """
     report(fitresult::CompositeFitresult)

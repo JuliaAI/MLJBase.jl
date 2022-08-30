@@ -32,24 +32,6 @@ MLJBase.predict(model::DummyClusterer, fitresult, Xnew) =
 N = 20
 X = (a = rand(N), b = categorical(rand("FM", N)))
 
-@testset "signature helpers" begin
-    @test MLJBase._call(NamedTuple()) == NamedTuple()
-    a = source(:a)
-    b = source(:b)
-    W = source(:W)
-    yhat = source(:yhat)
-    s = (transform=W,
-         report=(a=a, b=b),
-         predict=yhat)
-    @test MLJBase._report_part(s) == (a=a, b=b)
-    @test MLJBase._operation_part(s) == (transform=W, predict=yhat)
-    @test MLJBase._nodes(s) == (W, yhat, a, b)
-    @test MLJBase._operations(s) == (:transform, :predict)
-    R = MLJBase._call(MLJBase._report_part(s))
-    @test R.a == :a
-    @test R.b == :b
-end
-
 @testset "wrapping a learning network in a machine" begin
 
     # unsupervised:

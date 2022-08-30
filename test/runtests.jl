@@ -53,6 +53,10 @@ end
     @test include("machines.jl")
 end
 
+@conditional_testset "signatures" begin
+    @test include("composition/signatures.jl")
+end
+
 @conditional_testset "composition_learning_networks" begin
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")

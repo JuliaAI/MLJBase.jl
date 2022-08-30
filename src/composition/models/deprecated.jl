@@ -39,3 +39,47 @@ function setreport!(copymach::Machine{<:Composite}, mach)
     additions = mach.report.additions
     copymach.report = (; basic, additions)
 end
+
+
+# # EXTRA SIGNATURE METHODS
+
+"""
+    model_supertype(signature)
+
+Return, if this can be inferred, which of `Deterministic`,
+`Probabilistic` and `Unsupervised` is the appropriate supertype for a
+composite model obtained by exporting a learning network with the
+specified `signature`.
+
+$DOC_SIGNATURES
+
+If a supertype cannot be inferred, `nothing` is returned.
+
+If the network with given `signature` is not exportable, this method
+will not error but it will not a give meaningful return value either.
+
+**Private method.**
+
+"""
+function model_supertype(signature)
+
+    operations = _operations(signature)
+
+    length(intersect(operations, (:predict_mean, :predict_median))) == 1 &&
+        return Deterministic
+
+    if :predict in operations
+        node = signature.predict
+        if node isa Source
+            return Deterministic
+        end
+        if node.machine !== nothing
+            model = node.machine.model
+            model isa Deterministic && return Deterministic
+            model isa Probabilistic && return Probabilistic
+        end
+    end
+
+    return nothing
+
+end
