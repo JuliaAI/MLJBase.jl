@@ -239,111 +239,36 @@ taken. Whether warnings are issued or errors thrown depends the
 level. For details, see [`default_scitype_check_level`](@ref), a method
 to inspect or change the default level (`1` at startup).
 
-### Learning network machines
 
-    machine(Xs; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys, extras...; oper1=node1, oper2=node2, ...)
+### Machines with model placeholders
 
-Construct a special machine called a *learning network machine*, that
-wraps a learning network, usually in preparation to export the network
-as a stand-alone composite model type. The keyword arguments declare
-what nodes are called when operations, such as `predict` and
-`transform`, are called on the machine. An advanced option allows one
-to additionally pass the output of any node to the machine's report;
-see below.
-
-In addition to the operations named in the constructor, the methods
-`fit!`, `report`, and `fitted_params` can be applied as usual to the
-machine constructed.
-
-    machine(Probabilistic(), args...; kwargs...)
-    machine(Deterministic(), args...; kwargs...)
-    machine(Unsupervised(), args...; kwargs...)
-    machine(Static(), args...; kwargs...)
-
-Same as above, but specifying explicitly the kind of model the
-learning network is to meant to represent.
-
-Learning network machines are not to be confused with an ordinary
-machine that happens to be bound to a stand-alone composite model
-(i.e., an *exported* learning network).
-
-
-### Examples of learning network machines
-
-Supposing a supervised learning network's final predictions are
-obtained by calling a node `yhat`, then the code
+A symbol can be substituted for a model in machine constructors to act as a placeholder
+for a model specified at training time. The symbol must be the field name for a struct
+whose corresponding value is a model, as shown in the following example:
 
 ```julia
-mach = machine(Deterministic(), Xs, ys; predict=yhat)
-fit!(mach; rows=train)
-predictions = predict(mach, Xnew) # `Xnew` concrete data
+mutable struct MyComposite
+    transformer
+    classifier
+end
+
+my_composite = MyComposite(Standardizer(), ConstantClassifier)
+
+X, y = make_blobs()
+mach = machine(:classifier, X, y)
+fit!(mach, composite=my_composite)
 ```
 
-is  equivalent to
+The last two lines are equivalent to
 
 ```julia
-fit!(yhat, rows=train)
-predictions = yhat(Xnew)
-```
-
-Here `Xs` and `ys` are the source nodes receiving, respectively, the
-input and target data.
-
-In a unsupervised learning network for clustering, with single source
-node `Xs` for inputs, and in which the node `Xout` delivers the output
-of dimension reduction, and `yhat` the class labels, one can write
-
-```julia
-mach = machine(Unsupervised(), Xs; transform=Xout, predict=yhat)
+mach = machine(ConstantClassifier(), X, y)
 fit!(mach)
-transformed = transform(mach, Xnew) # `Xnew` concrete data
-predictions = predict(mach, Xnew)
 ```
 
-which is equivalent to
+Delaying model specification is useful when exporting learning networks as new stand-alone
+model types. See [`prefit`](@ref) and the MLJ documentation on learning networks.
 
-```julia
-fit!(Xout)
-fit!(yhat)
-transformed = Xout(Xnew)
-predictions = yhat(Xnew)
-```
-### Including a node's output in the report
-
-The return value of a node called with no arguments can be included in
-a learning network machine's report, and so in the report of any
-composite model type constructed by exporting a learning network. This
-is useful for exposing byproducts of network training that are not
-readily deduced from the `report`s and `fitted_params` of the
-component machines (which are automatically exposed).
-
-The following example shows how to expose `err1()` and `err2()`, where
-`err1` are `err2` are nodes in the network delivering training errors.
-
-```julia
-X, y = make_moons()
-Xs = source(X)
-ys = source(y)
-
-model = ConstantClassifier()
-mach = machine(model, Xs, ys)
-yhat = predict(mach, Xs)
-err1 = @node auc(yhat, ys)
-err2 = @node accuracy(yhat, ys)
-
-network_mach = machine(Probabilistic(),
-                       Xs,
-                       ys,
-                       predict=yhat,
-                       report=(auc=err1, accuracy=err2))
-
-fit!(network_mach)
-r = report(network_mach)
-@assert r.auc == auc(yhat(), ys())
-@assert r.accuracy == accuracy(yhat(), ys())
-```
 
 See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
 [`MLJBase.save`](@ref), [`serializable`](@ref).
