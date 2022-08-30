@@ -321,7 +321,7 @@ export machine, Machine, fit!, report, fit_only!, default_scitype_check_level,
 export make_blobs, make_moons, make_circles, make_regression
 
 # composition (surrogates and composites are exported in composition):
-export machines, sources, @from_network, @pipeline, Stack,
+export machines, sources, @from_network, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
     Node, AbstractNode, Pipeline,
