@@ -58,7 +58,9 @@ end
 
     # The following tests only pass when machine `t` has been fitted
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
-    @test report(t) == t.report
+    @test report(t) ==
+        (isnothing(MLJBase.report_given_method(t)[:fit]) ? NamedTuple() :
+        MLJBase.report_given_method(t)[:fit])
     @test training_losses(t) === nothing
     @test feature_importances(t) === nothing
 
@@ -323,6 +325,8 @@ end
 const dummy_importances = [:x1 => 1.0, ]
 MLJModelInterface.reports_feature_importances(::Type{<:SomeModel}) = true
 MLJModelInterface.feature_importances(::SomeModel, fitresult, report) = dummy_importances
+MLJModelInterface.supports_training_losses(::Type{<:SomeModel}) = true
+MLJModelInterface.training_losses(::SomeModel, report) = 1:report.n_features
 
 MLJModelInterface.reformat(model::SomeModel, X, y) = (MLJBase.matrix(X), y)
 MLJModelInterface.selectrows(model::SomeModel, I, A, y) =
@@ -450,30 +454,41 @@ end
 end
 
 @testset "machines with symbolic model placeholders" begin
-    struct BerryComposite
-        clf
+
+    struct CherryComposite
+        rgs
     end
-    composite = BerryComposite(KNNClassifier(K=5))
-    X = MLJBase.table(rand(10, 2))
-    y = coerce(fill(42, 10), Multiclass)
-    mach  = machine(:clf, X, y)
+
+    composite = CherryComposite(SomeModel(1))
+    X = MLJBase.table(
+        [1.0 3.0
+         2.0 4.0]
+    )
+    y = [1.0, 2.0]
+    mach  = machine(:rgs, X, y)
     @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
     fit!(mach; composite, verbosity)
-    @test MLJBase.recent_model(mach) == composite.clf
-    Xnew = MLJBase.table(rand(2, 2))
-    @test predict_mode(mach, Xnew) == [42, 42]
+    @test MLJBase.recent_model(mach) == composite.rgs
 
-    # if composite.clf is changed, but keeps same type, get an update:
-    composite = BerryComposite(KNNClassifier(K=3))
+    @test fitted_params(mach).fitresult ≈ [1.0, 0.0]
+    @test report(mach) == (; n_features = 2)
+    @test training_losses(mach) == 1:2
+    @test feature_importances(mach) == dummy_importances
+
+    Xnew = MLJBase.table(rand(2, 2))
+    @test size(predict(mach, Xnew)) == (2,)
+
+    # if composite.rgs is changed, but keeps same type, get an update:
+    composite = CherryComposite(SomeModel(2))
     @test_logs (:info, r"Updating") fit!(mach; composite)
 
-    # if composite.clf is changed, but type changes, retrain from scratch:
-    composite = BerryComposite(ConstantClassifier())
+    # if composite.rgs is changed, but type changes, retrain from scratch:
+    composite = CherryComposite(StaticYoghurt())
     @test_logs (:info, r"Training") fit!(mach; composite)
 
     # no training arguments:
-    composite = BerryComposite(StaticYoghurt())
-    mach = machine(:clf)
+    composite = CherryComposite(StaticYoghurt())
+    mach = machine(:rgs)
     @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
     @test_throws MLJBase.err_no_real_model(mach) transform(mach, X)
     fit!(mach; composite, verbosity)

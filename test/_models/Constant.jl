@@ -130,7 +130,7 @@ end
 function MMI.fit(::ConstantClassifier, verbosity::Int, A, y, w=nothing)
     fitresult = Distributions.fit(MLJBase.UnivariateFinite, y, w)
     cache     = nothing
-    report    = NamedTuple
+    report    = NamedTuple()
     return fitresult, cache, report
 end
 

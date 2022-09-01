@@ -64,6 +64,7 @@ mutable struct Machine{M,C} <: MLJType
     # cached subsample of data (for C=true):
     resampled_data
 
+    # dictionary of named tuples keyed on method (:fit, :predict, etc):
     report
     frozen::Bool
     old_rows
@@ -238,7 +239,6 @@ model, unless `args` contains `Unknown` scitypes and
 taken. Whether warnings are issued or errors thrown depends the
 level. For details, see [`default_scitype_check_level`](@ref), a method
 to inspect or change the default level (`1` at startup).
-
 
 ### Machines with model placeholders
 
@@ -454,9 +454,18 @@ function _resampled_data(mach::Machine{<:Any,false}, model, rows)
 end
 
 err_no_real_model(mach) = ErrorException(
-    "Cannot train $mach, which has a `Symbol` as model. "*
-    "Call `fit!` on the machine, specifiying `composite=... `"
+    """
+
+    Cannot train or use $mach, which has a `Symbol` as model. Perhaps you
+    forgot to specify `composite=... ` in a `fit!` call?
+
+    """
 )
+
+recent_model(mach) = !(mach.model isa Symbol)     ? mach.model :
+    !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
+    !(mach.old_model isa Symbol) ? mach.old_model :
+                     throw(err_no_real_model(mach))
 
 """
     MLJBase.fit_only!(
@@ -602,9 +611,11 @@ function fit_only!(
         condition_iv ||         # condition (iv)
         modeltype_changed      # conditions (vi) or (vii)
 
+        isdefined(mach, :report) || (mach.report = Dict{Symbol,Any}())
+
         # fit the model:
         fitlog(mach, :train, verbosity)
-        mach.fitresult, mach.cache, mach.report =
+        mach.fitresult, mach.cache, mach.report[:fit] =
             try
                 fit(model, verbosity, _resampled_data(mach, model, rows)...)
             catch exception
@@ -631,7 +642,7 @@ function fit_only!(
 
         # update the model:
         fitlog(mach, :update, verbosity)
-        mach.fitresult, mach.cache, mach.report =
+        mach.fitresult, mach.cache, mach.report[:fit] =
             update(model,
                    verbosity,
                    mach.fitresult,
@@ -747,7 +758,7 @@ fitted parameters keyed on those machines.
 """
 function fitted_params(mach::Machine)
     if isdefined(mach, :fitresult)
-        return fitted_params(mach.model, mach.fitresult)
+        return fitted_params(recent_model(mach), mach.fitresult)
     else
         throw(NotTrainedError(mach, :fitted_params))
     end
@@ -792,24 +803,40 @@ reports keyed on those machines.
 """
 function report(mach::Machine)
     if isdefined(mach, :report)
-        return mach.report
+        return MMI.report(recent_model(mach), mach.report)
     else
         throw(NotTrainedError(mach, :report))
     end
 end
+
+"""
+
+    report_given_method(mach::Machine)
+
+Same as `report(mach)` but broken down by the method (`fit`, `predict`, etc) that
+contributed the report.
+
+A specialized method intended for learning network applications.
+
+The return value is a dictionary keyed on the symbol representing the method (`:fit`,
+`:predict`, etc) and the values report contributed by that method.
+
+"""
+report_given_method(mach::Machine) = mach.report
+
 
 
 """
     training_losses(mach::Machine)
 
 Return a list of training losses, for models that make these
-available. Otherwise, returns `nothing`.
+available. Otherwise, return `nothing`.
 
 """
 
 function training_losses(mach::Machine)
     if isdefined(mach, :report)
-        return training_losses(mach.model, mach.report)
+        return training_losses(recent_model(mach), report_given_method(mach)[:fit])
     else
         throw(NotTrainedError(mach, :training_losses))
     end
@@ -818,15 +845,17 @@ end
 """
     feature_importances(mach::Machine)
 
-Return a list of `feature => importance` pairs for a fitted machine,
-`mach`,  if supported by the underlying model, i.e., if
-`reports_feature_importances(mach.model) == true`.  Otherwise return
-`nothing`.
+Return a list of `feature => importance` pairs for a fitted machine, `mach`, for supported
+models. Otherwise return `nothing`.
 
 """
 function feature_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
-        return _feature_importances(mach.model, mach.fitresult, mach.report)
+        return _feature_importances(
+            recent_model(mach),
+            mach.fitresult,
+            report_given_method(mach)[:fit],
+        )
     else
         throw(NotTrainedError(mach, :feature_importances))
     end

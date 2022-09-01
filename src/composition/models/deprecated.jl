@@ -36,8 +36,8 @@ end
 
 function setreport!(copymach::Machine{<:Composite}, mach)
     basic = report(glb(copymach.fitresult))
-    additions = mach.report.additions
-    copymach.report = (; basic, additions)
+    additions = report_given_method(mach)[:fit].additions
+    copymach.report = Dict{Symbol,Any}(:fit => (; basic, additions))
 end
 
 
