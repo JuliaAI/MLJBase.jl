@@ -258,7 +258,6 @@ istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 
 # overload show method
 
-
 _formula(stream::IO, X::AbstractNode, indent) =
     (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
 _formula(stream::IO, X::Source, depth, indent) = show(stream, X)
@@ -300,6 +299,19 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
     # printstyled(IOContext(io, :color=>SHOW_COLOR[]),
     #             handle(X),
     #             color=color(X))
+end
+
+# for displaying withing other objects:
+# show within other objects:
+function Base.show(stream::IO, object::Node)
+    str = simple_repr(typeof(object)) * " $(handle(object))"
+    mach = object.machine
+    extra = isnothing(mach) ? "" :
+        mach.model isa Symbol ? " → :$(mach.model)" :
+        " → $(simple_repr(typeof(mach.model)))(…)"
+    str *= extra
+    print(stream, str)
+    return nothing
 end
 
 
