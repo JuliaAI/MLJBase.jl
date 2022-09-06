@@ -264,7 +264,7 @@ function fit!(mach::Machine{<:Surrogate}; kwargs...)
     glb = MLJBase.glb(mach)
     fit!(glb; kwargs...)
     mach.state += 1
-    mach.report = MLJBase.report(mach.fitresult)
+    mach.report = Dict{Symbol,Any}(:fit => MLJBase.report(mach.fitresult))
     return mach
 end
 
@@ -415,8 +415,7 @@ function return!(mach::Machine{<:Surrogate},
     glb = MLJBase.glb(mach)
     cache = (; old_model)
 
-    return mach.fitresult, cache, mach.report
-
+    return mach.fitresult, cache, report_given_method(mach)[:fit]
 end
 
 
@@ -459,6 +458,7 @@ end
 
 function setreport!(copymach::Machine{<:Composite}, mach)
     basic = report(glb(copymach.fitresult))
-    additions = mach.report.additions
-    copymach.report = (; basic, additions)
+    additions = report_given_method(mach)[:fit].additions
+    copymach.report = Dict{Symbol,Any}(:fit => (; basic, additions))
+    return copymach
 end

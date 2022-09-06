@@ -440,7 +440,7 @@ end
 
 model = WrappedClusterer()
 mach = fit!(machine(model, X), verbosity=0)
-fit!(yhat)
+fit!(yhat, verbosity=0)
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
 rep = report(mach)

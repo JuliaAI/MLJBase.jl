@@ -205,7 +205,7 @@ end
     X, y = make_regression(100, 1)
 
     pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
-    model = Stack(
+    model = @test_logs (:warn, r"") Stack(
         metalearner = DecisionTreeRegressor(),
         pipe = pipe)
     mach = machine(model, X, y)

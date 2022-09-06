@@ -28,8 +28,8 @@ function tuple_keyed_on_model_names(machines, mach, f)
 end
 
 function report(mach::Machine{<:Union{Composite,Surrogate}})
-    report_additions = mach.report.additions
-    report_basic = mach.report.basic
+    report_additions = MLJBase.report_given_method(mach)[:fit].additions
+    report_basic = MLJBase.report_given_method(mach)[:fit].basic
     report_components = mach isa Machine{<:Surrogate} ? NamedTuple() :
         MLJBase.tuple_keyed_on_model_names(report_basic.machines, mach, MLJBase.report)
     return merge(report_components, report_basic, report_additions)

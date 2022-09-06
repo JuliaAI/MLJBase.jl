@@ -64,6 +64,7 @@ mutable struct Machine{M,C} <: MLJType
     # cached subsample of data (for C=true):
     resampled_data
 
+    # dictionary of named tuples keyed on method (:fit, :predict, etc):
     report
     frozen::Bool
     old_rows
@@ -239,111 +240,35 @@ taken. Whether warnings are issued or errors thrown depends the
 level. For details, see [`default_scitype_check_level`](@ref), a method
 to inspect or change the default level (`1` at startup).
 
-### Learning network machines
+### Machines with model placeholders
 
-    machine(Xs; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys, extras...; oper1=node1, oper2=node2, ...)
-
-Construct a special machine called a *learning network machine*, that
-wraps a learning network, usually in preparation to export the network
-as a stand-alone composite model type. The keyword arguments declare
-what nodes are called when operations, such as `predict` and
-`transform`, are called on the machine. An advanced option allows one
-to additionally pass the output of any node to the machine's report;
-see below.
-
-In addition to the operations named in the constructor, the methods
-`fit!`, `report`, and `fitted_params` can be applied as usual to the
-machine constructed.
-
-    machine(Probabilistic(), args...; kwargs...)
-    machine(Deterministic(), args...; kwargs...)
-    machine(Unsupervised(), args...; kwargs...)
-    machine(Static(), args...; kwargs...)
-
-Same as above, but specifying explicitly the kind of model the
-learning network is to meant to represent.
-
-Learning network machines are not to be confused with an ordinary
-machine that happens to be bound to a stand-alone composite model
-(i.e., an *exported* learning network).
-
-
-### Examples of learning network machines
-
-Supposing a supervised learning network's final predictions are
-obtained by calling a node `yhat`, then the code
+A symbol can be substituted for a model in machine constructors to act as a placeholder
+for a model specified at training time. The symbol must be the field name for a struct
+whose corresponding value is a model, as shown in the following example:
 
 ```julia
-mach = machine(Deterministic(), Xs, ys; predict=yhat)
-fit!(mach; rows=train)
-predictions = predict(mach, Xnew) # `Xnew` concrete data
+mutable struct MyComposite
+    transformer
+    classifier
+end
+
+my_composite = MyComposite(Standardizer(), ConstantClassifier)
+
+X, y = make_blobs()
+mach = machine(:classifier, X, y)
+fit!(mach, composite=my_composite)
 ```
 
-is  equivalent to
+The last two lines are equivalent to
 
 ```julia
-fit!(yhat, rows=train)
-predictions = yhat(Xnew)
-```
-
-Here `Xs` and `ys` are the source nodes receiving, respectively, the
-input and target data.
-
-In a unsupervised learning network for clustering, with single source
-node `Xs` for inputs, and in which the node `Xout` delivers the output
-of dimension reduction, and `yhat` the class labels, one can write
-
-```julia
-mach = machine(Unsupervised(), Xs; transform=Xout, predict=yhat)
+mach = machine(ConstantClassifier(), X, y)
 fit!(mach)
-transformed = transform(mach, Xnew) # `Xnew` concrete data
-predictions = predict(mach, Xnew)
 ```
 
-which is equivalent to
+Delaying model specification is used when exporting learning networks as new stand-alone
+model types. See [`prefit`](@ref) and the MLJ documentation on learning networks.
 
-```julia
-fit!(Xout)
-fit!(yhat)
-transformed = Xout(Xnew)
-predictions = yhat(Xnew)
-```
-### Including a node's output in the report
-
-The return value of a node called with no arguments can be included in
-a learning network machine's report, and so in the report of any
-composite model type constructed by exporting a learning network. This
-is useful for exposing byproducts of network training that are not
-readily deduced from the `report`s and `fitted_params` of the
-component machines (which are automatically exposed).
-
-The following example shows how to expose `err1()` and `err2()`, where
-`err1` are `err2` are nodes in the network delivering training errors.
-
-```julia
-X, y = make_moons()
-Xs = source(X)
-ys = source(y)
-
-model = ConstantClassifier()
-mach = machine(model, Xs, ys)
-yhat = predict(mach, Xs)
-err1 = @node auc(yhat, ys)
-err2 = @node accuracy(yhat, ys)
-
-network_mach = machine(Probabilistic(),
-                       Xs,
-                       ys,
-                       predict=yhat,
-                       report=(auc=err1, accuracy=err2))
-
-fit!(network_mach)
-r = report(network_mach)
-@assert r.auc == auc(yhat(), ys())
-@assert r.accuracy == accuracy(yhat(), ys())
-```
 
 See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
 [`MLJBase.save`](@ref), [`serializable`](@ref).
@@ -529,16 +454,31 @@ function _resampled_data(mach::Machine{<:Any,false}, model, rows)
 end
 
 err_no_real_model(mach) = ErrorException(
-    "Cannot train $mach, which has a `Symbol` as model. "*
-    "Call `fit!` on the machine, specifiying `composite=... `"
+    """
+
+    Cannot train or use $mach, which has a `Symbol` as model. Perhaps you
+    forgot to specify `composite=... ` in a `fit!` call?
+
+    """
 )
 
-"""
-    MLJBase.fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
+recent_model(mach) = !(mach.model isa Symbol)     ? mach.model :
+    !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
+    !(mach.old_model isa Symbol) ? mach.old_model :
+                     throw(err_no_real_model(mach))
 
-Without mutating any other machine on which it may depend, perform one of
-the following actions to the machine `mach`, using the data and model
-bound to it, and restricting the data to `rows` if specified:
+"""
+    MLJBase.fit_only!(
+        mach::Machine;
+        rows=nothing,
+        verbosity=1,
+        force=false,
+        composite=nothing
+    )
+
+Without mutating any other machine on which it may depend, perform one of the following
+actions to the machine `mach`, using the data and model bound to it, and restricting the
+data to `rows` if specified:
 
 - *Ab initio training.* Ignoring any previous learned parameters and
   cache, compute and store new learned parameters. Increment `mach.state`.
@@ -551,6 +491,9 @@ bound to it, and restricting the data to `rows` if specified:
 
 - *No-operation.* Leave existing learned parameters untouched. Do not
    increment `mach.state`.
+
+If the model, `model`, bound to `mach` is a symbol, then instead perform the action using
+the true model `getproperty(composite, model)`.
 
 
 ### Training action logic
@@ -569,10 +512,20 @@ or none of the following apply:
 - (iv) The specified `rows` have changed since the last retraining and
   `mach.model` does not have `Static` type.
 
-- (v) `mach.model` has changed since the last retraining.
+- (v) `mach.model` is a model and different from the last model used for training, but has
+  the same type.
 
-In any of the cases (i) - (iv), `mach` is trained ab initio. If (v) holds, then a training
-update is applied.
+- (vi) `mach.model` is a model but has a type different from the last model used for
+  training.
+
+- (vii) `mach.model` is a symbol and `(composite, mach.model)` is different from the last
+  model used for training, but has the same type.
+
+- (viii) `mach.model` is a symbol and `(composite, mach.model)` has a different type from
+  the last model used for training.
+
+In any of the cases (i) - (iv), (vi), or (viii), `mach` is trained ab initio. If (v) or
+(vii) is true, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -620,6 +573,10 @@ function fit_only!(
         mach.model
     end
 
+    modeltype_changed = !isdefined(mach, :old_model) ? true  :
+            typeof(model) === typeof(mach.old_model) ? false :
+                                                       true
+
     # take action if model has been mutated illegally:
     warning = clean!(model)
     isempty(warning) || verbosity < 0 || @warn warning
@@ -651,11 +608,14 @@ function fit_only!(
     if mach.state == 0 ||       # condition (i)
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
-        condition_iv            # condition (iv)
+        condition_iv ||         # condition (iv)
+        modeltype_changed      # conditions (vi) or (vii)
+
+        isdefined(mach, :report) || (mach.report = Dict{Symbol,Any}())
 
         # fit the model:
         fitlog(mach, :train, verbosity)
-        mach.fitresult, mach.cache, mach.report =
+        mach.fitresult, mach.cache, mach.report[:fit] =
             try
                 fit(model, verbosity, _resampled_data(mach, model, rows)...)
             catch exception
@@ -682,7 +642,7 @@ function fit_only!(
 
         # update the model:
         fitlog(mach, :update, verbosity)
-        mach.fitresult, mach.cache, mach.report =
+        mach.fitresult, mach.cache, mach.report[:fit] =
             update(model,
                    verbosity,
                    mach.fitresult,
@@ -798,7 +758,7 @@ fitted parameters keyed on those machines.
 """
 function fitted_params(mach::Machine)
     if isdefined(mach, :fitresult)
-        return fitted_params(mach.model, mach.fitresult)
+        return fitted_params(recent_model(mach), mach.fitresult)
     else
         throw(NotTrainedError(mach, :fitted_params))
     end
@@ -843,24 +803,40 @@ reports keyed on those machines.
 """
 function report(mach::Machine)
     if isdefined(mach, :report)
-        return mach.report
+        return MMI.report(recent_model(mach), mach.report)
     else
         throw(NotTrainedError(mach, :report))
     end
 end
+
+"""
+
+    report_given_method(mach::Machine)
+
+Same as `report(mach)` but broken down by the method (`fit`, `predict`, etc) that
+contributed the report.
+
+A specialized method intended for learning network applications.
+
+The return value is a dictionary keyed on the symbol representing the method (`:fit`,
+`:predict`, etc) and the values report contributed by that method.
+
+"""
+report_given_method(mach::Machine) = mach.report
+
 
 
 """
     training_losses(mach::Machine)
 
 Return a list of training losses, for models that make these
-available. Otherwise, returns `nothing`.
+available. Otherwise, return `nothing`.
 
 """
 
 function training_losses(mach::Machine)
     if isdefined(mach, :report)
-        return training_losses(mach.model, mach.report)
+        return training_losses(recent_model(mach), report_given_method(mach)[:fit])
     else
         throw(NotTrainedError(mach, :training_losses))
     end
@@ -869,15 +845,17 @@ end
 """
     feature_importances(mach::Machine)
 
-Return a list of `feature => importance` pairs for a fitted machine,
-`mach`,  if supported by the underlying model, i.e., if
-`reports_feature_importances(mach.model) == true`.  Otherwise return
-`nothing`.
+Return a list of `feature => importance` pairs for a fitted machine, `mach`, for supported
+models. Otherwise return `nothing`.
 
 """
 function feature_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
-        return _feature_importances(mach.model, mach.fitresult, mach.report)
+        return _feature_importances(
+            recent_model(mach),
+            mach.fitresult,
+            report_given_method(mach)[:fit],
+        )
     else
         throw(NotTrainedError(mach, :feature_importances))
     end

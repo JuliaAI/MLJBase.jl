@@ -44,11 +44,6 @@ const WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
     "may be unusable. To be sure they are usable, "*
     "first run restore!(mach)."
 
-recent_model(mach) = !(mach.model isa Symbol)     ? mach.model :
-    !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
-    !(mach.old_model isa Symbol) ? mach.old_model :
-                     throw(err_no_real_model(mach))
-
 
 # Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
 # `ret` in the ordinary case that the operation does not include an "report" component ;
@@ -61,9 +56,9 @@ function get!(ret, operation, mach)
     if operation in reporting_operations(model)
         report = named_tuple(last(ret))
         if isnothing(mach.report) || isempty(mach.report)
-            mach.report = report
+            mach.report = Dict{Symbol,Any}(operation => report)
         else
-            mach.report = merge(mach.report, report)
+            mach.report[operation] = report
         end
         return first(ret)
     end

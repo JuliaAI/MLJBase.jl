@@ -322,14 +322,14 @@ function item_given_machine(f, N)
             end
         end
     end
-    key = f isa typeof(report) ?
+    key = f isa typeof(MLJBase.report) ?
         :report_given_machine :
         :fitted_params_given_machine
     dict = LittleDict(machs[j] => items[j] for j in eachindex(machs))
     return NamedTuple{(:machines, key)}((machs, dict))
 end
 
-report(N::Node) = item_given_machine(report, N)
+report(N::Node) = item_given_machine(MLJBase.report, N)
 report(::Source) = NamedTuple()
 
 MLJModelInterface.fitted_params(N::Node) =
