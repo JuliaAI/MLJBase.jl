@@ -201,6 +201,7 @@ include("machines.jl")
 include("composition/abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
+include("composition/learning_networks/signatures.jl")
 include("composition/learning_networks/machines.jl")
 include("composition/learning_networks/replace.jl")
 
