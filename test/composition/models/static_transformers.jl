@@ -56,7 +56,8 @@ f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 knn = KNNRegressor()
 
 # 1. function in a pipeline:
-comp1 = @pipeline f Standardizer knn target=UnivariateBoxCoxTransformer
+knn_target = TransformedTargetModel(knn, target=UnivariateBoxCoxTransformer())
+comp1 =  f |> Standardizer() |> knn_target
 e = evaluate(comp1, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 
 # 2. function with parameters in a pipeline:
@@ -65,9 +66,7 @@ mutable struct GreatTransformer <: Static
 end
 MLJBase.transform(transf::GreatTransformer, verbosity, X) =
     (a=selectcols(X, transf.ftr), b=selectcols(X, :x2))
-comp2 = @pipeline(GreatTransformer(:x3), Standardizer, knn,
-                      target=UnivariateBoxCoxTransformer)
-
+comp2 = GreatTransformer(:x3) |> Standardizer() |>  knn_target
 comp2.great_transformer.ftr = :x1 # change the parameter
 e2 =  evaluate(comp2, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 @test e2.measurement[1] ≈ e.measurement[1]
