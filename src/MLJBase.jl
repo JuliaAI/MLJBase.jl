@@ -329,9 +329,6 @@ export machines, sources, @from_network, @pipeline, Stack,
 
 export TransformedTargetModel
 
-# aliases to the above,  kept for backwards compatibility:
-export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
-
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
     evaluate!, Resampler, PerformanceEvaluation
