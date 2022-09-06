@@ -558,9 +558,6 @@ bound to it, and restricting the data to `rows` if specified:
 For the action to be a no-operation, either `mach.frozen == true` or
 or none of the following apply:
 
-In all other cases, the action is a no-operation if and only if `mach.frozen == true` or
-none of the following apply:
-
 - (i) `mach` has never been trained (`mach.state == 0`).
 
 - (ii) `force == true`.
