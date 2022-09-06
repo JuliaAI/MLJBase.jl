@@ -1,7 +1,5 @@
 ## USER FRIENDLY INSPECTION OF COMPOSITE MACHINES
 
-try_scalarize(v) = length(v) == 1 ? v[1] : v
-
 function machines_given_model_name(mach::Machine{M}) where  M<:Composite
     network_model_names = getfield(mach.fitresult, :network_model_names)
     names = unique(filter(name->!(name === nothing), network_model_names))
@@ -17,6 +15,8 @@ function machines_given_model_name(mach::Machine{M}) where  M<:Composite
     end
     return ret
 end
+
+try_scalarize(v) = length(v) == 1 ? v[1] : v
 
 function tuple_keyed_on_model_names(machines, mach, f)
     dict = MLJBase.machines_given_model_name(mach)

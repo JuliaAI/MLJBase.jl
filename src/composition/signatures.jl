@@ -33,20 +33,43 @@ const DOC_SIGNATURES =
 
 """
 
-function _operation_part(signature)
+"""
+    operation_nodes(signature)
+
+Return the operation nodes of `signature`, as a named tuple keyed on operation names.
+
+$DOC_SIGNATURES
+
+"""
+function operation_nodes(signature::NamedTuple)
     ops = filter(in(OPERATIONS), keys(signature))
     return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
 end
 
-function _report_part(signature)
+"""
+    report_nodes(signature)
+
+Return the report nodes of `signature`, as a named tuple keyed on operation names.
+
+$DOC_SIGNATURES
+
+"""
+function report_nodes(signature::NamedTuple)
     :report in keys(signature) || return NamedTuple()
     return signature.report
 end
 
-_operations(signature) = keys(_operation_part(signature))
+"""
+    operations(signature)
 
-function _nodes(signature)
-    return (values(_operation_part(signature))...,
-            values(_report_part(signature))...)
-end
+Return the names of all operations in `signature`.
 
+$DOC_SIGNATURES
+
+"""
+operations(signature::NamedTuple) = keys(operation_nodes(signature))
+
+glb(signature::NamedTuple) = glb(
+    values(operation_nodes(signature))...,
+    values(report_nodes(signature))...,
+)

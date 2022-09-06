@@ -41,7 +41,25 @@ function setreport!(copymach::Machine{<:Composite}, mach)
 end
 
 
-# # EXTRA SIGNATURE METHODS
+# # SIGNATURE METHODS
+
+function _operation_part(signature)
+    ops = filter(in(OPERATIONS), keys(signature))
+    return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
+end
+
+function _report_part(signature)
+    :report in keys(signature) || return NamedTuple()
+    return signature.report
+end
+
+_operations(signature) = keys(_operation_part(signature))
+
+function _nodes(signature)
+    return (values(_operation_part(signature))...,
+            values(_report_part(signature))...)
+end
+
 
 """
     model_supertype(signature)
