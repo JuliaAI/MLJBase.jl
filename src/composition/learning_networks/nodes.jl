@@ -256,8 +256,7 @@ fit!(S::Source; args...) = S
 # at REPL:
 istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 
-# overload show method
-
+# # DISPLAY
 
 _formula(stream::IO, X::AbstractNode, indent) =
     (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
@@ -286,8 +285,6 @@ function _formula(stream, X::Node, depth, indent)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", X::Node)
-#    description = string(typeof(X).name.name)
-    #    str = "$description $(handle(X))"
     println(io, "$X")
     println(io, "  args:")
     for i in eachindex(X.args)
@@ -296,10 +293,18 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
     end
     print(io, "  formula:\n")
     _formula(io, X, 4)
-    # print(io, " ")
-    # printstyled(IOContext(io, :color=>SHOW_COLOR[]),
-    #             handle(X),
-    #             color=color(X))
+end
+
+# for displaying withing other objects:
+function Base.show(stream::IO, object::Node)
+    str = simple_repr(typeof(object)) * " $(handle(object))"
+    mach = object.machine
+    extra = isnothing(mach) ? "" :
+        mach.model isa Symbol ? " → :$(mach.model)" :
+        " → $(simple_repr(typeof(mach.model)))(…)"
+    str *= extra
+    print(stream, str)
+    return nothing
 end
 
 
