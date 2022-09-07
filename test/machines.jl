@@ -189,6 +189,28 @@ struct FooBarUnknown <: Model end
 
 end
 
+@testset "copy(::Machine)" begin
+    mach = machine(tree, X, y)
+    clone = copy(mach)
+    @test all(fieldnames(typeof(mach))) do field
+        a = !isdefined(mach, field)
+        b = !isdefined(mach, field)
+        a ⊻ b && return false # xor
+        a && b && return true
+        getproperty(mach, field) === getproperty(clone, field)
+    end
+    @test typeof(mach) == typeof(clone)
+    fit!(mach, verbosity=0)
+    clone = copy(mach)
+    @test all(fieldnames(typeof(mach))) do field
+        a = !isdefined(mach, field)
+        b = !isdefined(mach, field)
+        a ⊻ b && return false
+        a && b && return true
+        getproperty(mach, field) === getproperty(clone, field)
+    end
+end
+
 @testset "weights" begin
     yraw = ["Perry", "Antonia", "Perry", "Skater"]
     X = (x=rand(4),)

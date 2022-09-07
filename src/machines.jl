@@ -89,6 +89,16 @@ mutable struct Machine{M,C} <: MLJType
 
 end
 
+function Base.copy(mach::Machine{<:Any,C}) where C
+    clone = Machine(mach.model, mach.args...; cache=C)
+    for field in fieldnames(typeof(mach))
+        field in [:model, :args] && continue
+        isdefined(mach, field) || continue
+        setproperty!(clone, field, getproperty(mach, field))
+    end
+    return clone
+end
+
 upstream(mach::Machine) = Tuple(m.state for m in ancestors(mach))
 
 """
