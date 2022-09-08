@@ -20,6 +20,8 @@ y = 2*X.a - X.c + 0.05*rand(N);
 train, test = partition(eachindex(y), 0.7);
 
 tree = DecisionTreeRegressor(max_depth=5)
+knn = KNNRegressor()
+
 pca = PCA()
 
 @testset "_contains_unknown" begin
@@ -189,10 +191,11 @@ struct FooBarUnknown <: Model end
 
 end
 
-@testset "copy(::Machine)" begin
+@testset "copy(::Machine) and replace(::Machine, ...)" begin
     mach = machine(tree, X, y)
     clone = copy(mach)
     @test all(fieldnames(typeof(mach))) do field
+        field === :fit_okay && return true
         a = !isdefined(mach, field)
         b = !isdefined(mach, field)
         a ⊻ b && return false # xor
@@ -200,15 +203,34 @@ end
         getproperty(mach, field) === getproperty(clone, field)
     end
     @test typeof(mach) == typeof(clone)
+
     fit!(mach, verbosity=0)
     clone = copy(mach)
     @test all(fieldnames(typeof(mach))) do field
+        field === :fit_okay && return true
         a = !isdefined(mach, field)
         b = !isdefined(mach, field)
         a ⊻ b && return false
         a && b && return true
         getproperty(mach, field) === getproperty(clone, field)
     end
+
+    mach = machine(tree, X, y)
+    s1 = source(42)
+    s2 = source(21)
+    mach_clone = MLJBase.duplicate(
+        mach,
+        :args=>(s1, s2),
+        :report=>57,
+    )
+    @test mach_clone.args == (s1, s2)
+    @test mach_clone.report == 57
+    @test !isdefined(mach_clone, :fitresult)
+    @test mach_clone.model == tree
+    @test mach_clone.state == mach.state
+
+    mach_clone = MLJBase.duplicate(mach, :model=>knn)
+    @test mach_clone.model === knn
 end
 
 @testset "weights" begin

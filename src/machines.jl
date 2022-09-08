@@ -89,15 +89,32 @@ mutable struct Machine{M,C} <: MLJType
 
 end
 
-function Base.copy(mach::Machine{<:Any,C}) where C
-    clone = Machine(mach.model, mach.args...; cache=C)
+function duplicate(mach::Machine{<:Any,C}, field_value_pairs...) where C
+    # determined new `model` and `args` and build replacement dictionary:
+    newfield_given_old = Dict(field_value_pairs) # to be extended
+    fields_to_be_replaced = keys(newfield_given_old)
+    :fit_okay in fields_to_be_replaced && error("Cannot replace `:fit_okay` field. ")
+    newmodel = :model in fields_to_be_replaced ? newfield_given_old[:model] : mach.model
+    newargs = :args in fields_to_be_replaced ? newfield_given_old[:args] : mach.args
+
+    # instantiate a new machine and make field replacements:
+    clone = Machine(newmodel, newargs...; cache=C)
     for field in fieldnames(typeof(mach))
-        field in [:model, :args] && continue
-        isdefined(mach, field) || continue
-        setproperty!(clone, field, getproperty(mach, field))
+        if !(field in fields_to_be_replaced || isdefined(mach, field)) ||
+             field in [:model, :args, :fit_okay]
+            continue
+        end
+        value = field in fields_to_be_replaced ? newfield_given_old[field] :
+            getproperty(mach, field)
+        setproperty!(clone, field, value)
     end
     return clone
 end
+
+Base.copy(mach::Machine) = duplicate(mach)
+
+
+
 
 upstream(mach::Machine) = Tuple(m.state for m in ancestors(mach))
 
@@ -896,7 +913,7 @@ Any general purpose Julia serializer may be applied to the output of
 it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
-available using the [`save`](@ref) method.
+available using the [`MLJBase.save`](@ref) (or `MLJ.save`) method.
 
 A machine returned by `serializable` is characterized by the property
 `mach.state == -1`.
@@ -921,7 +938,7 @@ A machine returned by `serializable` is characterized by the property
     predict(loaded_mach, X)
     predict(mach, X)
 
-See also [`restore!`](@ref), [`save`](@ref).
+See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
 function serializable(mach::Machine{<:Any, C}) where C
