@@ -58,7 +58,7 @@ end
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/signatures.jl")
     @test include("composition/learning_networks/machines.jl")
-    @test include("composition/learning_networks/replace.jl")
+    @test include("composition/learning_networks/duplicate.jl")
 end
 
 @conditional_testset "composition_models" begin
