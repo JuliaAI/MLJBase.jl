@@ -20,7 +20,7 @@ function fit_method(mach, models...)
         replacements = vcat(model_replacements, source_replacements)
 
         new_mach =
-            replace(mach, replacements...; empty_unspecified_sources=true)
+            duplicate(mach, replacements...; empty_unspecified_sources=true)
 
         return!(new_mach, model, verbosity)
     end

@@ -42,7 +42,7 @@ tree(s::Source) = (source = s,)
 # end
 
 """
-    models(N::AbstractNode)
+    MLJBase.models(N::AbstractNode)
 
 A vector of all models referenced by a node `N`, each model appearing
 exactly once.

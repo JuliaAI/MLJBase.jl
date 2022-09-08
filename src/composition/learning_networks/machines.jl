@@ -395,21 +395,15 @@ end
 
 
 # Returns a new `CompositeFitresult` that is a shallow copy of the original one.
-# To do so,  we build a copy of the learning network where each machine contained
-# in it needs to be called `serializable` upon.
 function save(model::Composite, fitresult)
     signature = MLJBase.signature(fitresult)
-    operation_nodes = values(MLJBase._operation_part(signature))
-    report_nodes = values(MLJBase._report_part(signature))
-    W = glb(operation_nodes..., report_nodes...)
-    newnode_given_old =
-        IdDict{AbstractNode,AbstractNode}([old => source() for old in sources(W)])
-
-    newsignature = copysignature!(signature, newnode_given_old; newmodel_given_old=nothing)
-
+    newsignature = duplicate(signature, serializable=true)
     newfitresult = MLJBase.CompositeFitresult(newsignature)
-    setfield!(newfitresult, :network_model_names, getfield(fitresult, :network_model_names))
-
+    setfield!(
+        newfitresult,
+        :network_model_names,
+        getfield(fitresult, :network_model_names)
+    )
     return newfitresult
 end
 
@@ -425,9 +419,8 @@ function restore!(mach::Machine{<:Composite})
     return mach
 end
 
-function setreport!(copymach::Machine{<:Composite}, mach)
-    basic = report(glb(copymach.fitresult))
+function report_for_serialization(mach::Machine{<:Composite})
+    basic = report(glb(mach.fitresult))
     additions = report_given_method(mach)[:fit].additions
-    copymach.report = Dict{Symbol,Any}(:fit => (; basic, additions))
-    return copymach
+    return Dict{Symbol,Any}(:fit => (; basic, additions))
 end

@@ -162,12 +162,13 @@ for operation in OPERATIONS
 end
 
 
-## SURROGATE AND COMPOSITE MODELS
-
 const err_unsupported_operation(operation) = ErrorException(
     "The `$operation` operation has been applied to a composite model or learning "*
     "network machine that does not support it. "
 )
+
+## SURROGATE AND COMPOSITE MODELS
+
 
 for operation in [:predict,
                   :predict_joint,
@@ -200,3 +201,7 @@ for (operation, fallback) in [(:predict_mode, :mode),
     end
     eval(ex)
 end
+
+
+## NETWORKCOMPOSITE MODELS
+

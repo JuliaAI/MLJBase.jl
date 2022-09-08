@@ -35,7 +35,7 @@ enode = @node mae(ys, yhat)
 
 _header(accel) =
 
-@testset "replace method; $(typeof(accel))" for accel in (CPU1(), CPUThreads())
+@testset "duplicate()  method; $(typeof(accel))" for accel in (CPU1(), CPUThreads())
 
     fit!(yhat, verbosity=0, acceleration=accel)
 
@@ -49,17 +49,67 @@ _header(accel) =
     hot2 = deepcopy(hot)
     knn2 = deepcopy(knn)
 
+    # duplicate the network with `yhat` as glb:
+    yhat_clone = @test_logs(
+        (:warn, r"No replacement"),
+        MLJBase.duplicate(
+            yhat,
+            hot=>hot2,
+            knn=>knn2,
+            ys=>source(42);
+            copy_models_deeply=false,
+        ),
+    )
+
+    # test models and sources duplicated correctly:
+    models_clone = MLJBase.models(yhat_clone)
+    @test models_clone[1] === stand
+    @test models_clone[2] === knn2
+    @test models_clone[3] === hot2
+    sources_clone = sources(yhat_clone)
+    @test sources_clone[1]() == X
+    @test sources_clone[2]() === 42
+
+    # test serializable option:
+    fit!(yhat, verbosity=0)
+    yhat_ser = MLJBase.duplicate(yhat; serializable=true)
+    machines_ser = machines(yhat_ser)
+    mach4 = machines_ser[4]
+    @test mach4.state == -1
+    @test all(isempty, sources(yhat_ser))
+
+    # duplicate a signature:
+    signature = (predict=yhat, report=(mae=enode,))
+    signature_clone = @test_logs(
+        (:warn, r"No replacement"),
+        MLJBase.duplicate(
+            signature,
+            hot=>hot2,
+            knn=>knn2,
+            ys=>source(42);
+            copy_models_deeply=false,
+        )
+    )
+    glb_node = glb(signature_clone)
+    models_clone = MLJBase.models(glb_node)
+    @test models_clone[1] === stand
+    @test models_clone[2] === knn2
+    @test models_clone[3] === hot2
+    sources_clone = sources(glb_node)
+    @test sources_clone[1]() == X
+    @test sources_clone[2]() === 42
+
     # duplicate a learning network machine:
     mach  = machine(Deterministic(), Xs, ys;
                     predict=yhat,
                     report=(mae=enode,))
-    mach2 = replace(mach, hot=>hot2, knn=>knn2,
+    mach2 = MLJBase.duplicate(mach, hot=>hot2, knn=>knn2,
                     ys=>source(ys.data);
                     empty_unspecified_sources=true)
     ss = sources(glb(mach2))
     @test isempty(ss[1])
     mach2 = @test_logs((:warn, r"No replacement"),
-                       replace(mach, hot=>hot2, knn=>knn2,
+                       MLJBase.duplicate(mach, hot=>hot2, knn=>knn2,
                                ys=>source(ys.data)))
     yhat2 = mach2.fitresult.predict
     fit!(mach, verbosity=0)

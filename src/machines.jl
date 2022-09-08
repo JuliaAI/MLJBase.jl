@@ -89,6 +89,23 @@ mutable struct Machine{M,C} <: MLJType
 
 end
 
+"""
+    duplicate(mach, field1 => value1, field2 => value2, ...)
+
+**Private method.**
+
+Return a shallow copy of the machine `mach` with the specified field
+replacements. Undefined field values are preserved. Unspecified fields have identically
+equal values, with the exception of `mach.fit_okay`, which is always a new instance
+`Channel{Bool}(1)`.
+
+The following example returns a machine with no traces of training data (but also removes
+any upstream dependencies in a learning network):
+
+```julia
+duplicate(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
+
+"""
 function duplicate(mach::Machine{<:Any,C}, field_value_pairs...) where C
     # determined new `model` and `args` and build replacement dictionary:
     newfield_given_old = Dict(field_value_pairs) # to be extended
@@ -112,9 +129,6 @@ function duplicate(mach::Machine{<:Any,C}, field_value_pairs...) where C
 end
 
 Base.copy(mach::Machine) = duplicate(mach)
-
-
-
 
 upstream(mach::Machine) = Tuple(m.state for m in ancestors(mach))
 
@@ -942,31 +956,31 @@ See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
 function serializable(mach::Machine{<:Any, C}) where C
-    # Returns a shallow copy of the machine to make it serializable, in particular:
-    # - Removes all data from caches, args and data fields
-    # - Makes all `fitresults` serializable
-    # - Annotates the state as -1
-    copymach = machine(mach.model, mach.args..., cache=C)
 
-    for fieldname in fieldnames(Machine)
-        if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
-            continue
-        elseif  fieldname == :state
-            setfield!(copymach, :state, -1)
-        elseif fieldname == :args
-            setfield!(copymach, fieldname, ())
-        # Make fitresult ready for serialization
-        elseif fieldname == :fitresult
-            # this `save` does the actual emptying of fields
-            copymach.fitresult = save(mach.model, getfield(mach, fieldname))
-        else
-            setfield!(copymach, fieldname, getfield(mach, fieldname))
-        end
-    end
+    # The next line of code makes `serializable` recursive, in the case that `mach.model`
+    # is a `Composite` model: `save` duplicates the underlying learning network, which
+    # involves calls to `serializable` on the old machines in the network to create the
+    # new ones.
 
-    setreport!(copymach, mach)
+    serializable_fitresult = save(mach.model, mach.fitresult)
 
-    return copymach
+    # Duplication currenty needs to happen in two steps for this to work in case of
+    # `Composite` models.
+
+    clone = duplicate(
+        mach,
+        :state => -1,
+        :args => (),
+        :fitresult => serializable_fitresult,
+        :old_rows => nothing,
+        :data => nothing,
+        :resampled_data => nothing,
+        :cache => nothing,
+    )
+
+    report = report_for_serialization(clone)
+
+    return duplicate(clone, :report => report)
 end
 
 """
@@ -1046,8 +1060,7 @@ function save(file::Union{String,IO},
     serialize(file, smach)
 end
 
-setreport!(copymach, mach) =
-    setfield!(copymach, :report, mach.report)
+report_for_serialization(mach) = mach.report
 
-# NOTE. there is also a specialization for `setreport!` for `Composite` models, defined in
-# /src/composition/learning_networks/machines/
+# NOTE. there is also a specialization of `report_for_serialization` for `Composite`
+# models, defined in /src/composition/learning_networks/machines/
