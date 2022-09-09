@@ -1,3 +1,51 @@
+# # HELPERS
+
+"""
+    machines_given_model(node::AbstractNode)
+
+**Private method.**
+
+Return a dictionary of machines, keyed on model, for the all machines in the completed
+learning network for which `node` is the greatest lower bound. Only  machines
+bound to symbolic models are included.
+
+"""
+function machines_given_model(node::AbstractNode)
+    ret = LittleDict{Symbol,Any}()
+    for mach in machines(node)
+        model = mach.model
+        model isa Symbol || continue
+        if !haskey(ret, model)
+            ret[model] = Any[mach,]
+        else
+            push!(ret[model], mach)
+        end
+    end
+    return ret
+end
+
+attempt_scalarize(v) = length(v) == 1 ? v[1] : v
+
+"""
+    tuple_keyed_on_model(machines_given_model, f)
+
+**Private method.**
+
+Given a dictionary of machine vectors, keyed on model names (symbols), broadcast `f` over
+each vector, and make the result, in the returned named tuple, the value associated with
+the corresponding model name as key. Singleton vector values are scalarized.
+
+"""
+function tuple_keyed_on_model(machines_given_model, f; scalarize=true)
+    models = tuple(keys(machines_given_model)...)
+    named_tuple_values = map(models) do model
+        value = [f(m) for m in machines_given_model[model]]
+        scalarize && return  attempt_scalarize(value)
+        return value
+    end
+    return NamedTuple{models}(named_tuple_values)
+end
+
 # # SIGNATURES
 
 const DOC_SIGNATURES =
@@ -73,3 +121,51 @@ glb(signature::NamedTuple) = glb(
     values(operation_nodes(signature))...,
     values(report_nodes(signature))...,
 )
+
+
+"""
+    age(signature::NamedTuple)
+
+Return the sum of the ages of all machines in the underlying network of `signature`.
+
+$DOC_SIGNATURES
+
+"""
+age(signature::NamedTuple) = sum(age, machines(glb(signature)))
+
+"""
+    report_supplement(signature)
+
+Generate a deep copy of the supplementary report defined by the signature, i.e., by
+calling the nodes appearing as values of `signature.report` with zero arguments. Returns a
+named with the keys of `signature.report`.
+
+$DOC_SIGNATURES
+
+"""
+function report_supplement(signature::NamedTuple)
+    report_nodes = MLJBase.report_nodes(signature)
+    _call(node) = deepcopy(node())
+    _keys = keys(report_nodes)
+    _values = values(report_nodes)
+    return NamedTuple{_keys}(_call.(_values))
+end
+
+"""
+    report(signature)
+
+Generate a report for the learning network associated with `signature`, including the
+supplementary report.
+
+See also [`MLJBase.report_supplement`](@ref).
+
+$DOC_SIGNATURES
+
+"""
+function report(signature::NamedTuple)
+    greatest_lower_bound = glb(signature)
+    supplement = report_supplement(signature)
+    d = machines_given_model(greatest_lower_bound)
+    internal = tuple_keyed_on_model(d, mach -> report_given_method(mach), scalarize=false)
+    merge(internal, supplement)
+end

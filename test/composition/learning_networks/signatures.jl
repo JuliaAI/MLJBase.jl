@@ -45,11 +45,12 @@ end
 MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
 
-@testset "glb(signature)" begin
+@testset "signature methods: glb, report, age" begin
 
     # Some complicated learning network:
     Xs = source(first(make_blobs(10)))
-    ytrain = predict(machine(:clusterer), Xs)
+    mach0 = machine(:clusterer)
+    ytrain = predict(mach0, Xs)
     mach1 = machine(:classifier1, Xs, ytrain)
     # two machines pointing to same model:
     mach2a = machine(:classifier2, Xs, ytrain)
@@ -82,6 +83,16 @@ MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
     @test glb1() == glb2()
 
+    r = MLJBase.report(signature)
+    @test r.classifier1 == [MLJBase.report_given_method(mach1),]
+    @test r.classifier2 == [
+        MLJBase.report_given_method(mach2a),
+        MLJBase.report_given_method(mach2b),
+    ]
+    @test r.clusterer == [MLJBase.report_given_method(mach0),]
+    @test r.loss == loss()
+
+    @test sum(MLJBase.age.(machines(glb1))) == MLJBase.age(signature)
 end
 
 end # module
