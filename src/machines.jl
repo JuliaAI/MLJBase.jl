@@ -90,6 +90,15 @@ mutable struct Machine{M,C} <: MLJType
 end
 
 """
+    age(mach::Machine)
+
+Return an integer representing the number of times `mach` has been trained or updated. For
+more detail, see the discussion of training logic at [`fit_only!`](@ref).
+
+"""
+age(mach::Machine) = mach.state
+
+"""
     duplicate(mach, field1 => value1, field2 => value2, ...)
 
 **Private method.**
