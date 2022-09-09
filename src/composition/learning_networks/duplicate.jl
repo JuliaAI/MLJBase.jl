@@ -79,8 +79,8 @@ const DOC_REPLACE_OPTIONS =
     - `empty_unspecified_sources=false`: If `true`, any source nodes not specified are
       replaced with empty source nodes.
 
-    - `copy_models_deeply=true`: If `false`, models not listed for replacement are
-      identically equal in the original and returned node.
+    - `copy_unspecified_deeply=true`: If `false`, models or sources not listed for
+      replacement are identically equal in the original and returned node.
 
     - `serializable=false`: If `true`, all machines in the new network are serializable.
       However, all `model` replacements are ignored, and unspecified sources are always
@@ -185,12 +185,12 @@ function _duplicate(
     W::AbstractNode,
     pairs::Pair...;
     empty_unspecified_sources=false,
-    copy_models_deeply=true,
+    copy_unspecified_deeply=true,
     serializable=false,
 )
 
     serializable && (empty_unspecified_sources = true)
-    clone(model) = copy_models_deeply ? deepcopy(model) : model
+    clone(item) = copy_unspecified_deeply ? deepcopy(item) : item
 
     # Instantiate model dictionary:
     model_pairs = filter(collect(pairs)) do pair
@@ -210,15 +210,17 @@ function _duplicate(
     unspecified_sources_wrapping_something =
         filter(s -> !isempty(s), unspecified_sources)
     if !isempty(unspecified_sources_wrapping_something) &&
-        !empty_unspecified_sources
+        !empty_unspecified_sources && copy_unspecified_deeply
         @warn "No replacement specified for one or more non-empty source "*
-        "nodes. Contents will be duplicated. "
+            "nodes. Contents will be duplicated. Perhaps you want to specify "*
+            "`copy_unspecified_deeply=false` to prevent copying of sources "*
+            "and models, or `empty_unspecified_sources=true`."
     end
     if empty_unspecified_sources
         unspecified_source_pairs = [s => source() for
                                     s in unspecified_sources]
     else
-        unspecified_source_pairs = [s => deepcopy(s) for
+        unspecified_source_pairs = [s => clone(s) for
                                     s in unspecified_sources]
     end
     all_source_pairs = vcat(specified_source_pairs, unspecified_source_pairs)
