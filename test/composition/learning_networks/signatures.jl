@@ -6,7 +6,7 @@ using StableRNGs
 using Tables
 using Test
 using MLJModelInterface
-
+using OrderedCollections
 
 #KNNClassifier = @load KNNClassifier
 #DecisionTreeClassifer = @load DecisionTreeClassifier pkg=DecisionTree
@@ -45,7 +45,7 @@ end
 MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
 
-@testset "signature methods: glb, report, age" begin
+@testset "signature methods: glb, report, age, output_and_report" begin
 
     # Some complicated learning network:
     Xs = source(first(make_blobs(10)))
@@ -84,15 +84,36 @@ MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
     @test glb1() == glb2()
 
     r = MLJBase.report(signature)
-    @test r.classifier1 == [MLJBase.report_given_method(mach1),]
-    @test r.classifier2 == [
-        MLJBase.report_given_method(mach2a),
-        MLJBase.report_given_method(mach2b),
-    ]
-    @test r.clusterer == [MLJBase.report_given_method(mach0),]
+    @test r.classifier1 == [MLJBase.report(mach1),]
+    @test r.classifier2 == [MLJBase.report(mach2a), MLJBase.report(mach2b)]
+    @test r.clusterer == [MLJBase.report(mach0),]
     @test r.loss == loss()
 
     @test sum(MLJBase.age.(machines(glb1))) == MLJBase.age(signature)
+
+    output, r = MLJBase.output_and_report(signature, :predict, selectrows(Xs(), 1:2))
+    @test output == yhat(selectrows(Xs(), 1:2))
+    @test r == report(signature)
+
+end
+
+@testset "tuple_keyed_on_model" begin
+    d = OrderedDict(:model1 => [:mach1a, :mach1b], :model2 => [:mach2,])
+    f(mach) = mach == :mach2 ? nothing : 42
+    g(mach) = mach in [:mach1a, :mach1b] ? nothing : 24
+
+    @test MLJBase.tuple_keyed_on_model(f, d) == (model1=[42, 42],)
+    @test MLJBase.tuple_keyed_on_model(f, d; scalarize=false) == (model1=[42, 42],)
+    @test MLJBase.tuple_keyed_on_model(f, d; drop_nothings=false) ==
+        (model1=[42, 42], model2=nothing)
+    @test MLJBase.tuple_keyed_on_model(f, d; drop_nothings=false, scalarize=false) ==
+        (model1=[42, 42], model2=[nothing,])
+    @test MLJBase.tuple_keyed_on_model(g, d) == (model2=24,)
+    @test MLJBase.tuple_keyed_on_model(g, d; scalarize=false) == (model2=[24,],)
+    @test MLJBase.tuple_keyed_on_model(g, d; drop_nothings=false) ==
+        (model1=[nothing, nothing], model2=24)
+    @test MLJBase.tuple_keyed_on_model(g, d; drop_nothings=false, scalarize=false) ==
+        (model1=[nothing, nothing], model2=[24,])
 end
 
 end # module

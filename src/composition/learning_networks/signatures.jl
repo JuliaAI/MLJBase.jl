@@ -27,24 +27,37 @@ end
 attempt_scalarize(v) = length(v) == 1 ? v[1] : v
 
 """
-    tuple_keyed_on_model(machines_given_model, f)
+    tuple_keyed_on_model(f, machines_given_model; scalarize=true, drop_nothings=true)
 
 **Private method.**
 
 Given a dictionary of machine vectors, keyed on model names (symbols), broadcast `f` over
 each vector, and make the result, in the returned named tuple, the value associated with
-the corresponding model name as key. Singleton vector values are scalarized.
+the corresponding model name as key.
+
+Singleton vector values are scalarized, unless `scalarize = false`.
+
+If a value in the computed named tuple is `nothing`, or a vector of `nothing`s, then the
+entry is dropped from the tuple, unless `drop_nothings=false`.
 
 """
-function tuple_keyed_on_model(machines_given_model, f; scalarize=true)
-    models = tuple(keys(machines_given_model)...)
+function tuple_keyed_on_model(f, machines_given_model; scalarize=true, drop_nothings=true)
+    models = keys(machines_given_model) |> collect
     named_tuple_values = map(models) do model
         value = [f(m) for m in machines_given_model[model]]
         scalarize && return  attempt_scalarize(value)
         return value
     end
-    return NamedTuple{models}(named_tuple_values)
+    if drop_nothings
+        mask = map(named_tuple_values) do v
+            !(isnothing(v) || (v isa AbstractVector && eltype(v) === Nothing))
+        end |> collect
+        models = models[mask]
+        named_tuple_values = named_tuple_values[mask]
+    end
+    return NamedTuple{tuple(models...)}(tuple(named_tuple_values...))
 end
+
 
 # # SIGNATURES
 
@@ -166,6 +179,22 @@ function report(signature::NamedTuple)
     greatest_lower_bound = glb(signature)
     supplement = report_supplement(signature)
     d = machines_given_model(greatest_lower_bound)
-    internal = tuple_keyed_on_model(d, mach -> report_given_method(mach), scalarize=false)
+    internal = tuple_keyed_on_model(report, d, scalarize=false, drop_nothings=false)
     merge(internal, supplement)
+end
+
+"""
+    output_and_report(signature, operation, Xnew)
+
+**Private method.**
+
+Duplicate `signature` and return appropriate output for the specified `operation` (a key
+of `signature`) applied to the duplicate, together with the operational report.
+
+"""
+function output_and_report(signature, operation, Xnew)
+    signature_clone = MLJBase.duplicate(signature, copy_unspecified_deeply=false)
+    output =  getproperty(signature_clone, operation)(Xnew)
+    report = MLJBase.report(signature_clone)
+    return output, report
 end
