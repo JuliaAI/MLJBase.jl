@@ -38,7 +38,7 @@ MMI.selectrows(::ConstantRegressor, I, A, y) = (view(A, I, :), y[I])
 function MMI.fit(::ConstantRegressor{D}, verbosity::Int, A, y) where D
     fitresult = Distributions.fit(D, y)
     cache     = nothing
-    report    = NamedTuple()
+    report    = nothing
     return fitresult, cache, report
 end
 
@@ -57,7 +57,7 @@ struct DeterministicConstantRegressor <: MMI.Deterministic end
 function MMI.fit(::DeterministicConstantRegressor, verbosity::Int, X, y)
     fitresult = mean(y)
     cache     = nothing
-    report    = NamedTuple()
+    report    = nothing
     return fitresult, cache, report
 end
 
@@ -130,7 +130,7 @@ end
 function MMI.fit(::ConstantClassifier, verbosity::Int, A, y, w=nothing)
     fitresult = Distributions.fit(MLJBase.UnivariateFinite, y, w)
     cache     = nothing
-    report    = NamedTuple()
+    report    = nothing
     return fitresult, cache, report
 end
 
@@ -150,7 +150,7 @@ function MMI.fit(::DeterministicConstantClassifier, verbosity::Int, X, y)
     # dump missing target values and make into a regular array:
     fitresult = mode(skipmissing(y) |> collect) # a CategoricalValue
     cache     = nothing
-    report    = NamedTuple()
+    report    = nothing
     return fitresult, cache, report
 end
 
