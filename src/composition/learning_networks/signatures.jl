@@ -179,7 +179,7 @@ function report(signature::NamedTuple)
     greatest_lower_bound = glb(signature)
     supplement = report_supplement(signature)
     d = machines_given_model(greatest_lower_bound)
-    internal = tuple_keyed_on_model(report, d, scalarize=false, drop_nothings=false)
+    internal = tuple_keyed_on_model(report, d)
     merge(internal, supplement)
 end
 
