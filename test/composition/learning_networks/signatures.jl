@@ -45,39 +45,45 @@ end
 MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
 
+mutable struct GeneralizingClusterer 
+    clusterer
+    classifier1
+    classifier2
+    mix::Float64
+end
+
+# Some complicated learning network:
+Xs = source(first(make_blobs(10)))
+mach0 = machine(:clusterer)
+ytrain = predict(mach0, Xs)
+mach1 = machine(:classifier1, Xs, ytrain)
+# two machines pointing to same model:
+mach2a = machine(:classifier2, Xs, ytrain)
+mach2b = machine(:classifier2, Xs, ytrain)
+y1 = predict(mach1, Xs) # probabilistic predictions
+y2a = predict(mach2a, Xs) # probabilistic predictions
+y2b = predict(mach2b, Xs) # probabilistic predictions
+loss = node(
+    (y1, y2) -> brier_loss(y1, mode.(y2)) + brier_loss(y2, mode.(y1)) |> mean,
+    y1,
+    y2a,
+)
+λ = 0.3
+ymix = λ*y1 + (1 - λ)*(0.2*y2a + 0.8*y2b)
+yhat = mode(ymix)
+signature = (; predict=yhat, report=(; loss=loss)) |> MLJBase.Signature
+
+glb1 = glb(signature)
+glb2 = glb(yhat, loss)
+
+clusterer = OneShotClusterer(3, StableRNG(123))
+composite = (
+    clusterer = clusterer,
+    classifier1 = KNNClassifier(),
+    classifier2 = ConstantClassifier(),
+)
+
 @testset "signature methods: glb, report, age, output_and_report" begin
-
-    # Some complicated learning network:
-    Xs = source(first(make_blobs(10)))
-    mach0 = machine(:clusterer)
-    ytrain = predict(mach0, Xs)
-    mach1 = machine(:classifier1, Xs, ytrain)
-    # two machines pointing to same model:
-    mach2a = machine(:classifier2, Xs, ytrain)
-    mach2b = machine(:classifier2, Xs, ytrain)
-    y1 = predict(mach1, Xs) # probabilistic predictions
-    y2a = predict(mach2a, Xs) # probabilistic predictions
-    y2b = predict(mach2b, Xs) # probabilistic predictions
-    loss = node(
-        (y1, y2) -> brier_loss(y1, mode.(y2)) + brier_loss(y2, mode.(y1)) |> mean,
-        y1,
-        y2a,
-    )
-    λ = 0.3
-    ymix = λ*y1 + (1 - λ)*(0.2*y2a + 0.8*y2b)
-    yhat = mode(ymix)
-    signature = (; predict=yhat, report=(; loss=loss)) |> MLJBase.Signature
-
-    glb1 = glb(signature)
-    glb2 = glb(yhat, loss)
-
-    clusterer = OneShotClusterer(3, StableRNG(123))
-    composite = (
-        clusterer = clusterer,
-        classifier1 = KNNClassifier(),
-        classifier2 = ConstantClassifier(),
-    )
-
     fit!(glb1; composite, verbosity=0)
     fit!(glb2; composite, verbosity=0)
 
@@ -98,7 +104,7 @@ MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
 end
 
-@testset "tuple_keyed_on_model" begin
+@testset "signature helper: tuple_keyed_on_model" begin
     d = OrderedDict(:model1 => [:mach1a, :mach1b], :model2 => [:mach2,])
     f(mach) = mach == :mach2 ? nothing : 42
     g(mach) = mach in [:mach1a, :mach1b] ? nothing : 24
@@ -115,6 +121,14 @@ end
         (model1=[nothing, nothing], model2=24)
     @test MLJBase.tuple_keyed_on_model(g, d; drop_nothings=false, scalarize=false) ==
         (model1=[nothing, nothing], model2=[24,])
+end
+
+@testset "signature helper: machines_given_model" begin
+    d = MLJBase.machines_given_model(glb1)
+    @test d[:clusterer] == Any[mach0,]
+    @test d[:classifier1] == Any[mach1,]
+    @test d[:classifier2] == Any[mach2a, mach2b]
+    @test length(keys(d)) == 3
 end
 
 end # module
