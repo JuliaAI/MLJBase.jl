@@ -574,7 +574,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
-    PrettyTables.pretty_table(io, data, header;
+    PrettyTables.pretty_table(io,
+                              data;
+                              header,
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l,
                               linebreaks=true)
