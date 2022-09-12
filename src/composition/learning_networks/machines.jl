@@ -24,14 +24,14 @@ function _call(nt::NamedTuple)
 end
 
 """
-    model_supertype(signature)
+    model_supertype(interface)
 
 Return, if this can be inferred, which of `Deterministic`,
 `Probabilistic` and `Unsupervised` is the appropriate supertype for a
 composite model obtained by exporting a learning network with the
-specified `signature`.
+specified learning network interface.
 
-$DOC_SIGNATURES
+$DOC_NETWORK_INTERFACES
 
 If a supertype cannot be inferred, `nothing` is returned.
 
@@ -184,10 +184,10 @@ end
 """
     N = glb(mach::Machine{<:Union{Composite,Surrogate}})
 
-A greatest lower bound for the nodes appearing in the signature of
+A greatest lower bound for the nodes appearing in the learning network interface of
 `mach`.
 
-$DOC_SIGNATURES
+$DOC_NETWORK_INTERFACES
 
 **Private method.**
 
@@ -201,7 +201,7 @@ Return a tuple combining the report from `fitresult.glb` (a `Node` report) with 
 additions coming from nodes declared as report nodes in `fitresult.signature`, but without
 merging the two.
 
-$DOC_SIGNATURES
+$DOC_NETWORK_INTERFACES
 
 **Private method**
 """
@@ -396,8 +396,8 @@ end
 
 # Returns a new `CompositeFitresult` that is a shallow copy of the original one.
 function save(model::Composite, fitresult)
-    signature = MLJBase.signature(fitresult)
-    newsignature = duplicate(signature, serializable=true)
+    interface = MLJBase.signature(fitresult)
+    newsignature = duplicate(Signature(interface), serializable=true) |> unwrap
     newfitresult = MLJBase.CompositeFitresult(newsignature)
     setfield!(
         newfitresult,

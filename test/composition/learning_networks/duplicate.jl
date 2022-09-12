@@ -79,7 +79,7 @@ _header(accel) =
     @test all(isempty, sources(yhat_ser))
 
     # duplicate a signature:
-    signature = (predict=yhat, report=(mae=enode,))
+    signature = (predict=yhat, report=(mae=enode,)) |> MLJBase.signature
     signature_clone = @test_logs(
         (:warn, r"No replacement"),
         MLJBase.duplicate(

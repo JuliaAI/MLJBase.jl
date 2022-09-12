@@ -59,12 +59,12 @@ function tuple_keyed_on_model(f, machines_given_model; scalarize=true, drop_noth
 end
 
 
-# # SIGNATURES
+# # DOC STRING
 
-const DOC_SIGNATURES =
+const DOC_NETWORK_INTERFACES =
     """
 
-    A learning network *signature* is a named tuple declaring certain interface points in
+    A *learning network interface* is a named tuple declaring certain interface points in
     a learning network, to be used when "exporting" the network as a new stand-alone model
     type. Examples are
 
@@ -72,7 +72,7 @@ const DOC_SIGNATURES =
         (transform=Xsmall,)
         (predict=yhat, transform=W, report=(loss=loss_node,))
 
-    where `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
+    Here `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
 
     The keys of the signature are always the name of an operation, such as `:predict`,
     `:predict_mode`, `:transform`, `inverse_transform`, or the special key `:report`.
@@ -91,72 +91,110 @@ const DOC_SIGNATURES =
     a declaration such as `report = (loss=loss_node,)` is to include in reports associated
     with a new exported model instance, the output of `loss_node(; composite=model)`.
 
+   """
+
+# # SIGNATURES
 
 """
+    Signature(interface::NamedTuple)
+
+**Private type.**
+
+Return a thinly wrapped version of a learning network interface (defined below). Unwrap
+with `MLJBase.unwrap`:
+
+```julia
+interface = (predict=source(), report=(loss=source(),))
+signature = MLJBase.Signature(interface)
+@assert MLJBase.unwrap(signature) === interface
+```
+$DOC_NETWORK_INTERFACES
+
+"""
+struct Signature{S<:NamedTuple}
+    interface::S
+end
+
+unwrap(signature::Signature) = signature.interface
+
+
+# # METHODS
 
 """
     operation_nodes(signature)
 
+**Private method.**
+
 Return the operation nodes of `signature`, as a named tuple keyed on operation names.
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-function operation_nodes(signature::NamedTuple)
-    ops = filter(in(OPERATIONS), keys(signature))
-    return NamedTuple{ops}(map(op->getproperty(signature, op), ops))
+function operation_nodes(signature::Signature)
+    interface = unwrap(signature)
+    ops = filter(in(OPERATIONS), keys(interface))
+    return NamedTuple{ops}(map(op->getproperty(interface, op), ops))
 end
 
 """
     report_nodes(signature)
 
+**Private method.**
+
 Return the report nodes of `signature`, as a named tuple keyed on operation names.
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-function report_nodes(signature::NamedTuple)
-    :report in keys(signature) || return NamedTuple()
-    return signature.report
+function report_nodes(signature::Signature)
+    interface = unwrap(signature)
+    :report in keys(interface) || return NamedTuple()
+    return interface.report
 end
 
 """
     operations(signature)
 
+**Private method.**
+
 Return the names of all operations in `signature`.
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-operations(signature::NamedTuple) = keys(operation_nodes(signature))
+operations(signature::Signature) = keys(operation_nodes(signature))
 
-glb(signature::NamedTuple) = glb(
+glb(signature::Signature) = glb(
     values(operation_nodes(signature))...,
     values(report_nodes(signature))...,
 )
 
 
 """
-    age(signature::NamedTuple)
+    age(signature::Signature)
+
+**Private method.**
 
 Return the sum of the ages of all machines in the underlying network of `signature`.
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-age(signature::NamedTuple) = sum(age, machines(glb(signature)))
+age(signature::Signature) = sum(age, machines(glb(signature)))
 
 """
     report_supplement(signature)
+
+**Private method.**
 
 Generate a deep copy of the supplementary report defined by the signature, i.e., by
 calling the nodes appearing as values of `signature.report` with zero arguments. Returns a
 named with the keys of `signature.report`.
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-function report_supplement(signature::NamedTuple)
+function report_supplement(signature::Signature)
     report_nodes = MLJBase.report_nodes(signature)
     _call(node) = deepcopy(node())
     _keys = keys(report_nodes)
@@ -167,15 +205,17 @@ end
 """
     report(signature)
 
+**Private method.**
+
 Generate a report for the learning network associated with `signature`, including the
 supplementary report.
 
 See also [`MLJBase.report_supplement`](@ref).
 
-$DOC_SIGNATURES
+See also [`MLJBase.Signature`](@ref).
 
 """
-function report(signature::NamedTuple)
+function report(signature::Signature)
     greatest_lower_bound = glb(signature)
     supplement = report_supplement(signature)
     d = machines_given_model(greatest_lower_bound)
@@ -191,10 +231,12 @@ end
 Duplicate `signature` and return appropriate output for the specified `operation` (a key
 of `signature`) applied to the duplicate, together with the operational report.
 
+See also [`MLJBase.Signature`](@ref).
+
 """
 function output_and_report(signature, operation, Xnew)
     signature_clone = MLJBase.duplicate(signature, copy_unspecified_deeply=false)
-    output =  getproperty(signature_clone, operation)(Xnew)
+    output =  getproperty(unwrap(signature_clone), operation)(Xnew)
     report = MLJBase.report(signature_clone)
     return output, report
 end

@@ -18,7 +18,7 @@ using OrderedCollections
     yhat = source(:yhat)
     s = (transform=W,
          report=(a=a, b=b),
-         predict=yhat)
+         predict=yhat) |> MLJBase.Signature
     @test MLJBase.report_nodes(s) == (a=a, b=b)
     @test MLJBase.operation_nodes(s) == (transform=W, predict=yhat)
     @test MLJBase.operations(s) == (:transform, :predict)
@@ -66,7 +66,7 @@ MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
     λ = 0.3
     ymix = λ*y1 + (1 - λ)*(0.2*y2a + 0.8*y2b)
     yhat = mode(ymix)
-    signature = (; predict=yhat, report=(; loss=loss))
+    signature = (; predict=yhat, report=(; loss=loss)) |> MLJBase.Signature
 
     glb1 = glb(signature)
     glb2 = glb(yhat, loss)

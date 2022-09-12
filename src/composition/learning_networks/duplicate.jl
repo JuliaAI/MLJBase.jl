@@ -112,8 +112,10 @@ underlying network with `b1, b2, ...`.
 
 $DOC_REPLACE_OPTIONS
 
+See also [`MLJBase.Signature`](@ref).
+
 """
-function duplicate(signature::NamedTuple, pairs...; node_dict=false, kwargs...)
+function duplicate(signature::Signature, pairs...; node_dict=false, kwargs...)
 
     # If `node_dict` is true, then we additionally return `newnode_given_old` computed
     # below.
@@ -145,13 +147,13 @@ function duplicate(signature::NamedTuple, pairs...; node_dict=false, kwargs...)
                           operation_nodes)
     newreport_nodes = Tuple(newreport_node_given_old[N] for N in
                             report_nodes)
-    report_tuple = NamedTuple{keys(_report_part(signature))}(newreport_nodes)
-    operation_tuple = NamedTuple{keys(_operation_part(signature))}(newoperation_nodes)
+    report_tuple = NamedTuple{keys(MLJBase.report_nodes(signature))}(newreport_nodes)
+    operation_tuple = NamedTuple{MLJBase.operations(signature)}(newoperation_nodes)
     newsignature = if isempty(report_tuple)
         operation_tuple
     else
         merge(operation_tuple, (report=report_tuple,))
-    end
+    end |> MLJBase.Signature
 
     node_dict || return newsignature
     return newsignature, newnode_given_old
@@ -167,16 +169,17 @@ network with `b1, b2, ...`.
 $DOC_REPLACE_OPTIONS
 
 """
-
 function duplicate(mach::Machine{<:Surrogate}, pairs::Pair...; kwargs...)
-    signature = MLJBase.signature(mach.fitresult)
+    signature = MLJBase.signature(mach.fitresult) |> Signature
 
     newsignature, newnode_given_old =
         duplicate(signature, pairs...; node_dict=true, kwargs...)
 
+    newinterface = unwrap(newsignature)
+
     newargs = [newnode_given_old[arg] for arg in mach.args]
 
-    return machine(mach.model, newargs...; newsignature...)
+    return machine(mach.model, newargs...; newinterface...)
 end
 
 # Copy the complete learning network having `W` as a greatest lower bound, executing the
