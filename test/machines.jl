@@ -60,9 +60,7 @@ end
 
     # The following tests only pass when machine `t` has been fitted
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
-    @test report(t) ==
-        (isnothing(MLJBase.report_given_method(t)[:fit]) ? NamedTuple() :
-        MLJBase.report_given_method(t)[:fit])
+    @test isnothing(report(t))
     @test training_losses(t) === nothing
     @test feature_importances(t) === nothing
 

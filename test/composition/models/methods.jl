@@ -407,8 +407,8 @@ end
     @test keys(fp.model1) == (:tree, )
     @test keys(fp.model2) == (:coefficients, :intercept)
     r = report(mach)
-    @test r.model1 == NamedTuple()
-    @test r.model2 == NamedTuple()
+    @test isnothing(r.model1)
+    @test isnothing(r.model2)
     range(averager, :(model1.K), lower=2, upper=3)
 end
 

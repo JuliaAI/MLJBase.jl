@@ -84,10 +84,11 @@ MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
     @test glb1() == glb2()
 
     r = MLJBase.report(signature)
-    @test r.classifier1 == [MLJBase.report(mach1),]
-    @test r.classifier2 == [MLJBase.report(mach2a), MLJBase.report(mach2b)]
-    @test r.clusterer == [MLJBase.report(mach0),]
-    @test r.loss == loss()
+    # neither classifier has a contribution to the report:
+    @test isnothing(report(mach1))
+    @test isnothing(report(mach2a))
+    @test isnothing(report(mach2b))
+    @test r == (clusterer = report(mach0), loss=loss())
 
     @test sum(MLJBase.age.(machines(glb1))) == MLJBase.age(signature)
 
