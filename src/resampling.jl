@@ -939,7 +939,7 @@ function evaluate!(mach::Machine{<:Measurable};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1) where M
+                   verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a

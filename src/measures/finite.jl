@@ -25,8 +25,8 @@ $INVARIANT_LABEL
 scitype=DOC_FINITE)
 
 # calling behaviour:
-call(::MCR, ŷ, y) where {V,N} = (y .!= ŷ) |> Mean()
-call(::MCR, ŷ, y, w) where {V,N} = (y .!= ŷ) .* w |> Mean()
+call(::MCR, ŷ, y) = (y .!= ŷ) |> Mean()
+call(::MCR, ŷ, y, w) = (y .!= ŷ) .* w |> Mean()
 (::MCR)(cm::ConfusionMatrixObject) = 1.0 - sum(diag(cm.mat)) / sum(cm.mat)
 
 # -------------------------------------------------------------
