@@ -203,24 +203,27 @@ function report_supplement(signature::Signature)
 end
 
 """
-    report(signature)
+    report(signature; supplement=true)
 
 **Private method.**
 
 Generate a report for the learning network associated with `signature`, including the
 supplementary report.
 
+Suppress calling of the report nodes of `signature`, and excluded their contribution to
+the output, by specifying `supplement=false`.
+
 See also [`MLJBase.report_supplement`](@ref).
 
 See also [`MLJBase.Signature`](@ref).
 
 """
-function report(signature::Signature)
+function report(signature::Signature; supplement=true)
     greatest_lower_bound = glb(signature)
-    supplement = report_supplement(signature)
-    d = machines_given_model(greatest_lower_bound)
-    internal = tuple_keyed_on_model(report, d)
-    merge(internal, supplement)
+    supplement_report = supplement ? MLJBase.report_supplement(signature) : NamedTuple()
+    d = MLJBase.machines_given_model(greatest_lower_bound)
+    internal_report = MLJBase.tuple_keyed_on_model(report, d)
+    merge(internal_report, supplement_report)
 end
 
 """
@@ -229,14 +232,15 @@ end
 **Private method.**
 
 Duplicate `signature` and return appropriate output for the specified `operation` (a key
-of `signature`) applied to the duplicate, together with the operational report.
+of `signature`) applied to the duplicate, together with the operational report. Report
+nodes of `signature` are not called, and they make no contribution to the report.
 
 See also [`MLJBase.Signature`](@ref).
 
 """
 function output_and_report(signature, operation, Xnew)
     signature_clone = MLJBase.duplicate(signature, copy_unspecified_deeply=false)
-    output =  getproperty(unwrap(signature_clone), operation)(Xnew)
-    report = MLJBase.report(signature_clone)
+    output =  getproperty(MLJBase.unwrap(signature_clone), operation)(Xnew)
+    report = MLJBase.report(signature_clone; supplement=false)
     return output, report
 end

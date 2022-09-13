@@ -44,14 +44,6 @@ end
 
 MLJModelInterface.reporting_operations(::OneShotClusterer) = (:predict,)
 
-
-mutable struct GeneralizingClusterer 
-    clusterer
-    classifier1
-    classifier2
-    mix::Float64
-end
-
 # Some complicated learning network:
 Xs = source(first(make_blobs(10)))
 mach0 = machine(:clusterer)
@@ -100,8 +92,7 @@ composite = (
 
     output, r = MLJBase.output_and_report(signature, :predict, selectrows(Xs(), 1:2))
     @test output == yhat(selectrows(Xs(), 1:2))
-    @test r == report(signature)
-
+    @test r == (clusterer = (labels = ['A', 'B', 'C'],),)
 end
 
 @testset "signature helper: tuple_keyed_on_model" begin
