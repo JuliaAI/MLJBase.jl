@@ -102,8 +102,8 @@ end
 
 ## CONSTRUCTORS
 
-# In these checks the args are abstract nodes but `full=true` only
-# makes sense if they are actually source nodes.
+# In the checks `args` is expected to be `Vector{<:AbstractNode}` (eg, a vector of source
+# nodes) not raw data.
 
 # helper
 
@@ -444,27 +444,25 @@ machines(::Source) = Machine[]
 
 ## DISPLAY
 
-_cache_status(::Machine{<:Any,true}) = " caches data"
-_cache_status(::Machine{<:Any,false}) = " does not cache data"
+_cache_status(::Machine{<:Any,true}) = "caches model-specific representations of data"
+_cache_status(::Machine{<:Any,false}) = "does not cache data"
 
 Base.show(io::IO, mach::Machine) = print(io, "machine($(mach.model), …)")
 function Base.show(io::IO, ::MIME"text/plain", mach::Machine{M}) where M
-    #show(io, mach)
-    print(io, "Machine")
-    print(io, " trained $(mach.state) time")
-    if mach.state == 1
-        print(io, ";")
-    else
-        print(io, "s;")
-    end
-    println(io, _cache_status(mach))
+    header =
+        mach.state == -1 ? "serializable " :
+        mach.state ==  0 ? "untrained " :
+        "trained "
+    header *= "Machine"
+    mach.state >= 0 && (header *= "; "*_cache_status(mach))
+    println(io, header)
     println(io, "  model: $(mach.model)")
     println(io, "  args: ")
     for i in eachindex(mach.args)
         arg = mach.args[i]
         print(io, "    $i:\t$arg")
         if arg isa Source
-            println(io, " \u23CE `$(elscitype(arg))`")
+            println(io, " \u23CE $(elscitype(arg))")
         else
             println(io)
         end
@@ -552,8 +550,8 @@ or none of the following apply:
 
 - (v) `mach.model` has changed since the last retraining.
 
-In any of the cases (i) - (iv), `mach` is trained ab initio. If only
-(v) fails, then a training update is applied.
+In any of the cases (i) - (iv), `mach` is trained ab initio. If (v) holds, then a training
+update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -608,7 +606,8 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         mach.data = MMI.reformat(mach.model, raw_args...)
     end
 
-    # build or update cached `resampled_data` if necessary:
+    # build or update cached `resampled_data` if necessary (`mach.data` is already defined
+    # above if needed here):
     if cache_data && (!data_is_valid || condition_iv)
         mach.resampled_data = selectrows(mach.model, rows, mach.data...)
     end
@@ -696,9 +695,9 @@ end
 
 # version of fit_only! for calling by scheduler (a node), which waits
 # on the specified `machines` to fit:
-function fit_only!(mach::Machine, wait_on_downstream::Bool; kwargs...)
+function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
 
-    wait_on_downstream || fit_only!(mach; kwargs...)
+    wait_on_upstream || fit_only!(mach; kwargs...)
 
     upstream_machines = machines(glb(mach.args...))
 

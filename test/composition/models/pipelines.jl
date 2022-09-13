@@ -391,7 +391,7 @@ end
 
     # test cache is set correctly internally:
     @test all(fitted_params(mach).machines) do m
-        MLJBase._cache_status(m)  == " caches data"
+        MLJBase._cache_status(m)  == "caches model-specific representations of data"
     end
 
     # test correct error thrown for inverse_transform:
@@ -413,7 +413,7 @@ end
 
     # test cache is set correctly internally:
     @test all(fitted_params(mach).machines) do m
-        MLJBase._cache_status(m) == " does not cache data"
+        MLJBase._cache_status(m) == "does not cache data"
     end
 
     # test invalid replacement of classifier with regressor throws

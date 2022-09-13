@@ -574,7 +574,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
-    PrettyTables.pretty_table(io, data, header;
+    PrettyTables.pretty_table(io,
+                              data;
+                              header,
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l,
                               linebreaks=true)
@@ -937,7 +939,7 @@ function evaluate!(mach::Machine{<:Measurable};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1) where M
+                   verbosity=1)
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a

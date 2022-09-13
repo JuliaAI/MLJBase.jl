@@ -423,11 +423,11 @@ function Distributions.sampler(r::NominalRange{T,N}) where {T, N}
     return sampler(r, fill(1/N, N))
 end
 
-Base.rand(s::NominalSampler, dims::Integer...) where I<:Integer =
+Base.rand(s::NominalSampler, dims::I...) where I<:Integer =
     broadcast(idx -> s.values[idx], rand(s.distribution, dims...))
 Base.rand(rng::AbstractRNG,
           s::NominalSampler,
-          dims::Integer...) where I<:Integer =
+          dims::I...) where I<:Integer =
     broadcast(idx -> s.values[idx], rand(rng, s.distribution, dims...))
 
 

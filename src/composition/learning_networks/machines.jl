@@ -294,8 +294,9 @@ const ERR_IDENTICAL_MODELS = ArgumentError(
 # associated with each model in the network (in the order appearing in
 # `models(glb(mach))`) using `nothing` when the model is not
 # associated with any property.
-function network_model_names(model::M,
-                             mach::Machine{<:Surrogate}) where M<:Model
+network_model_names(model::Nothing, mach::Machine{<:Surrogate}) = nothing
+
+function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Model
 
     network_model_ids = objectid.(MLJBase.models(glb(mach)))
 
@@ -349,7 +350,7 @@ The last call in custom code defining the `MLJBase.fit` method for a
 new composite model type. Here `model` is the instance of the new type
 appearing in the `MLJBase.fit` signature, while `mach` is a learning
 network machine constructed using `model`. Not relevant when defining
-composite models using `@pipeline` or `@from_network`.
+composite models using `@pipeline` (deprecated) or `@from_network`.
 
 For usage, see the example given below. Specifically, the call does
 the following:
@@ -414,18 +415,16 @@ function return!(mach::Machine{<:Surrogate},
     glb = MLJBase.glb(mach)
     cache = (; old_model)
 
-    setfield!(mach.fitresult,
-        :network_model_names,
-        network_model_names(model, mach))
-
     return mach.fitresult, cache, mach.report
 
 end
 
-network_model_names(model::Nothing, mach::Machine{<:Surrogate}) =
-    nothing
 
 ## DUPLICATING/REPLACING PARTS OF A LEARNING NETWORK MACHINE
+
+# The methods in this section are required to support `serializable` for preparation for
+# serialization (emptying machines of data, etc), and `fit_method`, needed by
+# `@from_network` macro. 
 
 """
     copy_or_replace_machine(N::AbstractNode, newmodel_given_old, newnode_given_old)

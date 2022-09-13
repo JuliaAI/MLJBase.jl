@@ -16,12 +16,11 @@ function update(model::M,
                 cache,
                 args...) where M <: Composite
 
-    # This method falls back to `fit` to force rebuilding the
+    # This method falls back to `fit` to force rebuilding of the
     # underlying learning network if, since the last fit:
     #
-    # (i) Any hyper-parameter associated with a model in the learning network
-    #     has been replaced with a new model instance (and not merely
-    #     mutated), OR
+    # (i) Any hyper-parameter of `model` that has, as a value, a model in the network, has
+    #     been replaced with a new value (and not merely mutated), OR
 
     # (ii) Any OTHER hyper-parameter has changed it's value (in the sense
     # of `==`).
