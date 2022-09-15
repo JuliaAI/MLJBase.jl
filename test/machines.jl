@@ -274,7 +274,7 @@ end
     @test mach isa Machine{Scale, false}
     transform(mach, X) # triggers training of `mach`, ie is mutating
     @test report(mach) in [nothing, NamedTuple()]
-    @test isnothing(fitted_params(mach).fitresult)
+    @test isnothing(fitted_params(mach))
     @test_throws(
         MLJBase.ERR_STATIC_ARGUMENTS,
         machine(Scale(2), X),
