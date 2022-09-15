@@ -38,6 +38,7 @@ MLJBase.predict(transf::YourTransformer, verbosity, X) =
     X = (x1=rand(3), x2=[1, 2, 3]);
     mach = machine(YourTransformer(:x2))
     @test transform(mach, X) == [1, 2, 3]
+    @test_throws MLJBase.ERR_ROWS_NOT_ALLOWED transform(mach, rows=:)
     @test predict(mach, X) == [3, 2, 1]
     @test report(mach).nrows == 3
     transform(mach, (x2=["a", "b"],))

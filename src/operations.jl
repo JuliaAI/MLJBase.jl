@@ -22,17 +22,20 @@
 ## TODO: need to add checks on the arguments of
 ## predict(::Machine, ) and transform(::Machine, )
 
-_err_rows_not_allowed() =
-    throw(ArgumentError("Calling `transform(mach, rows=...)` or "*
-                        "`predict(mach, rows=...)` when "*
-                        "`mach.model isa Static` is not allowed, as no data "*
-                        "is bound to `mach` in this case. Specify a explicit "*
-                        "data or node, as in `transform(mach, X)`, or "*
-                        "`transform(mach, X1, X2, ...)`. "))
-_err_serialized(operation) =
-    throw(ArgumentError("Calling $operation on a "*
-                        "deserialized machine with no data "*
-                        "bound to it. "))
+const ERR_ROWS_NOT_ALLOWED = ArgumentError(
+    "Calling `transform(mach, rows=...)` or "*
+    "`predict(mach, rows=...)` when "*
+    "`mach.model isa Static` is not allowed, as no data "*
+    "is bound to `mach` in this case. Specify a explicit "*
+    "data or node, as in `transform(mach, X)`, or "*
+    "`transform(mach, X1, X2, ...)`. "
+)
+
+err_serialized(operation) = ArgumentError(
+    "Calling $operation on a "*
+    "deserialized machine with no data "*
+    "bound to it. "
+)
 
 warn_serializable_mach(operation) = "The operation $operation has been called on a "*
                         "deserialised machine mach whose learned parameters "*
@@ -42,9 +45,11 @@ warn_serializable_mach(operation) = "The operation $operation has been called on
 # `ret` in the ordinary case that the operation does not include an "report" component ;
 # otherwise update `mach.report` with that component and return the non-report part of
 # `ret`:
+named_tuple(t::Nothing) = NamedTuple()
+named_tuple(t) = t
 function get!(ret, operation, mach)
     if operation in reporting_operations(mach.model)
-        report = last(ret)
+        report = named_tuple(last(ret))
         if isnothing(mach.report) || isempty(mach.report)
             mach.report = report
         else
@@ -66,13 +71,12 @@ for operation in OPERATIONS
     ex = quote
         function $(operation)(mach::Machine{<:Model,false}; rows=:)
             # catch deserialized machine with no data:
-            isempty(mach.args) && _err_serialized($operation)
-            ret = ($operation)(mach, mach.args[1](rows=rows))
-            return get!(ret, $quoted_operation, mach)
+            isempty(mach.args) && throw(err_serialized($operation))
+            return ($operation)(mach, mach.args[1](rows=rows))
         end
         function $(operation)(mach::Machine{<:Model,true}; rows=:)
             # catch deserialized machine with no data:
-            isempty(mach.args) && _err_serialized($operation)
+            isempty(mach.args) && throw(err_serialized($operation))
             model = mach.model
             ret = ($operation)(
                 model,
@@ -83,7 +87,8 @@ for operation in OPERATIONS
         end
 
         # special case of Static models (no training arguments):
-        $operation(mach::Machine{<:Static}; rows=:) = _err_rows_not_allowed()
+        $operation(mach::Machine{<:Static,true}; rows=:) = throw(ERR_ROWS_NOT_ALLOWED)
+        $operation(mach::Machine{<:Static,false}; rows=:) = throw(ERR_ROWS_NOT_ALLOWED)
     end
     eval(ex)
 

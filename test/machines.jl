@@ -445,6 +445,18 @@ end
     rm(filename)
 end
 
+struct ReportingDynamic <: Unsupervised end
+MLJBase.fit(::ReportingDynamic, _, X) = nothing, 16, NamedTuple()
+MLJBase.transform(::ReportingDynamic,_, X) = (X, (news=42,))
+MLJBase.reporting_operations(::Type{<:ReportingDynamic}) = (:transform, )
+
+@testset "corner case for operation applied to a reporting machinw" begin
+    model = ReportingDynamic()
+    mach = fit!(machine(model, [1,2,3]), verbosity=0)
+    @test transform(mach, rows=:) == [1, 2, 3]
+    @test transform(mach, rows=1:2) == [1, 2]
+end
+
 end # module
 
 true
