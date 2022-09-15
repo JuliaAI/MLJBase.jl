@@ -661,7 +661,7 @@ function fit_only!(
         condition_iv ||         # condition (iv)
         modeltype_changed      # conditions (vi) or (vii)
 
-        isdefined(mach, :report) || (mach.report = Dict{Symbol,Any}())
+        isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
 
         # fit the model:
         fitlog(mach, :train, verbosity)

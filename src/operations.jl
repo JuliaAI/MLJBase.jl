@@ -44,19 +44,19 @@ const WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
     "may be unusable. To be sure they are usable, "*
     "first run restore!(mach)."
 
-
+_scrub(x::NamedTuple) = isempty(x) ? nothing : x
+_scrub(something_else) = something_else
 # Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
 # `ret` in the ordinary case that the operation does not include an "report" component ;
 # otherwise update `mach.report` with that component and return the non-report part of
 # `ret`:
-named_tuple(t::Nothing) = NamedTuple()
-named_tuple(t) = t
 function get!(ret, operation, mach)
     model = recent_model(mach)
     if operation in reporting_operations(model)
-        report = named_tuple(last(ret))
-        if isnothing(mach.report) || isempty(mach.report)
-            mach.report = Dict{Symbol,Any}(operation => report)
+        report = _scrub(last(ret))
+        # mach.report will always be a dictionary:
+        if isempty(mach.report)
+            mach.report = LittleDict{Symbol,Any}(operation => report)
         else
             mach.report[operation] = report
         end
@@ -81,7 +81,7 @@ for operation in OPERATIONS
         end
         function $(operation)(mach::Machine{<:Model,true}; rows=:)
             # catch deserialized machine with no data:
-            isempty(mach.args) && _err_serialized($operation)
+            isempty(mach.args) && throw(err_serialized($operation))
             model = recent_model(mach)
             ret = ($operation)(
                 model,
