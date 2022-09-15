@@ -206,6 +206,8 @@ include("composition/learning_networks/machines.jl")
 include("composition/learning_networks/duplicate.jl")
 
 include("composition/models/methods.jl")
+include("composition/models/network_composite_types.jl")
+include("composition/models/network_composite.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/deprecated.jl")

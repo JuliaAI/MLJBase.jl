@@ -205,3 +205,42 @@ end
 
 ## NETWORKCOMPOSITE MODELS
 
+# In the case of `NetworkComposite` models, the `fitresult` is a learning network
+# signature. If we call a node in the signature (eg, do `fitresult.predict()`) then we may
+# mutate the underlying learning network (and hence `fitresult`). This is because some
+# nodes in the network may be attached to machines whose reports are mutated when an
+# operation is called on them (the associated model has a non-empty `reporting_operations`
+# trait). For this reason we must first duplicate `fitresult`.
+
+# The function `output_and_report(signature, operation, Xnew)` called below (and defined
+# in signatures.jl) duplicates `signature`, applies `operation` with data `Xnew`, and
+# returns the output and signature report.
+
+for operation in [:predict,
+                  :predict_joint,
+                  :transform,
+                  :inverse_transform]
+    quote
+        function $operation(model::NetworkComposite, fitresult, Xnew)
+            if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
+                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
+            end
+            throw(err_unsupported_operation($operation))
+        end
+    end |> eval
+end
+
+for (operation, fallback) in [(:predict_mode, :mode),
+                              (:predict_mean, :mean),
+                              (:predict_median, :median)]
+    quote
+        function $(operation)(m::ProbabilisticNetworkComposite,
+                              fitresult,
+                              Xnew)
+            if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
+                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
+            end
+            return $(fallback).(predict(m, fitresult, Xnew))
+        end
+    end |> eval
+end

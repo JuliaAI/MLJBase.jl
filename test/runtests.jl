@@ -62,6 +62,7 @@ end
 end
 
 @conditional_testset "composition_models" begin
+    @test include("composition/models/network_composite.jl")
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")
