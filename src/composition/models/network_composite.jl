@@ -1,6 +1,6 @@
 # See network_composite_types.jl for type definitions
 
-caches_data_by_default(::Type{<:Composite}) = false
+caches_data_by_default(::Type{<:NetworkComposite}) = false
 
 
 # # PREFIT STUB
@@ -38,28 +38,40 @@ function MLJModelInterface.fit(composite::NetworkComposite, verbosity, data...)
 
 end
 
-function MLJModelInterface.update(
-    composite::NetworkComposite,
-    fitresult,
-    old_composite,
-    verbosity,
-    data...,
-)
-    greatest_lower_bound = glb(fitresult)
+"""
+    start_over(composite, old_composite, greatest_lower_bound)
 
-    # we need to start over if any non-model field has changed:
+**Private method.**
+
+Return `true` if and only if `old_composite` and `composite` differ in the value of a
+property that is *not* also the name of a (symbolic) model in the network with specified
+`greates_lower_bound` (a "non-model" hyperparameter).
+
+"""
+function start_over(composite, old_composite, greatest_lower_bound)
     model_fields = MLJBase.models(greatest_lower_bound)
-    start_over = any(propertynames(composite)) do field
+    any(propertynames(composite)) do field
         field in model_fields && return false
         old_value = getproperty(old_composite, field)
         value = getproperty(composite, field)
         value != old_value
     end
+end
 
+function MLJModelInterface.update(
+    composite::NetworkComposite,
+    verbosity,
+    fitresult,
+    old_composite,
+    data...,
+)
+    greatest_lower_bound = MLJBase.glb(fitresult)
+
+    start_over = MLJBase.start_over(composite, old_composite, greatest_lower_bound)
     start_over && return MLJModelInterface.fit(composite, verbosity, data...)
 
     # retrain the network:
-    fit!(greatest_lower_bound; composite)
+    fit!(greatest_lower_bound; verbosity, composite)
 
     report = MLJBase.report(fitresult)
 
