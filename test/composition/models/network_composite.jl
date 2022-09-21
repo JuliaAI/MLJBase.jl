@@ -9,6 +9,7 @@ using Tables
 using MLJModelInterface
 using CategoricalArrays
 using OrderedCollections
+using Serialization
 
 const MMI = MLJModelInterface
 
@@ -22,6 +23,7 @@ Xnew = selectrows(X, 5:10)
 mutable struct OneShotClusterer <: Static
     nclusters
     rng
+    report_labels::Bool
 end
 
 function MMI.predict(model::OneShotClusterer, ::Nothing, X)
@@ -29,7 +31,7 @@ function MMI.predict(model::OneShotClusterer, ::Nothing, X)
     Xmat = Tables.matrix(X)
     labels = map(i -> Char(64 + i), 1:model.nclusters)
     Xout =  categorical(rand(rng, labels, size(Xmat, 1)); levels=labels)
-    report = (; labels)
+    report = model.report_labels ? (; labels) : nothing
     return Xout, report
 end
 
@@ -63,7 +65,7 @@ MLJBase.transform(model::ReportingClassSwapper, _, y) = (
 )
 
 
-# # TESTS
+# # BASIC TESTS
 
 mutable struct WatermelonComposite <: UnsupervisedNetworkComposite
     scaler
@@ -111,7 +113,7 @@ end
 
 composite = WatermelonComposite(
     ReportingScaler(3.0),
-    OneShotClusterer(3, StableRNG(123)),
+    OneShotClusterer(3, StableRNG(123), true),
     DecisionTreeClassifier(),
     ConstantClassifier(),
     0.5,
@@ -195,6 +197,68 @@ end
     composite.mix = 0.17
     @test MLJBase.start_over(composite, old_composite, glb_node)
 end
+
+@testset "basic serialization" begin
+    composite = WatermelonComposite(
+        ReportingScaler(3.0),
+        OneShotClusterer(3, StableRNG(123), false),
+        ConstantClassifier(),
+        ConstantClassifier(),
+        0.5,
+        ReportingClassSwapper(0),
+    )
+
+    X, _ = make_moons(10, rng=StableRNG(123))
+    filename = "composite_mach.jls"
+    mach = machine(composite, X)
+    fit!(mach, verbosity=0)
+
+    # `serializable` function:
+    smach = MLJBase.serializable(mach)
+    TestUtilities.generic_tests(mach, smach)
+    @test keys(fitted_params(smach)) == keys(fitted_params(mach))
+    @test keys(report(smach)) == keys(report(mach))
+    # Check data has been wiped out from models at the first level of composition
+    _machines = machines(glb(mach.fitresult))
+    _smachines = machines(glb(smach.fitresult))
+    @test length(_machines) == length(_smachines)
+    for submach in _smachines
+        TestUtilities.test_data(submach)
+    end
+
+    # end-to-end:
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test predict(smach, X) == predict(mach, X)
+    rm(filename)
+
+    # file size does not scale with size of data:
+    filesizes = []
+    for n in [100, 500, 1000]
+        filename = "serialized_temp_$n.jls"
+        X, _ = make_moons(n, rng=StableRNG(123))
+        mach = machine(composite, X)
+        fit!(mach, verbosity=0)
+        MLJBase.save(filename, mach)
+        push!(filesizes, filesize(filename))
+        rm(filename)
+    end
+    @test all(x==filesizes[1] for x in filesizes)
+
+    # What if no serializable procedure had happened
+    filename = "full_of_data.jls"
+    X, _ = make_moons(1000, rng=StableRNG(123))
+    mach = machine(composite, X)
+    fit!(mach, verbosity=0)
+    serialize(filename, mach)
+    @test filesize(filename) > filesizes[1]
+
+    @test_logs (:warn, MLJBase.warn_bad_deserialization(mach.state)) machine(filename)
+end
+
+
+
+# # SOME INTEGRATION TESTS
 
 N = 50
 Xin = (a=rand(N), b=rand(N), c=rand(N));
@@ -660,6 +724,9 @@ end
     @test !(fp.model2 isa Vector)
 
 end
+
+
+
 
 end # module
 

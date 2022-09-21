@@ -6,8 +6,9 @@
 **Private method.**
 
 Return a dictionary of machines, keyed on model, for the all machines in the completed
-learning network for which `node` is the greatest lower bound. Only  machines
-bound to symbolic models are included.
+learning network for which `node` is the greatest lower bound. Only machines bound to
+symbolic models are included. Values are always vectors, even if they contain only a
+single machine.
 
 """
 function machines_given_model(node::AbstractNode)

@@ -89,4 +89,21 @@ end
 
 MLJModelInterface.reporting_operations(::Type{<:NetworkComposite}) = OPERATIONS
 
-# TODO implement `save` and `restore`
+# here `fitresult` has type `Signature`.
+save(model::NetworkComposite, fitresult) = duplicate(fitresult, serializable=true)
+
+function MLJModelInterface.restore(model::NetworkComposite, serializable_fitresult)
+    greatest_lower_bound = MLJBase.glb(serializable_fitresult)
+    machines_given_model = MLJBase.machines_given_model(greatest_lower_bound)
+    models = keys(machines_given_model)
+
+    # the following indirectly mutates `serialiable_fiteresult`, returning it to
+    # usefulness:
+    for model in models
+        for mach in machines_given_model[model]
+            mach.fitresult = restore(model, mach.fitresult)
+            mach.state = 1
+        end
+    end
+    return serializable_fitresult
+end
