@@ -135,8 +135,8 @@ selector_model = FeatureSelector()
     # to check internals:
     ridge = MLJBase.machines(fitresult.predict)[1]
     selector = MLJBase.machines(fitresult.predict)[2]
-    ridge_old = deepcopy(ridge)
-    selector_old = deepcopy(selector)
+    selector_old_fr = copy(selector.fitresult) # dodging a julia deepcopy bug here
+    ridge_old_fr = copy(ridge.fitresult)
 
     # this should trigger no retraining:
     fitresult, cache, rep =
@@ -144,8 +144,8 @@ selector_model = FeatureSelector()
             (:info, r"^Not"),
             (:info, r"^Not"),
             MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult == ridge_old.fitresult
-    @test selector.fitresult == selector_old.fitresult
+    @test ridge.fitresult == ridge_old_fr
+    @test selector.fitresult == selector_old_fr
 
     # this should trigger update of selector and training of ridge:
     selector_model.features = [:a, :b]
@@ -154,10 +154,10 @@ selector_model = FeatureSelector()
             (:info, r"^Updating"),
             (:info, r"^Training"),
             MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult != ridge_old.fitresult
-    @test selector.fitresult != selector_old.fitresult
-    ridge_old = deepcopy(ridge)
-    selector_old = deepcopy(selector)
+    @test ridge.fitresult != ridge_old_fr
+    @test selector.fitresult != selector_old_fr
+    ridge_old_fr = copy(ridge.fitresult)
+    selector_old_fr = copy(selector.fitresult)
 
     # this should trigger updating of ridge only:
     ridge_model.lambda = 1.0
@@ -166,8 +166,8 @@ selector_model = FeatureSelector()
             (:info, r"^Not"),
             (:info, r"^Updating"),
             MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult != ridge_old.fitresult
-    @test selector.fitresult == selector_old.fitresult
+    @test ridge.fitresult != ridge_old_fr
+    @test selector.fitresult == selector_old_fr
 
     predict(composite, fitresult, MLJBase.selectrows(Xin, test));
 
