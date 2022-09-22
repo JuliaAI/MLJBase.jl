@@ -86,7 +86,7 @@ err_unsupervised_nargs() = ArgumentError(
     "Use  `machine(model, X; ...)` (usual case) or "*
     "`machine(model; ...)` (static case). ")
 
-warn_scitype(model::Supervised, X) =
+warn_scitype(model::Union{Supervised,SupervisedAnnotator}, X) =
     "The scitype of `X`, in `machine(model, X, ...)` "*
     "is incompatible with "*
     "`model=$model`:\nscitype(X) = $(elscitype(X))\n"*
@@ -98,19 +98,22 @@ warn_generic_scitype_mismatch(S, F) =
     "expected by model's `fit` method.\n"*
     "  provided: $S\n  expected by fit: $F"
 
-warn_scitype(model::Supervised, X, y) =
-    "The scitype of `y`, in `machine(model, X, y, ...)` "*
+warn_scitype(
+    model::Union{Supervised,SupervisedAnnotator,UnsupervisedAnnotator},
+    X,
+    y,
+) = "The scitype of `y`, in `machine(model, X, y, ...)` "*
     "is incompatible with "*
     "`model=$model`:\nscitype(y) = "*
     "$(elscitype(y))\ntarget_scitype(model) "*
     "= $(target_scitype(model))."
 
-warn_scitype(model::Unsupervised, X) =
+warn_scitype(model::Union{Unsupervised,UnsupervisedAnnotator}, X) =
     "The scitype of `X`, in `machine(model, X)` is "*
     "incompatible with `model=$model`:\nscitype(X) = $(elscitype(X))\n"*
     "input_scitype(model) = $(input_scitype(model))."
 
-err_length_mismatch(model::Supervised) = DimensionMismatch(
+err_length_mismatch(model::Union{Supervised,SupervisedAnnotator}) = DimensionMismatch(
     "Differing number of observations "*
     "in input and target. ")
 
