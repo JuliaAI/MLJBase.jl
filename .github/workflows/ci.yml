@@ -3,12 +3,14 @@ on:
   pull_request:
     branches:
       - master
+      - master-0.19
       - dev
       - for-a-0-point-20-release
       - next-breaking-release
   push:
     branches:
       - master
+      - master-0.19
       - dev
     tags: '*'
 env:
