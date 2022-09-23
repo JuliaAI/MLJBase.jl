@@ -90,7 +90,7 @@ end
 MLJModelInterface.reporting_operations(::Type{<:NetworkComposite}) = OPERATIONS
 
 # here `fitresult` has type `Signature`.
-save(model::NetworkComposite, fitresult) = duplicate(fitresult, serializable=true)
+save(model::NetworkComposite, fitresult) = replace(fitresult, serializable=true)
 
 function MLJModelInterface.restore(model::NetworkComposite, serializable_fitresult)
     greatest_lower_bound = MLJBase.glb(serializable_fitresult)

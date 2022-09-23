@@ -35,7 +35,7 @@ enode = @node mae(ys, yhat)
 
 _header(accel) =
 
-@testset "duplicate()  method; $(typeof(accel))" for accel in (CPU1(), CPUThreads())
+@testset "replace()  method; $(typeof(accel))" for accel in (CPU1(), CPUThreads())
 
     fit!(yhat, verbosity=0, acceleration=accel)
 
@@ -52,7 +52,7 @@ _header(accel) =
     # duplicate the network with `yhat` as glb:
     yhat_clone = @test_logs(
         (:warn, r"No replacement"),
-        MLJBase.duplicate(
+        replace(
             yhat,
             hot=>hot2,
             knn=>knn2,
@@ -72,7 +72,7 @@ _header(accel) =
 
     # test serializable option:
     fit!(yhat, verbosity=0)
-    yhat_ser = MLJBase.duplicate(yhat; serializable=true)
+    yhat_ser = replace(yhat; serializable=true)
     machines_ser = machines(yhat_ser)
     mach4 = machines_ser[4]
     @test mach4.state == -1
@@ -82,7 +82,7 @@ _header(accel) =
     signature = (predict=yhat, report=(mae=enode,)) |> MLJBase.signature
     signature_clone = @test_logs(
         (:warn, r"No replacement"),
-        MLJBase.duplicate(
+        replace(
             signature,
             hot=>hot2,
             knn=>knn2,
@@ -103,13 +103,13 @@ _header(accel) =
     mach  = machine(Deterministic(), Xs, ys;
                     predict=yhat,
                     report=(mae=enode,))
-    mach2 = MLJBase.duplicate(mach, hot=>hot2, knn=>knn2,
+    mach2 = replace(mach, hot=>hot2, knn=>knn2,
                     ys=>source(ys.data);
                     empty_unspecified_sources=true)
     ss = sources(glb(mach2))
     @test isempty(ss[1])
     mach2 = @test_logs((:warn, r"No replacement"),
-                       MLJBase.duplicate(mach, hot=>hot2, knn=>knn2,
+                       replace(mach, hot=>hot2, knn=>knn2,
                                ys=>source(ys.data)))
     yhat2 = mach2.fitresult.predict
     fit!(mach, verbosity=0)

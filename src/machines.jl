@@ -99,7 +99,7 @@ more detail, see the discussion of training logic at [`fit_only!`](@ref).
 age(mach::Machine) = mach.state
 
 """
-    duplicate(mach, field1 => value1, field2 => value2, ...)
+    replace(mach::Machine, field1 => value1, field2 => value2, ...)
 
 **Private method.**
 
@@ -112,10 +112,10 @@ The following example returns a machine with no traces of training data (but als
 any upstream dependencies in a learning network):
 
 ```julia
-duplicate(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
+replace(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
 
 """
-function duplicate(mach::Machine{<:Any,C}, field_value_pairs...) where C
+function Base.replace(mach::Machine{<:Any,C}, field_value_pairs::Pair...) where C
     # determined new `model` and `args` and build replacement dictionary:
     newfield_given_old = Dict(field_value_pairs) # to be extended
     fields_to_be_replaced = keys(newfield_given_old)
@@ -137,7 +137,7 @@ function duplicate(mach::Machine{<:Any,C}, field_value_pairs...) where C
     return clone
 end
 
-Base.copy(mach::Machine) = duplicate(mach)
+Base.copy(mach::Machine) = replace(mach)
 
 upstream(mach::Machine) = Tuple(m.state for m in ancestors(mach))
 
@@ -976,7 +976,7 @@ function serializable(mach::Machine{<:Any, C}) where C
     # Duplication currenty needs to happen in two steps for this to work in case of
     # `Composite` models.
 
-    clone = duplicate(
+    clone = replace(
         mach,
         :state => -1,
         :args => (),
@@ -989,7 +989,7 @@ function serializable(mach::Machine{<:Any, C}) where C
 
     report = report_for_serialization(clone)
 
-    return duplicate(clone, :report => report)
+    return replace(clone, :report => report)
 end
 
 """

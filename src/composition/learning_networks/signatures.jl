@@ -240,7 +240,7 @@ See also [`MLJBase.Signature`](@ref).
 
 """
 function output_and_report(signature, operation, Xnew)
-    signature_clone = MLJBase.duplicate(signature, copy_unspecified_deeply=false)
+    signature_clone = replace(signature, copy_unspecified_deeply=false)
     output =  getproperty(MLJBase.unwrap(signature_clone), operation)(Xnew)
     report = MLJBase.report(signature_clone; supplement=false)
     return output, report

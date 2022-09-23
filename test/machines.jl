@@ -216,7 +216,7 @@ end
     mach = machine(tree, X, y)
     s1 = source(42)
     s2 = source(21)
-    mach_clone = MLJBase.duplicate(
+    mach_clone = replace(
         mach,
         :args=>(s1, s2),
         :report=>57,
@@ -227,7 +227,7 @@ end
     @test mach_clone.model == tree
     @test mach_clone.state == mach.state
 
-    mach_clone = MLJBase.duplicate(mach, :model=>knn)
+    mach_clone = replace(mach, :model=>knn)
     @test mach_clone.model === knn
 end
 

@@ -1,21 +1,21 @@
-# # DUPLICATING LEARNING NETWORKS WITH MODEL REPLACEMENT
+# `Base.replace` overloadings for use in learning networks
 
-# needed for @from_network and for save/restore for <: Composite models
+
+# # HELPERS
 
 """
     machine_replacement(node, newmodel_given_old, newnode_given_old, serializable)
 
-**Private method.**
+**Private method** only called by [`update_mappings_with_node`](@ref).
 
-If `serializable=false`, return a new machine instance by copying `node.mach` and
-changing the `model` and `args` field values as specified by the provided
-dictionaries.
+If `serializable=false`, return a new machine instance by copying `node.mach` and changing
+the `model` and `args` field values as derived from the provided dictionaries. In this way
+the returned machine is hooked into the new learning network defined by the values of
+`newnode_given_old`.
 
 If `serializable=true`, return a serializable copy instead (namely,
 `serializable(node.mach)`) and ignore the `newmodel_given_old` dictionary (no model
 replacement).
-
-This method is only called by [`update_mappings_with_node`](@ref).
 
 See also [`serializable`](@ref).
 
@@ -26,8 +26,9 @@ function machine_replacement(
     newnode_given_old,
     serializable
 )
+    # the `replace` called here is defined in src/machines.jl:
     mach = serializable ? MLJBase.serializable(N.machine) :
-        duplicate(N.machine, :model => newmodel_given_old[N.machine.model])
+        replace(N.machine, :model => newmodel_given_old[N.machine.model])
     mach.args = Tuple(newnode_given_old[arg] for arg in N.machine.args)
     return mach
 end
@@ -71,6 +72,9 @@ end
 
 update_mappings_with_node!(::Any, ::Any, ::Any, ::Any, N::Source) = nothing
 
+
+# # REPLACE METHODS
+
 const DOC_REPLACE_OPTIONS =
     """
 
@@ -89,7 +93,7 @@ const DOC_REPLACE_OPTIONS =
     """
 
 """
-    duplicate(node, a1=>b1, a2=>b2, ...; options...)
+    replace(node, a1=>b1, a2=>b2, ...; options...)
 
 Recursively copy `node` and all nodes in the learning network for which it is a least
 upper bound, but replacing any specified sources and models `a1, a2, ...` of that network
@@ -98,13 +102,13 @@ with `b1, b2, ...`.
 $DOC_REPLACE_OPTIONS
 
 """
-function duplicate(W::AbstractNode, pairs::Pair...; kwargs...)
-    newnode_given_old  = _duplicate(W, pairs...; kwargs...)
+function Base.replace(W::AbstractNode, pairs::Pair...; kwargs...)
+    newnode_given_old  = _replace(W, pairs...; kwargs...)
     return newnode_given_old[W]
 end
 
 """
-    duplicate(signature, a1=>b1, a2=>b2, ...; options...)
+    replace(signature, a1=>b1, a2=>b2, ...; options...)
 
 Copy the provided learning network signature, including the complete underlying learning
 network, but replacing any specified sources and models `a1, a2, ...` of the original
@@ -115,7 +119,7 @@ $DOC_REPLACE_OPTIONS
 See also [`MLJBase.Signature`](@ref).
 
 """
-function duplicate(signature::Signature, pairs...; node_dict=false, kwargs...)
+function Base.replace(signature::Signature, pairs::Pair...; node_dict=false, kwargs...)
 
     # If `node_dict` is true, then we additionally return `newnode_given_old` computed
     # below.
@@ -124,7 +128,7 @@ function duplicate(signature::Signature, pairs...; node_dict=false, kwargs...)
     report_nodes = values(MLJBase.report_nodes(signature))
 
     W = glb(operation_nodes..., report_nodes...)
-    newnode_given_old = _duplicate(W, pairs...; kwargs...)
+    newnode_given_old = _replace(W, pairs...; kwargs...)
 
     # instantiate special node dictionaries:
     newoperation_node_given_old =
@@ -160,7 +164,7 @@ function duplicate(signature::Signature, pairs...; node_dict=false, kwargs...)
 end
 
 """
-    duplicate(mach, a1=>b1, a2=>b2, ...; options...)
+    replace(mach, a1=>b1, a2=>b2, ...; options...)
 
 Return a copy the learning network machine `mach`, and it's underlying learning network,
 but replacing any specified sources and models `a1, a2, ...` of the original underlying
@@ -169,11 +173,11 @@ network with `b1, b2, ...`.
 $DOC_REPLACE_OPTIONS
 
 """
-function duplicate(mach::Machine{<:Surrogate}, pairs::Pair...; kwargs...)
+function Base.replace(mach::Machine{<:Surrogate}, pairs::Pair...; kwargs...)
     signature = MLJBase.signature(mach.fitresult) |> Signature
 
     newsignature, newnode_given_old =
-        duplicate(signature, pairs...; node_dict=true, kwargs...)
+        replace(signature, pairs...; node_dict=true, kwargs...)
 
     newinterface = unwrap(newsignature)
 
@@ -184,7 +188,7 @@ end
 
 # Copy the complete learning network having `W` as a greatest lower bound, executing the
 # specified replacements, and return the dictionary mapping old nodes to new nodes.
-function _duplicate(
+function _replace(
     W::AbstractNode,
     pairs::Pair...;
     empty_unspecified_sources=false,
@@ -246,4 +250,3 @@ function _duplicate(
     return newnode_given_old
 
 end
-

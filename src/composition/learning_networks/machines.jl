@@ -397,7 +397,7 @@ end
 # Returns a new `CompositeFitresult` that is a shallow copy of the original one.
 function save(model::Composite, fitresult)
     interface = MLJBase.signature(fitresult)
-    newsignature = duplicate(Signature(interface), serializable=true) |> unwrap
+    newsignature = replace(Signature(interface), serializable=true) |> unwrap
     newfitresult = MLJBase.CompositeFitresult(newsignature)
     setfield!(
         newfitresult,
