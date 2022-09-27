@@ -445,10 +445,18 @@ end
 @testset "Test serializable method of Supervised Machine" begin
     X, y = make_regression(100, 1)
     filename = "decisiontree.jls"
+
+    # test error for untrained machines:
     mach = machine(DecisionTreeRegressor(), X, y)
+        @test_throws(
+        MLJBase.ERR_SERIALIZING_UNTRAINED,
+        serializable(mach),
+    )
     fit!(mach, verbosity=0)
+
     # Check serializable function
     smach = MLJBase.serializable(mach)
+    @test smach === MLJBase.serializable(smach)  # check no-op if repeated
     @test smach.report == mach.report
     @test smach.fitresult == mach.fitresult
     @test_throws(ArgumentError, predict(smach))
@@ -464,6 +472,10 @@ end
     @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
     @test fitted_params(smach) isa NamedTuple
     @test report(smach) == report(mach)
+
+    # repeated `restore!` makes no difference:
+    MLJBase.restore!(smach)
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
 
     rm(filename)
 
