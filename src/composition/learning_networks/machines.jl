@@ -630,6 +630,10 @@ end
 #####              SAVE AND RESTORE FOR COMPOSITES                        #####
 ###############################################################################
 
+# this method used by serializable
+function _copy_template(mach::Machine{<:Surrogate})
+    machine(mach.model, mach.args...; predict=mach.fitresult.predict)
+end
 
 # Returns a new `CompositeFitresult` that is a shallow copy of the original one.
 # To do so,  we build a copy of the learning network where each machine contained

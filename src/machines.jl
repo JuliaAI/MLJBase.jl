@@ -859,11 +859,9 @@ end
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################
 
+# other methods for this can be found in composition
 function _copy_template(mach::Machine{<:Any,C}) where {C}
     machine(mach.model, mach.args..., cache=C)
-end
-function _copy_template(mach::Machine{<:Surrogate})
-    machine(mach.model, mach.args...; predict=mach.fitresult.predict)
 end
 
 """
