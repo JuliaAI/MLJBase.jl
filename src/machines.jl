@@ -859,6 +859,12 @@ end
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################
 
+function _copy_template(mach::Machine{<:Any,C}) where {C}
+    machine(mach.model, mach.args..., cache=C)
+end
+function _copy_template(mach::Machine{<:Surrogate})
+    machine(mach.model, mach.args...; predict=mach.fitresult.predict)
+end
 
 """
     serializable(mach::Machine)
@@ -906,7 +912,7 @@ function serializable(mach::Machine{<:Any, C}) where C
     # - Removes all data from caches, args and data fields
     # - Makes all `fitresults` serializable
     # - Annotates the state as -1
-    copymach = machine(mach.model, mach.args..., cache=C)
+    copymach = _copy_template(mach)
 
     for fieldname in fieldnames(Machine)
         if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
@@ -1006,8 +1012,10 @@ function save(file::Union{String,IO},
     serialize(file, smach)
 end
 
-setreport!(copymach, mach) =
+function setreport!(copymach, mach) 
+    isdefined(mach, :report) || return nothing
     setfield!(copymach, :report, mach.report)
+end
 
 # NOTE. there is also a specialization for `setreport!` for `Composite` models, defined in
 # /src/composition/learning_networks/machines/

@@ -302,6 +302,44 @@ end
     rm(filename)
 end
 
+@testset "Test serializable of learning networks" begin
+    x1 = map(n -> mod(n,3), rand(UInt8, 100)) |> categorical;
+    x2 = randn(100);
+    X = (x1=x1, x2=x2);
+    y = x2.^2;
+
+    Xs = source(X)
+    ys = source(y)
+    z = log(ys)
+    stand = UnivariateStandardizer()
+    standM = machine(stand, z)
+    u = transform(standM, z)
+    hot = OneHotEncoder()
+    hotM = machine(hot, Xs)
+    W = transform(hotM, Xs)
+    knn = KNNRegressor()
+    knnM = machine(knn, W, u)
+    oak = DecisionTreeRegressor()
+    oakM = machine(oak, W, u)
+    uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
+    zhat = inverse_transform(standM, uhat)
+    yhat = exp(zhat)
+    enode = @node mae(ys, yhat)
+
+    mach = machine(Deterministic(), Xs, ys; predict=yhat, report=(mae=enode,))
+    fit!(mach, verbosity=0)
+
+    smach = MLJBase.serializable(mach)
+    fname = "network_mach.jls"
+    Serialization.serialize(fname, mach)
+    smach = Serialization.deserialize(fname)
+    MLJBase.restore!(smach)
+
+    @test predict(smach, X) == predict(mach, X)
+    @test keys(fitted_params(smach)) == keys(fitted_params(mach))
+    @test keys(report(smach)) == keys(report(mach))
+end
+
 @testset "Test serializable of nested composite machines" begin
     filename = "nested_stack_mach.jls"
     X, y = make_regression(100, 1)
