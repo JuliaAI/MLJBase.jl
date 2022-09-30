@@ -27,7 +27,8 @@ function MLJModelInterface.fit(composite::NetworkComposite, verbosity, data...)
 
     # train the network:
     greatest_lower_bound = MLJBase.glb(fitresult)
-    fit!(greatest_lower_bound; verbosity, composite)
+    acceleration = MLJBase.acceleration(fitresult)
+    fit!(greatest_lower_bound; verbosity, composite, acceleration)
 
     report = MLJBase.report(fitresult)
 

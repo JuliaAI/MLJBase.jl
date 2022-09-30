@@ -16,12 +16,24 @@ using OrderedCollections
     b = source(:b)
     W = source(:W)
     yhat = source(:yhat)
-    s = (transform=W,
+
+    s = (
+        transform=W,
          report=(a=a, b=b),
-         predict=yhat) |> MLJBase.Signature
+        predict=yhat,
+        acceleration=CPUThreads(),
+    ) |> MLJBase.Signature
     @test MLJBase.report_nodes(s) == (a=a, b=b)
     @test MLJBase.operation_nodes(s) == (transform=W, predict=yhat)
     @test MLJBase.operations(s) == (:transform, :predict)
+    @test MLJBase.acceleration(s) == CPUThreads()
+
+    s = (
+        transform=W,
+        predict=yhat,
+    ) |> MLJBase.Signature
+    @test MLJBase.report_nodes(s) == NamedTuple()
+    @test MLJBase.acceleration(s) == CPU1()
 end
 
 
