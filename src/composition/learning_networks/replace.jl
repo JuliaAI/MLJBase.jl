@@ -42,7 +42,7 @@ end
 
 **Private method.**
 
-This is a method called, in appropriate sequence, over each `node` a learning network
+This is a method called, in appropriate sequence, over each `node` in a learning network
 being duplicated. If `node` is not a `Source`, it updates the three dictionary arguments
 which link the new network to the old one, and otherwise does nothing.
 
