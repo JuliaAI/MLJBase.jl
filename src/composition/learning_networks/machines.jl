@@ -234,6 +234,7 @@ function fit!(mach::Machine{<:Surrogate}; kwargs...)
     fit!(glb; kwargs...)
     mach.state += 1
     mach.report = Dict{Symbol,Any}(:fit => MLJBase.report(mach.fitresult))
+    mach.old_model = deepcopy(mach.model)
     return mach
 end
 

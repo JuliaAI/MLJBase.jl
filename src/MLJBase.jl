@@ -317,7 +317,7 @@ export source, Source, CallableReturning
 
 # machines.jl:
 export machine, Machine, fit!, report, fit_only!, default_scitype_check_level,
-    serializable
+    serializable, last_model
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression

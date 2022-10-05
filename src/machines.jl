@@ -438,7 +438,12 @@ machines(::Source) = Machine[]
 _cache_status(::Machine{<:Any,true}) = "caches model-specific representations of data"
 _cache_status(::Machine{<:Any,false}) = "does not cache data"
 
-Base.show(io::IO, mach::Machine) = print(io, "machine($(mach.model), …)")
+function Base.show(io::IO, mach::Machine)
+    model = mach.model
+    m = model isa Symbol ? ":$model" : model
+    print(io, "machine($m, …)")
+end
+
 function Base.show(io::IO, ::MIME"text/plain", mach::Machine{M}) where M
     header =
         mach.state == -1 ? "serializable " :
@@ -512,12 +517,15 @@ err_no_real_model(mach) = ErrorException(
     """
 )
 
+"""
+   last_model(mach::Machine)
 
+Return the last model used to train the machine `mach`. This is a bona fide model, even if
+`mach.model` is a symbol.
 
-last_model(mach) = !(mach.model isa Symbol)     ? mach.model :
-    !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
-    !(mach.old_model isa Symbol) ? mach.old_model :
-                     throw(err_no_real_model(mach))
+Returns `nothing` if `mach` has not been trained.
+"""
+last_model(mach) = isdefined(mach, :old_model) ? mach.old_model : nothing
 
 """
     MLJBase.fit_only!(
