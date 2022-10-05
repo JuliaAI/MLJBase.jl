@@ -512,7 +512,9 @@ err_no_real_model(mach) = ErrorException(
     """
 )
 
-recent_model(mach) = !(mach.model isa Symbol)     ? mach.model :
+
+
+last_model(mach) = !(mach.model isa Symbol)     ? mach.model :
     !isdefined(mach, :old_model) ? throw(err_no_real_model(mach)) :
     !(mach.old_model isa Symbol) ? mach.old_model :
                      throw(err_no_real_model(mach))
@@ -808,7 +810,7 @@ fitted parameters keyed on those machines.
 """
 function fitted_params(mach::Machine)
     if isdefined(mach, :fitresult)
-        return fitted_params(recent_model(mach), mach.fitresult)
+        return fitted_params(last_model(mach), mach.fitresult)
     else
         throw(NotTrainedError(mach, :fitted_params))
     end
@@ -853,7 +855,7 @@ reports keyed on those machines.
 """
 function report(mach::Machine)
     if isdefined(mach, :report)
-        return MMI.report(recent_model(mach), mach.report)
+        return MMI.report(last_model(mach), mach.report)
     else
         throw(NotTrainedError(mach, :report))
     end
@@ -886,7 +888,7 @@ available. Otherwise, return `nothing`.
 
 function training_losses(mach::Machine)
     if isdefined(mach, :report)
-        return training_losses(recent_model(mach), report_given_method(mach)[:fit])
+        return training_losses(last_model(mach), report_given_method(mach)[:fit])
     else
         throw(NotTrainedError(mach, :training_losses))
     end
@@ -902,7 +904,7 @@ models. Otherwise return `nothing`.
 function feature_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
         return _feature_importances(
-            recent_model(mach),
+            last_model(mach),
             mach.fitresult,
             report_given_method(mach)[:fit],
         )

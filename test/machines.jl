@@ -532,9 +532,9 @@ end
     )
     y = [1.0, 2.0]
     mach  = machine(:rgs, X, y)
-    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.last_model(mach)
     fit!(mach; composite, verbosity)
-    @test MLJBase.recent_model(mach) == composite.rgs
+    @test MLJBase.last_model(mach) == composite.rgs
 
     @test fitted_params(mach).fitresult ≈ [1.0, 0.0]
     @test report(mach) == (; n_features = 2)
@@ -555,7 +555,7 @@ end
     # no training arguments:
     composite = CherryComposite(StaticYoghurt())
     mach = machine(:rgs)
-    @test_throws MLJBase.err_no_real_model(mach) MLJBase.recent_model(mach)
+    @test_throws MLJBase.err_no_real_model(mach) MLJBase.last_model(mach)
     @test_throws MLJBase.err_no_real_model(mach) transform(mach, X)
     fit!(mach; composite, verbosity)
     @test transform(mach, X) == X

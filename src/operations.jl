@@ -51,7 +51,7 @@ _scrub(something_else) = something_else
 # otherwise update `mach.report` with that component and return the non-report part of
 # `ret`:
 function get!(ret, operation, mach)
-    model = recent_model(mach)
+    model = last_model(mach)
     if operation in reporting_operations(model)
         report = _scrub(last(ret))
         # mach.report will always be a dictionary:
@@ -82,7 +82,7 @@ for operation in OPERATIONS
         function $(operation)(mach::Machine{<:Model,true}; rows=:)
             # catch deserialized machine with no data:
             isempty(mach.args) && throw(err_serialized($operation))
-            model = recent_model(mach)
+            model = last_model(mach)
             ret = ($operation)(
                 model,
                 mach.fitresult,
@@ -129,7 +129,7 @@ for operation in OPERATIONS
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
             _check_and_fit_if_warranted!(mach)
-            model = recent_model(mach)
+            model = last_model(mach)
             ret = $(operation)(
                 model,
                 mach.fitresult,
@@ -141,7 +141,7 @@ for operation in OPERATIONS
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
             _check_and_fit_if_warranted!(mach)
             ret = $(operation)(
-                recent_model(mach),
+                last_model(mach),
                 mach.fitresult,
                 Xraw,
                 Xraw_more...,
