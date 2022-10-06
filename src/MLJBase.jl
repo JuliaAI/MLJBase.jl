@@ -4,7 +4,7 @@ module MLJBase
 # IMPORTS
 
 import Base: ==, precision, getindex, setindex!
-import Base.+, Base.*
+import Base.+, Base.*, Base./
 
 # Scitype
 using ScientificTypes
@@ -38,7 +38,7 @@ for name in exported_names(MLJModelInterface)
         :UnivariateFinite,
         :augmented_transform,
         :info,
-        :scitype # Needed to avoid clashing with `ScientificTypes.scitype` 
+        :scitype # Needed to avoid clashing with `ScientificTypes.scitype`
     ] && continue
     quote
         import MLJModelInterface.$name

@@ -513,9 +513,15 @@ Base.first(X::AbstractNode) = node(first, X)
 Base.last(X::AbstractNode) = node(last, X)
 
 +(y1::AbstractNode, y2::AbstractNode) = node(+, y1, y2)
-+(y1, y2::AbstractNode) = node(+, y1, y2)
-+(y1::AbstractNode, y2) = node(+, y1, y2)
-*(lambda::Real, y::AbstractNode) = node(y->lambda*y, y)
++(x, y::AbstractNode) = node(y->x + y, y)
++(y::AbstractNode, x) = node(y->y + x, y)
+*(y1::AbstractNode, y2::AbstractNode) = node(*, y1, y2)
+*(x, y::AbstractNode) = node(y->x*y, y)
+*(y::AbstractNode, x) = node(y->y*x, y)
+/(y1::AbstractNode, y2::AbstractNode) = node(/, y1, y2)
+/(x, y::AbstractNode) = node(y->x/y, y)
+/(y::AbstractNode, x) = node(y->y/x, y)
+
 
 """
     selectcols(X::AbstractNode, c)

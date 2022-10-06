@@ -468,6 +468,16 @@ end
     @test Y([:one, :two, :three, :four]) == [:three, :four]
 end
 
+@testset "syntactic sugar for nodes" begin
+    x = source(3)
+    y = source(7)
+    for op in [:(+), :(*), :(/)]
+        quote
+            @test $op(x, y)() == $op(x(), y())
+            @test $op(2, x)() == $op(2, x())
+            @test $op(x, 2)() == $op(x(), 2)
+        end |> eval
+    end
 end
 
 true
