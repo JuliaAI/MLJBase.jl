@@ -233,6 +233,13 @@ include("composition/models/stacking.jl")
 # function on the right-hand side is defined in src/measures/meta_utilities.jl:
 const MEASURE_TYPES_ALIASES_AND_INSTANCES = measures_for_export()
 
+const EXTENDED_ABSTRACT_MODEL_TYPES = vcat(
+    MLJBase.MLJModelInterface.ABSTRACT_MODEL_SUBTYPES,
+    MLJBase.NETWORK_COMPOSITE_TYPES, # src/composition/models/network_composite_types.jl
+    MLJBase.COMPOSITE_TYPES, # src/composition/abstract_types.jl
+    MLJBase.SURROGATE_TYPES, # src/composition/abstract_types.jl
+)
+
 # ===================================================================
 ## EXPORTS
 
