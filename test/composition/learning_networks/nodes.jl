@@ -480,4 +480,6 @@ end
     end
 end
 
+end # module
+
 true
