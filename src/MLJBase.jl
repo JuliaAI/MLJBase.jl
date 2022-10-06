@@ -238,6 +238,7 @@ const EXTENDED_ABSTRACT_MODEL_TYPES = vcat(
     MLJBase.NETWORK_COMPOSITE_TYPES, # src/composition/models/network_composite_types.jl
     MLJBase.COMPOSITE_TYPES, # src/composition/abstract_types.jl
     MLJBase.SURROGATE_TYPES, # src/composition/abstract_types.jl
+    [:MLJType, :Model, :NetworkComposite, :Surrogate, :Composite],
 )
 
 # ===================================================================
@@ -290,6 +291,11 @@ export coerce, coerce!, autotype, schema, info
 # re-exports from CategoricalDistributions:
 export UnivariateFiniteArray, UnivariateFiniteVector
 
+# -----------------------------------------------------------------------
+# abstract model types defined in MLJModelInterface.jl and extended here:
+for T in EXTENDED_ABSTRACT_MODEL_TYPES
+    @eval(export $T)
+end
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase

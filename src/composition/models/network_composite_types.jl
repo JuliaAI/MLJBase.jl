@@ -18,8 +18,3 @@ const NetworkComposite = Union{network_composite_types...}
 
 MLJModelInterface.is_wrapper(::Type{<:NetworkComposite}) = true
 MLJModelInterface.package_name(::Type{<:NetworkComposite}) = "MLJBase"
-
-export MLJType, Model, NetworkComposite
-for T in vcat(MMI.ABSTRACT_MODEL_SUBTYPES, NETWORK_COMPOSITE_TYPES)
-    @eval(export $T)
-end

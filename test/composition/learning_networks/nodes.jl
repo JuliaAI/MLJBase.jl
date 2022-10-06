@@ -468,9 +468,9 @@ end
     @test Y([:one, :two, :three, :four]) == [:three, :four]
 end
 
+x = source(3)
+y = source(7)
 @testset "syntactic sugar for nodes" begin
-    x = source(3)
-    y = source(7)
     for op in [:(+), :(*), :(/)]
         quote
             @test $op(x, y)() == $op(x(), y())

@@ -38,8 +38,3 @@ MLJModelInterface.package_name(::Type{<:Union{Composite,Surrogate}}) = "MLJBase"
 for T in surrogate_types
     MLJModelInterface.load_path(::Type{T}) = string("MLJBase.", T)
 end
-
-export MLJType, Model, Surrogate, Composite
-for T in vcat(COMPOSITE_TYPES, SURROGATE_TYPES)
-    @eval(export $T)
-end
