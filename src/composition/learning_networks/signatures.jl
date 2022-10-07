@@ -73,7 +73,7 @@ const DOC_NETWORK_INTERFACES =
     type. Examples are
 
         (predict=yhat,)
-        (transform=Xsmall,)
+        (transform=Xsmall, acceleration=CPUThreads())
         (predict=yhat, transform=W, report=(loss=loss_node,))
 
     Here `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
