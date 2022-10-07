@@ -83,7 +83,7 @@ const DOC_NETWORK_INTERFACES =
     - The name of an operation, such as `:predict`, `:predict_mode`, `:transform`,
       `:inverse_transform`.
 
-    - `:report`, for exposing results of calling a node *with no argumentes*.
+    - `:report`, for exposing results of calling a node *with no arguments*.
 
     - `:acceleration`, for articulating acceleration mode for training the network, e.g.,
       `CPUThreads()`. Corresponding value must be an `AbstractResource`. If not included,
