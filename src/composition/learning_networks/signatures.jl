@@ -81,7 +81,7 @@ const DOC_NETWORK_INTERFACES =
     The keys of the signature are always one of the following:
 
     - The name of an operation, such as `:predict`, `:predict_mode`, `:transform`,
-      `inverse_transform`.
+      `:inverse_transform`.
 
     - `:report`, for exposing results of calling a node *with no argumentes*.
 
