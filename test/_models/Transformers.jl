@@ -132,7 +132,7 @@ end
 # acts on scalars:
 function transform_to_int(
     result::UnivariateDiscretizerResult{<:MLJBase.CategoricalValue},
-    r::Real) where R
+    r::R) where R <: Real
 
     k = R(1)
     for q in result.odd_quantiles
