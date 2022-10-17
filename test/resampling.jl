@@ -443,12 +443,6 @@ end
     pairs_random = MLJBase.train_test_pairs(scv_random, rows, y)
     @test pairs != pairs_random
 
-    # wrong target type throws error:
-    @test_throws(ArgumentError,
-                 MLJBase.train_test_pairs(scv,
-                                          rows,
-                                          CategoricalArrays.unwrap.(y)))
-
     # check class distribution is preserved in a larger randomized example:
     N = 30
     y = shuffle(vcat(fill('a', N), fill('b', 2N),

@@ -403,12 +403,6 @@ StratifiedCV(; nfolds::Int=6,  shuffle=nothing, rng=nothing) =
 function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     st = scitype(y)
-    if !(st <: AbstractArray{<:Finite})
-        throw(ArgumentError(
-            "Supplied target has scitype $st but stratified " *
-            "cross-validation applies only to classification problems. "
-        ))
-    end
 
     if stratified_cv.shuffle
         rows=shuffle!(stratified_cv.rng, collect(rows))

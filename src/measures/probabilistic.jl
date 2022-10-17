@@ -88,13 +88,12 @@ end
 # Missing values not supported, but allow `Missing` in eltype, because
 # `skipinvalid(yhat, y)` does not tighten the type. See doc string above.
 
-call(::AUC, ŷ::ArrMissing{UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P} =
+call(::AUC, ŷ::ArrMissing{UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P<:Real} =
     _auc(P, ŷ, y)
 
-# corner case of UnivariateFinite's of mixed type
-call(::AUC, ŷ::ArrMissing{UnivariateFinite}, y) where {S,V,R,P} =
-    _auc(Float64, ŷ, y)
-
+# corner case of UnivariateFinite's of mixed type; next line could be removed after
+# resolution of https://github.com/JuliaAI/CategoricalDistributions.jl/issues/37
+call(::AUC, ŷ::ArrMissing{UnivariateFinite}, y) =  _auc(Float64, ŷ, y)
 
 
 # ========================================================
