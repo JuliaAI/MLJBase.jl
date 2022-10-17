@@ -530,12 +530,7 @@ for M in (:MulticlassTruePositiveRate, :MulticlassTrueNegativeRate,
             average::T
             return_type::Type{U}
         end
-        # @ablaom says next line looks redundant:
-        $M(average::T, return_type::Type{U}) where {T, U} =
-            $M(average, return_type)
-        $M(; average=macro_avg,
-           return_type=LittleDict) where T<:MulticlassAvg where
-           U<:Union{Vector, LittleDict} = $M(average, return_type)
+        $M(; average=macro_avg, return_type=LittleDict) = $M(average, return_type)
     end
     eval(ex)
 end
