@@ -354,7 +354,10 @@ object. The node `N` has the following calling behaviour:
     N() = f(args[1](), args[2](), ..., args[n]())
     N(rows=r) = f(args[1](rows=r), args[2](rows=r), ..., args[n](rows=r))
     N(X) = f(args[1](X), args[2](X), ..., args[n](X))
+"""
+node(args...) = Node(args...)
 
+"""
     J = node(f, mach::Machine, args...)
 
 Defines a dynamic `Node` object `J` wrapping a dynamic operation `f`
@@ -385,7 +388,7 @@ number of such nodes is one.
 See also: [`Node`](@ref), [`@node`](@ref), [`source`](@ref), [`origins`](@ref).
 
 """
-node(args...) = Node(args...)
+node
 
 """
     @node f(...)

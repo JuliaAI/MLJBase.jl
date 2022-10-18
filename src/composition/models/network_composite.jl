@@ -82,11 +82,8 @@ function MLJModelInterface.update(
     return fitresult, cache, report
 end
 
-function MLJModelInterface.fitted_params(composite::NetworkComposite, signature)
-    greatest_lower_bound = glb(signature)
-    d = machines_given_model(greatest_lower_bound)
-    tuple_keyed_on_model(fitted_params, d)
-end
+MLJModelInterface.fitted_params(composite::NetworkComposite, signature) =
+    fitted_params(signature)
 
 MLJModelInterface.reporting_operations(::Type{<:NetworkComposite}) = OPERATIONS
 

@@ -8,9 +8,6 @@ using Test
 using MLJModelInterface
 using OrderedCollections
 
-#KNNClassifier = @load KNNClassifier
-#DecisionTreeClassifer = @load DecisionTreeClassifier pkg=DecisionTree
-
 @testset "signatures - accessor functions" begin
     a = source(:a)
     b = source(:b)
@@ -19,11 +16,13 @@ using OrderedCollections
 
     s = (
         transform=W,
-         report=(a=a, b=b),
+        report=(a=a, b=b),
+        fitted_params=(c=W,),
         predict=yhat,
         acceleration=CPUThreads(),
     ) |> MLJBase.Signature
     @test MLJBase.report_nodes(s) == (a=a, b=b)
+    @test MLJBase.fitted_params_nodes(s) == (c=W,)
     @test MLJBase.operation_nodes(s) == (transform=W, predict=yhat)
     @test MLJBase.operations(s) == (:transform, :predict)
     @test MLJBase.acceleration(s) == CPUThreads()
@@ -65,6 +64,7 @@ mach1 = machine(:classifier1, Xs, ytrain)
 mach2a = machine(:classifier2, Xs, ytrain)
 mach2b = machine(:classifier2, Xs, ytrain)
 y1 = predict(mach1, Xs) # probabilistic predictions
+junk = node(fitted_params, mach1)
 y2a = predict(mach2a, Xs) # probabilistic predictions
 y2b = predict(mach2b, Xs) # probabilistic predictions
 loss = node(
@@ -75,10 +75,14 @@ loss = node(
 λ = 0.3
 ymix = λ*y1 + (1 - λ)*(0.2*y2a + 0.8*y2b)
 yhat = mode(ymix)
-signature = (; predict=yhat, report=(; loss=loss)) |> MLJBase.Signature
+signature = (;
+             predict=yhat,
+             report=(; loss=loss),
+             fitted_params=(; junk),
+             ) |> MLJBase.Signature
 
 glb1 = glb(signature)
-glb2 = glb(yhat, loss)
+glb2 = glb(yhat, loss, junk)
 
 clusterer = OneShotClusterer(3, StableRNG(123))
 composite = (
@@ -99,6 +103,9 @@ composite = (
     @test isnothing(report(mach2a))
     @test isnothing(report(mach2b))
     @test r == (clusterer = report(mach0), loss=loss())
+
+    fr = MLJBase.fitted_params(signature)
+    @test keys(fr) == (:classifier1, :classifier2, :junk)
 
     @test sum(MLJBase.age.(machines(glb1))) == MLJBase.age(signature)
 
@@ -134,6 +141,18 @@ end
     @test length(keys(d)) == 3
 end
 
+@testset "signature helper: call_and_copy" begin
+    @test_throws MLJBase.ERR_CALL_AND_COPY MLJBase.call_and_copy(42) == 42
+    x = Ref(3)
+    n = source(x)
+    frozen_x = MLJBase.call_and_copy(n)
+    @test frozen_x[] == 3
+    x[] = 5
+    @test frozen_x[] == 3
+    y = source(7)
+    @test MLJBase.call_and_copy((a=source(20), b=y)) == (a=20, b=7)
 end # module
+
+end
 
 true

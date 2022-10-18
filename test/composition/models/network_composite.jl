@@ -89,13 +89,15 @@ function MLJBase.prefit(composite::WatermelonComposite, verbosity, X)
 
     mach1 = machine(:classifier1, W, ytrain)
 
+    junk = node(m->fitted_params(m), mach1) # a fitted_params node
+
     # two machines pointing to same model:
     mach2a = machine(:classifier2, W, ytrain)
     mach2b = machine(:classifier2, W, ytrain)
 
-    y1 = predict(mach1, W) # probabilistic predictions
-    y2a = predict(mach2a, W) # probabilistic predictions
-    y2b = predict(mach2b, W) # probabilistic predictions
+    y1 = predict(mach1, W)
+    y2a = predict(mach2a, W)
+    y2b = predict(mach2b, W)
 
     training_loss = node(
         (y1, y2) -> brier_loss(y1, mode.(y2)) + brier_loss(y2, mode.(y1)) |> mean,
@@ -107,7 +109,7 @@ function MLJBase.prefit(composite::WatermelonComposite, verbosity, X)
     ymix = λ*y1 + (1 - λ)*(0.2*y2a + 0.8*y2b)
     yhat = transform(machine(:finalizer), mode(ymix))
 
-    return (; predict=yhat, report=(;training_loss, len))
+    return (; predict=yhat, report=(;training_loss, len), fitted_params=(; junk))
 
 end
 
@@ -125,13 +127,15 @@ composite = WatermelonComposite(
 
     # check fitted_params:
     fp = @test_logs fitted_params(composite, f)
-    @test Set(keys(fp)) == Set([:classifier1, :classifier2])
+    @test Set(keys(fp)) == Set([:classifier1, :classifier2, :junk])
     @test :tree_or_leaf in keys(fp.classifier1)
     constant_fps = fp.classifier2
     @test length(constant_fps) == 2
     @test all(constant_fps) do fp
         :target_distribution in keys(fp)
     end
+    @test haskey(fp.junk, :tree_or_leaf)
+    @test fp.junk.tree_or_leaf.featim == fp.classifier1.tree_or_leaf.featim
 
     # check fit report (which omits key :finalizer):
     @test Set(keys(fitr)) ==
@@ -146,7 +150,7 @@ composite = WatermelonComposite(
 
     # the above should have no effect on learned parameters:
     fp = fitted_params(composite, f)
-    @test Set(keys(fp)) == Set([:classifier1, :classifier2])
+    @test Set(keys(fp)) == Set([:classifier1, :classifier2, :junk])
     @test :tree_or_leaf in keys(fp.classifier1)
     constant_fps = fp.classifier2
     @test length(constant_fps) == 2

@@ -66,7 +66,7 @@ function update_mappings_with_node!(
             m = machine_replacement(N, newmodel_given_old, newnode_given_old, serializable)
             newmach_given_old[N.machine] = m
         end
-        newnode_given_old[N] = N.operation(m, args...)
+        newnode_given_old[N] = Node(N.operation, m, args...)
     end
 end
 
@@ -126,21 +126,27 @@ function Base.replace(signature::Signature, pairs::Pair...; node_dict=false, kwa
 
     operation_nodes = values(MLJBase.operation_nodes(signature))
     report_nodes = values(MLJBase.report_nodes(signature))
+    fitted_params_nodes = values(MLJBase.fitted_params_nodes(signature))
 
-    W = glb(operation_nodes..., report_nodes...)
+    W = glb(operation_nodes..., fitted_params_nodes..., report_nodes...)
     newnode_given_old = _replace(W, pairs...; kwargs...)
 
     # instantiate special node dictionaries:
     newoperation_node_given_old =
         IdDict{AbstractNode,AbstractNode}()
+    newfitted_params_node_given_old =
+        IdDict{AbstractNode,AbstractNode}()
     newreport_node_given_old =
         IdDict{AbstractNode,AbstractNode}()
 
     # update those dictionaries based on the output of `_replace`:
-    for N in Set(operation_nodes) ∪ Set(report_nodes)
+    for N in Set(operation_nodes) ∪ Set(report_nodes) ∪ Set(fitted_params_nodes)
         if N in operation_nodes # could be `Source`
             newoperation_node_given_old[N] = newnode_given_old[N]
-        else
+        elseif N in fitted_params_nodes
+            k= collect(keys(newnode_given_old))
+            newfitted_params_node_given_old[N] = newnode_given_old[N]
+        elseif N in report_nodes
             k= collect(keys(newnode_given_old))
             newreport_node_given_old[N] = newnode_given_old[N]
         end
@@ -149,15 +155,23 @@ function Base.replace(signature::Signature, pairs::Pair...; node_dict=false, kwa
     # assemble the new signature:
     newoperation_nodes = Tuple(newoperation_node_given_old[N] for N in
                           operation_nodes)
-    newreport_nodes = Tuple(newreport_node_given_old[N] for N in
-                            report_nodes)
-    report_tuple = NamedTuple{keys(MLJBase.report_nodes(signature))}(newreport_nodes)
-    operation_tuple = NamedTuple{MLJBase.operations(signature)}(newoperation_nodes)
-    newsignature = if isempty(report_tuple)
-        operation_tuple
-    else
-        merge(operation_tuple, (report=report_tuple,))
-    end |> MLJBase.Signature
+    newfitted_params_nodes =
+        Tuple(newfitted_params_node_given_old[N] for N in fitted_params_nodes)
+    newreport_nodes =
+        Tuple(newreport_node_given_old[N] for N in report_nodes)
+    fitted_params_tuple =
+        NamedTuple{keys(MLJBase.fitted_params_nodes(signature))}(newfitted_params_nodes)
+    report_tuple =
+        NamedTuple{keys(MLJBase.report_nodes(signature))}(newreport_nodes)
+    operation_tuple =
+        NamedTuple{MLJBase.operations(signature)}(newoperation_nodes)
+
+    _clean(named_tuple) = isempty(first(named_tuple)) ? NamedTuple() : named_tuple
+    newsignature = merge(
+        operation_tuple,
+        (fitted_params=fitted_params_tuple,) |> _clean,
+        (report=report_tuple,) |> _clean,
+    ) |> MLJBase.Signature
 
     node_dict || return newsignature
     return newsignature, newnode_given_old
@@ -238,7 +252,7 @@ function _replace(
 
     # build the new network:
     for N in nodes(W)
-        update_mappings_with_node!(
+        MLJBase.update_mappings_with_node!(
             newnode_given_old,
             newmach_given_old,
             newmodel_given_old,

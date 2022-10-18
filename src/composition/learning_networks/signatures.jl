@@ -1,4 +1,4 @@
-# a signature is just a thin wrapper for what the user knows as "learning network
+# a signature is just a thin wrapper for what the user knows as a "learning network
 # interface"; see constant DOC_NETWORK_INTERFACES below for details.
 
 # # HELPERS
@@ -17,7 +17,7 @@ single machine.
 function machines_given_model(node::AbstractNode)
     ret = LittleDict{Symbol,Any}()
     for mach in machines(node)
-        model = mach.model
+        model = mach.model 
         model isa Symbol || continue
         if !haskey(ret, model)
             ret[model] = Any[mach,]
@@ -62,6 +62,29 @@ function tuple_keyed_on_model(f, machines_given_model; scalarize=true, drop_noth
     return NamedTuple{tuple(models...)}(tuple(named_tuple_values...))
 end
 
+const ERR_CALL_AND_COPY = ArgumentError(
+    "Expected something of `AbstractNode` type in a learning network interface "*
+    "but got something else. "
+)
+
+"""
+    call_and_copy(x)
+
+**Private method.**
+
+If `x` is an `AbstractNode`, then return a deep copy of `x()`. If `x` is a named tuple
+`(k1=n1, k2=n2, ...)`, then "broadcast" `call_and_copy` over the values `n1`, `n2`, ...,
+to get a new named tuple with the same keys.
+
+"""
+call_and_copy(::Any) = throw(ERR_CALL_AND_COPY)
+call_and_copy(n::AbstractNode) = deepcopy(n())
+function call_and_copy(nt::NamedTuple)
+    _keys = keys(nt)
+    _values = deepcopy(values(nt))
+    return NamedTuple{_keys}(call_and_copy.(_values))
+end
+
 
 # # DOC STRING
 
@@ -81,9 +104,14 @@ const DOC_NETWORK_INTERFACES =
     The keys of the signature are always one of the following:
 
     - The name of an operation, such as `:predict`, `:predict_mode`, `:transform`,
-      `:inverse_transform`.
+      `:inverse_transform`. See "Operation keys" below.
 
-    - `:report`, for exposing results of calling a node *with no arguments*.
+    - `:report`, for exposing results of calling a node *with no arguments* in the
+      composite model report. See "Including report nodes" below.
+
+    - `:fitted_params`, for exposing results of calling a node *with no arguments* as
+      fitted parameters of the composite model. See "Including fitted parameter nodes"
+      below.
 
     - `:acceleration`, for articulating acceleration mode for training the network, e.g.,
       `CPUThreads()`. Corresponding value must be an `AbstractResource`. If not included,
@@ -96,15 +124,21 @@ const DOC_NETWORK_INTERFACES =
     `predict=yhat` is that the exported model type implements `predict`, which, when
     applied to new data `Xnew`, should return `yhat(Xnew)`.
 
-    #### Including report nodes in an interface
+    #### Including report nodes
 
     If the key is `:report`, then the corresponding value must be a named tuple
 
         (k1=n1, k2=n2, ...)
 
-    whose keys are arbitrary, and whose values are nodes of the network. The intention of
-    a declaration such as `report = (loss=loss_node,)` is to include, in reports associated
-    with a new exported model instance, the output of the call `loss_node()`.
+    whose values are all nodes. For each `k=n` pair, the key `k` will appear as a key in
+    the composite model report, with a corresponding value of `deepcopy(n())`, called
+    immediatately after training or updating the network.  For examples, refer to the
+    "Learning Networks" section of the MLJ manual.
+
+    #### Including fitted parameter nodes
+
+    If the key is `:fitted_params`, then the behaviour is as for report nodes but results
+    are exposed as fitted parameters of the composite model instead of the report.
 
    """
 
@@ -156,7 +190,7 @@ end
 
 **Private method.**
 
-Return the report nodes of `signature`, as a named tuple keyed on operation names.
+Return the report nodes of `signature`, as a named tuple.
 
 See also [`MLJBase.Signature`](@ref).
 
@@ -165,6 +199,22 @@ function report_nodes(signature::Signature)
     interface = unwrap(signature)
     :report in keys(interface) || return NamedTuple()
     return interface.report
+end
+
+"""
+    fitted_params_nodes(signature)
+
+**Private method.**
+
+Return the fitted parameter nodes of `signature`, as a named tuple.
+
+See also [`MLJBase.Signature`](@ref).
+
+"""
+function fitted_params_nodes(signature::Signature)
+    interface = unwrap(signature)
+    :fitted_params in keys(interface) || return NamedTuple()
+    return interface.fitted_params
 end
 
 """
@@ -195,11 +245,15 @@ See also [`MLJBase.Signature`](@ref).
 """
 operations(signature::Signature) = keys(operation_nodes(signature))
 
-glb(signature::Signature) = glb(
-    values(operation_nodes(signature))...,
-    values(report_nodes(signature))...,
-)
-
+function glb(signature::Signature)
+    grab(f) = values(f(signature)) |> collect
+    nodes = vcat(
+        grab(operation_nodes),
+        grab(report_nodes),
+        grab(fitted_params_nodes),
+    )
+    return glb(nodes...)
+end
 
 """
     age(signature::Signature)
@@ -218,23 +272,31 @@ age(signature::Signature) = sum(age, machines(glb(signature)))
 
 **Private method.**
 
-Generate a deep copy of the supplementary report defined by the signature, i.e., by
-calling the nodes appearing as values of `signature.report` with zero arguments. Returns a
-named with the keys of `signature.report`.
+Generate a deep copy of the supplementary report defined by the signature (that part of
+the composite model report coming from report nodes in the signature). This is a named
+tuple.
 
 See also [`MLJBase.Signature`](@ref).
 
 """
-function report_supplement(signature::Signature)
-    report_nodes = MLJBase.report_nodes(signature)
-    _call(node) = deepcopy(node())
-    _keys = keys(report_nodes)
-    _values = values(report_nodes)
-    return NamedTuple{_keys}(_call.(_values))
-end
+report_supplement(signature::Signature) = call_and_copy(report_nodes(signature))
+
 
 """
-    report(signature; supplement=true)
+    fitted_params_supplement(signature)
+
+**Private method.**
+
+Generate a deep copy of the supplementary fitted parameters defined by the signature (that
+part of the composite model fitted parameters coming from fitted parameter nodes in the
+signature). This is a named tuple.
+
+See also [`MLJBase.Signature`](@ref).
+
+"""
+fitted_params_supplement(signature::Signature) = call_and_copy(fitted_params_nodes(signature))
+
+""" report(signature; supplement=true)
 
 **Private method.**
 
@@ -258,13 +320,40 @@ function report(signature::Signature; supplement=true)
 end
 
 """
+    fitted_params(signature; supplement=true)
+
+**Private method.**
+
+Generate a fitted_params for the learning network associated with `signature`, including
+the supplementary fitted_params.
+
+Suppress calling of the fitted_params nodes of `signature`, and excluded their
+contribution to the output, by specifying `supplement=false`.
+
+See also [`MLJBase.fitted_params_supplement`](@ref).
+
+See also [`MLJBase.Signature`](@ref).
+
+"""
+function fitted_params(signature::Signature; supplement=true)
+    greatest_lower_bound = glb(signature)
+    supplement_fitted_params =
+        supplement ? MLJBase.fitted_params_supplement(signature) : NamedTuple()
+    d = MLJBase.machines_given_model(greatest_lower_bound)
+    internal_fitted_params = MLJBase.tuple_keyed_on_model(fitted_params, d)
+    merge(internal_fitted_params, supplement_fitted_params)
+end
+
+"""
     output_and_report(signature, operation, Xnew)
 
 **Private method.**
 
 Duplicate `signature` and return appropriate output for the specified `operation` (a key
 of `signature`) applied to the duplicate, together with the operational report. Report
-nodes of `signature` are not called, and they make no contribution to the report.
+nodes of `signature` are not called, and they make no contribution to that report.
+
+Return value has the form `(output, report)`.
 
 See also [`MLJBase.Signature`](@ref).
 
