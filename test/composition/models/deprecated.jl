@@ -248,7 +248,7 @@ end
     zhat = predict(kM, Xt)
     N2 = inverse_transform(uM, zhat)
 
-    # compare predictions
+    # compare predictions:
     fit!(mach, verbosity=verb);
     fit!(N2, verbosity=0)
     yhat = predict(mach, X);

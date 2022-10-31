@@ -272,7 +272,7 @@ end
         # fitted_params and report per fold:
         @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
             [1.5, 1.25, 1.5, 1.25, 1.5]
-        @test all(==(NamedTuple()), result.report_per_fold)
+        @test all(isnothing, result.report_per_fold)
     end
 end
 
@@ -442,12 +442,6 @@ end
     scv_random = StratifiedCV(nfolds=3, shuffle=true, rng=1)
     pairs_random = MLJBase.train_test_pairs(scv_random, rows, y)
     @test pairs != pairs_random
-
-    # wrong target type throws error:
-    @test_throws(ArgumentError,
-                 MLJBase.train_test_pairs(scv,
-                                          rows,
-                                          CategoricalArrays.unwrap.(y)))
 
     # check class distribution is preserved in a larger randomized example:
     N = 30

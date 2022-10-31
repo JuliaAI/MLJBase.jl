@@ -51,9 +51,9 @@ fit!(mach, verbosity=0)
     model.input_stand.features=[:x1,]
 
     r = report(mach)
-    @test isempty(r.rgs)
+    @test isnothing(r.rgs)
     @test Set(r.input_stand.features_fit) == Set([:x1, :x2, :x3])
-    @test isempty(r.target_stand)
+    @test isnothing(r.target_stand)
     @test r.report_given_machine isa AbstractDict
 
     fp = fitted_params(mach)

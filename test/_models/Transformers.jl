@@ -48,7 +48,7 @@ function MLJBase.fit(transformer::FeatureSelector, verbosity::Int, X)
             throw(error("Attempting to select non-existent feature(s)."))
         fitresult = transformer.features
     end
-    report = NamedTuple()
+    report = nothing
     return fitresult, nothing, report
 end
 
@@ -123,7 +123,7 @@ function MLJBase.fit(transformer::UnivariateDiscretizer, verbosity::Int,X)
     element = output_prototype[1]
 
     cache  = nothing
-    report = NamedTuple()
+    report = nothing
 
     res = UnivariateDiscretizerResult(odd_quantiles, even_quantiles, element)
     return res, cache, report
@@ -132,7 +132,7 @@ end
 # acts on scalars:
 function transform_to_int(
     result::UnivariateDiscretizerResult{<:MLJBase.CategoricalValue},
-    r::Real) where R
+    r::R) where R <: Real
 
     k = R(1)
     for q in result.odd_quantiles
@@ -198,7 +198,7 @@ function MLJBase.fit(transformer::UnivariateStandardizer, verbosity::Int,
     "in standardization."
     fitresult = (mean(v), std(v))
     cache = nothing
-    report = NamedTuple()
+    report = nothing
     return fitresult, cache, report
 end
 
@@ -402,7 +402,7 @@ function MLJBase.fit(transformer::UnivariateBoxCoxTransformer, verbosity::Int,
     scores = Float64[normality(boxcox(l, c, v)) for l in lambdas]
     lambda = lambdas[argmax(scores)]
 
-    return  (lambda, c), nothing, NamedTuple()
+    return  (lambda, c), nothing, nothing
 end
 
 MLJBase.fitted_params(::UnivariateBoxCoxTransformer, fitresult) =

@@ -44,7 +44,7 @@ function MLJBase.fit(model::RidgeRegressor, verbosity::Int, X, y)
     intercept = θ[end]
 
     fitresult = LinearFitresult(coefs, intercept)
-    report    = NamedTuple()
+    report    = nothing
     cache     = nothing
 
     return fitresult, cache, report

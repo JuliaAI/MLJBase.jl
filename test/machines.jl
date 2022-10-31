@@ -11,6 +11,8 @@ using ..TestUtilities
 const MLJModelInterface = MLJBase.MLJModelInterface
 const MMI = MLJModelInterface
 
+verbosity = 0
+
 N=50
 X = (a=rand(N), b=rand(N), c=rand(N));
 y = 2*X.a - X.c + 0.05*rand(N);
@@ -18,6 +20,8 @@ y = 2*X.a - X.c + 0.05*rand(N);
 train, test = partition(eachindex(y), 0.7);
 
 tree = DecisionTreeRegressor(max_depth=5)
+knn = KNNRegressor()
+
 pca = PCA()
 
 @testset "_contains_unknown" begin
@@ -56,7 +60,7 @@ end
 
     # The following tests only pass when machine `t` has been fitted
     @test fitted_params(t) == MMI.fitted_params(t.model, t.fitresult)
-    @test report(t) == t.report
+    @test isnothing(report(t))
     @test training_losses(t) === nothing
     @test feature_importances(t) === nothing
 
@@ -185,6 +189,48 @@ struct FooBarUnknown <: Model end
 
 end
 
+@testset "copy(::Machine) and replace(::Machine, ...)" begin
+    mach = machine(tree, X, y)
+    clone = copy(mach)
+    @test all(fieldnames(typeof(mach))) do field
+        field === :fit_okay && return true
+        a = !isdefined(mach, field)
+        b = !isdefined(mach, field)
+        a ⊻ b && return false # xor
+        a && b && return true
+        getproperty(mach, field) === getproperty(clone, field)
+    end
+    @test typeof(mach) == typeof(clone)
+
+    fit!(mach, verbosity=0)
+    clone = copy(mach)
+    @test all(fieldnames(typeof(mach))) do field
+        field === :fit_okay && return true
+        a = !isdefined(mach, field)
+        b = !isdefined(mach, field)
+        a ⊻ b && return false
+        a && b && return true
+        getproperty(mach, field) === getproperty(clone, field)
+    end
+
+    mach = machine(tree, X, y)
+    s1 = source(42)
+    s2 = source(21)
+    mach_clone = replace(
+        mach,
+        :args=>(s1, s2),
+        :report=>57,
+    )
+    @test mach_clone.args == (s1, s2)
+    @test mach_clone.report == 57
+    @test !isdefined(mach_clone, :fitresult)
+    @test mach_clone.model == tree
+    @test mach_clone.state == mach.state
+
+    mach_clone = replace(mach, :model=>knn)
+    @test mach_clone.model === knn
+end
+
 @testset "weights" begin
     yraw = ["Perry", "Antonia", "Perry", "Skater"]
     X = (x=rand(4),)
@@ -226,8 +272,9 @@ end
 
     mach = @test_logs machine(Scale(2))
     @test mach isa Machine{Scale, false}
+    transform(mach, X) # triggers training of `mach`, ie is mutating
     @test report(mach) in [nothing, NamedTuple()]
-    @test isnothing(fitted_params(mach).fitresult)
+    @test isnothing(fitted_params(mach))
     @test_throws(
         MLJBase.ERR_STATIC_ARGUMENTS,
         machine(Scale(2), X),
@@ -239,6 +286,7 @@ end
 
     @test_logs (:info, r"Not retraining") fit!(mach) # no-op
     state = mach.state
+
 
     R  = transform(mach, X)
     IR = inverse_transform(mach, R)
@@ -319,6 +367,8 @@ end
 const dummy_importances = [:x1 => 1.0, ]
 MLJModelInterface.reports_feature_importances(::Type{<:SomeModel}) = true
 MLJModelInterface.feature_importances(::SomeModel, fitresult, report) = dummy_importances
+MLJModelInterface.supports_training_losses(::Type{<:SomeModel}) = true
+MLJModelInterface.training_losses(::SomeModel, report) = 1:report.n_features
 
 MLJModelInterface.reformat(model::SomeModel, X, y) = (MLJBase.matrix(X), y)
 MLJModelInterface.selectrows(model::SomeModel, I, A, y) =
@@ -395,14 +445,22 @@ end
 @testset "Test serializable method of Supervised Machine" begin
     X, y = make_regression(100, 1)
     filename = "decisiontree.jls"
+
+    # test error for untrained machines:
     mach = machine(DecisionTreeRegressor(), X, y)
+        @test_throws(
+        MLJBase.ERR_SERIALIZING_UNTRAINED,
+        serializable(mach),
+    )
     fit!(mach, verbosity=0)
+
     # Check serializable function
     smach = MLJBase.serializable(mach)
+    @test smach === MLJBase.serializable(smach)  # check no-op if repeated
     @test smach.report == mach.report
     @test smach.fitresult == mach.fitresult
     @test_throws(ArgumentError, predict(smach))
-    @test_logs (:warn, MLJBase.warn_serializable_mach(predict)) predict(smach, X)
+    @test_logs (:warn, MLJBase.WARN_SERIALIZABLE_MACH) predict(smach, X)
 
     TestUtilities.generic_tests(mach, smach)
     # Check restore! function
@@ -414,6 +472,10 @@ end
     @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
     @test fitted_params(smach) isa NamedTuple
     @test report(smach) == report(mach)
+
+    # repeated `restore!` makes no difference:
+    MLJBase.restore!(smach)
+    @test MLJBase.predict(smach, X) == MLJBase.predict(mach, X)
 
     rm(filename)
 
@@ -440,7 +502,7 @@ end
 
     # warning on non-restored machine
     smach = deserialize(filename)
-    @test_logs (:warn, MLJBase.warn_serializable_mach(transform)) transform(smach, X)
+    @test_logs (:warn, MLJBase.WARN_SERIALIZABLE_MACH) transform(smach, X)
 
     rm(filename)
 end
@@ -455,6 +517,48 @@ MLJBase.reporting_operations(::Type{<:ReportingDynamic}) = (:transform, )
     mach = fit!(machine(model, [1,2,3]), verbosity=0)
     @test transform(mach, rows=:) == [1, 2, 3]
     @test transform(mach, rows=1:2) == [1, 2]
+end
+
+@testset "machines with symbolic model placeholders" begin
+
+    struct CherryComposite
+        rgs
+    end
+
+    composite = CherryComposite(SomeModel(1))
+    X = MLJBase.table(
+        [1.0 3.0
+         2.0 4.0]
+    )
+    y = [1.0, 2.0]
+    mach  = machine(:rgs, X, y)
+    @test isnothing(last_model(mach))
+    fit!(mach; composite, verbosity=0)
+    @test last_model(mach) == composite.rgs
+
+    @test fitted_params(mach).fitresult ≈ [1.0, 0.0]
+    @test report(mach) == (; n_features = 2)
+    @test training_losses(mach) == 1:2
+    @test feature_importances(mach) == dummy_importances
+
+    Xnew = MLJBase.table(rand(2, 2))
+    @test size(predict(mach, Xnew)) == (2,)
+
+    # if composite.rgs is changed, but keeps same type, get an update:
+    composite = CherryComposite(SomeModel(2))
+    @test_logs (:info, r"Updating") fit!(mach; composite)
+
+    # if composite.rgs is changed, but type changes, retrain from scratch:
+    composite = CherryComposite(StaticYoghurt())
+    @test_logs (:info, r"Training") fit!(mach; composite)
+
+    # no training arguments:
+    composite = CherryComposite(StaticYoghurt())
+    mach = machine(:rgs)
+    @test isnothing(last_model(mach))
+    @test_throws MLJBase.err_no_real_model(mach) transform(mach, X)
+    fit!(mach; composite, verbosity=0)
+    @test transform(mach, X) == X
 end
 
 end # module

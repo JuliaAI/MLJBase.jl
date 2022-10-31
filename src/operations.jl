@@ -37,23 +37,28 @@ err_serialized(operation) = ArgumentError(
     "bound to it. "
 )
 
-warn_serializable_mach(operation) = "The operation $operation has been called on a "*
-                        "deserialised machine mach whose learned parameters "*
-                        "may be unusable. To be sure, first run restore!(mach)."
+const err_untrained(mach) = ErrorException("$mach has not been trained. ")
 
+const WARN_SERIALIZABLE_MACH = "You are attempting to use a "*
+    "deserialised machine whose learned parameters "*
+    "may be unusable. To be sure they are usable, "*
+    "first run restore!(mach)."
+
+_scrub(x::NamedTuple) = isempty(x) ? nothing : x
+_scrub(something_else) = something_else
 # Given return value `ret` of an operation with symbol `operation` (eg, `:predict`) return
 # `ret` in the ordinary case that the operation does not include an "report" component ;
 # otherwise update `mach.report` with that component and return the non-report part of
 # `ret`:
-named_tuple(t::Nothing) = NamedTuple()
-named_tuple(t) = t
 function get!(ret, operation, mach)
-    if operation in reporting_operations(mach.model)
-        report = named_tuple(last(ret))
-        if isnothing(mach.report) || isempty(mach.report)
-            mach.report = report
+    model = last_model(mach)
+    if operation in reporting_operations(model)
+        report = _scrub(last(ret))
+        # mach.report will always be a dictionary:
+        if isempty(mach.report)
+            mach.report = LittleDict{Symbol,Any}(operation => report)
         else
-            mach.report = merge(mach.report, report)
+            mach.report[operation] = report
         end
         return first(ret)
     end
@@ -77,7 +82,7 @@ for operation in OPERATIONS
         function $(operation)(mach::Machine{<:Model,true}; rows=:)
             # catch deserialized machine with no data:
             isempty(mach.args) && throw(err_serialized($operation))
-            model = mach.model
+            model = last_model(mach)
             ret = ($operation)(
                 model,
                 mach.fitresult,
@@ -103,6 +108,19 @@ inverse_transform(mach::Machine; rows=:) =
 
 _symbol(f) = Base.Core.Typeof(f).name.mt.name
 
+# catches improperly deserialized machines and silently fits the machine if it is
+# untrained and has no training arguments:
+function _check_and_fit_if_warranted!(mach)
+    mach.state == -1 && @warn WARN_SERIALIZABLE_MACH
+    if mach.state == 0
+        if isempty(mach.args)
+            fit!(mach, verbosity=0)
+        else
+            throw(err_untrained(mach))
+        end
+    end
+end
+
 for operation in OPERATIONS
 
     quoted_operation = QuoteNode(operation) # eg, :(:predict)
@@ -110,22 +128,20 @@ for operation in OPERATIONS
     ex = quote
         # 1. operations on machines, given *concrete* data:
         function $operation(mach::Machine, Xraw)
-            if mach.state != 0
-                mach.state == -1 && @warn warn_serializable_mach($operation)
-                ret = $(operation)(
-                    mach.model,
-                    mach.fitresult,
-                    reformat(mach.model, Xraw)...,
-                )
-                get!(ret, $quoted_operation, mach)
-            else
-                error("$mach has not been trained.")
-            end
+            _check_and_fit_if_warranted!(mach)
+            model = last_model(mach)
+            ret = $(operation)(
+                model,
+                mach.fitresult,
+                reformat(model, Xraw)...,
+            )
+            get!(ret, $quoted_operation, mach)
         end
 
         function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
+            _check_and_fit_if_warranted!(mach)
             ret = $(operation)(
-                mach.model,
+                last_model(mach),
                 mach.fitresult,
                 Xraw,
                 Xraw_more...,
@@ -146,12 +162,13 @@ for operation in OPERATIONS
 end
 
 
-## SURROGATE AND COMPOSITE MODELS
-
 const err_unsupported_operation(operation) = ErrorException(
     "The `$operation` operation has been applied to a composite model or learning "*
     "network machine that does not support it. "
 )
+
+## SURROGATE AND COMPOSITE MODELS
+
 
 for operation in [:predict,
                   :predict_joint,
@@ -183,4 +200,47 @@ for (operation, fallback) in [(:predict_mode, :mode),
         end
     end
     eval(ex)
+end
+
+
+## NETWORKCOMPOSITE MODELS
+
+# In the case of `NetworkComposite` models, the `fitresult` is a learning network
+# signature. If we call a node in the signature (eg, do `fitresult.predict()`) then we may
+# mutate the underlying learning network (and hence `fitresult`). This is because some
+# nodes in the network may be attached to machines whose reports are mutated when an
+# operation is called on them (the associated model has a non-empty `reporting_operations`
+# trait). For this reason we must first duplicate `fitresult`.
+
+# The function `output_and_report(signature, operation, Xnew)` called below (and defined
+# in signatures.jl) duplicates `signature`, applies `operation` with data `Xnew`, and
+# returns the output and signature report.
+
+for operation in [:predict,
+                  :predict_joint,
+                  :transform,
+                  :inverse_transform]
+    quote
+        function $operation(model::NetworkComposite, fitresult, Xnew)
+            if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
+                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
+            end
+            throw(err_unsupported_operation($operation))
+        end
+    end |> eval
+end
+
+for (operation, fallback) in [(:predict_mode, :mode),
+                              (:predict_mean, :mean),
+                              (:predict_median, :median)]
+    quote
+        function $(operation)(m::ProbabilisticNetworkComposite,
+                              fitresult,
+                              Xnew)
+            if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
+                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
+            end
+            return $(fallback).(predict(m, fitresult, Xnew))
+        end
+    end |> eval
 end

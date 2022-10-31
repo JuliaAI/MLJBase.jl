@@ -2,7 +2,7 @@
 ################ Helpers ###################
 ############################################
 
-function glb(types...)
+function _glb(types...)
     # If a lower bound is in the types then it is greatest
     # else we just return Unknown for now
     for type in types
@@ -16,10 +16,10 @@ function input_target_scitypes(models, metalearner)
     # The target scitype is defined as the greatest lower bound of the
     # metalearner and the base models in the library
     all_tg_scitypes = [target_scitype(m) for m in models]
-    tg_scitype = glb(target_scitype(metalearner), all_tg_scitypes...)
+    tg_scitype = _glb(target_scitype(metalearner), all_tg_scitypes...)
     # The input scitype is defined as the greatest lower bound of the
     # base models in the library
-    inp_scitype = glb([input_scitype(m) for m in models]...)
+    inp_scitype = _glb([input_scitype(m) for m in models]...)
 
     return inp_scitype, tg_scitype
 end

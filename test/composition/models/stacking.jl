@@ -612,7 +612,7 @@ function MLJBase.fit(::Parsnip, verbosity::Int, A, y)
     y1 = skipmissing(y) |> collect
     fitresult = MLJBase.Distributions.fit(MLJBase.UnivariateFinite, y1)
     cache     = nothing
-    report    = NamedTuple
+    report    = NamedTuple()
     return fitresult, cache, report
 end
 MLJBase.predict(::Parsnip, fitresult, Xnew) =
