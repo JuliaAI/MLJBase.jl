@@ -419,52 +419,55 @@ end
 # supervised model is encountered; this change is permanent.
 # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
-# `A == true` means `transform` is active
-struct Front{A,P<:AbstractNode,N<:AbstractNode}
+abstract type ActiveNodeOperation end
+struct Trans <: ActiveNodeOperation end
+struct Pred <: ActiveNodeOperation end
+
+struct Front{A<:ActiveNodeOperation,P<:AbstractNode,N<:AbstractNode}
     predict::P
     transform::N
-    Front(p::P, t::N, A) where {P,N} = new{A,P,N}(p, t)
+    Front(p::P, t::N, a::A) where {P,N,A<:ActiveNodeOperation} = new{A,P,N}(p, t)
 end
-active(f::Front{true})  = f.transform
-active(f::Front{false}) = f.predict
+active(f::Front{Trans})  = f.transform
+active(f::Front{Pred}) = f.predict
 
-function extend(front::Front{true},
+function extend(front::Front{Trans},
                 component::Supervised,
                 cache,
                 op,
                 sources...)
     a = active(front)
     mach = machine(component, a, sources...; cache=cache)
-    Front(op(mach, a), transform(mach, a), false)
+    Front(op(mach, a), transform(mach, a), Pred())
 end
 
-function extend(front::Front{true}, component::Static, cache, args...)
+function extend(front::Front{Trans}, component::Static, cache, args...)
     mach = machine(component; cache=cache)
-    Front(front.predict, transform(mach, active(front)), true)
+    Front(front.predict, transform(mach, active(front)), Trans())
 end
 
-function extend(front::Front{false}, component::Static, cache, args...)
+function extend(front::Front{Pred}, component::Static, cache, args...)
     mach = machine(component; cache=cache)
-    Front(transform(mach, active(front)), front.transform, false)
+    Front(transform(mach, active(front)), front.transform, Pred())
 end
 
-function extend(front::Front{true}, component::Unsupervised, cache, args...)
+function extend(front::Front{Trans}, component::Unsupervised, cache, args...)
     a = active(front)
     mach = machine(component, a; cache=cache)
-    Front(predict(mach, a), transform(mach, a), true)
+    Front(predict(mach, a), transform(mach, a), Trans())
 end
 
-function extend(front::Front{false}, component::Unsupervised, cache, args...)
+function extend(front::Front{Pred}, component::Unsupervised, cache, args...)
     a = active(front)
     mach = machine(component, a; cache=cache)
-    Front(transform(mach, a), front.transform, false)
+    Front(transform(mach, a), front.transform, Pred())
 end
 
 # fallback assumes `component` is a callable object:
-extend(front::Front{true}, component, args...) =
-    Front(front.predict, node(component, active(front)), true)
-extend(front::Front{false}, component, args...) =
-    Front(node(component, active(front)), front.transform, false)
+extend(front::Front{Trans}, component, args...) =
+    Front(front.predict, node(component, active(front)), Trans())
+extend(front::Front{Pred}, component, args...) =
+    Front(node(component, active(front)), front.transform, Pred())
 
 
 # ## The learning network machine
@@ -477,7 +480,7 @@ function pipeline_network_machine(super_type,
                                   sources...)
 
     # initialize the network front:
-    front = Front(source0, source0, true)
+    front = Front(source0, source0, Trans())
 
     # closure to use in reduction:
     _extend(front, component) =

@@ -5,6 +5,7 @@ using Test
 using ..Models
 using StableRNGs
 using Tables
+import MLJBase: Pred, Trans
 
 rng = StableRNG(698790187)
 
@@ -193,12 +194,12 @@ end
 @testset "Front and extend" begin
     Xs = source(rand(3))
     ys = source(rand(3))
-    front = MLJBase.Front(Xs, ys, false)
+    front = MLJBase.Front(Xs, ys, Pred())
     @test front.predict() == Xs()
     @test front.transform() == ys()
     @test MLJBase.active(front)() == Xs()
 
-    front = MLJBase.Front(Xs, Xs, true)
+    front = MLJBase.Front(Xs, Xs, Trans())
     front = MLJBase.extend(front, u, false, predict, ys)
     pnode, tnode = front.predict, front.transform
     fit!(pnode, verbosity=0)
