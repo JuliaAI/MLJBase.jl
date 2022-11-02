@@ -143,7 +143,7 @@ const ERR_USING_TARGET_KWARG = ArgumentError(
     "the older `@pipeline` macro. `Pipeline` does not support target "*
     "transformations. To implement one, wrap a supervised "*
     "`model` using `TransformedTargetModel`, as in "*
-    "`TransformedTargetModel(model, target=Standardizer())`. ")
+    "`TransformedTargetModel(model, transformer=Standardizer())`. ")
 
 # The following combines its arguments into a named tuple, performing
 # a number of checks and modifications. Specifically, it checks
