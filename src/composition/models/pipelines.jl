@@ -64,11 +64,11 @@ const PIPELINE_TYPE_GIVEN_TYPE = Dict(
     :Static        => :StaticPipeline)
 
 const COMPOSITE_TYPE_GIVEN_TYPE = Dict(
-    :Deterministic => :DeterministicComposite,
-    :Probabilistic => :ProbabilisticComposite,
-    :Interval      => :IntervalComposite,
-    :Unsupervised  => :UnsupervisedComposite,
-    :Static        => :StaticComposite)
+    :Deterministic => :DeterministicNetworkComposite,
+    :Probabilistic => :ProbabilisticNetworkComposite,
+    :Interval      => :IntervalNetworkComposite,
+    :Unsupervised  => :UnsupervisedNetworkComposite,
+    :Static        => :StaticNetworkComposite)
 
 const PREDICTION_TYPE_OPTIONS = [:deterministic,
                                  :probabilistic,
@@ -106,6 +106,7 @@ const SupervisedPipeline{N,operation} =
 components(p::SomePipeline) = values(getfield(p, :named_components))
 names(p::SomePipeline) = keys(getfield(p, :named_components))
 operation(p::SomePipeline{N,O}) where {N,O} = O
+component_name_pairs(p::SomePipeline) = broadcast(Pair, components(p), names(p))
 
 
 # # GENERIC CONSTRUCTOR
@@ -401,7 +402,7 @@ function Base.setproperty!(p::SomePipeline{<:NamedTuple{names,types}},
 end
 
 
-# # LEARNING NETWORK MACHINES FOR PIPELINES
+# # LEARNING NETWORK INTERFACE
 
 # https://alan-turing-institute.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
 
@@ -432,63 +433,68 @@ active(f::Front{Trans})  = f.transform
 active(f::Front{Pred}) = f.predict
 
 function extend(front::Front{Trans},
-                component::Supervised,
+                ::Supervised,
+                name,
                 cache,
                 op,
                 sources...)
     a = active(front)
-    mach = machine(component, a, sources...; cache=cache)
+    mach = machine(name, a, sources...; cache=cache)
     Front(op(mach, a), transform(mach, a), Pred())
 end
 
-function extend(front::Front{Trans}, component::Static, cache, args...)
-    mach = machine(component; cache=cache)
+function extend(front::Front{Trans}, ::Static, name, cache, args...)
+    mach = machine(name; cache=cache)
     Front(front.predict, transform(mach, active(front)), Trans())
 end
 
-function extend(front::Front{Pred}, component::Static, cache, args...)
-    mach = machine(component; cache=cache)
+function extend(front::Front{Pred}, ::Static, name, cache, args...)
+    mach = machine(name; cache=cache)
     Front(transform(mach, active(front)), front.transform, Pred())
 end
 
-function extend(front::Front{Trans}, component::Unsupervised, cache, args...)
+function extend(front::Front{Trans}, component::Unsupervised, name, cache, args...)
     a = active(front)
-    mach = machine(component, a; cache=cache)
+    mach = machine(name, a; cache=cache)
     Front(predict(mach, a), transform(mach, a), Trans())
 end
 
-function extend(front::Front{Pred}, component::Unsupervised, cache, args...)
+function extend(front::Front{Pred}, ::Unsupervised, name, cache, args...)
     a = active(front)
-    mach = machine(component, a; cache=cache)
+    mach = machine(name, a; cache=cache)
     Front(transform(mach, a), front.transform, Pred())
 end
 
 # fallback assumes `component` is a callable object:
-extend(front::Front{Trans}, component, args...) =
+extend(front::Front{Trans}, component, ::Any, args...) =
     Front(front.predict, node(component, active(front)), Trans())
-extend(front::Front{Pred}, component, args...) =
+extend(front::Front{Pred}, component, ::Any, args...) =
     Front(node(component, active(front)), front.transform, Pred())
 
 
-# ## The learning network machine
+# ## The learning network interface
 
-function pipeline_network_machine(super_type,
-                                  cache,
-                                  operation,
-                                  components,
-                                  source0,
-                                  sources...)
+function pipeline_network_interface(
+    cache,
+    operation,
+    component_name_pairs,
+    source0,
+    sources...,
+)
+    components = first.(component_name_pairs)
 
     # initialize the network front:
     front = Front(source0, source0, Trans())
 
     # closure to use in reduction:
-    _extend(front, component) =
-        extend(front, component, cache, operation, sources...)
+    _extend(front, pair) =
+        extend(front, first(pair), last(pair), cache, operation, sources...)
 
     # reduce to get the `predict` and `transform` nodes:
-    final_front = foldl(_extend, components, init=front)
+    final_front = foldl(_extend, component_name_pairs, init=front)
     pnode, tnode = final_front.predict, final_front.transform
+
+    interface =  (; predict=pnode, transform=tnode)
 
     # `inverse_transform` node (constructed even if not supported for some component):
     if all(c -> c isa Unsupervised, components)
@@ -496,35 +502,34 @@ function pipeline_network_machine(super_type,
         for mach in machines(tnode)
             inode = inverse_transform(mach, inode)
         end
-        return machine(super_type(), source0, sources...;
-                       predict=pnode, transform=tnode, inverse_transform=inode)
+        interface = merge(interface, (; inverse_transform=inode))
     end
 
-    return machine(super_type(), source0, sources...;
-                       predict=pnode, transform=tnode)
-
+    return interface
 end
 
 
-# # FIT METHOD
+# # PREFIT METHOD
 
-function MMI.fit(pipe::SomePipeline{N,operation},
-                 verbosity::Integer,
-                 arg0=source(),
-                 args...) where {N,operation}
+function prefit(
+    pipe::SomePipeline{N,operation},
+    verbosity::Integer,
+    arg0=source(),
+    args...,
+) where {N,operation}
 
     source0 = source(arg0)
     sources = source.(args)
 
-    _components = components(pipe)
+    component_name_pairs = MLJBase.component_name_pairs(pipe)
 
-    mach = pipeline_network_machine(abstract_type(pipe),
-                                    pipe.cache,
-                                    operation,
-                                    _components,
-                                    source0,
-                                    sources...)
-    return!(mach, pipe, verbosity)
+    return pipeline_network_interface(
+        pipe.cache,
+        operation,
+        component_name_pairs,
+        source0,
+        sources...,
+    )
 end
 
 
@@ -610,8 +615,20 @@ MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(
 
 # ## Training losses
 
+const ERR_TRAINING_LOSSES1 = ErrorException(
+    "Looking for training losses in a model's report but cannot find any. "
+)
+
+const ERR_TRAINING_LOSSES2 = ErrorException(
+    "Composite model does not appear to support training losses. "
+)
+
 function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
-    mach = supervised(pipe_report.basic.machines)
-    report = report_given_method(mach)[:fit]
-    return training_losses(mach.model, report)
+    supports_training_losses(pipe::SupervisedPipeline) ||
+        throw(ERR_PIPE_TRAINING_LOSSES2)
+    supervised = MLJBase.supervised_component(pipe)
+    supervised_name = MLJBase.supervised_component_name(pipe)
+    supervised_name in propertynames(pipe_report) || throw(ERR_PIPE_TRAINING_LOSSES1)
+    report = getproperty(pipe_report, supervised_name)
+    return training_losses(supervised, report)
 end

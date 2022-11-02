@@ -133,7 +133,7 @@ end
 @testset "Test serializable of pipeline" begin
     filename = "pipe_mach.jls"
     X, y = make_regression(100, 1)
-    pipe = (X -> coerce(X, :x₁=>Continuous)) |> DecisionTreeRegressor()
+    pipe = Standardizer() |> KNNRegressor()
     mach = machine(pipe, X, y)
     fit!(mach, verbosity=0)
 
@@ -143,8 +143,10 @@ end
     @test keys(fitted_params(smach)) == keys(fitted_params(mach))
     @test keys(report(smach)) == keys(report(mach))
     # Check data has been wiped out from models at the first level of composition
-    @test length(machines(glb(smach))) == length(machines(glb(mach)))
-    for submach in machines(glb(smach))
+    submachines = machines(glb(mach.fitresult))
+    ssubmachines = machines(glb(mach.fitresult))
+    @test length(submachines) == length(ssubmachines)
+    for submach in submachines
         TestUtilities.test_data(submach)
     end
 
