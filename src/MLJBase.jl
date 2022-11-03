@@ -210,7 +210,6 @@ include("composition/models/network_composite_types.jl")
 include("composition/models/network_composite.jl")
 include("composition/models/from_network.jl")
 include("composition/models/inspection.jl")
-include("composition/models/deprecated.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
 
