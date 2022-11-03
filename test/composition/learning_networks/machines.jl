@@ -172,15 +172,17 @@ end
     smach = MLJBase.serializable(mach)
     TestUtilities.generic_tests(mach, smach)
     # Check data has been wiped out from models at the first level of composition
-    @test length(machines(glb(smach))) == length(machines(glb(mach)))
-    for submach in machines(glb(smach))
+    submachines = machines(glb(mach.fitresult))
+    ssubmachines = machines(glb(smach.fitresult))
+    @test length(submachines) == length(ssubmachines)
+    for submach in ssubmachines
         TestUtilities.test_data(submach)
     end
 
     # Testing extra report field : it is a deepcopy
     @test report(smach).cv_report === report(mach).cv_report
 
-    @test smach.fitresult isa MLJBase.CompositeFitresult
+    @test smach.fitresult isa MLJBase.Signature
 
     Serialization.serialize(filename, smach)
     smach = Serialization.deserialize(filename)
@@ -217,10 +219,10 @@ end
     @test predict(smach, X) == predict(mach, X)
 
     # Test data as been erased at the first and second level of composition
-    for submach in machines(glb(smach))
+    for submach in machines(glb(smach.fitresult))
         TestUtilities.test_data(submach)
         if submach isa Machine{<:Composite}
-            for subsubmach in machines(glb(submach))
+            for subsubmach in machines(glb(submach.fitresult))
                 TestUtilities.test_data(subsubmach)
             end
         end
