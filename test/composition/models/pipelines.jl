@@ -27,12 +27,12 @@ mutable struct MyDeterministic <: Deterministic
     x::Symbol
 end
 
-MLJBase.fit(::MyDeterministic, args...) = nothing, nothing, nothing
+MLJBase.fit(::MyDeterministic, args...) = nothing, nothing, (; tlosses=ones(3))
 MLJBase.transform(m::MyDeterministic, ::Any, Xnew) = fill(:dt, nrows(Xnew))
 MLJBase.predict(m::MyDeterministic, ::Any, Xnew) = fill(:dp, nrows(Xnew))
 MLJBase.supports_training_losses(::Type{<:MyDeterministic}) = true
 MLJBase.iteration_parameter(::Type{<:MyDeterministic}) = :x
-MLJBase.training_losses(::MyDeterministic, report) = ones(3)
+MLJBase.training_losses(::MyDeterministic, report) = report.tlosses
 
 mutable struct MyProbabilistic <: Probabilistic
     x::Symbol

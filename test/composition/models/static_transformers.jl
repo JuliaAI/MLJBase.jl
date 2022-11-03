@@ -56,7 +56,7 @@ f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 knn = KNNRegressor()
 
 # 1. function in a pipeline:
-knn_target = TransformedTargetModel(knn, target=UnivariateBoxCoxTransformer())
+knn_target = TransformedTargetModel(knn, transformer=UnivariateBoxCoxTransformer())
 comp1 =  f |> Standardizer() |> knn_target
 e = evaluate(comp1, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 

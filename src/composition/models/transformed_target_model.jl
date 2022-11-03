@@ -22,7 +22,7 @@ const TT_TYPE_GIVEN_ATOM =
 
 const TT_SUPER_GIVEN_ATOM =
     Dict(atom =>
-         Symbol("$(atom)Composite") for atom in TT_SUPPORTED_ATOMS)
+         Symbol("$(atom)NetworkComposite") for atom in TT_SUPPORTED_ATOMS)
 
 # The type definitions:
 
@@ -32,7 +32,7 @@ for From in TT_SUPPORTED_ATOMS
     ex = quote
         mutable struct $New{M <: $From} <: $To
             model::M
-            target   # Unsupervised or callable
+            transformer   # Unsupervised or callable
             inverse  # callable or `nothing`
             cache
         end
@@ -58,9 +58,14 @@ const TTSupported = Union{keys(tt_type_given_atom)...}
 # # CONSTRUCTOR
 
 const ERR_MODEL_UNSPECIFIED = ArgumentError(
-    "Expecting atomic model as argument. None specified. ")
+    "Expecting atomic model as argument. None specified. "
+)
+const ERR_TRANSFORMER_UNSPECIFIED = ArgumentError(
+"You must specify `transformer=...`. ."
+)
 const ERR_TOO_MANY_ARGUMENTS = ArgumentError(
-    "At most one non-keyword argument, a model, allowed. ")
+    "At most one non-keyword argument, a model, allowed. "
+)
 const PRETTY_TT_SUPPORT_OPTIONS =
     join([string("`", opt, "`") for opt in TT_SUPPORTED_ATOMS],
          ", ",
@@ -68,30 +73,35 @@ const PRETTY_TT_SUPPORT_OPTIONS =
 const err_tt_unsupported(model) = ArgumentError(
     "Only these model supertypes support wrapping as in "*
     "`TransformedTarget`: $PRETTY_TT_SUPPORT_OPTIONS.\n"*
-    "Model provided has type `$(typeof(model))`. ")
+    "Model provided has type `$(typeof(model))`. "
+)
 const WARN_IDENTITY_INVERSE =
     "Model being wrapped is not a deterministic predictor. "*
     "Setting `inverse=identity` to suppress inverse transformations "*
     "of predictions. "
 const WARN_MISSING_INVERSE =
-    "Specified `target` is not a model instance or type "*
+    "Specified `transformer` is not a model instance or type "*
     "and so is assumed callable (eg, is a function). "*
     "I am setting `inverse=identity` as no `inverse` specified. This means "*
     "predictions of the (semi)supervised model will be "*
     "returned on a scale different from the training target. "
 
+const WARN_TARGET_DEPRECATED =
+    "`TransformedTargetModel(target=...)` is deprecated in favor of "*
+    "`TransformedTargetModel(transformer=...)`. "
+
 """
-    TransformedTargetModel(model; target=nothing, inverse=nothing, cache=true)
+    TransformedTargetModel(model; transformer=nothing, inverse=nothing, cache=true)
 
 Wrap the supervised or semi-supervised `model` in a transformation of
 the target variable.
 
-Here `target` one of the following:
+Here `transformer` one of the following:
 
 - The `Unsupervised` model that is to transform the training target.
   By default (`inverse=nothing`) the parameters learned by this
   transformer are also used to inverse-transform the predictions of
-  `model`, which means `target` must implement the `inverse_transform`
+  `model`, which means `transformer` must implement the `inverse_transform`
   method. If this is not the case, specify `inverse=identity` to
   suppress inversion.
 
@@ -116,23 +126,29 @@ with predictions returned on the original scale:
 ```
 @load RidgeRegressor pkg=MLJLinearModels
 model = RidgeRegressor()
-tmodel = TransformedTargetModel(model, target=Standardizer())
+tmodel = TransformedTargetModel(model, transformer=Standardizer())
 ```
 
 A model that applies a static `log` transformation to the data, again
 returning predictions to the original scale:
 
 ```
-tmodel2 = TransformedTargetModel(model, target=y->log.(y), inverse=z->exp.(y))
+tmodel2 = TransformedTargetModel(model, transformer=y->log.(y), inverse=z->exp.(y))
 ```
 
 """
-function TransformedTargetModel(args...;
-                           model=nothing,
-                           target=nothing,
-                           inverse=nothing,
-                           cache=true)
+function TransformedTargetModel(
+    args...;
+    model=nothing,
+    target=nothing,    # to be deprecated
+    transformer=target,  # then this should be `nothing`
+    inverse=nothing,
+    cache=true,
+)
+
+    isnothing(target) || @warn WARN_TARGET_DEPRECATED
     length(args) < 2 || throw(ERR_TOO_MANY_ARGUMENTS)
+
     if length(args) === 1
         atom = first(args)
         model === nothing ||
@@ -142,11 +158,11 @@ function TransformedTargetModel(args...;
         atom = model
     end
     atom isa TTSupported || throw(err_tt_unsupported(atom))
-    target === nothing && throw(ERR_TARGET_NOT_SPECIFIED)
+    transformer === nothing && throw(ERR_TRANSFORMER_UNSPECIFIED)
 
     metamodel =
         tt_type_given_atom[MMI.abstract_type(atom)](atom,
-                                                    target,
+                                                    transformer,
                                                     inverse,
                                                     cache)
     message = clean!(metamodel)
@@ -158,13 +174,16 @@ _is_model_type(m) = m isa Type && m <: Model
 
 function clean!(model::SomeTT)
     message = ""
+    if _is_model_type(model.transformer)
+        model.transformer = model.transformer()
+    end
     if prediction_type(model.model) !== :deterministic &&
         model.inverse != identity
         model.inverse = identity
         message *= WARN_IDENTITY_INVERSE
     end
-    if !(model.target isa Model) &&
-        !_is_model_type(model.target) && model.inverse === nothing
+    if !(model.transformer isa Model) &&
+        !_is_model_type(model.transformer) && model.inverse === nothing
         model.inverse = identity
         message *= WARN_MISSING_INVERSE
     end
@@ -172,11 +191,11 @@ function clean!(model::SomeTT)
 end
 
 
-# # FIT METHOD
+# # PREFIT METHOD
 
-function MMI.fit(model::SomeTT, verbosity, X, y, other...)
+function prefit(model::SomeTT, verbosity, X, y, other...)
 
-    _target = model.target
+    transformer = model.transformer
     inverse = model.inverse
     atom = model.model
     cache = model.cache
@@ -185,47 +204,45 @@ function MMI.fit(model::SomeTT, verbosity, X, y, other...)
     ys = source(y)
     others = source.(other)
 
-    target = _is_model_type(_target) ? _target() : _target
-
-    if target isa Model
-        if target isa Static
-            unsupervised_mach = machine(target, cache=cache)
+    if transformer isa Model
+        if transformer isa Static
+            unsupervised_mach = machine(:transformer, cache=cache)
         else
-            unsupervised_mach = machine(target, ys, cache=cache)
+            unsupervised_mach = machine(:transformer, ys, cache=cache)
         end
         z = transform(unsupervised_mach, ys)
     else
-        z = node(target, ys)
+        z = node(transformer, ys)
     end
 
-    supervised_mach = machine(atom, Xs, z, cache=cache)
+    supervised_mach = machine(:model, Xs, z, cache=cache)
     zhat = predict(supervised_mach, Xs)
 
-    yhat = if target isa Model && inverse != identity
+    yhat = if transformer isa Model && inverse != identity
         inverse_transform(unsupervised_mach, zhat)
     else
         node(inverse, zhat)
     end
 
-    # in case the atomic mode implements `transform`:
+    # in case the atomic model implements `transform`:
     W = transform(supervised_mach, Xs)
 
-    network_mach =  machine(MMI.abstract_type(atom)(),
-                            Xs,
-                            ys,
-                            others...;
-                            predict=yhat,
-                            transform=W)
+    # learning network interface:
+    (predict=yhat, transform=W)
 
-    return!(network_mach, model, verbosity)
 end
 
 
 # # TRAINING LOSSES
 
-function training_losses(model::SomeTT, tt_report)
-    mach = first(tt_report.basic.machines)
-    return training_losses(mach)
+const ERR_TT_MISSING_REPORT =
+    "Cannot find report for `TransformedTargetModel` atomic model, from which "*
+    "to extract training losses. "
+
+function training_losses(composite::SomeTT, tt_report)
+    hasproperty(tt_report, :model) || throw(ERR_TT_MISSING_REPORT)
+    atomic_report = getproperty(tt_report, :model)
+    return training_losses(composite.model, atomic_report)
 end
 
 
