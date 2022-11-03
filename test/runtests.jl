@@ -66,7 +66,6 @@ end
     @test include("composition/models/methods.jl")
     @test include("composition/models/from_network.jl")
     @test include("composition/models/inspection.jl")
-    @test include("composition/models/deprecated.jl")
     @test include("composition/models/pipelines.jl")
     @test include("composition/models/transformed_target_model.jl")
     @test include("composition/models/stacking.jl")
