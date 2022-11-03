@@ -91,27 +91,27 @@ avg_nonlinear = g(mean(f(y))) # = g(mean(z))
     # Test wrapping using f and g:
     model = TransformedTargetModel(atom, transformer=f, inverse=g)
     fr1, _, _ = MMI.fit(model, 0, X, y)
-    @test predict(model, fr1, X) ≈ fill(avg_nonlinear, 5)
+    @test first(predict(model, fr1, X)) ≈ fill(avg_nonlinear, 5)
 
     # Test wrapping using a `Static` transformer:
     model = TransformedTargetModel(atom, transformer=Nonlinear())
     fr1, _, _ = MMI.fit(model, 0, X, y)
-    @test predict(model, fr1, X) ≈ fill(avg_nonlinear, 5)
+    @test first(predict(model, fr1, X)) ≈ fill(avg_nonlinear, 5)
 
     # Test wrapping using a non-static `Unsupervised` model:
     model = TransformedTargetModel(atom, transformer=whitener)
     fr1, _, _ = MMI.fit(model, 0, X, y)
-    @test predict(model, fr1, X) ≈ fill(avg, 5) # whitener is linear
+    @test first(predict(model, fr1, X)) ≈ fill(avg, 5) # whitener is linear
 
     # Test with `inverse=identity`:
     model = TransformedTargetModel(atom, transformer=Nonlinear(), inverse=identity)
     fr1, _, _ = MMI.fit(model, 0, X, y)
-    @test predict(model, fr1, X) ≈ fill(mean(z), 5)
+    @test first(predict(model, fr1, X)) ≈ fill(mean(z), 5)
 
     # Test a probablistic model:
     model = TransformedTargetModel(p_atom, transformer=whitener, inverse=identity)
     fr1, _, _ = MMI.fit(model, 0, X, y)
-    yhat = predict(model, fr1, X)
+    yhat = predict(model, fr1, X) |> first
     @test isapprox(first(yhat).μ, 0, atol=1e-15)
 end
 
@@ -129,14 +129,30 @@ MMI.iteration_parameter(::Type{DeterministicConstantRegressor}) = :n
     @test package_url(model) == "https://github.com/JuliaAI/MLJBase.jl"
 end
 
-@testset "integration" begin
+@testset "integration 1" begin
     model = TransformedTargetModel(atom, transformer=Nonlinear())
     mach = machine(model, X, y)
     fit!(mach, verbosity=0)
     @test predict(mach, X) ≈ fill(avg_nonlinear, 5)
-    @test issubset([:model, :transformer], keys(report(mach)))
-    @test issubset([:model, :transformer], keys(fitted_params(mach)))
+    @test issubset([:model,], keys(fitted_params(mach)))
     @test fitted_params(mach).model.fitresult ≈ mean(z)
+end
+
+@testset "integration 2" begin
+    model = TransformedTargetModel(atom, transformer=UnivariateBoxCoxTransformer())
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=2)
+    @test predict(mach, X) isa Vector
+    @test issubset([:model, :transformer], keys(fitted_params(mach)))
+    @test issubset([:λ, :c], keys(fitted_params(mach).transformer))
+end
+
+@testset "integration 3" begin
+    model = TransformedTargetModel(atom, transformer=v->log.(v), inverse=v->exp.(v))
+    mach = machine(model, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) isa Vector
+    @test keys(fitted_params(mach)) == (:model,)
 end
 
 mutable struct FooModel46 <: Deterministic

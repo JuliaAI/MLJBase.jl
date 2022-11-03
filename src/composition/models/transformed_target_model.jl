@@ -22,7 +22,7 @@ const TT_TYPE_GIVEN_ATOM =
 
 const TT_SUPER_GIVEN_ATOM =
     Dict(atom =>
-         Symbol("$(atom)Composite") for atom in TT_SUPPORTED_ATOMS)
+         Symbol("$(atom)NetworkComposite") for atom in TT_SUPPORTED_ATOMS)
 
 # The type definitions:
 
@@ -174,6 +174,9 @@ _is_model_type(m) = m isa Type && m <: Model
 
 function clean!(model::SomeTT)
     message = ""
+    if _is_model_type(model.transformer)
+        model.transformer = model.transformer()
+    end
     if prediction_type(model.model) !== :deterministic &&
         model.inverse != identity
         model.inverse = identity
@@ -188,11 +191,11 @@ function clean!(model::SomeTT)
 end
 
 
-# # FIT METHOD
+# # PREFIT METHOD
 
-function MMI.fit(model::SomeTT, verbosity, X, y, other...)
+function prefit(model::SomeTT, verbosity, X, y, other...)
 
-    _transformer = model.transformer
+    transformer = model.transformer
     inverse = model.inverse
     atom = model.model
     cache = model.cache
@@ -201,20 +204,18 @@ function MMI.fit(model::SomeTT, verbosity, X, y, other...)
     ys = source(y)
     others = source.(other)
 
-    transformer = _is_model_type(_transformer) ? _transformer() : _transformer
-
     if transformer isa Model
         if transformer isa Static
-            unsupervised_mach = machine(transformer, cache=cache)
+            unsupervised_mach = machine(:transformer, cache=cache)
         else
-            unsupervised_mach = machine(transformer, ys, cache=cache)
+            unsupervised_mach = machine(:transformer, ys, cache=cache)
         end
         z = transform(unsupervised_mach, ys)
     else
         z = node(transformer, ys)
     end
 
-    supervised_mach = machine(atom, Xs, z, cache=cache)
+    supervised_mach = machine(:model, Xs, z, cache=cache)
     zhat = predict(supervised_mach, Xs)
 
     yhat = if transformer isa Model && inverse != identity
@@ -226,22 +227,22 @@ function MMI.fit(model::SomeTT, verbosity, X, y, other...)
     # in case the atomic model implements `transform`:
     W = transform(supervised_mach, Xs)
 
-    network_mach =  machine(MMI.abstract_type(atom)(),
-                            Xs,
-                            ys,
-                            others...;
-                            predict=yhat,
-                            transform=W)
+    # learning network interface:
+    (predict=yhat, transform=W)
 
-    return!(network_mach, model, verbosity)
 end
 
 
 # # TRAINING LOSSES
 
-function training_losses(model::SomeTT, tt_report)
-    mach = first(tt_report.basic.machines)
-    return training_losses(mach)
+const ERR_TT_MISSING_REPORT =
+    "Cannot find report for `TransformedTargetModel` atomic model, from which "*
+    "to extract training losses. "
+
+function training_losses(composite::SomeTT, tt_report)
+    hasproperty(tt_report, :model) || throw(ERR_TT_MISSING_REPORT)
+    atomic_report = getproperty(tt_report, :model)
+    return training_losses(composite.model, atomic_report)
 end
 
 
