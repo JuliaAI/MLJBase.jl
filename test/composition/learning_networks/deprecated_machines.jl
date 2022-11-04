@@ -1,5 +1,7 @@
 module TestLearningNetworkMachines
 
+const depwarn=false
+
 using Test
 using ..Models
 using ..TestUtilities
@@ -65,21 +67,28 @@ end
     fit!(Wout, verbosity=0)
 
     @test_throws(MLJBase.ERR_BAD_SIGNATURE,
-                 machine(Unsupervised(),
+                 machine(Unsupervised();
                          predict=yhat,
-                         fitted_params=rnode))
+                         fitted_params=rnode,
+                         depwarn)
+                 )
     @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
-                 machine(Unsupervised(),
-                         predict=42))
+                 machine(Unsupervised();
+                         predict=42,
+                         depwarn)
+                 )
     @test_throws(MLJBase.ERR_EXPECTED_NODE_IN_SIGNATURE,
                  machine(Unsupervised(), Xs;
                          predict=yhat,
                          transform=Wout,
-                         report=(some_stuff=42,)))
+                         report=(some_stuff=42,),
+                         depwarn)
+                 )
     mach = machine(Unsupervised(), Xs;
                    predict=yhat,
                    transform=Wout,
-                   report=(some_stuff=rnode,))
+                   report=(some_stuff=rnode,),
+                   depwarn)
     @test mach.args == (Xs, )
     @test mach.args[1] == Xs
     fit!(mach, force=true, verbosity=0)
@@ -97,14 +106,16 @@ end
     yhat = predict(mm, W)
     e = @node auc(yhat, ys)
 
-    @test_throws Exception machine(predict=yhat)
+    @test_throws Exception machine(; predict=yhat, depwarn)
     mach = machine(Probabilistic(), Xs, ys;
                    predict=yhat,
-                   report=(training_auc=e,))
+                   report=(training_auc=e,),
+                   depwarn)
     @test mach.model isa Probabilistic
-    @test_throws ArgumentError machine(Probabilistic(), Xs, ys)
+    @test_throws ArgumentError machine(Probabilistic(), Xs, ys; depwarn)
     @test_throws ArgumentError machine(Probabilistic(), Xs, ys;
-                                       report=(training_auc=e,))
+                                       report=(training_auc=e,),
+                                       depwarn)
 
     # test extra report items coming from `training_auc=e` above
     fit!(mach, verbosity=0)
@@ -124,7 +135,7 @@ end
     Xs = source(X1); ys = source(y1)
     mm = machine(ConstantRegressor(), Xs, ys)
     yhat = predict(mm, Xs)
-    mach = fit!(machine(Probabilistic(), Xs, ys; predict=yhat), verbosity=0)
+    mach = fit!(machine(Probabilistic(), Xs, ys; predict=yhat, depwarn), verbosity=0)
     @test predict_mean(mach, X1) ≈ mean.(predict(mach, X1))
     @test predict_median(mach, X1) ≈ median.(predict(mach, X1))
 
@@ -299,7 +310,7 @@ end
     mach2 = machine(model.stand2, X1)
     X2 = transform(mach2, X1)
 
-    mach = machine(Unsupervised(), Xs; transform=X2)
+    mach = machine(Unsupervised(), Xs; transform=X2, depwarn)
     @test_logs((:error, r"The hyper"),
                @test_throws(ArgumentError,
                             MLJBase.network_model_names(model, mach)))

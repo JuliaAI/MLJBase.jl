@@ -12,26 +12,25 @@ using Statistics
 X = (x1=rand(3), x2=rand(3), x3=rand(3))
 y = float.([1, 2, 3])
 
-mutable struct Bar <: DeterministicComposite
+mutable struct Bar <: DeterministicNetworkComposite
     scale::Float64
     rgs
     input_stand
     target_stand
 end
 
-function MLJBase.fit(model::Bar, verbosity, X, y)
+function MLJBase.prefit(model::Bar, verbosity, X, y)
     Xs = source(X)
     ys = source(y)
     y1 = model.scale*ys
-    mach1 = machine(model.input_stand, Xs)
+    mach1 = machine(:input_stand, Xs)
     X1 = transform(mach1, Xs)
-    mach2 = machine(model.target_stand, y1)
+    mach2 = machine(:target_stand, y1)
     z = transform(mach2, ys)
-    mach3 = machine(model.rgs, X1, z)
+    mach3 = machine(:rgs, X1, z)
     zhat = predict(mach3, X1)
     yhat = inverse_transform(mach2, zhat)
-    mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    return!(mach, model, verbosity)
+    (; predict=yhat)
 end
 
 scale=0.97
@@ -51,10 +50,8 @@ fit!(mach, verbosity=0)
     model.input_stand.features=[:x1,]
 
     r = report(mach)
-    @test isnothing(r.rgs)
+    keys(r) == (:input_stand,)
     @test Set(r.input_stand.features_fit) == Set([:x1, :x2, :x3])
-    @test isnothing(r.target_stand)
-    @test r.report_given_machine isa AbstractDict
 
     fp = fitted_params(mach)
     @test fp.rgs isa NamedTuple{(:tree,)}
@@ -65,7 +62,7 @@ fit!(mach, verbosity=0)
 end
 
 
-mutable struct Mixer <: DeterministicComposite
+mutable struct Mixer <: DeterministicNetworkComposite
     model1
     model2
     misc::Int
@@ -73,20 +70,19 @@ end
 
 @testset "#549" begin
 
-    function MLJBase.fit(model::Mixer, verbosity, X, y)
+    function MLJBase.prefit(model::Mixer, verbosity, X, y)
         Xs = source(X)
         ys = source(y)
 
-        mach1 = machine(model.model1, Xs, ys)
-        mach2 = machine(model.model2, Xs, ys)
+        mach1 = machine(:model1, Xs, ys)
+        mach2 = machine(:model2, Xs, ys)
 
         yhat1 = predict(mach1, Xs)
         yhat2 = predict(mach2, Xs)
 
         yhat = 0.5*yhat1 + 0.5*yhat2
 
-        learning_mach = machine(Deterministic(), Xs, ys, predict=yhat)
-        return!(learning_mach, model, verbosity)
+        (; predict=yhat)
     end
 
     model = Mixer(KNNRegressor(), KNNRegressor(), 42)

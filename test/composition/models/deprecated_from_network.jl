@@ -13,6 +13,8 @@ rng = StableRNG(616161)
 ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
 
+import MLJBase.@nodepwarn_from_network
+const depwarn = false
 
 ## FROM_NETWORK_PREPROCESS
 
@@ -34,7 +36,7 @@ uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
 
-mach_ex = :(machine(Deterministic(), Xs, ys; predict=yhat))
+mach_ex = :(machine(Deterministic(), Xs, ys; predict=yhat, depwarn=false))
 
 ## TESTING `from_network_preprocess`
 
@@ -49,6 +51,7 @@ ex = Meta.parse(
      end")
 mach_, modeltype_ex, struct_ex, no_fields, dic =
     MLJBase.from_network_preprocess(TestFromComposite, mach_ex, ex)
+
 eval(Parameters.with_kw(struct_ex, TestFromComposite, false))
 @test supertype(CompositeX) == DeterministicComposite
 composite = CompositeX()
@@ -190,7 +193,9 @@ uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
 
-@from_network machine(Deterministic(), Xs, ys, ws; predict=yhat) begin
+@nodepwarn_from_network machine(
+    Deterministic(), Xs, ys, ws; predict=yhat, depwarn=false
+) begin
     mutable struct CompositeX1
         knn_rgs=knn
         one_hot_enc=hot
@@ -201,16 +206,15 @@ end
 model = CompositeX1()
 @test supports_weights(model)
 @test target_scitype(model) == AbstractVector{<:Continuous}
-predict(fit!(machine(model, X, y, w), verbosity=-1), X);
-
+@test_logs((:warn, r""), predict(fit!(machine(model, X, y, w), verbosity=-1), X));
 # unsupervised:
-@from_network machine(Unsupervised(), Xs; transform=W) begin
+@nodepwarn_from_network machine(Unsupervised(), Xs; transform=W, depwarn=false) begin
     mutable struct CompositeX2
         one_hot_enc=hot
     end
 end
 model = CompositeX2()
-transform(fit!(machine(model, X), verbosity=-1), X)
+@test_logs((:warn, r""), transform(fit!(machine(model, X), verbosity=-1), X));
 
 
 # second supervised test:
@@ -223,7 +227,7 @@ elm = DecisionTreeClassifier()
 elmM = machine(elm, H, ys)
 yhat = predict(elmM, H)
 
-@from_network machine(Probabilistic(), Xs, ys; predict=yhat) begin
+@nodepwarn_from_network machine(Probabilistic(), Xs, ys; predict=yhat, depwarn=false) begin
     mutable struct CompositeX3
         selector=fea
         one_hot=hot
@@ -232,7 +236,7 @@ yhat = predict(elmM, H)
 end
 model = CompositeX3()
 y = coerce(y, Multiclass)
-@test predict(fit!(machine(model, X, y), verbosity=-1), X) isa
+@test @test_logs((:warn, r""), predict(fit!(machine(model, X, y), verbosity=-1), X)) isa
     AbstractVector{<:UnivariateFinite}
 
 # yet more examples:
@@ -258,9 +262,9 @@ uhat = 0.5*(predict(knnM, W) + predict(oakM, W))
 zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
 
-mach = machine(Deterministic(), Xs, ys; predict=yhat)
+mach = machine(Deterministic(), Xs, ys; predict=yhat, depwarn=false)
 
-@from_network mach begin
+@nodepwarn_from_network mach begin
     mutable struct Composite10
         knn_rgs::KNNRegressor=knn
         one_hot_enc=hot
@@ -271,15 +275,17 @@ model_ = Composite10()
 
 mach = machine(model_, X, y)
 
-@test_model_sequence(fit_only!(mach),
-                     [(:train, model_), (:train, stand), (:train, hot),
-                      (:train, knn), (:train, oak)],
-                     [(:train, model_), (:train, hot), (:train, stand),
-                      (:train, knn), (:train, oak)],
-                     [(:train, model_), (:train, stand), (:train, hot),
-                      (:train, oak), (:train, knn)],
-                     [(:train, model_), (:train, hot), (:train, stand),
-                      (:train, oak), (:train, knn)])
+@test_logs((:warn, r""),
+           @test_model_sequence(fit_only!(mach),
+                                [(:train, model_), (:train, stand), (:train, hot),
+                                 (:train, knn), (:train, oak)],
+                                [(:train, model_), (:train, hot), (:train, stand),
+                                 (:train, knn), (:train, oak)],
+                                [(:train, model_), (:train, stand), (:train, hot),
+                                 (:train, oak), (:train, knn)],
+                                [(:train, model_), (:train, hot), (:train, stand),
+                                 (:train, oak), (:train, knn)])
+           )
 
 model_.knn_rgs.K = 55
 knn = model_.knn_rgs
@@ -293,15 +299,16 @@ knn = model_.knn_rgs
                      [(:update, model_), (:skip, hot), (:skip, stand),
                       (:skip, oak), (:update, knn)])
 
+
 @test MLJBase.tree(mach.fitresult.predict).arg1.arg1.arg1.arg1.model.K == 55
 
 multistand = Standardizer()
 multistandM = machine(multistand, W)
 W2 = transform(multistandM, W)
 
-mach = machine(Unsupervised(), Xs; transform=W2)
+mach = machine(Unsupervised(), Xs; transform=W2, depwarn=false)
 
-@from_network mach begin
+@nodepwarn_from_network mach begin
     mutable struct MyTransformer
         one_hot=hot
     end
@@ -310,9 +317,10 @@ end
 model_ = MyTransformer()
 
 mach = machine(model_, X)
-@test_model_sequence fit_only!(mach) [(:train, model_),
-                                      (:train, hot), (:train, multistand)]
-
+@test_logs((:warn, r""),
+           @test_model_sequence fit_only!(mach) [(:train, model_),
+                                                 (:train, hot), (:train, multistand)]
+           )
 model_.one_hot.drop_last=true
 hot = model_.one_hot
 @test_model_sequence fit_only!(mach) [(:update, model_),
@@ -357,9 +365,9 @@ fit!(yhat, verbosity=0)
 fit!(yhat, rows=1:div(N,2), verbosity=0)
 yhat(rows=1:div(N,2));
 
-mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat)
+mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat, depwarn=false)
 
-@from_network mach begin
+@nodepwarn_from_network mach begin
     mutable struct MyComposite
         regressor=rgs
     end
@@ -368,7 +376,7 @@ end
 
 my_composite = MyComposite()
 @test MLJBase.supports_weights(my_composite)
-mach = fit!(machine(my_composite, X, y), verbosity=0)
+mach = @test_logs((:warn, r""), fit!(machine(my_composite, X, y), verbosity=0))
 Xnew = selectrows(X, 1:div(N,2))
 predict(mach, Xnew)[1]
 posterior = predict(mach, Xnew)[1]
@@ -378,7 +386,9 @@ posterior = predict(mach, Xnew)[1]
 @test abs(pdf(posterior, 'b')/(pdf(posterior, 'c'))  - 1) < 0.15
 
 # now add weights:
-mach = fit!(machine(my_composite, X, y, w), rows=1:div(N,2), verbosity=0)
+mach = @test_logs((:warn, r""),
+                  fit!(machine(my_composite, X, y, w), rows=1:div(N,2), verbosity=0)
+                  )
 posterior = predict(mach, Xnew)[1]
 
 # "posterior" is skewed appropriately in weighted case:
@@ -386,13 +396,13 @@ posterior = predict(mach, Xnew)[1]
 @test abs(pdf(posterior, 'b')/(4*pdf(posterior, 'c'))  - 1) < 0.19
 
 # composite with no fields:
-mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat)
-@from_network mach begin
+mach = machine(Probabilistic(), Xs, ys, ws; predict=yhat, depwarn=false)
+@nodepwarn_from_network mach begin
     struct CompositeWithNoFields
     end
 end
 composite_with_no_fields = CompositeWithNoFields()
-mach = fit!(machine(composite_with_no_fields, X, y), verbosity=0)
+mach = @test_logs((:warn, r""), fit!(machine(composite_with_no_fields, X, y), verbosity=0))
 
 
 ## EXPORTING A TRANSFORMER WITH PREDICT AND TRANSFORM
@@ -429,9 +439,10 @@ foo = first(yhat)
 mach = machine(Unsupervised(), Xs;
                predict=yhat,
                transform=Wout,
-               report=(foo=foo,))
+               report=(foo=foo,),
+               depwarn=false)
 
-@from_network mach begin
+@nodepwarn_from_network mach begin
     mutable struct WrappedClusterer
         clusterer::Unsupervised = clust
     end
@@ -439,7 +450,7 @@ mach = machine(Unsupervised(), Xs;
 end
 
 model = WrappedClusterer()
-mach = fit!(machine(model, X), verbosity=0)
+mach = @test_logs((:warn, r""), fit!(machine(model, X), verbosity=0))
 fit!(yhat, verbosity=0)
 @test predict(mach, X) == yhat()
 @test transform(mach, X).a ≈ Wout().a
@@ -464,12 +475,12 @@ Xs = source()
 W = transform(machine(MyStaticTransformer(:age)), Xs)
 Z = 2*W
 
-@from_network machine(Static(), Xs; transform=Z) begin
+@nodepwarn_from_network machine(Static(), Xs; transform=Z, depwarn=false) begin
     struct NoTraining
     end
 end
 
-mach = fit!(machine(NoTraining()), verbosity=0)
+mach = @test_logs((:warn, r""), fit!(machine(NoTraining()), verbosity=0))
 @test transform(mach, X) == 2*X.age
 
 
@@ -525,7 +536,7 @@ y2 = predict(m2, X);
 X_judge = MLJBase.table(hcat(y1, y2))
 yhat = predict(m_judge, X_judge)
 
-@from_network machine(Deterministic(), X, y; predict=yhat) begin
+@nodepwarn_from_network machine(Deterministic(), X, y; predict=yhat, depwarn=false) begin
     mutable struct MyStack
         regressor1=model1
         regressor2=model2
@@ -536,7 +547,7 @@ end
 my_stack = MyStack()
 X, y = make_regression(18, 2)
 mach = machine(my_stack, X, y)
-fit!(mach, verbosity=0)
+@test_logs((:warn, r""), fit!(mach, verbosity=0))
 
 fp = fitted_params(mach)
 @test keys(fp.judge) == (:tree,)
@@ -560,7 +571,7 @@ X2 = transform(mach1, X)
 mach2 = machine(stand2, X2)
 X3 = transform(mach2, X2)
 
-@from_network machine(Unsupervised(), X; transform=X3) begin
+@nodepwarn_from_network machine(Unsupervised(), X; transform=X3, depwarn=false) begin
     mutable struct CompositeZ
         s1=stand1
         s2=stand2
@@ -574,7 +585,8 @@ fit!(X3)
 # instantiate with identical (===) models in two places:
 model = CompositeZ(s1=stand1, s2=stand1)
 mach = machine(model, Xraw)
-@test_logs((:error, MLJBase.logerr_identical_models([:s1, :s2], model)),
+@test_logs((:warn, MLJBase.WARN_NETWORK_MACHINES_DEPRECATION),
+           (:error, MLJBase.logerr_identical_models([:s1, :s2], model)),
            (:error, r"Problem"),
            (:info, r"Running"),
            (:info, r"Type checks okay"),
@@ -590,9 +602,9 @@ Xs = source()
 mach1 = machine(stand, Xs)
 X2 = transform(mach1, Xs)
 
-network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs)
+network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs, depwarn=false)
 
-@from_network network_mach begin
+@nodepwarn_from_network network_mach begin
     struct AppleComposite
         standardizer = stand
     end
@@ -600,7 +612,7 @@ end
 
 X = (x = Float64[1, 2, 3],)
 mach = machine(AppleComposite(), X)
-fit!(mach, verbosity=0, force=true)
+@test_logs((:warn, r""), fit!(mach, verbosity=0, force=true))
 @test transform(mach, X).x ≈ Float64[-1, 0, 1]
 @test inverse_transform(mach, X) == X
 
