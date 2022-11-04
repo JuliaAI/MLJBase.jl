@@ -63,7 +63,7 @@ end
 
 @conditional_testset "composition_models" begin
     @test include("composition/models/network_composite.jl")
-    @test include("composition/models/methods.jl")
+    @test include("composition/models/deprecated_methods.jl")
     @test include("composition/models/deprecated_from_network.jl")
     @test include("composition/models/inspection.jl")
     @test include("composition/models/pipelines.jl")
