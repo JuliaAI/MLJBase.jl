@@ -133,7 +133,14 @@ function check_surrogate_machine(::Union{Unsupervised},
     return nothing
 end
 
-function machine(model::Surrogate, _sources::Source...; pair_itr...)
+const WARN_NETWORK_MACHINES_DEPRECATION =
+    "Learning network machines are deprecated. For the recommended way of exporting "*
+    "learning networks as new stand-alone model types, see the \"Learning Networks\" "*
+    "section of the MLJ manual. "
+
+function machine(model::Surrogate, _sources::Source...; depwarn=true, pair_itr...)
+
+    depwarn && Base.depwarn(WARN_NETWORK_MACHINES_DEPRECATION, :machine, force=true)
 
     # named tuple, such as `(predict=yhat, transform=W)`:
     signature = (; pair_itr...)
@@ -162,7 +169,7 @@ function machine(model::Surrogate, _sources::Source...; pair_itr...)
 
 end
 
-function machine(_sources::Source...; pair_itr...)
+function machine(_sources::Source...; depwarn=true, pair_itr...)
 
     signature = (; pair_itr...)
 
@@ -177,7 +184,7 @@ function machine(_sources::Source...; pair_itr...)
         model = surrogate(T)
     end
 
-    return machine(model, _sources...; pair_itr...)
+    return machine(model, _sources...; depwarn, pair_itr...)
 
 end
 
@@ -311,6 +318,10 @@ function network_model_names(model::M, mach::Machine{<:Surrogate}) where M<:Mode
 
 end
 
+const WARN_RETURN_DEPWARN =
+    "The use of `return!` is deprecated. For the recommended way of exporting "*
+    "learning networks as new stand-alone model types, see the \"Learning Networks\" "*
+    "section of the MLJ manual. "
 
 """
 
@@ -372,7 +383,9 @@ end
 function return!(mach::Machine{<:Surrogate},
                  model::Union{Model,Nothing},
                  verbosity;
-                 acceleration=CPU1())
+                 acceleration=CPU1(), depwarn=true)
+
+    depwarn && Base.depwarn(WARN_RETURN_DEPWARN, :return!, force=true)
 
     network_model_names_ = network_model_names(model, mach)
 

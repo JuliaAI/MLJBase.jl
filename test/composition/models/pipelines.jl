@@ -3,6 +3,7 @@ module TestPipelines2
 using MLJBase
 using Test
 using ..Models
+using ..TestUtilities
 using StableRNGs
 using Tables
 import MLJBase: Pred, Trans
@@ -660,6 +661,34 @@ end
     r = report(mach)
     @test r.inverse_transform.static_kefir.first == 0.0
     @test r.inverse_transform.static_kefir.last == 3
+end
+
+@testset "Test serializable of pipeline" begin
+    filename = "pipe_mach.jls"
+    X, y = make_regression(100, 1)
+    pipe = Standardizer() |> KNNRegressor()
+    mach = machine(pipe, X, y)
+    fit!(mach, verbosity=0)
+
+    # Check serializable function
+    smach = MLJBase.serializable(mach)
+    TestUtilities.generic_tests(mach, smach)
+    @test keys(fitted_params(smach)) == keys(fitted_params(mach))
+    @test keys(report(smach)) == keys(report(mach))
+    # Check data has been wiped out from models at the first level of composition
+    submachines = machines(glb(mach.fitresult))
+    ssubmachines = machines(glb(mach.fitresult))
+    @test length(submachines) == length(ssubmachines)
+    for submach in submachines
+        TestUtilities.test_data(submach)
+    end
+
+    # End to end
+    MLJBase.save(filename, mach)
+    smach = machine(filename)
+    @test predict(smach, X) == predict(mach, X)
+
+    rm(filename)
 end
 
 end # module

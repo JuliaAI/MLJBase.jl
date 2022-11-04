@@ -57,14 +57,14 @@ end
     @test include("composition/learning_networks/nodes.jl")
     @test include("composition/learning_networks/inspection.jl")
     @test include("composition/learning_networks/signatures.jl")
-    @test include("composition/learning_networks/machines.jl")
+    @test include("composition/learning_networks/deprecated_machines.jl")
     @test include("composition/learning_networks/replace.jl")
 end
 
 @conditional_testset "composition_models" begin
     @test include("composition/models/network_composite.jl")
-    @test include("composition/models/methods.jl")
-    @test include("composition/models/from_network.jl")
+    @test include("composition/models/deprecated_methods.jl")
+    @test include("composition/models/deprecated_from_network.jl")
     @test include("composition/models/inspection.jl")
     @test include("composition/models/pipelines.jl")
     @test include("composition/models/transformed_target_model.jl")

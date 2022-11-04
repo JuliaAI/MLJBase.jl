@@ -146,7 +146,8 @@ function TransformedTargetModel(
     cache=true,
 )
 
-    isnothing(target) || @warn WARN_TARGET_DEPRECATED
+    isnothing(target) ||
+        Base.depwarn(WARN_TARGET_DEPRECATED, :TransformedTargetModel, force=true)
     length(args) < 2 || throw(ERR_TOO_MANY_ARGUMENTS)
 
     if length(args) === 1

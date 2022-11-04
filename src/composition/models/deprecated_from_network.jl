@@ -22,7 +22,7 @@ function fit_method(mach, models...)
         new_mach =
             replace(mach, replacements...; empty_unspecified_sources=true)
 
-        return!(new_mach, model, verbosity)
+        return!(new_mach, model, verbosity; depwarn=false)
     end
 
     return _fit
@@ -181,6 +181,10 @@ function from_network_(modl,
 
 end
 
+const WARN_FROM_NETWORK_DEPRECATION =
+    "The `@from_network` macro is deprecated. See the \"Learning Networks\" section "*
+    "of the MLJ manual for recommended way to export learning networks as new "*
+    "composite model types. "
 
 """
 
@@ -255,7 +259,13 @@ end
 ```
 
 """
+macro nodepwarn_from_network(exs...)
+    args = from_network_preprocess(__module__, exs...)
+    modeltype_ex = args[2]
+    from_network_(__module__, args...)
+end
 macro from_network(exs...)
+    MLJBase.depwarn(WARN_FROM_NETWORK_DEPRECATION, :from_network, force=true)
     args = from_network_preprocess(__module__, exs...)
     modeltype_ex = args[2]
     from_network_(__module__, args...)
