@@ -256,8 +256,7 @@ fit!(S::Source; args...) = S
 # at REPL:
 istoobig(d::Tuple{AbstractNode}) = length(d) > 10
 
-# overload show method
-
+# # DISPLAY
 
 _formula(stream::IO, X::AbstractNode, indent) =
     (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
@@ -286,8 +285,6 @@ function _formula(stream, X::Node, depth, indent)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", X::Node)
-#    description = string(typeof(X).name.name)
-    #    str = "$description $(handle(X))"
     println(io, "$X")
     println(io, "  args:")
     for i in eachindex(X.args)
@@ -296,10 +293,18 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
     end
     print(io, "  formula:\n")
     _formula(io, X, 4)
-    # print(io, " ")
-    # printstyled(IOContext(io, :color=>SHOW_COLOR[]),
-    #             handle(X),
-    #             color=color(X))
+end
+
+# for displaying withing other objects:
+function Base.show(stream::IO, object::Node)
+    str = simple_repr(typeof(object)) * " $(handle(object))"
+    mach = object.machine
+    extra = isnothing(mach) ? "" :
+        mach.model isa Symbol ? " → :$(mach.model)" :
+        " → $(simple_repr(typeof(mach.model)))(…)"
+    str *= extra
+    print(stream, str)
+    return nothing
 end
 
 
@@ -322,14 +327,14 @@ function item_given_machine(f, N)
             end
         end
     end
-    key = f isa typeof(report) ?
+    key = f isa typeof(MLJBase.report) ?
         :report_given_machine :
         :fitted_params_given_machine
     dict = LittleDict(machs[j] => items[j] for j in eachindex(machs))
     return NamedTuple{(:machines, key)}((machs, dict))
 end
 
-report(N::Node) = item_given_machine(report, N)
+report(N::Node) = item_given_machine(MLJBase.report, N)
 report(::Source) = NamedTuple()
 
 MLJModelInterface.fitted_params(N::Node) =
@@ -349,7 +354,10 @@ object. The node `N` has the following calling behaviour:
     N() = f(args[1](), args[2](), ..., args[n]())
     N(rows=r) = f(args[1](rows=r), args[2](rows=r), ..., args[n](rows=r))
     N(X) = f(args[1](X), args[2](X), ..., args[n](X))
+"""
+node(args...) = Node(args...)
 
+"""
     J = node(f, mach::Machine, args...)
 
 Defines a dynamic `Node` object `J` wrapping a dynamic operation `f`
@@ -380,7 +388,7 @@ number of such nodes is one.
 See also: [`Node`](@ref), [`@node`](@ref), [`source`](@ref), [`origins`](@ref).
 
 """
-node(args...) = Node(args...)
+node
 
 """
     @node f(...)
@@ -508,9 +516,15 @@ Base.first(X::AbstractNode) = node(first, X)
 Base.last(X::AbstractNode) = node(last, X)
 
 +(y1::AbstractNode, y2::AbstractNode) = node(+, y1, y2)
-+(y1, y2::AbstractNode) = node(+, y1, y2)
-+(y1::AbstractNode, y2) = node(+, y1, y2)
-*(lambda::Real, y::AbstractNode) = node(y->lambda*y, y)
++(x, y::AbstractNode) = node(y->x + y, y)
++(y::AbstractNode, x) = node(y->y + x, y)
+*(y1::AbstractNode, y2::AbstractNode) = node(*, y1, y2)
+*(x, y::AbstractNode) = node(y->x*y, y)
+*(y::AbstractNode, x) = node(y->y*x, y)
+/(y1::AbstractNode, y2::AbstractNode) = node(/, y1, y2)
+/(x, y::AbstractNode) = node(y->x/y, y)
+/(y::AbstractNode, x) = node(y->y/x, y)
+
 
 """
     selectcols(X::AbstractNode, c)

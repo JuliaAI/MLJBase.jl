@@ -43,13 +43,14 @@ Base.showerror(io::IO, e::NotTrainedError) =
           "learning network `Node`, "*
           "use the syntax `node($(e.operation), mach::Machine)`. ")
 
-caches_data_by_default(::Type{<:Model}) = true
-caches_data_by_default(m::M) where M<:Model = caches_data_by_default(M)
+caches_data_by_default(m) = caches_data_by_default(typeof(m))
+caches_data_by_default(::Type) = true
+caches_data_by_default(::Type{<:Symbol}) = false
 
-mutable struct Machine{M<:Model,C} <: MLJType
+mutable struct Machine{M,C} <: MLJType
 
     model::M
-    old_model::M # for remembering the model used in last call to `fit!`
+    old_model  # for remembering the model used in last call to `fit!`
     fitresult
     cache
 
@@ -63,6 +64,7 @@ mutable struct Machine{M<:Model,C} <: MLJType
     # cached subsample of data (for C=true):
     resampled_data
 
+    # dictionary of named tuples keyed on method (:fit, :predict, etc):
     report
     frozen::Bool
     old_rows
@@ -72,8 +74,10 @@ mutable struct Machine{M<:Model,C} <: MLJType
     # cleared by fit!(::Node) calls; put! by `fit_only!(machine, true)` calls:
     fit_okay::Channel{Bool}
 
-    function Machine(model::M, args::AbstractNode...;
-                     cache=caches_data_by_default(M)) where M<:Model
+    function Machine(
+        model::M, args::AbstractNode...;
+        cache=caches_data_by_default(model),
+    ) where M
         mach = new{M,cache}(model)
         mach.frozen = false
         mach.state = 0
@@ -84,6 +88,56 @@ mutable struct Machine{M<:Model,C} <: MLJType
     end
 
 end
+
+"""
+    age(mach::Machine)
+
+Return an integer representing the number of times `mach` has been trained or updated. For
+more detail, see the discussion of training logic at [`fit_only!`](@ref).
+
+"""
+age(mach::Machine) = mach.state
+
+"""
+    replace(mach::Machine, field1 => value1, field2 => value2, ...)
+
+**Private method.**
+
+Return a shallow copy of the machine `mach` with the specified field
+replacements. Undefined field values are preserved. Unspecified fields have identically
+equal values, with the exception of `mach.fit_okay`, which is always a new instance
+`Channel{Bool}(1)`.
+
+The following example returns a machine with no traces of training data (but also removes
+any upstream dependencies in a learning network):
+
+```julia
+replace(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
+
+"""
+function Base.replace(mach::Machine{<:Any,C}, field_value_pairs::Pair...) where C
+    # determined new `model` and `args` and build replacement dictionary:
+    newfield_given_old = Dict(field_value_pairs) # to be extended
+    fields_to_be_replaced = keys(newfield_given_old)
+    :fit_okay in fields_to_be_replaced && error("Cannot replace `:fit_okay` field. ")
+    newmodel = :model in fields_to_be_replaced ? newfield_given_old[:model] : mach.model
+    newargs = :args in fields_to_be_replaced ? newfield_given_old[:args] : mach.args
+
+    # instantiate a new machine and make field replacements:
+    clone = Machine(newmodel, newargs...; cache=C)
+    for field in fieldnames(typeof(mach))
+        if !(field in fields_to_be_replaced || isdefined(mach, field)) ||
+             field in [:model, :args, :fit_okay]
+            continue
+        end
+        value = field in fields_to_be_replaced ? newfield_given_old[field] :
+            getproperty(mach, field)
+        setproperty!(clone, field, value)
+    end
+    return clone
+end
+
+Base.copy(mach::Machine) = replace(mach)
 
 upstream(mach::Machine) = Tuple(m.state for m in ancestors(mach))
 
@@ -100,12 +154,12 @@ function ancestors(mach::Machine; self=false)
 end
 
 
-## CONSTRUCTORS
+# # CONSTRUCTORS
 
 # In the checks `args` is expected to be `Vector{<:AbstractNode}` (eg, a vector of source
 # nodes) not raw data.
 
-# helper
+# # Helpers
 
 # Here `F` is some fit_data_scitype, and so is tuple of scitypes, or a
 # union of such tuples:
@@ -187,6 +241,9 @@ function check(model::Model, scitype_check_level, args...)
     return is_okay
 end
 
+
+# # Constructors
+
 """
     machine(model, args...; cache=true, scitype_check_level=1)
 
@@ -233,111 +290,35 @@ taken. Whether warnings are issued or errors thrown depends the
 level. For details, see [`default_scitype_check_level`](@ref), a method
 to inspect or change the default level (`1` at startup).
 
-### Learning network machines
+### Machines with model placeholders
 
-    machine(Xs; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys; oper1=node1, oper2=node2, ...)
-    machine(Xs, ys, extras...; oper1=node1, oper2=node2, ...)
-
-Construct a special machine called a *learning network machine*, that
-wraps a learning network, usually in preparation to export the network
-as a stand-alone composite model type. The keyword arguments declare
-what nodes are called when operations, such as `predict` and
-`transform`, are called on the machine. An advanced option allows one
-to additionally pass the output of any node to the machine's report;
-see below.
-
-In addition to the operations named in the constructor, the methods
-`fit!`, `report`, and `fitted_params` can be applied as usual to the
-machine constructed.
-
-    machine(Probabilistic(), args...; kwargs...)
-    machine(Deterministic(), args...; kwargs...)
-    machine(Unsupervised(), args...; kwargs...)
-    machine(Static(), args...; kwargs...)
-
-Same as above, but specifying explicitly the kind of model the
-learning network is to meant to represent.
-
-Learning network machines are not to be confused with an ordinary
-machine that happens to be bound to a stand-alone composite model
-(i.e., an *exported* learning network).
-
-
-### Examples of learning network machines
-
-Supposing a supervised learning network's final predictions are
-obtained by calling a node `yhat`, then the code
+A symbol can be substituted for a model in machine constructors to act as a placeholder
+for a model specified at training time. The symbol must be the field name for a struct
+whose corresponding value is a model, as shown in the following example:
 
 ```julia
-mach = machine(Deterministic(), Xs, ys; predict=yhat)
-fit!(mach; rows=train)
-predictions = predict(mach, Xnew) # `Xnew` concrete data
+mutable struct MyComposite
+    transformer
+    classifier
+end
+
+my_composite = MyComposite(Standardizer(), ConstantClassifier)
+
+X, y = make_blobs()
+mach = machine(:classifier, X, y)
+fit!(mach, composite=my_composite)
 ```
 
-is  equivalent to
+The last two lines are equivalent to
 
 ```julia
-fit!(yhat, rows=train)
-predictions = yhat(Xnew)
-```
-
-Here `Xs` and `ys` are the source nodes receiving, respectively, the
-input and target data.
-
-In a unsupervised learning network for clustering, with single source
-node `Xs` for inputs, and in which the node `Xout` delivers the output
-of dimension reduction, and `yhat` the class labels, one can write
-
-```julia
-mach = machine(Unsupervised(), Xs; transform=Xout, predict=yhat)
+mach = machine(ConstantClassifier(), X, y)
 fit!(mach)
-transformed = transform(mach, Xnew) # `Xnew` concrete data
-predictions = predict(mach, Xnew)
 ```
 
-which is equivalent to
+Delaying model specification is used when exporting learning networks as new stand-alone
+model types. See [`prefit`](@ref) and the MLJ documentation on learning networks.
 
-```julia
-fit!(Xout)
-fit!(yhat)
-transformed = Xout(Xnew)
-predictions = yhat(Xnew)
-```
-### Including a node's output in the report
-
-The return value of a node called with no arguments can be included in
-a learning network machine's report, and so in the report of any
-composite model type constructed by exporting a learning network. This
-is useful for exposing byproducts of network training that are not
-readily deduced from the `report`s and `fitted_params` of the
-component machines (which are automatically exposed).
-
-The following example shows how to expose `err1()` and `err2()`, where
-`err1` are `err2` are nodes in the network delivering training errors.
-
-```julia
-X, y = make_moons()
-Xs = source(X)
-ys = source(y)
-
-model = ConstantClassifier()
-mach = machine(model, Xs, ys)
-yhat = predict(mach, Xs)
-err1 = @node auc(yhat, ys)
-err2 = @node accuracy(yhat, ys)
-
-network_mach = machine(Probabilistic(),
-                       Xs,
-                       ys,
-                       predict=yhat,
-                       report=(auc=err1, accuracy=err2))
-
-fit!(network_mach)
-r = report(network_mach)
-@assert r.auc == auc(yhat(), ys())
-@assert r.accuracy == accuracy(yhat(), ys())
-```
 
 See also [`fit!`](@ref), [`default_scitype_check_level`](@ref),
 [`MLJBase.save`](@ref), [`serializable`](@ref).
@@ -355,41 +336,51 @@ machine(T::Type{<:Model}, args...; kwargs...) =
     throw(ArgumentError("Model *type* provided where "*
                         "model *instance* expected. "))
 
-
 function machine(model::Static, args...; cache=false, kwargs...)
     isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
+    return Machine(model; cache=false, kwargs...)
 end
 
-function machine(model::Static, args::AbstractNode...; cache=false, kwargs...)
-    isempty(args) || throw(ERR_STATIC_ARGUMENTS)
-    return fit!(Machine(model; cache=false, kwargs...), verbosity=0)
+function machine(
+    model::Static,
+    args::AbstractNode...;
+    cache=false,
+    kwargs...,
+)
+    isempty(args) || model isa Symbol || throw(ERR_STATIC_ARGUMENTS)
+    mach = Machine(model; cache=false, kwargs...)
+    return mach
 end
 
-machine(model::Model, raw_arg1, arg2::AbstractNode, args::AbstractNode...;
+machine(model::Symbol; cache=false, kwargs...) =
+    Machine(model; cache, kwargs...)
+
+machine(model::Union{Model,Symbol}, raw_arg1, arg2::AbstractNode, args::AbstractNode...;
         kwargs...) =
-    error("Mixing concrete data with `Node` training arguments "*
-          "is not allowed. ")
+            error("Mixing concrete data with `Node` training arguments "*
+                  "is not allowed. ")
 
-machine(model::Model, arg1::AbstractNode, arg2, args...; kwargs...) =
-    error("Mixing concrete data with `Node` training arguments "*
-          "is not allowed. ")
-
-function machine(model::Model,
-                 raw_arg1,
-                 raw_args...;
-                 scitype_check_level=default_scitype_check_level(),
-                 kwargs...)
+function machine(
+    model::Union{Model,Symbol},
+    raw_arg1,
+    raw_args...;
+    scitype_check_level=default_scitype_check_level(),
+    kwargs...,
+)
     args = source.((raw_arg1, raw_args...))
-    check(model, scitype_check_level, args...;)
+    model isa Symbol || check(model, scitype_check_level, args...;)
     return Machine(model, args...; kwargs...)
 end
 
-function machine(model::Model, arg1::AbstractNode, args::AbstractNode...;
+function machine(model::Union{Model,Symbol}, arg1::AbstractNode, args::AbstractNode...;
                  kwargs...)
     return Machine(model, arg1, args...; kwargs...)
 end
 
+function machine(model::Symbol, arg1::AbstractNode, args::AbstractNode...;
+                 kwargs...)
+    return Machine(model, arg1, args...; kwargs...)
+end
 
 warn_bad_deserialization(state) =
     "Deserialized machine state is not -1 (got $state). "*
@@ -447,7 +438,12 @@ machines(::Source) = Machine[]
 _cache_status(::Machine{<:Any,true}) = "caches model-specific representations of data"
 _cache_status(::Machine{<:Any,false}) = "does not cache data"
 
-Base.show(io::IO, mach::Machine) = print(io, "machine($(mach.model), …)")
+function Base.show(io::IO, mach::Machine)
+    model = mach.model
+    m = model isa Symbol ? ":$model" : model
+    print(io, "machine($m, …)")
+end
+
 function Base.show(io::IO, ::MIME"text/plain", mach::Machine{M}) where M
     header =
         mach.state == -1 ? "serializable " :
@@ -505,19 +501,44 @@ end
 # for getting model specific representation of the row-restricted
 # training data from a machine, according to the value of the machine
 # type parameter `C` (`true` or `false`):
-_resampled_data(mach::Machine{<:Model,true}, rows) = mach.resampled_data
-function _resampled_data(mach::Machine{<:Model,false}, rows)
+_resampled_data(mach::Machine{<:Any,true}, model, rows) = mach.resampled_data
+function _resampled_data(mach::Machine{<:Any,false}, model, rows)
     raw_args = map(N -> N(), mach.args)
-    data = MMI.reformat(mach.model, raw_args...)
-    return selectrows(mach.model, rows, data...)
+    data = MMI.reformat(model, raw_args...)
+    return selectrows(model, rows, data...)
 end
 
-"""
-    MLJBase.fit_only!(mach::Machine; rows=nothing, verbosity=1, force=false)
+err_no_real_model(mach) = ErrorException(
+    """
 
-Without mutating any other machine on which it may depend, perform one of
-the following actions to the machine `mach`, using the data and model
-bound to it, and restricting the data to `rows` if specified:
+    Cannot train or use $mach, which has a `Symbol` as model. Perhaps you
+    forgot to specify `composite=... ` in a `fit!` call?
+
+    """
+)
+
+"""
+   last_model(mach::Machine)
+
+Return the last model used to train the machine `mach`. This is a bona fide model, even if
+`mach.model` is a symbol.
+
+Returns `nothing` if `mach` has not been trained.
+"""
+last_model(mach) = isdefined(mach, :old_model) ? mach.old_model : nothing
+
+"""
+    MLJBase.fit_only!(
+        mach::Machine;
+        rows=nothing,
+        verbosity=1,
+        force=false,
+        composite=nothing
+    )
+
+Without mutating any other machine on which it may depend, perform one of the following
+actions to the machine `mach`, using the data and model bound to it, and restricting the
+data to `rows` if specified:
 
 - *Ab initio training.* Ignoring any previous learned parameters and
   cache, compute and store new learned parameters. Increment `mach.state`.
@@ -530,6 +551,9 @@ bound to it, and restricting the data to `rows` if specified:
 
 - *No-operation.* Leave existing learned parameters untouched. Do not
    increment `mach.state`.
+
+If the model, `model`, bound to `mach` is a symbol, then instead perform the action using
+the true model `getproperty(composite, model)`.
 
 
 ### Training action logic
@@ -548,10 +572,20 @@ or none of the following apply:
 - (iv) The specified `rows` have changed since the last retraining and
   `mach.model` does not have `Static` type.
 
-- (v) `mach.model` has changed since the last retraining.
+- (v) `mach.model` is a model and different from the last model used for training, but has
+  the same type.
 
-In any of the cases (i) - (iv), `mach` is trained ab initio. If (v) holds, then a training
-update is applied.
+- (vi) `mach.model` is a model but has a type different from the last model used for
+  training.
+
+- (vii) `mach.model` is a symbol and `(composite, mach.model)` is different from the last
+  model used for training, but has the same type.
+
+- (viii) `mach.model` is a symbol and `(composite, mach.model)` has a different type from
+  the last model used for training.
+
+In any of the cases (i) - (iv), (vi), or (viii), `mach` is trained ab initio. If (v) or
+(vii) is true, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -569,10 +603,13 @@ and either `MLJBase.fit` (ab initio training) or `MLJBase.update`
 more on these lower-level training methods.
 
 """
-function fit_only!(mach::Machine{<:Model,cache_data};
-                   rows=nothing,
-                   verbosity=1,
-                   force=false) where cache_data
+function fit_only!(
+    mach::Machine{<:Any,cache_data};
+    rows=nothing,
+    verbosity=1,
+    force=false,
+    composite=nothing,
+) where cache_data
 
     if mach.frozen
         # no-op; do not increment `state`.
@@ -581,12 +618,27 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     end
 
     # catch deserialized machines not bound to data:
-    !(mach.model isa Static) && isempty(mach.args) &&
+    if isempty(mach.args) && !(mach.model isa Static) && !(mach.model isa Symbol)
         error("This machine is not bound to any data and so "*
               "cannot be trained. ")
+    end
+
+    # If `mach.model` is a symbol, then we want to replace it with the bone fide model
+    # `getproperty(composite, mach.model)`:
+    model = if mach.model isa Symbol
+        isnothing(composite) && throw(err_no_real_model(mach))
+        mach.model in propertynames(composite)
+        getproperty(composite, mach.model)
+    else
+        mach.model
+    end
+
+    modeltype_changed = !isdefined(mach, :old_model) ? true  :
+            typeof(model) === typeof(mach.old_model) ? false :
+                                                       true
 
     # take action if model has been mutated illegally:
-    warning = clean!(mach.model)
+    warning = clean!(model)
     isempty(warning) || verbosity < 0 || @warn warning
 
     upstream_state = upstream(mach)
@@ -603,37 +655,40 @@ function fit_only!(mach::Machine{<:Model,cache_data};
     # build or update cached `data` if necessary:
     if cache_data && !data_is_valid
         raw_args = map(N -> N(), mach.args)
-        mach.data = MMI.reformat(mach.model, raw_args...)
+        mach.data = MMI.reformat(model, raw_args...)
     end
 
     # build or update cached `resampled_data` if necessary (`mach.data` is already defined
     # above if needed here):
     if cache_data && (!data_is_valid || condition_iv)
-        mach.resampled_data = selectrows(mach.model, rows, mach.data...)
+        mach.resampled_data = selectrows(model, rows, mach.data...)
     end
 
     # `fit`, `update`, or return untouched:
     if mach.state == 0 ||       # condition (i)
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
-        condition_iv
+        condition_iv ||         # condition (iv)
+        modeltype_changed      # conditions (vi) or (vii)
+
+        isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
 
         # fit the model:
         fitlog(mach, :train, verbosity)
-        mach.fitresult, mach.cache, mach.report =
+        mach.fitresult, mach.cache, mach.report[:fit] =
             try
-                fit(mach.model, verbosity, _resampled_data(mach, rows)...)
+                fit(model, verbosity, _resampled_data(mach, model, rows)...)
             catch exception
                 @error "Problem fitting the machine $mach. "
                 _sources = sources(glb(mach.args...))
                 length(_sources) > 2 ||
-                    mach.model isa Composite ||
+                    model isa Composite ||
                     all((!isempty).(_sources)) ||
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "
                 raw_args = map(N -> N(), mach.args)
                 scitype_check_level = 1
-                if check(mach.model, scitype_check_level, source.(raw_args)...)
+                if check(model, scitype_check_level, source.(raw_args)...)
                     @info "Type checks okay. "
                 else
                     @info "It seems an upstream node in a learning "*
@@ -643,16 +698,16 @@ function fit_only!(mach::Machine{<:Model,cache_data};
                 rethrow()
             end
 
-    elseif mach.model != mach.old_model # condition (v)
+    elseif model != mach.old_model # condition (v)
 
         # update the model:
         fitlog(mach, :update, verbosity)
-        mach.fitresult, mach.cache, mach.report =
-            update(mach.model,
+        mach.fitresult, mach.cache, mach.report[:fit] =
+            update(model,
                    verbosity,
                    mach.fitresult,
                    mach.cache,
-                   _resampled_data(mach, rows)...)
+                   _resampled_data(mach, model, rows)...)
 
     else
 
@@ -668,33 +723,15 @@ function fit_only!(mach::Machine{<:Model,cache_data};
         mach.old_rows = deepcopy(rows)
     end
 
-    mach.old_model = deepcopy(mach.model)
+    mach.old_model = deepcopy(model)
     mach.old_upstream_state = upstream_state
     mach.state = mach.state + 1
 
     return mach
 end
 
-"""
-
-    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
-
-Fit the machine `mach`. In the case that `mach` has `Node` arguments,
-first train all other machines on which `mach` depends.
-
-To attempt to fit a machine without touching any other machine, use
-`fit_only!`. For more on the internal logic of fitting see
-[`fit_only!`](@ref)
-
-"""
-function fit!(mach::Machine; kwargs...)
-    glb_node = glb(mach.args...) # greatest lower bound node of arguments
-    fit!(glb_node; kwargs...)
-    fit_only!(mach; kwargs...)
-end
-
-# version of fit_only! for calling by scheduler (a node), which waits
-# on the specified `machines` to fit:
+# version of fit_only! for calling by scheduler (a node), which waits on all upstream
+# `machines` to fit:
 function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
 
     wait_on_upstream || fit_only!(mach; kwargs...)
@@ -721,6 +758,24 @@ function fit_only!(mach::Machine, wait_on_upstream::Bool; kwargs...)
     put!(mach.fit_okay, true)
     return mach
 
+end
+
+"""
+
+    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
+
+Fit the machine `mach`. In the case that `mach` has `Node` arguments,
+first train all other machines on which `mach` depends.
+
+To attempt to fit a machine without touching any other machine, use
+`fit_only!`. For more on the internal logic of fitting see
+[`fit_only!`](@ref)
+
+"""
+function fit!(mach::Machine; kwargs...)
+    glb_node = glb(mach.args...) # greatest lower bound node of arguments
+    fit!(glb_node; kwargs...)
+    fit_only!(mach; kwargs...)
 end
 
 
@@ -763,7 +818,7 @@ fitted parameters keyed on those machines.
 """
 function fitted_params(mach::Machine)
     if isdefined(mach, :fitresult)
-        return fitted_params(mach.model, mach.fitresult)
+        return fitted_params(last_model(mach), mach.fitresult)
     else
         throw(NotTrainedError(mach, :fitted_params))
     end
@@ -808,24 +863,40 @@ reports keyed on those machines.
 """
 function report(mach::Machine)
     if isdefined(mach, :report)
-        return mach.report
+        return MMI.report(last_model(mach), mach.report)
     else
         throw(NotTrainedError(mach, :report))
     end
 end
+
+"""
+
+    report_given_method(mach::Machine)
+
+Same as `report(mach)` but broken down by the method (`fit`, `predict`, etc) that
+contributed the report.
+
+A specialized method intended for learning network applications.
+
+The return value is a dictionary keyed on the symbol representing the method (`:fit`,
+`:predict`, etc) and the values report contributed by that method.
+
+"""
+report_given_method(mach::Machine) = mach.report
+
 
 
 """
     training_losses(mach::Machine)
 
 Return a list of training losses, for models that make these
-available. Otherwise, returns `nothing`.
+available. Otherwise, return `nothing`.
 
 """
 
 function training_losses(mach::Machine)
     if isdefined(mach, :report)
-        return training_losses(mach.model, mach.report)
+        return training_losses(last_model(mach), report_given_method(mach)[:fit])
     else
         throw(NotTrainedError(mach, :training_losses))
     end
@@ -834,15 +905,17 @@ end
 """
     feature_importances(mach::Machine)
 
-Return a list of `feature => importance` pairs for a fitted machine,
-`mach`,  if supported by the underlying model, i.e., if
-`reports_feature_importances(mach.model) == true`.  Otherwise return
-`nothing`.
+Return a list of `feature => importance` pairs for a fitted machine, `mach`, for supported
+models. Otherwise return `nothing`.
 
 """
 function feature_importances(mach::Machine)
     if isdefined(mach, :report) && isdefined(mach, :fitresult)
-        return _feature_importances(mach.model, mach.fitresult, mach.report)
+        return _feature_importances(
+            last_model(mach),
+            mach.fitresult,
+            report_given_method(mach)[:fit],
+        )
     else
         throw(NotTrainedError(mach, :feature_importances))
     end
@@ -859,6 +932,9 @@ end
 #####    SERIALIZABLE, RESTORE!, SAVE AND A FEW UTILITY FUNCTIONS         #####
 ###############################################################################
 
+const ERR_SERIALIZING_UNTRAINED = ArgumentError(
+    "`serializable` called on untrained machine. "
+)
 
 """
     serializable(mach::Machine)
@@ -873,7 +949,7 @@ Any general purpose Julia serializer may be applied to the output of
 it. See the example below.
 
 If using Julia's standard Serialization library, a shorter workflow is
-available using the [`save`](@ref) method.
+available using the [`MLJBase.save`](@ref) (or `MLJ.save`) method.
 
 A machine returned by `serializable` is characterized by the property
 `mach.state == -1`.
@@ -898,35 +974,38 @@ A machine returned by `serializable` is characterized by the property
     predict(loaded_mach, X)
     predict(mach, X)
 
-See also [`restore!`](@ref), [`save`](@ref).
+See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
-function serializable(mach::Machine{<:Any, C}) where C
-    # Returns a shallow copy of the machine to make it serializable, in particular:
-    # - Removes all data from caches, args and data fields
-    # - Makes all `fitresults` serializable
-    # - Annotates the state as -1
-    copymach = machine(mach.model, mach.args..., cache=C)
+function serializable(mach::Machine{<:Any, C}; verbosity=1) where C
 
-    for fieldname in fieldnames(Machine)
-        if fieldname ∈ (:model, :report, :cache, :data, :resampled_data, :old_rows)
-            continue
-        elseif  fieldname == :state
-            setfield!(copymach, :state, -1)
-        elseif fieldname == :args
-            setfield!(copymach, fieldname, ())
-        # Make fitresult ready for serialization
-        elseif fieldname == :fitresult
-            # this `save` does the actual emptying of fields
-            copymach.fitresult = save(mach.model, getfield(mach, fieldname))
-        else
-            setfield!(copymach, fieldname, getfield(mach, fieldname))
-        end
-    end
+    # The next line of code makes `serializable` recursive, in the case that `mach.model`
+    # is a `Composite` model: `save` duplicates the underlying learning network, which
+    # involves calls to `serializable` on the old machines in the network to create the
+    # new ones.
 
-    setreport!(copymach, mach)
+    isdefined(mach, :fitresult) || throw(ERR_SERIALIZING_UNTRAINED)
+    mach.state == -1 && return mach
 
-    return copymach
+    serializable_fitresult = save(mach.model, mach.fitresult)
+
+    # Duplication currenty needs to happen in two steps for this to work in case of
+    # `Composite` models.
+
+    clone = replace(
+        mach,
+        :state => -1,
+        :args => (),
+        :fitresult => serializable_fitresult,
+        :old_rows => nothing,
+        :data => nothing,
+        :resampled_data => nothing,
+        :cache => nothing,
+    )
+
+    report = report_for_serialization(clone)
+
+    return replace(clone, :report => report)
 end
 
 """
@@ -941,6 +1020,7 @@ For an example see [`serializable`](@ref).
 
 """
 function restore!(mach::Machine)
+    mach.state != -1 && return mach
     mach.fitresult = restore(mach.model, mach.fitresult)
     mach.state = 1
     return mach
@@ -1006,8 +1086,7 @@ function save(file::Union{String,IO},
     serialize(file, smach)
 end
 
-setreport!(copymach, mach) =
-    setfield!(copymach, :report, mach.report)
+report_for_serialization(mach) = mach.report
 
-# NOTE. there is also a specialization for `setreport!` for `Composite` models, defined in
-# /src/composition/learning_networks/machines/
+# NOTE. there is also a specialization of `report_for_serialization` for `Composite`
+# models, defined in /src/composition/learning_networks/machines/

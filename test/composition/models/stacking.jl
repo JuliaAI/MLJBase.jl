@@ -44,75 +44,84 @@ end
     X, y = make_regression(500, 5; rng=rng)
 
     @testset "Testing Deterministic Stack" begin
-    # Testing performance
+        # Testing performance
 
-    # The dataset is a simple regression model with intercept
-    # No model in the stack can recover the true model on its own
-    # Indeed, FooBarRegressor has no intercept
-    # By combining models, the stack can generalize better than any submodel
-    # And optimize the rmse
+        # The dataset is a simple regression model with intercept
+        # No model in the stack can recover the true model on its own
+        # Indeed, FooBarRegressor has no intercept
+        # By combining models, the stack can generalize better than any submodel
+        # And optimize the rmse
 
-    models = (constant=DeterministicConstantRegressor(),
-                decisiontree=DecisionTreeRegressor(),
-                ridge_lambda=FooBarRegressor(;lambda=0.1),
-                ridge=FooBarRegressor(;lambda=0))
+        models = (constant=DeterministicConstantRegressor(),
+                  decisiontree=DecisionTreeRegressor(),
+                  ridge_lambda=FooBarRegressor(;lambda=0.1),
+                  ridge=FooBarRegressor(;lambda=0))
 
-    mystack = Stack(;metalearner=FooBarRegressor(),
-                    resampling=CV(;nfolds=3),
-                    models...)
+        mystack = Stack(;metalearner=FooBarRegressor(),
+                        resampling=CV(;nfolds=3),
+                        models...)
 
-    results = model_evaluation((stack=mystack, models...), X, y)
-    @test argmin(results) == 1
+        results = model_evaluation((stack=mystack, models...), X, y)
+        @test argmin(results) == 1
 
-    # Mixing ProbabilisticModels amd Deterministic models as members of the stack
-    models = (constant=ConstantRegressor(),
-                decisiontree=DecisionTreeRegressor(),
-                ridge_lambda=FooBarRegressor(;lambda=0.1),
-                ridge=FooBarRegressor(;lambda=0))
+        # Mixing ProbabilisticModels amd Deterministic models as members of the stack
+        models = (constant=ConstantRegressor(),
+                  decisiontree=DecisionTreeRegressor(),
+                  ridge_lambda=FooBarRegressor(;lambda=0.1),
+                  ridge=FooBarRegressor(;lambda=0))
 
-    mystack = Stack(;metalearner=FooBarRegressor(),
-                    resampling=CV(;nfolds=3),
-                    models...)
-    # Testing attribute access of the stack
-    @test propertynames(mystack) == (:metalearner, :resampling, :measures, :cache, :acceleration, 
-        :constant, :decisiontree, :ridge_lambda, :ridge)
+        mystack = Stack(;metalearner=FooBarRegressor(),
+                        resampling=CV(;nfolds=3),
+                        models...)
+        # Testing attribute access of the stack
+        @test propertynames(mystack) == (
+            :metalearner,
+            :resampling,
+            :measures,
+            :cache,
+            :acceleration,
+            :constant,
+            :decisiontree,
+            :ridge_lambda,
+            :ridge,
+        )
 
-    @test mystack.decisiontree isa DecisionTreeRegressor
+        @test mystack.decisiontree isa DecisionTreeRegressor
 
-    @test target_scitype(mystack) == target_scitype(FooBarRegressor())
-    @test input_scitype(mystack) == input_scitype(FooBarRegressor())
+        @test target_scitype(mystack) == target_scitype(FooBarRegressor())
+        @test input_scitype(mystack) == input_scitype(FooBarRegressor())
 
-    # Testing fitted_params results are easily accessible for each
-    # submodel. They are in order of the cross validation procedure.
-    # Here 3-folds then 3 machines + the final fit
-    mach = machine(mystack, X, y)
-    fit!(mach, verbosity=0)
-    fp = fitted_params(mach)
-    @test nrows(getfield(fp, :constant)) == 4
-    @test nrows(getfield(fp, :decisiontree)) == 4
-    @test nrows(getfield(fp, :ridge)) == 4
-    @test nrows(getfield(fp, :ridge_lambda)) == 4
+        # Testing fitted_params results are easily accessible for each
+        # submodel. They are in order of the cross validation procedure.
+        # Here 3-folds then 3 machines + the final fit
+        mach = machine(mystack, X, y)
+        fit!(mach, verbosity=0)
+        fp = fitted_params(mach)
+        @test nrows(getfield(fp, :constant)) == 4
+        @test nrows(getfield(fp, :decisiontree)) == 4
+        @test nrows(getfield(fp, :ridge)) == 4
+        @test nrows(getfield(fp, :ridge_lambda)) == 4
 
-    # The metalearner has been fit and has one coefficient
-    # for each model in the library (No intercept)
-    @test fp.metalearner isa Vector{Float64}
-    @test nrows(fp.metalearner) == 4
+        # The metalearner has been fit and has one coefficient
+        # for each model in the library (No intercept)
+        @test fp.metalearner isa Vector{Float64}
+        @test nrows(fp.metalearner) == 4
 
-    # Testing prediction is Deterministic
-    @test predict(mach) isa Vector{Float64}
+        # Testing prediction is Deterministic
+        @test predict(mach) isa Vector{Float64}
     end
 
     @testset "Testing ProbabilisticStack" begin
         models = (constant=ConstantRegressor(),
-                    decisiontree=DecisionTreeRegressor(),
-                    ridge_lambda=FooBarRegressor(;lambda=0.1),
-                    ridge=FooBarRegressor(;lambda=0))
+                  decisiontree=DecisionTreeRegressor(),
+                  ridge_lambda=FooBarRegressor(;lambda=0.1),
+                  ridge=FooBarRegressor(;lambda=0))
 
         # The type of the stack is determined by the type of the metalearner
         metalearner = ConstantRegressor(;distribution_type=Distributions.Cauchy)
         mystack = Stack(;metalearner=metalearner,
-                    resampling=CV(;nfolds=3),
-                    models...)
+                        resampling=CV(;nfolds=3),
+                        models...)
 
         @test target_scitype(mystack) == target_scitype(metalearner)
         @test input_scitype(mystack) == input_scitype(FooBarRegressor())
@@ -211,7 +220,14 @@ end
     cache = true
     acceleration = CPU1()
 
-    MLJBase.DeterministicStack(modelnames, models, metalearner, resampling, nothing, cache, acceleration)
+    @test_logs MLJBase.DeterministicStack(
+        modelnames,
+        models,
+        metalearner,
+        resampling,
+        nothing,
+        cache,
+        acceleration)
 
     # Test input_target_scitypes with non matching target_scitypes
     models = [KNNRegressor()]
@@ -284,7 +300,7 @@ end
     @test all(x === nothing for x in folds_evaluations)
 
     # To be accessed, the machines need to be trained
-    fit!(Zval, verbosity=0)
+    fit!(Zval, verbosity=0, composite=stack)
     # Each model in the library should output a 3-dim vector to be concatenated
     # resulting in the table of shape (nrows, 6) here nrows=6
     # for future use by the metalearner
@@ -389,7 +405,6 @@ end
     @test yhat_matrix_stack ≈ yhat_matrix
 
 end
-
 
 @testset "Test store_for_evaluation" begin
     X, y = make_blobs(;rng=rng, shuffle=false)
@@ -559,7 +574,7 @@ end
     mach = machine(mystack, X, y)
     fit!(mach, verbosity = 0)
     # The data and resampled_data have not been populated
-    for mach in fitted_params(mach).machines
+    for mach in machines(glb(mach.fitresult))
         @test !isdefined(mach, :data)
         @test !isdefined(mach, :resampled_data)
     end
@@ -612,7 +627,7 @@ function MLJBase.fit(::Parsnip, verbosity::Int, A, y)
     y1 = skipmissing(y) |> collect
     fitresult = MLJBase.Distributions.fit(MLJBase.UnivariateFinite, y1)
     cache     = nothing
-    report    = NamedTuple
+    report    = NamedTuple()
     return fitresult, cache, report
 end
 MLJBase.predict(::Parsnip, fitresult, Xnew) =
