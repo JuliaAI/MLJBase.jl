@@ -34,7 +34,7 @@ function MLJBase.fit(model::FooBarRegressor, verbosity::Int, X, y)
     x = MLJBase.matrix(X)
     fitresult = (x'x - model.lambda*I)\(x'y)
     cache = nothing
-    report = NamedTuple()
+    report = nothing
     return fitresult, cache, report
 end
 

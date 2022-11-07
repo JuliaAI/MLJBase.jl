@@ -272,7 +272,7 @@ end
         # fitted_params and report per fold:
         @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
             [1.5, 1.25, 1.5, 1.25, 1.5]
-        @test all(==(NamedTuple()), result.report_per_fold)
+        @test all(isnothing, result.report_per_fold)
     end
 end
 

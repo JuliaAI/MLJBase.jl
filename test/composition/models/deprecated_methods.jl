@@ -11,6 +11,8 @@ using OrderedCollections
 import Random.seed!
 seed!(1234)
 
+const depwarn=false
+
 mutable struct Rubbish <: DeterministicComposite
     model_in_network
     model_not_in_network
@@ -28,8 +30,8 @@ X, y = make_regression(10, 2)
     W = transform(mach0, Xs)
     mach1 = machine(model.model_in_network, W, ys)
     yhat = predict(mach1, W)
-    mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    fitresult, cache, _ = return!(mach, model, 0)
+    mach = machine(Deterministic(), Xs, ys; predict=yhat, depwarn)
+    fitresult, cache, _ = return!(mach, model, 0; depwarn)
     network_model_names = getfield(fitresult, :network_model_names)
     @test network_model_names == [:model_in_network, nothing]
     old_model = cache.old_model
@@ -70,7 +72,7 @@ function MLJBase.fit(model::Rubbish, verbosity, X, y)
     mach1 = machine(model.model_in_network, Xs, ys)
     yhat = predict(mach1, Xs)
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    return!(mach, model, verbosity)
+    return!(mach, model, verbosity; depwarn)
 end
 
 # `model` is instance of `Rubbish`
@@ -122,64 +124,6 @@ ytrain = yin[train];
 ridge_model = FooBarRegressor(lambda=0.1)
 selector_model = FeatureSelector()
 
-@testset "first test of hand-exported network" begin
-    composite = SimpleDeterministicCompositeModel(model=ridge_model,
-                                                  transformer=selector_model)
-
-    fitresult, cache, rep = MLJBase.fit(composite, 0, Xtrain, ytrain);
-
-    # to check internals:
-    ridge = MLJBase.machines(fitresult.predict)[1]
-    selector = MLJBase.machines(fitresult.predict)[2]
-    ridge_old_fitresult = deepcopy(ridge.fitresult)
-    selector_old_fitresult = deepcopy(selector.fitresult)
-
-    # this should trigger no retraining:
-    fitresult, cache, rep =
-        @test_logs(
-            (:info, r"^Not"),
-            (:info, r"^Not"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult == ridge_old_fitresult
-    @test selector.fitresult == selector_old_fitresult
-
-    # this should trigger update of selector and training of ridge:
-    selector_model.features = [:a, :b]
-    fitresult, cache, rep =
-        @test_logs(
-            (:info, r"^Updating"),
-            (:info, r"^Training"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult != ridge_old_fitresult
-    @test selector.fitresult != selector_old_fitresult
-    ridge_old_fitresult = deepcopy(ridge.fitresult)
-    selector_old_fitresult = deepcopy(selector.fitresult)
-
-    # this should trigger updating of ridge only:
-    ridge_model.lambda = 1.0
-    fitresult, cache, rep =
-        @test_logs(
-            (:info, r"^Not"),
-            (:info, r"^Updating"),
-            MLJBase.update(composite, 2, fitresult, cache, Xtrain, ytrain));
-    @test ridge.fitresult != ridge_old_fitresult
-    @test selector.fitresult == selector_old_fitresult
-
-    predict(composite, fitresult, MLJBase.selectrows(Xin, test));
-
-    Xs = source(Xtrain)
-    ys = source(ytrain)
-
-    mach = machine(composite, Xs, ys)
-    yhat = predict(mach, Xs)
-    fit!(yhat, verbosity=0)
-    composite.transformer.features = [:b, :c]
-    fit!(yhat, verbosity=0)
-    fit!(yhat, rows=1:20, verbosity=0)
-    yhat(MLJBase.selectrows(Xin, test));
-
-end
-
 mutable struct WrappedRidge <: DeterministicComposite
     ridge
 end
@@ -204,7 +148,7 @@ function MLJBase.fit(model::WrappedRidge, verbosity::Integer, X, y)
     yhat = inverse_transform(boxcoxM, zhat)
 
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    return!(mach, model, verbosity)
+    return!(mach, model, verbosity; depwarn)
 end
 
 MLJBase.input_scitype(::Type{<:WrappedRidge}) =
@@ -264,7 +208,7 @@ WrappedDummyClusterer(; model=DummyClusterer()) =
                        predict=yhat,
                        transform=Wout,
                        report=(foo=foo,))
-        return!(mach, model, verbosity)
+        return!(mach, model, verbosity; depwarn)
     end
     X, _ = make_regression(10, 5);
     model = WrappedDummyClusterer(model=DummyClusterer(n=2))
@@ -308,7 +252,7 @@ function MLJBase.fit(m::TwoStages, verbosity, X, y)
                    predict=ypred3,
                    report=(μpred=μpred,
                            σpred=σpred))
-    return!(mach, m, verbosity)
+    return!(mach, m, verbosity; depwarn)
 end
 
 @testset "Test exported-network with multiple saved nodes and refit" begin
@@ -396,7 +340,7 @@ function MLJBase.fit(averager::Averager{modelnames},
     yhat = (1/sum(weights))*(predictions*weights)
 
     mach = machine(Deterministic(), Xs, ys; predict=yhat)
-    return!(mach, averager, verbosity)
+    return!(mach, averager, verbosity; depwarn)
 end
 
 @testset "composite with component models stored in ntuple" begin
@@ -407,8 +351,8 @@ end
     @test keys(fp.model1) == (:tree, )
     @test keys(fp.model2) == (:coefficients, :intercept)
     r = report(mach)
-    @test r.model1 == NamedTuple()
-    @test r.model2 == NamedTuple()
+    @test isnothing(r.model1)
+    @test isnothing(r.model2)
     range(averager, :(model1.K), lower=2, upper=3)
 end
 
@@ -450,7 +394,7 @@ function MLJBase.fit(model::ElephantModel, verbosity, X, y)
     yhat = predict(mach2, W)
 
     mach = machine(Probabilistic(), Xs, ys, predict=yhat)
-    return!(mach, model, verbosity)
+    return!(mach, model, verbosity; depwarn)
 end
 
 @testset "reformat/selectrows logic in composite model" begin
@@ -462,7 +406,8 @@ end
                         true)
     mach = machine(model, X, y, cache=false)
 
-    @test_logs((:info, "reformatting X, y"),
+    @test_logs((:warn, MLJBase.WARN_NETWORK_MACHINES_DEPRECATION),
+               (:info, "reformatting X, y"),
                (:info, "resampling X, y"),
                fit!(mach, verbosity=0, rows=1:3)
                )
@@ -498,7 +443,7 @@ end
         # node for the inverse_transform:
 
         network_mach = machine(Unsupervised(), Xs, transform=X2, inverse_transform=Xs)
-        return!(network_mach, model, verbosity)
+        return!(network_mach, model, verbosity; depwarn)
 
     end
 

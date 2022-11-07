@@ -4,7 +4,7 @@ module MLJBase
 # IMPORTS
 
 import Base: ==, precision, getindex, setindex!
-import Base.+, Base.*
+import Base.+, Base.*, Base./
 
 # Scitype
 using ScientificTypes
@@ -38,7 +38,7 @@ for name in exported_names(MLJModelInterface)
         :UnivariateFinite,
         :augmented_transform,
         :info,
-        :scitype # Needed to avoid clashing with `ScientificTypes.scitype` 
+        :scitype # Needed to avoid clashing with `ScientificTypes.scitype`
     ] && continue
     quote
         import MLJModelInterface.$name
@@ -198,15 +198,19 @@ include("models.jl")
 include("sources.jl")
 include("machines.jl")
 
-include("composition/abstract_types.jl")
+include("composition/deprecated_abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
-include("composition/learning_networks/machines.jl")
+include("composition/learning_networks/signatures.jl")
+include("composition/learning_networks/deprecated_machines.jl")
+include("composition/learning_networks/replace.jl")
 
-include("composition/models/methods.jl")
-include("composition/models/from_network.jl")
+include("composition/models/deprecated_pipelines.jl")
+include("composition/models/deprecated_methods.jl")
+include("composition/models/network_composite_types.jl")
+include("composition/models/network_composite.jl")
+include("composition/models/deprecated_from_network.jl")
 include("composition/models/inspection.jl")
-include("composition/models/deprecated.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
 
@@ -228,6 +232,14 @@ include("composition/models/stacking.jl")
 
 # function on the right-hand side is defined in src/measures/meta_utilities.jl:
 const MEASURE_TYPES_ALIASES_AND_INSTANCES = measures_for_export()
+
+const EXTENDED_ABSTRACT_MODEL_TYPES = vcat(
+    MLJBase.MLJModelInterface.ABSTRACT_MODEL_SUBTYPES,
+    MLJBase.NETWORK_COMPOSITE_TYPES, # src/composition/models/network_composite_types.jl
+    MLJBase.COMPOSITE_TYPES, # src/composition/abstract_types.jl
+    MLJBase.SURROGATE_TYPES, # src/composition/abstract_types.jl
+    [:MLJType, :Model, :NetworkComposite, :Surrogate, :Composite],
+)
 
 # ===================================================================
 ## EXPORTS
@@ -279,6 +291,11 @@ export coerce, coerce!, autotype, schema, info
 # re-exports from CategoricalDistributions:
 export UnivariateFiniteArray, UnivariateFiniteVector
 
+# -----------------------------------------------------------------------
+# abstract model types defined in MLJModelInterface.jl and extended here:
+for T in EXTENDED_ABSTRACT_MODEL_TYPES
+    @eval(export $T)
+end
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
@@ -313,7 +330,7 @@ export source, Source, CallableReturning
 
 # machines.jl:
 export machine, Machine, fit!, report, fit_only!, default_scitype_check_level,
-    serializable
+    serializable, last_model
 
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
@@ -327,9 +344,6 @@ export machines, sources, @from_network, @pipeline, Stack,
     StaticPipeline, IntervalPipeline
 
 export TransformedTargetModel
-
-# aliases to the above,  kept for backwards compatibility:
-export  DeterministicNetwork, ProbabilisticNetwork, UnsupervisedNetwork
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,

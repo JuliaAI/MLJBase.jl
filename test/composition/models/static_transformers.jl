@@ -56,7 +56,8 @@ f(X) = (a=selectcols(X, :x1), b=selectcols(X, :x2))
 knn = KNNRegressor()
 
 # 1. function in a pipeline:
-comp1 = @pipeline f Standardizer knn target=UnivariateBoxCoxTransformer
+knn_target = TransformedTargetModel(knn, transformer=UnivariateBoxCoxTransformer())
+comp1 =  f |> Standardizer() |> knn_target
 e = evaluate(comp1, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 
 # 2. function with parameters in a pipeline:
@@ -65,61 +66,60 @@ mutable struct GreatTransformer <: Static
 end
 MLJBase.transform(transf::GreatTransformer, verbosity, X) =
     (a=selectcols(X, transf.ftr), b=selectcols(X, :x2))
-comp2 = @pipeline(GreatTransformer(:x3), Standardizer, knn,
-                      target=UnivariateBoxCoxTransformer)
-
+comp2 = GreatTransformer(:x3) |> Standardizer() |>  knn_target
 comp2.great_transformer.ftr = :x1 # change the parameter
 e2 =  evaluate(comp2, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 @test e2.measurement[1] ≈ e.measurement[1]
 
-# 3. function in an exported learning network:
-Xs = source(X)
-ys = source(y)
-f(X::AbstractNode) = node(f, X)
-# or, without arrow syntax:
-# W = Xs |> f |> Standardizer()
-# z = ys |> UnivariateBoxCoxTransformer()
-# zhat = (W, z) |> knn
-# yhat = zhat |> inverse_transform(z)
-X2 = f(Xs)
-W = transform(machine(Standardizer(), X2), X2)
-box_mach = machine(UnivariateBoxCoxTransformer(), ys)
-z = transform(box_mach, ys)
-knn_mach = machine(knn, W, z)
-zhat = predict(knn_mach, W)
-yhat = inverse_transform(box_mach, zhat)
+# 3. function in an `NetworkComposite`:
 
-@from_network machine(Deterministic(), Xs, ys; predict=yhat) begin
-    mutable struct Comp3
-        rgs=knn
-    end
+mutable struct Comp3 <: DeterministicNetworkComposite
+    rgs
 end
 
-comp3 = Comp3()
+f(X::AbstractNode) = node(f, X)
+
+function MLJBase.prefit(::Comp3, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    X2 = f(Xs) # f define in global scope
+    W = transform(machine(Standardizer(), X2), X2)
+    box_mach = machine(UnivariateBoxCoxTransformer(), ys)
+    z = transform(box_mach, ys)
+    knn_mach = machine(:rgs, W, z)
+    zhat = predict(knn_mach, W)
+    yhat = inverse_transform(box_mach, zhat)
+    return (; predict=yhat)
+end
+
+comp3 = Comp3(knn)
 e3 =  evaluate(comp3, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 @test e2.measurement[1] ≈ e.measurement[1]
 
-# 4. function with parameters in exported learning network:
-inserter = GreatTransformer(:x3)
-# W = Xs |> inserter |> Standardizer()
-# z = ys |> UnivariateBoxCoxTransformer()
-# zhat = (W, z) |> knn
-# yhat = zhat |> inverse_transform(z)
-inserter_mach = machine(inserter)
-X2 = transform(inserter_mach, Xs)
-W = transform(machine(Standardizer(), X2), X2)
-box_mach = machine(UnivariateBoxCoxTransformer(), ys)
-z = transform(box_mach, ys)
-knn_mach = machine(knn, W, z)
-zhat = predict(knn_mach, W)
-yhat = inverse_transform(box_mach, zhat)
-@from_network machine(Deterministic(), Xs, ys; predict=yhat) begin
-    mutable struct Comp4
-        transf=inserter
-        rgs=knn
-    end
+# 4. function with parameters in `NetworkComposite`:
+
+mutable struct CC <: DeterministicNetworkComposite
+    transf
+    rgs
 end
-comp4 = Comp4()
+
+function MLJBase.prefit(::CC, verbosity, X, y)
+    Xs = source(X)
+    ys = source(y)
+    inserter_mach = machine(:transf)
+    X2 = transform(inserter_mach, Xs)
+    W = transform(machine(Standardizer(), X2), X2)
+    box_mach = machine(UnivariateBoxCoxTransformer(), ys)
+    z = transform(box_mach, ys)
+    knn_mach = machine(:rgs, W, z)
+    zhat = predict(knn_mach, W)
+    yhat = inverse_transform(box_mach, zhat)
+    return (; predict=yhat)
+end
+
+inserter = GreatTransformer(:x3)
+comp4 = CC(inserter, knn)
+
 comp4.transf.ftr = :x1 # change the parameter
 e4 =  evaluate(comp4, X, y, measure=mae, resampling=Holdout(), verbosity=0)
 @test e4.measurement[1] ≈ e.measurement[1]

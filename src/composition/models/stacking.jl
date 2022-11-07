@@ -2,7 +2,7 @@
 ################ Helpers ###################
 ############################################
 
-function glb(types...)
+function _glb(types...)
     # If a lower bound is in the types then it is greatest
     # else we just return Unknown for now
     for type in types
@@ -16,10 +16,10 @@ function input_target_scitypes(models, metalearner)
     # The target scitype is defined as the greatest lower bound of the
     # metalearner and the base models in the library
     all_tg_scitypes = [target_scitype(m) for m in models]
-    tg_scitype = glb(target_scitype(metalearner), all_tg_scitypes...)
+    tg_scitype = _glb(target_scitype(metalearner), all_tg_scitypes...)
     # The input scitype is defined as the greatest lower bound of the
     # base models in the library
-    inp_scitype = glb([input_scitype(m) for m in models]...)
+    inp_scitype = _glb([input_scitype(m) for m in models]...)
 
     return inp_scitype, tg_scitype
 end
@@ -42,7 +42,7 @@ mutable struct DeterministicStack{
     modelnames,
     inp_scitype,
     tg_scitype
-} <: DeterministicComposite
+} <: DeterministicNetworkComposite
 
     models::Vector{Supervised}
     metalearner::Deterministic
@@ -78,7 +78,7 @@ mutable struct ProbabilisticStack{
     modelnames,
     inp_scitype,
     tg_scitype
-} <: ProbabilisticComposite
+} <: ProbabilisticNetworkComposite
 
     models::Vector{Supervised}
     metalearner::Probabilistic
@@ -446,7 +446,7 @@ its own training. It also returns the folds_evaluations object if internal cross
 results are requested.
 
 """
-function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
+function oos_set(m::Stack{modelnames}, Xs::Source, ys::Source, tt_pairs) where modelnames
     Zval = []
     yval = []
     folds_evaluations = []
@@ -460,8 +460,9 @@ function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
         # Train each model on the train fold and predict on the validation fold
         # predictions are subsequently used as an input to the metalearner
         Zfold = []
-        for model in getfield(m, :models)
-            mach = machine(model, Xtrain, ytrain, cache=m.cache)
+        for symbolic_model in modelnames
+            model = getproperty(m, symbolic_model)
+            mach = machine(symbolic_model, Xtrain, ytrain, cache=m.cache)
             ypred = predict(mach, Xtest)
             # Internal evaluation on the fold if required
             push!(folds_evaluations, store_for_evaluation(mach, Xtest, ytest, m.measures))
@@ -483,12 +484,10 @@ function oos_set(m::Stack, Xs::Source, ys::Source, tt_pairs)
 end
 
 #######################################
-################# Fit #################
+################# Prefit #################
 #######################################
-"""
-    fit(m::Stack, verbosity::Int, X, y)
-"""
-function fit(m::Stack, verbosity::Int, X, y)
+
+function prefit(m::Stack{modelnames}, verbosity::Int, X, y) where modelnames
     check_stack_measures(m, verbosity, m.measures, y)
     tt_pairs = train_test_pairs(m.resampling, 1:nrows(y), X, y)
 
@@ -497,12 +496,13 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     Zval, yval, folds_evaluations = oos_set(m, Xs, ys, tt_pairs)
 
-    metamach = machine(m.metalearner, Zval, yval, cache=m.cache)
+    metamach = machine(:metalearner, Zval, yval, cache=m.cache)
 
     # Each model is retrained on the original full training set
     Zpred = []
-    for model in getfield(m, :models)
-        mach = machine(model, Xs, ys, cache=m.cache)
+    for symbolic_model in modelnames
+        model = getproperty(m, symbolic_model)
+        mach = machine(symbolic_model, Xs, ys, cache=m.cache)
         ypred = predict(mach, Xs)
         ypred = pre_judge_transform(ypred, typeof(model), target_scitype(model))
         push!(Zpred, ypred)
@@ -513,10 +513,13 @@ function fit(m::Stack, verbosity::Int, X, y)
 
     internal_report = internal_stack_report(m, verbosity, tt_pairs, folds_evaluations...)
 
-    # We can infer the Surrogate by two calls to supertype
-    mach = machine(supertype(supertype(typeof(m)))(), Xs, ys; predict=ŷ, internal_report...)
+    # return learning network interface:
+    (;
+     predict = ŷ,
+     acceleration=m.acceleration,
+     internal_report..., # `internal_report` has form `(; report=(; cv_report=some_node))`
+     )
 
-    return!(mach, m, verbosity, acceleration=m.acceleration)
 end
 
 
