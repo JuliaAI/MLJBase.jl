@@ -813,7 +813,7 @@ Additional keys, `machines` and `fitted_params_given_machine`, give a
 list of *all* machines in the underlying network, and a dictionary of
 fitted parameters keyed on those machines.
 
-```
+See also [`report`](@ref)
 
 """
 function fitted_params(mach::Machine)
@@ -858,7 +858,7 @@ Additional keys, `machines` and `report_given_machine`, give a
 list of *all* machines in the underlying network, and a dictionary of
 reports keyed on those machines.
 
-```
+See also [`fitted_params`](@ref)
 
 """
 function report(mach::Machine)
