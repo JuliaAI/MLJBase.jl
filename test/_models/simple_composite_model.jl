@@ -1,117 +1,117 @@
-export SimpleDeterministicCompositeModel, SimpleDeterministicNetworkCompositeModel
+export SimpleDeterministicCompositeModel, SimpleDeterministicNetworkCompositeModel,
+    SimpleProbabilisticCompositeModel, SimpleProbabilisticNetworkCompositeModel
 
 using MLJBase
 
-"""
-    SimpleDeterministicCompositeModel(;regressor=ConstantRegressor(),
-                              transformer=FeatureSelector())
+const COMPOSITE_MODELS = [
+    :SimpleDeterministicCompositeModel,
+    :SimpleProbabilisticCompositeModel,
+    :SimpleDeterministicNetworkCompositeModel,
+    :SimpleProbabilisticNetworkCompositeModel
+]
+const REGRESSORS = Dict(
+    :SimpleDeterministicCompositeModel => :DeterministicConstantRegressor,
+    :SimpleDeterministicNetworkCompositeModel => :DeterministicConstantRegressor,
+    :SimpleProbabilisticCompositeModel => :ConstantRegressor,
+    :SimpleProbabilisticNetworkCompositeModel => :ConstantRegressor,
+)
 
-Construct a composite model consisting of a transformer
-(`Unsupervised` model) followed by a `Deterministic` model. Mainly
-intended for internal testing .
+const REGRESSOR_SUPERTYPES = Dict(
+    :SimpleDeterministicCompositeModel => :Deterministic,
+    :SimpleDeterministicNetworkCompositeModel => :Deterministic,
+    :SimpleProbabilisticCompositeModel => :Probabilistic,
+    :SimpleProbabilisticNetworkCompositeModel => :Probabilistic,
+)
 
-"""
-mutable struct SimpleDeterministicCompositeModel{L<:Deterministic,
-                             T<:Unsupervised} <: DeterministicComposite
-    model::L
-    transformer::T
+const COMPOSITE_SUPERTYPES = Dict(
+    :SimpleDeterministicCompositeModel => :DeterministicComposite,
+    :SimpleDeterministicNetworkCompositeModel => :DeterministicNetworkComposite,
+    :SimpleProbabilisticCompositeModel => :ProbabilisticComposite,
+    :SimpleProbabilisticNetworkCompositeModel => :ProbabilisticNetworkComposite,
+)
 
+
+for model in COMPOSITE_MODELS
+    regressor = REGRESSORS[model]
+    regressor_supertype = REGRESSOR_SUPERTYPES[model]
+    composite_supertype = COMPOSITE_SUPERTYPES[model]
+    quote 
+        """
+            (model)(; regressor=$($(regressor))(), transformer=FeatureSelector())
+
+        Construct a composite model consisting of a transformer
+        (`Unsupervised` model) followed by a `$($(regressor_supertype))` model. Mainly
+        intended for internal testing .
+
+        """
+        mutable struct $(model){
+            L<:$(regressor_supertype),
+            T<:Unsupervised
+        } <: $(composite_supertype)
+            model::L
+            transformer::T
+        end
+
+        function $(model)(;
+            model=$(regressor)(), transformer=FeatureSelector()
+        )
+            composite =  $(model)(model, transformer)
+            message = MLJBase.clean!(composite)
+            isempty(message) || @warn message
+            return composite
+        end
+
+        MLJBase.metadata_pkg(
+            $(model);
+            package_url = "https://github.com/alan-turing-institute/MLJBase.jl",
+            is_pure_julia = true,
+            is_wrapper = true
+        )
+        
+        MLJBase.input_scitype(::Type{<:$(model){L,T}}) where {L,T} =
+            MLJBase.input_scitype(T)
+        MLJBase.target_scitype(::Type{<:$(model){L,T}}) where {L,T} =
+            MLJBase.target_scitype(L)
+        
+    end |> eval
 end
 
-function SimpleDeterministicCompositeModel(;
-                      model=DeterministicConstantRegressor(),
-                      transformer=FeatureSelector())
+## FIT METHODS
+for model in COMPOSITE_MODELS[1:2]
+    @eval function MLJBase.fit(
+        composite::$(model), verbosity::Integer, Xtrain, ytrain
+    )
+        X = source(Xtrain) # instantiates a source node
+        y = source(ytrain)
 
-    composite =  SimpleDeterministicCompositeModel(model, transformer)
+        t = machine(composite.transformer, X)
+        Xt = transform(t, X)
 
-    message = MLJBase.clean!(composite)
-    isempty(message) || @warn message
+        l = machine(composite.model, Xt, y)
+        yhat = predict(l, Xt)
 
-    return composite
+        mach = machine($(REGRESSOR_SUPERTYPES[model])(), X, y; predict=yhat)
 
+        return!(mach, composite, verbosity)
+    end
 end
 
-MLJBase.is_wrapper(::Type{<:SimpleDeterministicCompositeModel}) = true
+for model in COMPOSITE_MODELS[3:4]
+    @eval function MLJBase.prefit(
+        composite::$(model),
+        verbosity::Integer,
+        Xtrain,
+        ytrain
+    )
+        X = source(Xtrain) # instantiates a source node
+        y = source(ytrain)
 
-function MLJBase.fit(composite::SimpleDeterministicCompositeModel,
-                     verbosity::Integer, Xtrain, ytrain)
-    X = source(Xtrain) # instantiates a source node
-    y = source(ytrain)
+        t = machine(:transformer, X)
+        Xt = transform(t, X)
 
-    t = machine(composite.transformer, X)
-    Xt = transform(t, X)
+        l = machine(:model, Xt, y)
+        yhat = predict(l, Xt)
 
-    l = machine(composite.model, Xt, y)
-    yhat = predict(l, Xt)
-
-    mach = machine(Deterministic(), X, y; predict=yhat)
-
-    return!(mach, composite, verbosity)
+        (predict=yhat,)
+    end
 end
-
-MLJBase.load_path(::Type{<:SimpleDeterministicCompositeModel}) =
-    "MLJBase.SimpleDeterministicCompositeModel"
-MLJBase.package_uuid(::Type{<:SimpleDeterministicCompositeModel}) = ""
-MLJBase.package_url(::Type{<:SimpleDeterministicCompositeModel}) =
-    "https://github.com/alan-turing-institute/MLJBase.jl"
-MLJBase.is_pure_julia(::Type{<:SimpleDeterministicCompositeModel}) = true
-MLJBase.input_scitype(::Type{<:SimpleDeterministicCompositeModel{L,T}}) where {L,T} =
-    MLJBase.input_scitype(T)
-MLJBase.target_scitype(::Type{<:SimpleDeterministicCompositeModel{L,T}}) where {L,T} =
-    MLJBase.target_scitype(L)
-
-"""
-    SimpleDeterministicCompositeNetworkModel(;regressor=ConstantRegressor(),
-                              transformer=FeatureSelector())
-
-Construct a composite model consisting of a transformer
-(`Unsupervised` model) followed by a `Deterministic` model. Mainly
-intended for internal testing .
-
-"""
-mutable struct SimpleDeterministicNetworkCompositeModel{L<:Deterministic,
-                             T<:Unsupervised} <: DeterministicNetworkComposite
-    model::L
-    transformer::T
-
-end
-
-function SimpleDeterministicNetworkCompositeModel(;
-                      model=DeterministicConstantRegressor(),
-                      transformer=FeatureSelector())
-
-    composite =  SimpleDeterministicNetworkCompositeModel(model, transformer)
-
-    message = MLJBase.clean!(composite)
-    isempty(message) || @warn message
-
-    return composite
-
-end
-
-MLJBase.is_wrapper(::Type{<:SimpleDeterministicNetworkCompositeModel}) = true
-
-function MLJBase.prefit(composite::SimpleDeterministicNetworkCompositeModel,
-                     verbosity::Integer, Xtrain, ytrain)
-    X = source(Xtrain) # instantiates a source node
-    y = source(ytrain)
-
-    t = machine(:transformer, X)
-    Xt = transform(t, X)
-
-    l = machine(:model, Xt, y)
-    yhat = predict(l, Xt)
-
-    (predict=yhat,)
-end
-
-MLJBase.load_path(::Type{<:SimpleDeterministicNetworkCompositeModel}) =
-    "MLJBase.SimpleDeterministicNetworkCompositeModel"
-MLJBase.package_uuid(::Type{<:SimpleDeterministicNetworkCompositeModel}) = ""
-MLJBase.package_url(::Type{<:SimpleDeterministicNetworkCompositeModel}) =
-    "https://github.com/alan-turing-institute/MLJBase.jl"
-MLJBase.is_pure_julia(::Type{<:SimpleDeterministicNetworkCompositeModel}) = true
-MLJBase.input_scitype(::Type{<:SimpleDeterministicNetworkCompositeModel{L,T}}) where {L,T} =
-    MLJBase.input_scitype(T)
-MLJBase.target_scitype(::Type{<:SimpleDeterministicNetworkCompositeModel{L,T}}) where {L,T} =
-    MLJBase.target_scitype(L)

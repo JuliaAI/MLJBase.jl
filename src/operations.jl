@@ -26,7 +26,7 @@ const ERR_ROWS_NOT_ALLOWED = ArgumentError(
     "Calling `transform(mach, rows=...)` or "*
     "`predict(mach, rows=...)` when "*
     "`mach.model isa Static` is not allowed, as no data "*
-    "is bound to `mach` in this case. Specify a explicit "*
+    "is bound to `mach` in this case. Specify an explicit "*
     "data or node, as in `transform(mach, X)`, or "*
     "`transform(mach, X1, X2, ...)`. "
 )
@@ -240,7 +240,9 @@ for (operation, fallback) in [(:predict_mode, :mode),
             if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
                 return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
             end
-            return $(fallback).(predict(m, fitresult, Xnew))
+            # The following line retuns a `Tuple` since `m` is a `NetworkComposite`
+            predictions, report = predict(m, fitresult, Xnew) 
+            return $(fallback).(predictions), report
         end
     end |> eval
 end
