@@ -3,7 +3,7 @@
 export FeatureSelector,
     UnivariateStandardizer, Standardizer,
     UnivariateBoxCoxTransformer,
-    OneHotEncoder, UnivariateDiscretizer
+    OneHotEncoder, UnivariateDiscretizer, Averager
 
 using Statistics
 
@@ -568,16 +568,62 @@ function MLJBase.transform(transformer::OneHotEncoder, fitresult, X)
     return MLJBase.table(named_cols, prototype=X)
 end
 
+"""
+    Averager(; mix = 0.5)
+
+Static Unsupervised mode for computing the weighted sum of two vectors with weight `mix`.
+"""
+mutable struct Averager <: Static
+    mix::Float64
+end
+
+function MLJBase.clean!(model::Averager)
+	warning = ""
+	if model.mix > 1 || model.mix < 0
+		warning *= "Need  `0 ≤ mix ≤ 1`. Resetting `mix=0.5`` "
+		model.mix = 0.5
+	end
+	return warning
+end
+
+function Averager(; mix=0.0)
+	model = Averager(mix)
+	message = MLJBase.clean!(model)
+	isempty(message) || @warn message
+	return model
+end
+
+function MLJBase.transform(m::Averager, _, y1, y2)
+    if !(y1 isa AbstractVector && y2 isa AbstractVector)
+        throw(
+            ArgumentError(
+                "Both inputs to the `Averager` transform must be "*
+                "instances of `AbstractVector`"
+            )
+        )
+    end
+    average = ((1 - m.mix) .* y1) .+ (m.mix .* y2)
+    return average
+end
+
 ##
 ## Metadata for all built-in transformers
 ##
 
-metadata_pkg.((FeatureSelector, UnivariateStandardizer,
-               UnivariateDiscretizer, Standardizer,
-               UnivariateBoxCoxTransformer, OneHotEncoder),
-              name="MLJBase",
-              julia=true,
-              license="MIT")
+metadata_pkg.(
+    (
+        FeatureSelector, 
+        UnivariateStandardizer,
+        UnivariateDiscretizer,
+        Standardizer,
+        UnivariateBoxCoxTransformer,
+        OneHotEncoder,
+        Averager
+    ),
+    name="MLJBase",
+    julia=true,
+    license="MIT"
+)
 
 metadata_model(FeatureSelector,
                input=MLJBase.Table,
@@ -614,3 +660,9 @@ metadata_model(OneHotEncoder,
                output=MLJBase.Table,
                weights=false,
                path="MLJBase.OneHotEncoder")
+
+metadata_model(Averager,
+    output=AbstractVector{MLJBase.Continuous},
+    weights=false,
+    path="MLJBase.Averager"
+)
