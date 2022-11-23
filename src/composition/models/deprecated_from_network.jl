@@ -265,7 +265,7 @@ macro nodepwarn_from_network(exs...)
     from_network_(__module__, args...)
 end
 macro from_network(exs...)
-    MLJBase.depwarn(WARN_FROM_NETWORK_DEPRECATION, :from_network, force=true)
+    Base.depwarn(WARN_FROM_NETWORK_DEPRECATION, :from_network, force=true)
     args = from_network_preprocess(__module__, exs...)
     modeltype_ex = args[2]
     from_network_(__module__, args...)
