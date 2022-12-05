@@ -811,7 +811,7 @@ end
         X,
         y,
         operation=predict_mode,
-        measure = ConfusionMatrix(),
+        measure=ConfusionMatrix(),
         resampling=CV(),
     )
     io = IOBuffer()
