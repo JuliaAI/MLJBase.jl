@@ -817,7 +817,8 @@ end
     io = IOBuffer()
     show(io, evaluations)
     show(io, MIME("text/plain"))
-
+    confusion_table = sprint(show, "text/plain", evaluations.measurement[1])
+    @test contains(confusion_table, "Ground Truth")
 end
 
 #end
