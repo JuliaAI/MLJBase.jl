@@ -783,6 +783,7 @@ end
     # Using `evaluate` to obtain a `PerformanceEvaluation` object.
     clf = ConstantClassifier()
     X, y = make_moons(100)
+    y = coerce(y, OrderedFactor)
     evaluations = evaluate(clf, X, y, resampling=CV())
     T = typeof(evaluations)
     @test T <: PerformanceEvaluation
@@ -801,8 +802,20 @@ end
     measures = [LogLoss(), Accuracy()]
     evaluations = evaluate(clf, X, y; measures, resampling=Holdout())
     show_text = sprint(show, MIME"text/plain"(), evaluations)
-    print(show_text)
     @test !contains(show_text, "std")
+
+    # issue #871: trying to calculate SE when inappropriate should not throw an error in
+    # display.
+    evaluations = evaluate(
+        clf,
+        X,
+        y,
+        operation=predict_mode,
+        measure=ConfusionMatrix(),
+        resampling=CV(),
+    )
+    printed_evaluations = sprint(show, "text/plain", evaluations)
+    @test contains(printed_evaluations, "N/A")
 end
 
 #end

@@ -534,14 +534,16 @@ _short(v::Vector{<:Real}) = MLJBase.short_string(v)
 _short(v::Vector) = string("[", join(_short.(v), ", "), "]")
 _short(::Missing) = missing
 
+
+const SE_FACTOR = 1.96 # For a 95% confidence interval.
+
+_standard_error(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
+_standard_error(v) = "N/A"
+
 function _standard_errors(e::PerformanceEvaluation)
-    factor = 1.96 # For the 95% confidence interval.
     measure = e.measure
-    nfolds = length(e.per_fold[1])
-    nfolds == 1 && return [nothing]
-    std_errors = map(e.per_fold) do per_fold
-        factor * std(per_fold) / sqrt(nfolds - 1)
-    end
+    length(e.per_fold[1]) == 1 && return [nothing]
+    std_errors = map(_standard_error, e.per_fold)
     return std_errors
 end
 
