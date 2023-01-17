@@ -46,7 +46,7 @@ const ERR_NO_METALEARNER = ArgumentError(
     "No metalearner specified. Use Stack(metalearner=..., model1=..., model2=...)"
 )
 
-# checks `model` is either a probabilistic classifier or a deterministic regressor:
+# checks `model` is either a probabilistic classifier or a regressor:
 function check_valid_basemodel(model)
     okay =
         (prediction_type(model) == :probabilistic &&
