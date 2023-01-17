@@ -34,9 +34,27 @@ const ERR_BAD_METALEARNER = ArgumentError(
     "of $(Union{Deterministic, Probabilistic})"
 )
 
+ERR_BAD_BASEMODEL(model) = ArgumentError(
+    "The base model $model is not supported. The model must either be a "*
+    "probabilistic classifier (output of `predict` is a vector of  "*
+    "`UnivariateFinite`) "*
+    "or a regressor (`target_scitype(model) <: "*
+    "AbstractVector{<:Union{Continuous,Missing}}`). "
+)
+
 const ERR_NO_METALEARNER = ArgumentError(
     "No metalearner specified. Use Stack(metalearner=..., model1=..., model2=...)"
 )
+
+# checks `model` is either a probabilistic classifier or a deterministic regressor:
+function check_valid_basemodel(model)
+    okay =
+        (prediction_type(model) == :probabilistic &&
+        target_scitype(model) <: AbstractVector{<:Union{Finite,Missing}}) ||
+        (target_scitype(model) <: AbstractVector{<:Union{Continuous,Missing}})
+    okay || throw(ERR_BAD_BASEMODEL(model))
+    return nothing
+end
 
 mutable struct DeterministicStack{
     modelnames,
@@ -179,8 +197,13 @@ function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {
     tg_scitype
 }
 
-    # We only carry checks and don't try to correct the arguments here
+    # We only carry out checks and don't try to correct the arguments here
     message = ""
+
+    # check basemodels:
+    basemodels = map(name -> getproperty(stack, name), modelnames)
+    check_valid_basemodel.(basemodels)
+
     # Checking target_scitype and input_scitype have not been changed from the original
     # stack:
     glb_inp_scitype, glb_tg_scitype =
