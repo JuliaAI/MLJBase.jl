@@ -36,8 +36,10 @@ const UD = Distributions.UnivariateDistribution
 # ---------------------------------------------------------
 # AreaUnderCurve
 
-# Implementation drawn from
-# https://www.kaggle.com/c/microsoft-malware-prediction/discussion/76013.
+# Implementation based on the Mann-Whitney U statistic.
+# see https://en.wikipedia.org/wiki/Receiver_operating_characteristic#Area_under_the_curve
+# and https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test#Area_under_curve_(AUC)_statistic_for_ROC_curves
+
 
 struct AreaUnderCurve <: Aggregated end
 
@@ -68,21 +70,22 @@ scitpye = DOC_FINITE_BINARY)
 # core algorithm:
 function _auc(::Type{P}, ŷ, y) where P<:Real # type of probabilities
     lab_pos = classes(ŷ)[2] # 'positive' label
-    scores  = pdf.(ŷ, lab_pos)     # associated scores
-    y_sort  = y[sortperm(scores)]  # sort by scores
-    n       = length(y)
-    n_neg   = 0  # to keep of the number of negative preds
-    auc     = P(0)
-    @inbounds for i in 1:n
-        # y[i] == lab_p --> it's a positive label in the ground truth
-        # in that case increase the auc by the cumulative sum
-        # otherwise increase the number of negatives by 1
-        δ_auc, δ_neg = ifelse(y_sort[i] == lab_pos, (n_neg, 0), (0, 1))
-        auc   += δ_auc
-        n_neg += δ_neg
+    scores = pdf.(ŷ, lab_pos) # associated scores
+    ranks = StatsBase.tiedrank(scores)
+    n = length(y)
+    n_neg = 0  # to keep of the number of negative preds
+    T = eltype(ranks)
+    R_pos = zero(T) # sum of positive ranks
+    @inbounds for (i,j) in zip(eachindex(y), eachindex(ranks))
+        if y[i] == lab_pos
+            R_pos += ranks[j]
+        else
+            n_neg += 1
+        end
     end
-    n_pos = n - n_neg
-    return auc / (n_neg * n_pos)
+    n_pos = n - n_neg # number of positive predictions
+    U = R_pos - T(0.5)*n_pos*(n_pos + 1) # Mann-Whitney U statistic
+    return U / (n_neg * n_pos)
 end
 
 # Missing values not supported, but allow `Missing` in eltype, because
