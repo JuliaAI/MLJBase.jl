@@ -43,6 +43,12 @@ To draw the curve using your favorite plotting backend, do `plot(fprs, tprs)`.
 """
 function roc_curve(ŷm, ym)
     ŷ, y    = skipinvalid(ŷm, ym)
+    length(classes(ŷ)) ==  2 || throw(
+        ArgumentError("`ŷ` must be a two-class probabilistic prediction")
+    )
+    length(levels(y)) == 2 || throw(
+        ArgumentError("`y` must be a categorical vector with two-levels.")
+    )
     n       = length(y)
     lab_pos = levels(y)[2]
     scores  = pdf.(ŷ, lab_pos)

@@ -51,6 +51,13 @@ const Vec = AbstractVector
     ŷ2 = UnivariateFinite(y2[1:2], probs, augment=true) # same probs
     @test isapprox(auc(ŷ2, y2), auc(ŷ, y), rtol=1e-4)
 
+    # The auc algorithm should be able to handle the case where two or more
+    # samples in the prediction vector has the same UnivariateFinite distribution
+    # We check this by comparing our auc with that gotten from roc_auc_score from sklearn.
+    y = categorical(["class_1","class_1","class_0","class_0","class_1","class_1","class_0"])
+    ŷ = UnivariateFinite(levels(y), [0.8,0.7,0.5,0.5,0.5,0.5,0.3], augment=true, pool=y)
+    # We can see that ŷ[3] ≈ ŷ[4] ≈ ŷ[5] ≈ ŷ[6]
+    @test isapprox(auc(ŷ, y), 0.8333333333333334, rtol=1e-16)
 end
 
 @testset "Log, Brier, Spherical - finite case" begin
