@@ -35,7 +35,9 @@ const ERR_BAD_METALEARNER = ArgumentError(
 )
 
 ERR_BAD_BASEMODEL(model) = ArgumentError(
-    "The base model $model is not supported. The model must either be a "*
+    "The base model $model is not supported as it appears to "*
+    "be a classifier predicting point values. Ordinarily, the "*
+    "the model must either be a "*
     "probabilistic classifier (output of `predict` is a vector of  "*
     "`UnivariateFinite`) "*
     "or a regressor (`target_scitype(model) <: "*
@@ -48,11 +50,9 @@ const ERR_NO_METALEARNER = ArgumentError(
 
 # checks `model` is either a probabilistic classifier or a regressor:
 function check_valid_basemodel(model)
-    okay =
-        (prediction_type(model) == :probabilistic &&
-        target_scitype(model) <: AbstractVector{<:Union{Finite,Missing}}) ||
-        (target_scitype(model) <: AbstractVector{<:Union{Continuous,Missing}})
-    okay || throw(ERR_BAD_BASEMODEL(model))
+    problem = prediction_type(model) === :deterministic &&
+        target_scitype(model) <: AbstractVector{<:Union{Finite,Missing}}
+    problem && throw(ERR_BAD_BASEMODEL(model))
     return nothing
 end
 
