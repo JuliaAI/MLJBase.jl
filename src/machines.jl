@@ -965,7 +965,7 @@ A machine returned by `serializable` is characterized by the property
 
     # This machine can now be serialized
     smach = serializable(mach)
-    JLSO.save("machine.jlso", machine => smach)
+    JLSO.save("machine.jlso", :machine => smach)
 
     # Deserialize and restore learned parameters to useable form:
     loaded_mach = JLSO.load("machine.jlso")[:machine]
