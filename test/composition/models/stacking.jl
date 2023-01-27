@@ -158,6 +158,13 @@ end
 end
 
 @testset "Stack constructor valid argument checks" begin
+
+    # baselearner cannot be a deterministic classifier:
+    @test_throws(
+    MLJBase.ERR_BAD_BASEMODEL(DeterministicConstantClassifier()),
+    Stack(metalearner=ConstantClassifier(), mymodel=DeterministicConstantClassifier()),
+    )
+
     # metalearner should be `Deterministic` or `Probablisitic`:
     @test_throws(
         MLJBase.ERR_BAD_METALEARNER,

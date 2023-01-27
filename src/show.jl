@@ -1,5 +1,3 @@
-## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
-
 """
     color_on()
 
@@ -19,6 +17,8 @@ color_off() = (SHOW_COLOR[] = false;)
 macro colon(p)
     Expr(:quote, p)
 end
+
+## REGISTERING LABELS OF OBJECTS DURING ASSIGNMENT
 
 """
     @constant x = value
@@ -70,8 +70,9 @@ end
 
 # long version of showing a named tuple:
 Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = fancy_nt(stream, t)
-fancy_nt(t) = fancy_nt(stdout, t)
-fancy_nt(stream::IO, t) = fancy_nt(stream, t, 0)
+fancy_nt(t) = fancy_nt(stdout, t) # is this used?
+fancy_nt(stream, t::NamedTuple{(), Tuple{}}) = print(stream, "NamedTuple()")
+fancy_nt(stream, t) = fancy_nt(stream, t, 0)
 fancy_nt(stream, t, n) = show(stream, t)
 function fancy_nt(stream, t::NamedTuple, n)
     print(stream, "(")

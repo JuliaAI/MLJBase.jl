@@ -17,7 +17,7 @@ single machine.
 function machines_given_model(node::AbstractNode)
     ret = LittleDict{Symbol,Any}()
     for mach in machines(node)
-        model = mach.model 
+        model = mach.model
         model isa Symbol || continue
         if !haskey(ret, model)
             ret[model] = Any[mach,]
@@ -245,6 +245,17 @@ See also [`MLJBase.Signature`](@ref).
 """
 operations(signature::Signature) = keys(operation_nodes(signature))
 
+"""
+    glb(signature::Signature)
+
+**Private method.**
+
+Return the greatest lower bound of all operation nodes, report nodes and fitted parameter
+nodes associated with `signature`.
+
+See also [`MLJBase.Signature`](@ref).
+
+"""
 function glb(signature::Signature)
     grab(f) = values(f(signature)) |> collect
     nodes = vcat(
