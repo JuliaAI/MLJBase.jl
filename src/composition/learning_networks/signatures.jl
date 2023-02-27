@@ -101,7 +101,7 @@ const DOC_NETWORK_INTERFACES =
 
     Here `yhat`, `Xsmall`, `W` and `loss_node` are nodes in the network.
 
-    The keys of the signature are always one of the following:
+    The keys of the learning network interface always one of the following:
 
     - The name of an operation, such as `:predict`, `:predict_mode`, `:transform`,
       `:inverse_transform`. See "Operation keys" below.
