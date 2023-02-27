@@ -8,6 +8,7 @@ using Statistics
 using StableRNGs
 
 rng = StableRNG(66600099)
+stable_rng() = StableRNG(123)
 
 const Dist = Distributions
 
@@ -182,17 +183,16 @@ end
                   origin=5, unit=1) # origin and unit not relevant here
         s = MLJBase.sampler(r, Dist.Normal())
 
-        Random.seed!(1);
-        v = rand(s, 1000)
+        rng = stable_rng()
+        v = rand(rng, s, 1000)
         @test all(x >= 0.2 for x in v)
         @test abs(minimum(v)/0.2 - 1) <= 0.02
 
-        rng = _default_rng(1);
+        rng = stable_rng()
         @test rand(rng, s, 1000) == v
 
         q = quantile(v, 0.0:0.1:1.0)
-        Random.seed!(1);
-        v2 = filter(x -> x>=0.2, rand(Dist.Normal(), 3000))[1:1000]
+        v2 = filter(x -> x>=0.2, rand(stable_rng(), Dist.Normal(), 3000))[1:1000]
         q2 = quantile(v2, 0.0:0.1:1.0)
         @test all(x -> x≈1.0, q ./ q2)
     end
