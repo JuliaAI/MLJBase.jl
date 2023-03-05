@@ -102,21 +102,27 @@ end
 
 # See measures/README.md for details
 
-single(::Unaggregated, η̂::Missing, η) = missing
-single(::Unaggregated, η̂, η::Missing) = missing
+# `robust_single` can accept `missing` observations/predictions and is never overloaded;
+# `single` is overloaded but does not neede to handle missings. This factoring allows us
+# to avoid method ambiguities which are cumbersome to avoid with only one method.
+
+robust_single(args...) = single(args...)
+robust_single(m, ::Missing, ::Missing) = missing
+robust_single(m, ::Missing, η) = missing
+robust_single(m, η̂, ::Missing) = missing
 
 const Label = Union{CategoricalValue, Number, AbstractString, Symbol, AbstractChar}
 
 # closure for broadcasting:
-single(measure::Measure) = (ηhat, η) -> single(measure, ηhat, η)
+robust_single(measure::Measure) = (ηhat, η) -> robust_single(measure, ηhat, η)
 
-call(measure::Unaggregated, yhat, y) = broadcast(single(measure), yhat, y)
-function call(measure::Unaggregated, yhat, y, w::Arr)
-    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+call(measure::Unaggregated, yhat, y) = broadcast(robust_single(measure), yhat, y)
+function call(measure::Unaggregated, yhat, y, w::AbstractArray)
+    unweighted = broadcast(robust_single(measure), yhat, y)
     return w .* unweighted
 end
 function call(measure::Unaggregated, yhat, y, weight_given_class::AbstractDict)
-    unweighted = broadcast(single(measure), yhat, y) # `single` closure below
+    unweighted = broadcast(robust_single(measure), yhat, y)
     w = @inbounds broadcast(η -> weight_given_class[η], y)
     return w .* unweighted
 end
@@ -301,4 +307,3 @@ default_measure(::M) where M <: Supervised = default_measure(M)
 
 default_measure(M::Type{<:Annotator}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Annotator = default_measure(M)
-
