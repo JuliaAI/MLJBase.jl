@@ -244,59 +244,52 @@ include("loss_functions_interface.jl")
 
 # # DEFAULT MEASURES
 
-default_measure(T, S) = nothing
+default_measure(T, S) = _default_measure(T, nonmissingtype(S))
+
+_default_measure(T, S) = nothing
 
 # Deterministic + Continuous / Count ==> RMS
-function default_measure(
+function _default_measure(
     ::Type{<:Deterministic},
-    ::Type{<:Union{Vec{<:Union{Missing,Continuous}},
-    Vec{<:Union{Missing,Count}}}}
+    ::Type{<:Union{Vec{<:Continuous}, Vec{<:Count}}},
 )
    return rms
 end
 
 # Deterministic + Finite ==> Misclassification rate
-function default_measure(
+function _default_measure(
     ::Type{<:Deterministic},
-    ::Type{<:Vec{<:Union{Missing,Finite}}}
+    ::Type{<:Vec{<:Finite}},
 )
     return misclassification_rate
 end
 
-# Probabilistic + Finite ==> log loss
-function default_measure(
+# Probabilistic + Finite / Count ==> log loss
+function _default_measure(
     ::Type{<:Probabilistic},
-    ::Type{<:Vec{<:Union{Missing,Finite}}}
+    ::Type{<:Union{Vec{<:Finite},Vec{<:Count}}},
 )
     return log_loss
 end
 
 # Probabilistic + Continuous ==> Log loss
-function default_measure(
+function _default_measure(
     ::Type{<:Probabilistic},
-    ::Type{<:Vec{<:Union{Missing,Continuous}}}
+    ::Type{<:Vec{<:Continuous}},
 )
     return log_loss
 end
 
-# Probabilistic + Count ==> Log score
-function default_measure(
-    ::Type{<:Probabilistic},
-    ::Type{<:Vec{<:Union{Missing, Count}}}
-)
-    return log_loss
-end
-
-function default_measure(
+function _default_measure(
     ::Type{<:MMI.ProbabilisticDetector},
-    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+    ::Type{<:Vec{<:OrderedFactor{2}}},
 )
     return area_under_curve
 end
 
-function default_measure(
+function _default_measure(
     ::Type{<:MMI.DeterministicDetector},
-    ::Type{<:Vec{<:Union{Missing,OrderedFactor{2}}}}
+    ::Type{<:Vec{<:OrderedFactor{2}}},
 )
     return balanced_accuracy
 end
@@ -305,5 +298,5 @@ end
 default_measure(M::Type{<:Supervised}) = default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Supervised = default_measure(M)
 
-default_measure(M::Type{<:Annotator}) = default_measure(M, target_scitype(M))
+default_measure(M::Type{<:Annotator}) = _default_measure(M, target_scitype(M))
 default_measure(::M) where M <: Annotator = default_measure(M)
