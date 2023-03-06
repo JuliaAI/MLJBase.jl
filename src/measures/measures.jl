@@ -102,9 +102,9 @@ end
 
 # See measures/README.md for details
 
-# `robust_single` can accept `missing` observations/predictions and is never overloaded;
-# `single` is overloaded but does not neede to handle missings. This factoring allows us
-# to avoid method ambiguities which are cumbersome to avoid with only one method.
+# `robust_single` can accept `missing` observations/predictions but is never overloaded;
+# `single` is overloaded but does not need to handle missings. This factoring allows us
+# to avoid method ambiguities which are cumbersome to avoid with only one function.
 
 robust_single(args...) = single(args...)
 robust_single(m, ::Missing, ::Missing) = missing
