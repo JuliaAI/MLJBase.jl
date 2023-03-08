@@ -26,14 +26,8 @@ body=
 """,
 scitype=DOC_INFINITE)
 
-call(::MeanAbsoluteError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
-    abs.(ŷ .- y) |> skipinvalid |> mean
-
-call(::MeanAbsoluteError,
-     ŷ::ArrMissing{<:Real},
-     y::ArrMissing{<:Real},
-     w::Arr{<:Real}) =
-         abs.(ŷ .- y) .* w |> skipinvalid |> mean
+call(::MeanAbsoluteError, ŷ, y) = abs.(ŷ .- y) |> skipinvalid |> mean
+call(::MeanAbsoluteError, ŷ, y, w) = abs.(ŷ .- y) .* w |> skipinvalid |> mean
 
 # ----------------------------------------------------------------
 # RootMeanSquaredError
@@ -59,14 +53,8 @@ body=
 """,
 scitype=DOC_INFINITE)
 
-call(::RootMeanSquaredError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
-    (y .- ŷ).^2 |> skipinvalid |> mean |> sqrt
-
-call(::RootMeanSquaredError,
-     ŷ::ArrMissing{<:Real},
-     y::ArrMissing{<:Real},
-     w::Arr{<:Real}) =
-         (y .- ŷ).^2 .* w |> skipinvalid |> mean |> sqrt
+call(::RootMeanSquaredError, ŷ, y) = (y .- ŷ).^2 |> skipinvalid |> mean |> sqrt
+call(::RootMeanSquaredError, ŷ, y, w) = (y .- ŷ).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # -------------------------------------------------------------------------
 # R-squared (coefficient of determination)
@@ -86,7 +74,8 @@ const RSQ = RSquared
 @create_docs(RSquared,
 body=
 """
-The R² (also known as R-squared or coefficient of determination) is suitable for interpreting linear regression analysis (Chicco et al., [2021](https://doi.org/10.7717/peerj-cs.623)).
+The R² (also known as R-squared or coefficient of determination) is suitable for
+interpreting linear regression analysis (Chicco et al., [2021](https://doi.org/10.7717/peerj-cs.623)).
 
 Let ``\\overline{y}`` denote the mean of ``y``, then
 
@@ -94,7 +83,7 @@ Let ``\\overline{y}`` denote the mean of ``y``, then
 """,
 scitype=DOC_INFINITE)
 
-function call(::RSquared, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real})
+function call(::RSquared, ŷ, y)
     num = (ŷ .- y).^2 |> skipinvalid |> sum
     mean_y = mean(y)
     denom = (mean_y .- y).^2 |> skipinvalid |> sum
@@ -127,7 +116,7 @@ Constructor signature: `LPLoss(p=2)`. Reports
 """,
 scitype=DOC_INFINITE)
 
-single(m::LPLoss, ŷ::Real, y::Real) =  abs(y - ŷ)^(m.p)
+single(m::LPLoss, ŷ, y) =  abs(y - ŷ)^(m.p)
 
 # ----------------------------------------------------------------------------
 # RootMeanSquaredLogError
@@ -153,14 +142,10 @@ n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
 footer="See also [`rmslp1`](@ref).",
 scitype=DOC_INFINITE)
 
-call(::RootMeanSquaredLogError, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+call(::RootMeanSquaredLogError, ŷ, y) =
     (log.(y) - log.(ŷ)).^2 |> skipinvalid |> mean |> sqrt
-
-call(::RootMeanSquaredLogError,
-      ŷ::ArrMissing{<:Real},
-      y::ArrMissing{<:Real},
-      w::Arr{<:Real}) =
-          (log.(y) - log.(ŷ)).^2 .* w |> skipinvalid |> mean |> sqrt
+call(::RootMeanSquaredLogError, ŷ, y, w) =
+    (log.(y) - log.(ŷ)).^2 .* w |> skipinvalid |> mean |> sqrt
 
 # ---------------------------------------------------------------------------
 #  RootMeanSquaredLogProportionalError
@@ -193,11 +178,11 @@ n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\
 footer="See also [`rmsl`](@ref). ",
 scitype=DOC_INFINITE)
 
-call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}) =
+call(m::RMSLP, ŷ, y) =
     (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 |>
     skipinvalid |> mean |> sqrt
 
-call(m::RMSLP, ŷ::ArrMissing{<:Real}, y::ArrMissing{<:Real}, w::Arr{<:Real}) =
+call(m::RMSLP, ŷ, y, w) =
     (log.(y .+ m.offset) - log.(ŷ .+ m.offset)).^2 .* w |>
     skipinvalid |> mean |> sqrt
 
@@ -234,11 +219,13 @@ of such indices.
 
 """, scitype=DOC_INFINITE)
 
-function call(m::RootMeanSquaredProportionalError,
-               ŷ::ArrMissing{<:Real},
-               y::ArrMissing{T},
-               w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
-    ret = zero(T)
+function call(
+    m::RootMeanSquaredProportionalError,
+    ŷ,
+    y,
+    w=nothing,
+    )
+    ret = 0
     count = 0
     @inbounds for i in eachindex(y)
         (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
@@ -282,11 +269,13 @@ where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.
 """, scitype=DOC_INFINITE)
 
-function call(m::MeanAbsoluteProportionalError,
-              ŷ::ArrMissing{<:Real},
-              y::ArrMissing{T},
-              w::Union{Nothing,Arr{<:Real}}=nothing) where T <: Real
-    ret = zero(T)
+function call(
+    m::MeanAbsoluteProportionalError,
+    ŷ,
+    y,
+    w=nothing,
+    )
+    ret = 0
     count = 0
     @inbounds for i in eachindex(y)
         (isinvalid(y[i]) || isinvalid(ŷ[i])) && continue
@@ -323,4 +312,4 @@ const LogCosh = LogCoshLoss
 _softplus(x::T) where T<:Real = x > zero(T) ? x + log1p(exp(-x)) : log1p(exp(x))
 _log_cosh(x::T) where T<:Real = x + _softplus(-2x) - log(convert(T, 2))
 
-single(::LogCoshLoss, ŷ::Real, y::Real) = _log_cosh(ŷ - y)
+single(::LogCoshLoss, ŷ, y) = _log_cosh(ŷ - y)
