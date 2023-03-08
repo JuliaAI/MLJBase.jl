@@ -133,7 +133,7 @@ for operation in OPERATIONS
             ret = $(operation)(
                 model,
                 mach.fitresult,
-                reformat(model, Xraw)...,
+                reformat(model, Xraw)[1],
             )
             get!(ret, $quoted_operation, mach)
         end
