@@ -132,7 +132,7 @@ MMI.target_scitype(::Type{<:DistanceLoss}) = Union{Vec{Continuous},Vec{Count}}
 call(measure::DistanceLoss, yhat, y) =
     LossFunctions.value(getfield(measure, :loss), y, yhat)
 
-function call(measure::DistanceLoss, yhat, y, w::ArrMissing{Real})
+function call(measure::DistanceLoss, yhat, y, w::AbstractArray)
     return w .* call(measure, yhat, y)
 end
 
@@ -151,7 +151,7 @@ function call(measure::MarginLoss, yhat, y)
                                   1, _scale.(probs_of_observed))
 end
 
-call(measure::MarginLoss, yhat, y, w::ArrMissing{Real}) =
+call(measure::MarginLoss, yhat, y, w::AbstractArray) =
     w .* call(measure, yhat, y)
 
 

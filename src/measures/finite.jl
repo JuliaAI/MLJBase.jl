@@ -88,7 +88,7 @@ $INVARIANT_LABEL
 """,
 scitype=DOC_FINITE)
 
-function call(m::BACC, ŷm, ym, wm::Union{Nothing,Arr{<:Real}}=nothing)
+function call(m::BACC, ŷm, ym, wm=nothing)
 
     ŷ, y, w = _skipinvalid(ŷm, ym, wm)
 
@@ -142,7 +142,8 @@ function (::Kappa)(cm::ConfusionMatrixObject{C}) where C
     # relative observed agreement - same as accuracy
     p₀ = sum(diag(cm.mat))/sum(cm.mat)
 
-    # probability of agreement due to chance - for each class cᵢ, this would be: (#predicted=cᵢ)/(#instances) x (#observed=cᵢ)/(#instances)
+    # probability of agreement due to chance - for each class cᵢ, this
+    # would be: (#predicted=cᵢ)/(#instances) x (#observed=cᵢ)/(#instances)
     rows_sum = sum!(similar(cm.mat, 1, C), cm.mat) # 1 x C matrix
     cols_sum = sum!(similar(cm.mat, C, 1), cm.mat) # C X 1 matrix
     pₑ = first(rows_sum*cols_sum)/sum(rows_sum)^2

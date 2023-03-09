@@ -68,7 +68,7 @@ $INVARIANT_LABEL
 scitpye = DOC_FINITE_BINARY)
 
 # core algorithm:
-function _auc(::Type{P}, ŷ, y) where P<:Real # type of probabilities
+function _auc(ŷ, y)
     lab_pos = classes(ŷ)[2] # 'positive' label
     scores = pdf.(ŷ, lab_pos) # associated scores
     ranks = StatsBase.tiedrank(scores)
@@ -91,13 +91,7 @@ end
 # Missing values not supported, but allow `Missing` in eltype, because
 # `skipinvalid(yhat, y)` does not tighten the type. See doc string above.
 
-call(::AUC, ŷ::ArrMissing{UnivariateFinite{S,V,R,P}}, y) where {S,V,R,P<:Real} =
-    _auc(P, ŷ, y)
-
-# corner case of UnivariateFinite's of mixed type; next line could be removed after
-# resolution of https://github.com/JuliaAI/CategoricalDistributions.jl/issues/37
-call(::AUC, ŷ::ArrMissing{UnivariateFinite}, y) =  _auc(Float64, ŷ, y)
-
+call(::AUC, ŷ, y) = _auc(ŷ, y)
 
 # ========================================================
 # UNAGGREGATED MEASURES
@@ -151,24 +145,22 @@ See also [`LogLoss`](@ref), which differs only in sign.
 scitype=DOC_MULTI)
 
 # for single finite observation:
-single(c::LogScore, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
-    log(clamp(pdf(d, η), P(c.tol), P(1) - P(c.tol)))
-
-# for a single infinite observation:
-single(c::LogScore, d::Distributions.UnivariateDistribution, η::Real) =
+single(c::LogScore, d::UnivariateFinite, η) =
     log(clamp(pdf(d, η), c.tol, 1 - c.tol))
 
+# for a single infinite observation:
+single(c::LogScore, d::Distributions.UnivariateDistribution, η) =
+    log(clamp(pdf(d, η), c.tol, 1 - c.tol))
+
+# to resolve method ambiguities:
+single(::LogScore, ::UnivariateFinite, ::Missing) = missing
+single(::LogScore, ::Distributions.UnivariateDistribution, ::Missing) = missing
+single(::LogScore, ::Missing, ::Missing) = missing
+
 # performant broadasting in case of UnivariateFiniteArray:
-function call(c::LogScore,
-              ŷ::UnivariateFiniteArray{S,V,R,P,N},
-              y::ArrMissing{V,N},
-              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
-    unweighted = log.(clamp.(broadcast(pdf, ŷ, y), P(c.tol), P(1) - P(c.tol)))
-    if w === nothing
-        return unweighted
-    end
-    return w .* unweighted
-end
+call(c::LogScore, ŷ::UnivariateFiniteArray, y) =
+    log.(clamp.(broadcast(pdf, ŷ, y), c.tol, 1 - c.tol))
+call(c::LogScore, ŷ::UnivariateFiniteArray, y, w::AbstractArray) = call(c, ŷ, y) .* w
 
 # ---------------------------------------------------------------------
 # LogLoss
@@ -199,19 +191,13 @@ For details, see [`LogScore`](@ref), which differs only by a sign.
 """,
 scitype=DOC_MULTI)
 
-# for single finite observation:
-single(c::LogLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
-    -single(LogScore(tol=c.tol), d, η)
+# for single observation:
+single(c::LogLoss, d, η) = -single(LogScore(tol=c.tol), d, η)
 
-# for a single infinite observation:
-single(c::LogLoss, d::Distributions.UnivariateDistribution, η::Real) =
-    -single(LogScore(tol=c.tol), d, η)
-
-# performant broadasting in case of UnivariateFiniteArray:
-call(c::LogLoss,
-     ŷ::UnivariateFiniteArray{S,V,R,P,N},
-     y::ArrMissing{V,N},
-     w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
+# to get performant broadasting in case of UnivariateFiniteArray:
+call(c::LogLoss, ŷ::UnivariateFiniteArray, y) =
+    -call(LogScore(tol=c.tol), ŷ, y)
+call(c::LogLoss, ŷ::UnivariateFiniteArray, y, w::AbstractArray) =
     -call(LogScore(tol=c.tol), ŷ, y, w)
 
 
@@ -269,34 +255,32 @@ scitype=DOC_MULTI)
 
 # calling on single finite observation:
 function single(::BrierScore,
-                d::UnivariateFinite{S,V,R,P},
-                η::Label) where {S,V,R,P}
+                d::UnivariateFinite,
+                η)
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
-    offset = P(1) + sum(pvec.^2)
-    return P(2) * pdf(d, η) - offset
+    offset = 1 + sum(pvec.^2)
+    return 2 * pdf(d, η) - offset
 end
 
 # calling on a single infinite observation:
-single(::BrierScore, d::Distributions.UnivariateDistribution, η::Real) =
+single(::BrierScore, d::Distributions.UnivariateDistribution, η) =
     2*pdf(d, η) - Distributions.pdfsquaredL2norm(d)
 
-# Performant broadcasted version in case of UnivariateFiniteArray:
-function call(::BrierScore,
-              ŷ::UnivariateFiniteArray{S,V,R,P,N},
-              y::ArrMissing{V,N},
-              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
+# To get performant broadcasted version in case of UnivariateFiniteArray:
+function call(
+    ::BrierScore,
+    ŷ::UnivariateFiniteArray,
+    y
+    )
 
     probs = pdf(ŷ, classes(first(ŷ)))
-    offset = P(1) .+ vec(sum(probs.^2, dims=2))
+    offset = 1 .+ vec(sum(probs.^2, dims=2))
 
-    unweighted = P(2) .* broadcast(pdf, ŷ, y) .- offset
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
+    2 .* broadcast(pdf, ŷ, y) .- offset
 end
+call(m::BrierScore, ŷ::UnivariateFiniteArray, y, w::AbstractArray) = call(m, ŷ, y) .* w
+
 
 # -----------------------------------------------------
 # BrierLoss
@@ -324,20 +308,15 @@ For details, see [`BrierScore`](@ref), which differs only by a sign.
 """,
 scitype=DOC_MULTI)
 
-# calling on single finite observations:
-single(::BrierLoss, d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P} =
-    - single(BrierScore(), d, η)
+# calling on single observation:
+single(::BrierLoss, d, η) = - single(BrierScore(), d, η)
 
-# calling on single infinite observations:
-single(::BrierLoss, d::Distributions.UnivariateDistribution, η::Real) =
-    -single(BrierScore(), d, η)
+# to get performant broadcasting in case of UnivariateFiniteArray:
+call(m::BrierLoss, ŷ::UnivariateFiniteArray, y) =
+    -call(BrierScore(), ŷ)
+call(m::BrierLoss, ŷ::UnivariateFiniteArray, y, w::AbstractArray) =
+    -call(BrierScore(), ŷ, y, w)
 
-# to get performant broadcasting in case of UnivariateFiniteArray
-call(m::BrierLoss,
-     ŷ::UnivariateFiniteArray{S,V,R,P,N},
-     y::ArrMissing{V,N},
-     w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N} =
-         - call(BrierScore(), ŷ, y, w)
 
 # -----------------------------------------------------
 # SphericalScore
@@ -379,39 +358,35 @@ $DOC_DISTRIBUTIONS
 scitype=DOC_MULTI)
 
 # calling on single observations:
-function single(s::SphericalScore,
-                d::UnivariateFinite{S,V,R,P}, η::Label) where {S,V,R,P}
+function single(s::SphericalScore, d::UnivariateFinite, η)
     α = s.alpha
     levels = classes(d)
     pvec = broadcast(pdf, d, levels)
     return (pdf(d, η)/norm(pvec, α))^(α - 1)
 end
 
-single(s::SphericalScore, d::Distributions.UnivariateDistribution, η::Real) =
+single(s::SphericalScore, d::Distributions.UnivariateDistribution, η) =
     pdf(d, η)/sqrt(Distributions.pdfsquaredL2norm(d))
 
 # to compute the α-norm along last dimension:
 _norm(A::AbstractArray{<:Any,N}, α) where N =
-    sum(x -> x^α, A, dims=N)^(1/α)
+    sum(x -> x^α, A, dims=N).^(1/α)
 
-# Performant version in case of UnivariateFiniteArray:
-function call(s::SphericalScore,
-              ŷ::UnivariateFiniteArray{S,V,R,P,N},
-              y::ArrMissing{V,N},
-              w::Union{Nothing,Arr{<:Real,N}}=nothing) where {S,V,R,P<:Real,N}
-
+# To get performant version in case of UnivariateFiniteArray:
+function call(
+    s::SphericalScore,
+    ŷ::UnivariateFiniteArray,
+    y
+    )
     α = s.alpha
     alphanorm(A) = _norm(A, α)
 
     predicted_probs = pdf(ŷ, classes(first(ŷ)))
 
-    unweighted = (broadcast(pdf, ŷ, y) ./ alphanorm(predicted_probs)).^(α - 1)
-
-    if w === nothing
-        return unweighted
-    end
-    return w.*unweighted
+    (broadcast(pdf, ŷ, y) ./ alphanorm(predicted_probs)).^(α - 1)
 end
+call(s::SphericalScore, ŷ::UnivariateFiniteArray, y, w::AbstractArray) =
+    call(s, ŷ, y) .* w
 
 
 # ---------------------------------------------------------------------------

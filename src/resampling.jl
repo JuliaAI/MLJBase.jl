@@ -547,8 +547,12 @@ function _standard_errors(e::PerformanceEvaluation)
     return std_errors
 end
 
+# to address #874, while preserving the display worked out in #757:
+_repr_(f::Function) = repr(f)
+_repr_(x) = repr("text/plain", x)
+
 function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
-    _measure = [repr(MIME("text/plain"), m) for m in e.measure]
+    _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
     _sterr = round3.(_standard_errors(e))
