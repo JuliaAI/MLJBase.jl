@@ -313,7 +313,7 @@ single(::BrierLoss, d, η) = - single(BrierScore(), d, η)
 
 # to get performant broadcasting in case of UnivariateFiniteArray:
 call(m::BrierLoss, ŷ::UnivariateFiniteArray, y) =
-    -call(BrierScore(), ŷ)
+    -call(BrierScore(), ŷ, y)
 call(m::BrierLoss, ŷ::UnivariateFiniteArray, y, w::AbstractArray) =
     -call(BrierScore(), ŷ, y, w)
 
