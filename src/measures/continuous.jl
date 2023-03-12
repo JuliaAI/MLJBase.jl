@@ -137,7 +137,7 @@ const RMSL = RootMeanSquaredLogError
 body=
 """
 ``\\text{root mean squared log error} =
-n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)``
+\\sqrt{n^{-1}∑ᵢ\\log\\left({yᵢ \\over ŷᵢ}\\right)^2}``
 """,
 footer="See also [`rmslp1`](@ref).",
 scitype=DOC_INFINITE)
@@ -173,7 +173,7 @@ body=
 Constructor signature: `RootMeanSquaredLogProportionalError(; offset = 1.0)`.
 
 ``\\text{root mean squared log proportional error} =
-n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\right)``
+\\sqrt{n^{-1}∑ᵢ\\log\\left({yᵢ + \\text{offset} \\over ŷᵢ + \\text{offset}}\\right)}``
 """,
 footer="See also [`rmsl`](@ref). ",
 scitype=DOC_INFINITE)
@@ -212,7 +212,7 @@ body=
 Constructor keyword arguments: `tol` (default = `eps()`).
 
 ``\\text{root mean squared proportional error} =
-m^{-1}∑ᵢ \\left({yᵢ-ŷᵢ \\over yᵢ}\\right)^2``
+\\sqrt{m^{-1}∑ᵢ \\left({yᵢ-ŷᵢ \\over yᵢ}\\right)^2}``
 
 where the sum is over indices such that `abs(yᵢ) > tol` and `m` is the number
 of such indices.

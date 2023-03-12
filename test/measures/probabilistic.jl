@@ -96,13 +96,15 @@ end
     @test mean(log_loss(yhat2, y2)) ≈ 0.6130097025803921
     @test mean(skipmissing(log_loss(yhat2, y2))) ≈ 0.6130097025803921
 
-    # Brier
+    ## Brier
     scores = BrierScore()(yhat, y)
     @test size(scores) == size(y)
     @test Float32.(scores) ≈ [-1.62, -0.32, -0.08]
     scoresm = BrierScore()(yhatm, ym)
     @test Float32.((scoresm)[1:3]) ≈ [-1.62, -0.32, -0.08]
     @test ismissing(scoresm[end])
+    # test specialized broadcasting on brierloss
+    @test BrierLoss()(yhat, y) == -BrierScore()(yhat, y) 
     # sklearn test
     # >>> from sklearn.metrics import brier_score_loss
     # >>> brier_score_loss([1, 0, 0, 1, 0, 0], [.9, .1, .2, .65, 0.8, 0.7])
