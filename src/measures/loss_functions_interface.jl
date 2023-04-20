@@ -44,7 +44,7 @@ err_wrap(n) = ArgumentError("Bad @wrap syntax: $n. ")
 
 # We define amacro to wrap a concrete `LossFunctions.SupervisedLoss`
 # type and define its constructor, and to define property access in
-# case of paramters; the macro also defines calling behaviour:
+# case of parameters; the macro also defines calling behaviour:
 macro wrap_loss(ex)
     ex.head == :call || throw(err_wrap(1))
     Loss_ex = ex.args[1]
