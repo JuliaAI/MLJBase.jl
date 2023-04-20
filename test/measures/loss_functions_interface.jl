@@ -42,12 +42,9 @@ end
 
     for M_ex in MARGIN_LOSSES
         m = eval(:(MLJBase.$M_ex()))
-        @test m(yhat, y) ≈ LossFunctions.value(getfield(m, :loss), ym, yhatm)
-        @test MLJBase.Mean()(m(yhat, y, w)) ≈
-            LossFunctions.value(getfield(m, :loss),
-                                ym,
-                                yhatm,
-                                WeightedSum(w))/N
+        @test m(yhat, y) ≈ LossFunctions.value(getfield(m, :loss), yhatm, ym)
+        @test m(yhat, y, w) ≈
+            w .* LossFunctions.value(getfield(m, :loss), yhatm, ym)
     end
 end
 
@@ -64,10 +61,8 @@ end
         m_ex = MLJBase.snakecase(M_ex)
         @test m == eval(:(MLJBase.$m_ex))
         @test m(yhat, y) ≈
-            LossFunctions.value(getfield(m, :loss), y, yhat)
-        @test mean(m(yhat ,y, w)) ≈
-            LossFunctions.value(getfield(m, :loss), y, yhat,
-                                WeightedSum(w))/N
-
+            LossFunctions.value(getfield(m, :loss), yhat, y)
+        @test m(yhat ,y, w) ≈
+            w .* LossFunctions.value(getfield(m, :loss), yhat, y)
     end
 end
