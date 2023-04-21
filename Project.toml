@@ -1,7 +1,7 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
-version = "0.21.8"
+version = "0.21.9"
 
 [deps]
 CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
@@ -35,7 +35,7 @@ CategoricalDistributions = "0.1"
 ComputationalResources = "0.3"
 Distributions = "0.25.3"
 InvertedIndices = "1"
-LossFunctions = "0.5, 0.6, 0.7, 0.8"
+LossFunctions = "0.9"
 MLJModelInterface = "1.7"
 Missings = "0.4, 1"
 OrderedCollections = "1.1"
