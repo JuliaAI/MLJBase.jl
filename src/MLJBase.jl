@@ -379,4 +379,6 @@ export no_avg, macro_avg, micro_avg
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
 
+include("precompile.jl")
+
 end # module
