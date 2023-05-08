@@ -130,7 +130,7 @@ MMI.prediction_type(::Type{<:DistanceLoss}) = :deterministic
 MMI.target_scitype(::Type{<:DistanceLoss}) = Union{Vec{Continuous},Vec{Count}}
 
 call(measure::DistanceLoss, yhat, y) =
-    LossFunctions.value(getfield(measure, :loss), yhat, y)
+    (getfield(measure, :loss)).(yhat, y)
 
 function call(measure::DistanceLoss, yhat, y, w::AbstractArray)
     return w .* call(measure, yhat, y)
@@ -147,8 +147,8 @@ _scale(p) = 2p - 1
 
 function call(measure::MarginLoss, yhat, y)
     probs_of_observed = broadcast(pdf, yhat, y)
-    return (LossFunctions.value).(getfield(measure, :loss),
-                                  _scale.(probs_of_observed), 1)
+    loss = getfield(measure, :loss)
+    return loss.(_scale.(probs_of_observed), 1)
 end
 
 call(measure::MarginLoss, yhat, y, w::AbstractArray) =
