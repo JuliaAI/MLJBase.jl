@@ -378,21 +378,30 @@ model_2, ...), ...)
 function internal_stack_report(
     stack::Stack{modelnames,},
     verbosity::Int,
-    tt_pairs,
+    tt_pairs, # train_test_pairs
     folds_evaluations...
 ) where modelnames
 
     n_measures = length(stack.measures)
     nfolds = length(tt_pairs)
 
-    # For each model we record the results mimicking the fields PerformanceEvaluation
+    test_fold_sizes = map(tt_pairs) do train_test_pair
+        test = last(train_test_pair)
+        length(test)
+    end
+
+    # weights to be used to aggregate per-fold measurements (averaging to 1):
+    fold_weights(mode) = nfolds .* test_fold_sizes ./ sum(test_fold_sizes)
+    fold_weights(::StatisticalMeasuresBase.Sum) = nothing
+
+    # For each model we record the results mimicking the fields of PerformanceEvaluation
     results = NamedTuple{modelnames}(
         [(
             measure = stack.measures,
             measurement = Vector{Any}(undef, n_measures),
             operation = _actual_operations(nothing, stack.measures, model, verbosity),
             per_fold = [Vector{Any}(undef, nfolds) for _ in 1:n_measures],
-            per_observation = Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
+            per_observation = [Vector{Vector{Any}}(undef, nfolds) for _ in 1:n_measures],
             fitted_params_per_fold = [],
             report_per_fold = [],
             train_test_pairs = tt_pairs
@@ -416,30 +425,29 @@ function internal_stack_report(
                 model_results.operation,
             ))
                 ypred = operation(mach, Xtest)
-                loss = measure(ypred, ytest)
-                # Update per_observation
-                if reports_each_observation(measure)
-                    if model_results.per_observation[i] === missing
-                        model_results.per_observation[i] = Vector{Any}(undef, nfolds)
-                    end
-                    model_results.per_observation[i][foldid] = loss
-                end
+                measurements = StatisticalMeasures.measurements(measure, ypred, ytest)
+
+                # Update per observation:
+                model_results.per_observation[i][foldid] = measurements
 
                 # Update per_fold
-                model_results.per_fold[i][foldid] =
-                    reports_each_observation(measure) ?
-                    MLJBase.aggregate(loss, measure) : loss
+                model_results.per_fold[i][foldid] = measure(ypred, ytest)
             end
             index += 1
         end
     end
 
-    # Update measurement field by aggregation
+    # Update measurement field by aggregating per-fold measurements
     for modelname in modelnames
         for (i, measure) in enumerate(stack.measures)
             model_results = results[modelname]
+            mode = StatisticalMeasuresBase.external_aggregation_mode(measure)
             model_results.measurement[i] =
-                MLJBase.aggregate(model_results.per_fold[i], measure)
+                StatisticalMeasuresBase.aggregate(
+                    model_results.per_fold[i];
+                    mode,
+                    weights=fold_weights(mode),
+                )
         end
     end
 

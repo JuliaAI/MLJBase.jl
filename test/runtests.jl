@@ -26,9 +26,7 @@ end
 end
 
 @conditional_testset "measures" begin
-    @test include("measures/measures.jl")
-    @test include("measures/measure_search.jl")
-    @test include("measures/doc_strings.jl")
+    @test include("measures.jl")
 end
 
 @conditional_testset "resampling" begin

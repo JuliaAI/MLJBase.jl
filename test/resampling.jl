@@ -5,6 +5,9 @@ import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
 using ProgressMeter
 import Tables
+@everywhere import StatisticalMeasures.StatisticalMeasuresBase as API
+using StatisticalMeasures
+import LearnAPI
 
 @everywhere begin
     using .Models
@@ -25,13 +28,18 @@ struct DummyInterval <: Interval end
 dummy_interval=DummyInterval()
 
 dummy_measure_det(yhat, y) = 42
-MLJBase.target_scitype(::typeof(dummy_measure_det)) = Table(MLJBase.Textual)
-MLJBase.prediction_type(::typeof(dummy_measure_det)) = :deterministic
+API.@trait(
+    typeof(dummy_measure_det),
+    observation_scitype = MLJBase.Textual,
+    kind_of_proxy = LearnAPI.LiteralTarget(),
+)
 
-dummy_measure_interval(yhat, y) = [123, 456]
-MLJBase.target_scitype(::typeof(dummy_measure_interval)) =
-    Table(MLJBase.Textual)
-MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
+dummy_measure_interval(yhat, y) = 42
+API.@trait(
+    typeof(dummy_measure_interval),
+    observation_scitype = MLJBase.Textual,
+    kind_of_proxy = LearnAPI.ConfidenceInterval(),
+)
 
 @testset "_actual_operations" begin
     clf = ConstantClassifier()
@@ -49,7 +57,7 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
                                     1) ==
                                    [predict_mean, predict_mean]
 
-    # handling of a measure with `:unknown` `prediction_type` (eg,
+    # handling of a measure with `nothing` `kind_of_proxy` (eg,
     # custom measure):
     my_mae(yhat, y) = abs.(yhat - y)
     @test(
@@ -71,21 +79,29 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
            [predict_mode])
     @test MLJBase._actual_operations(nothing, [l2,], rgs, 1) ==
         [predict_mean, ]
-    @test_throws(MLJBase.err_incompatible_prediction_types(clf_det, LogLoss()),
-                 MLJBase._actual_operations(nothing, [LogLoss(),], clf_det, 1))
+    @test_throws(
+        MLJBase.err_incompatible_prediction_types(clf_det, LogLoss()),
+        MLJBase._actual_operations(nothing, [LogLoss(),], clf_det, 1),
+    )
     @test MLJBase._actual_operations(nothing, measures_det, clf_det, 1) ==
         [predict, predict]
 
-    # measure/model differ in prediction type but weird target_scitype:
+    # measure/model differ in prediction type:
     @test_throws(
         MLJBase.err_ambiguous_operation(clf, dummy_measure_det),
-        MLJBase._actual_operations(nothing, [dummy_measure_det, ], clf, 1))
+        MLJBase._actual_operations(nothing, [dummy_measure_det, ], clf, 1),
+    )
 
     # measure has :interval prediction type but model does not (2 cases):
     @test_throws(
         MLJBase.err_ambiguous_operation(clf, dummy_measure_interval),
-        MLJBase._actual_operations(nothing,
-                                   [dummy_measure_interval, ], clf, 1))
+        MLJBase._actual_operations(
+            nothing,
+            [dummy_measure_interval, ],
+            clf,
+            1,
+        ),
+    )
     @test_throws(
         MLJBase.err_ambiguous_operation(clf_det, dummy_measure_interval),
         MLJBase._actual_operations(nothing,
@@ -101,16 +117,6 @@ MLJBase.prediction_type(::typeof(dummy_measure_interval)) = :interval
         MLJBase.err_ambiguous_operation(dummy_interval, LogLoss()),
         MLJBase._actual_operations(nothing,
                                    [LogLoss(), ], dummy_interval, 1))
-end
-
-@testset "_feature_dependencies_exist" begin
-    measures = Any[rms, rsq, log_loss, brier_score]
-    @test !MLJBase._feature_dependencies_exist(measures)
-    my_feature_dependent_loss(ŷ, X, y) =
-        sum(abs.(ŷ - y) .* X.penalty)/sum(X.penalty);
-    MLJBase.is_feature_dependent(::typeof(my_feature_dependent_loss)) = true
-    push!(measures, my_feature_dependent_loss)
-    @test MLJBase._feature_dependencies_exist(measures)
 end
 
 @testset_accelerated "dispatch of resources and progress meter" accel begin
@@ -175,34 +181,50 @@ end
     y = rand(rng,4)
 
     # model prediction type is Probablistic but measure is Deterministic:
-    @test_throws(ArgumentError,
-                  MLJBase._check_measure(rms, predict, model, y))
+    @test_throws(
+        MLJBase.ERR_MEASURES_PROBABILISTIC(rms, MLJBase.LOG_SUGGESTION2),
+        MLJBase._check_measure(rms, predict, model, y),
+    )
 
     @test MLJBase._check_measure(rms, predict_mean, model, y)
 
     @test MLJBase._check_measure(rms, predict_median, model, y)
 
-    # has `y`  `Finite` elscityp but measure `rms` is for `Continuous`:
+    # has `y`  `Finite` elscitype but measure `rms` is for `Continuous`:
     y=categorical(collect("abc"))
-    @test_throws(ArgumentError,
-                 MLJBase._check_measure(rms, predict_median, model, y))
+    @test_throws(
+        MLJBase.ERR_MEASURES_OBSERVATION_SCITYPE(
+            rms,
+            Union{Missing,Infinite},
+            Multiclass{3},
+        ),
+        MLJBase._check_measure(rms, predict_median, model, y),
+    )
     model = ConstantClassifier()
     # model prediction type is Probablistic but measure is Deterministic:
-    @test_throws(ArgumentError,
-                 MLJBase._check_measure(mcr, predict, model, y))
+    @test_throws(
+        MLJBase.ERR_MEASURES_PROBABILISTIC(mcr, MLJBase.LOG_SUGGESTION1),
+        MLJBase._check_measure(mcr, predict, model, y),
+    )
 
     @test MLJBase._check_measure(mcr, predict_mode, model, y)
 
     # `Determistic` model but `Probablistic` measure:
     model = DeterministicConstantClassifier()
-    @test_throws(ArgumentError,
-                 MLJBase._check_measure(cross_entropy, predict, model, y))
+    @test_throws(
+        MLJBase.ERR_MEASURES_DETERMINISTIC(cross_entropy),
+        MLJBase._check_measure(cross_entropy, predict, model, y),
+    )
 
     # measure with wrong target_scitype:
-    @test_throws(ArgumentError,
-                 MLJBase._check_measures([brier_score, rms],
-                                         [predict_mode, predict_mean],
-                                         model, y))
+    @test_throws(
+        MLJBase.ERR_MEASURES_DETERMINISTIC(brier_score),
+        MLJBase._check_measures(
+            [brier_score, rms],
+            [predict_mode, predict_mean],
+            model, y,
+        ),
+    )
 
     model = ConstantClassifier()
     @test MLJBase._check_measures([brier_score, cross_entropy, accuracy],
@@ -211,8 +233,6 @@ end
 end
 
 @testset "check weights" begin
-    @test_throws(MLJBase.ERR_WEIGHTS_REAL,
-                 MLJBase._check_weights([:junk, :junk], 2))
     @test_throws(MLJBase.ERR_WEIGHTS_LENGTH,
                  MLJBase._check_weights([0.5, 0.5], 3))
     @test MLJBase._check_weights([0.5, 0.5], 2)
@@ -227,17 +247,17 @@ end
     @test MLJBase._check_class_weights(w, ['b', 'a'])
 end
 
+@everywhere begin
+    user_rms(yhat, y) = mean((yhat -y).^2) |> sqrt
+    # deliberately omitting `consumes_multiple_observations` trait:
+    API.@trait typeof(user_rms) kind_of_proxy=LearnAPI.LiteralTarget()
+end
+
 @testset_accelerated "folds specified" accel begin
     x1 = ones(10)
     x2 = ones(10)
     X  = (x1=x1, x2=x2)
     y  = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
-
-    my_rms(yhat, y) = sqrt(mean((yhat -y).^2))
-    my_mae(yhat, y) = abs.(yhat - y)
-    MLJBase.reports_each_observation(::typeof(my_mae)) = true
-    MLJBase.prediction_type(::typeof(my_rms)) = :deterministic
-    MLJBase.prediction_type(::typeof(my_mae)) = :deterministic
 
     resampling = [(3:10, 1:2),
                   ([1, 2, 5, 6, 7, 8, 9, 10], 3:4),
@@ -251,19 +271,27 @@ end
         mach  = machine(model, X, y, cache=cache)
 
         # check detection of incompatible measure (cross_entropy):
-        @test_throws ArgumentError evaluate!(mach, resampling=resampling,
-                                             measure=[cross_entropy, rmslp1],
-                                             verbosity=verb,
-                                             acceleration=accel)
+        @test_throws(
+            MLJBase.err_incompatible_prediction_types(model, cross_entropy),
+            evaluate!(
+                mach,
+                resampling=resampling,
+                measure=[cross_entropy, rmslp1],
+                verbosity=verb,
+                acceleration=accel,
+            ),
+        )
         result = evaluate!(mach, resampling=resampling, verbosity=verb,
-                           measure=[my_rms, my_mae, rmslp1], acceleration=accel)
+                           measure=[user_rms, mae, rmslp1], acceleration=accel)
 
         v = [1/2, 3/4, 1/2, 3/4, 1/2]
 
         @test result.per_fold[1] ≈ v
         @test result.per_fold[2] ≈ v
         @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
-        @test ismissing(result.per_observation[1])
+        @test result.per_observation[1] ≈ map(result.per_fold[1]) do μ
+            fill(μ, 2)
+        end
         @test result.per_observation[2][1] ≈ [1/2, 1/2]
         @test result.per_observation[2][2] ≈ [3/4, 3/4]
         @test result.measurement[1] ≈ mean(v)
@@ -454,7 +482,7 @@ end
                d for fold in folds])
 end
 
-@testset_accelerated "sample weights in evaluation" accel begin
+@testset_accelerated "weights in evaluation" accel begin
     # cv:
     x1 = ones(4)
     x2 = ones(4)
@@ -637,13 +665,6 @@ end
                                measure=misclassification_rate,
                                weights = fill(1, 100), acceleration=accel,
                                verbosity=verb))
-
-        @test_throws(ArgumentError,
-                     evaluate!(mach, resampling=Holdout(fraction_train=0.6),
-                               operation=predict_mode,
-                               measure=misclassification_rate,
-                               weights = fill('a', 5), acceleration=accel,
-                               verbosity=verb))
     end
 
     # resampling on a subset of all rows:
@@ -813,7 +834,7 @@ end
         operation=predict_mode,
         measure=ConfusionMatrix(),
         resampling=CV(),
-    )
+    );
     printed_evaluations = sprint(show, "text/plain", evaluations)
     @test contains(printed_evaluations, "N/A")
 end

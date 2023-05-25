@@ -469,3 +469,43 @@ end
 
 generate_name!(model, existing_names; kwargs...) =
     generate_name!(typeof(model), existing_names; kwargs...)
+
+# This is a bit of hack in the case of tables, it is based on the first row.  If some some
+# rows have `missing`s, they may not be accounted for in the type. If the first row has
+# `missing`s the "regular" type will not be accounted for. So use
+"""
+    guess_observation_scitype(y)
+
+*Private method.*
+
+If `y` is an `AbstractArray`, return the scitype of `y[:, :, ..., :, 1]`. If `y` is a
+table, return the scitype of the first row, converted to a vector, unless this row has
+`missing` elements, in which case return `Unknown`.
+
+In all other cases, `Unknown`.
+
+```
+julia> guess_observation_scitype([missing, 1, 2, 3])
+Union{Missing, Count}
+
+julia> guess_observation_scitype(rand(3, 2))
+AbstractVector{Continuous}
+
+julia> guess_observation_scitype((x=rand(3), y=rand(Bool, 3)))
+AbstractVector{Union{Continuous, Count}}
+
+julia> guess_observation_scitype((x=[missing, 1, 2], y=[1, 2, 3]))
+Unknown
+```
+"""
+guess_observation_scitype(y) = guess_observation_scitype(y, Val(Tables.istable(y)))
+guess_observation_scitype(y, ::Any) = Unknown
+guess_observation_scitype(y::AbstractArray, ::Val{false}) = _observation(scitype(y))
+_observation(::Type{AbstractVector{S}}) where S = S
+_observation(::Type{AbstractArray{S,N}}) where {S,N} = AbstractArray{S,N-1}
+function guess_observation_scitype(table, ::Val{true})
+    row = Tables.subset(table, 1, viewhint=false) |> collect
+    E = eltype(row)
+    nonmissingtype(E) == E || return Unknown
+    scitype(row)
+end

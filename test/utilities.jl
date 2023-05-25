@@ -171,5 +171,17 @@ end
         "sin, cos, tan, ..."
 end
 
+@testset "guess_observation_scitype" begin
+    @test MLJBase.guess_observation_scitype([missing, 1, 2, 3]) ==
+        Union{Missing, Count}
+    @test MLJBase.guess_observation_scitype(rand(3, 2)) ==
+        AbstractVector{Continuous}
+    @test MLJBase.guess_observation_scitype((x=rand(3), y=rand(Bool, 3))) ==
+        AbstractVector{Union{Continuous, Count}}
+    @test MLJBase.guess_observation_scitype((x=[missing, 1, 2], y=[1, 2, 3])) ==
+        Unknown
+    @test MLJBase.guess_observation_scitype(5) == Unknown
+end 
+
 end # module
 true

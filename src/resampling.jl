@@ -14,8 +14,6 @@ const PREDICT_OPERATIONS_STRING = begin
     join(strings, ", ", ", or ")
 end
 const PROG_METER_DT = 0.1
-const ERR_WEIGHTS_REAL =
-    ArgumentError("`weights` must be a `Real` vector. ")
 const ERR_WEIGHTS_LENGTH =
     DimensionMismatch("`weights` and target "*
                       "have different lengths. ")
@@ -32,19 +30,41 @@ const ERR_INVALID_OPERATION = ArgumentError(
     "Invalid `operation` or `operations`. "*
     "An operation must be one of these: $PREDICT_OPERATIONS_STRING. ")
 _ambiguous_operation(model, measure) =
-    "`prediction_type($measure) == $(prediction_type(measure))` but "*
-    "`prediction_type($model) == $(prediction_type(model))`."
+    "`$measure` does not support a `model` with "*
+    "`prediction_type(model) == :$(prediction_type(model))`. "
 err_ambiguous_operation(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure)*
-    "\nUnable to deduce an appropriate operation for $measure. "*
+    "\nUnable to infer an appropriate operation for `$measure`. "*
     "Explicitly specify `operation=...` or `operations=...`. ")
 err_incompatible_prediction_types(model, measure) = ArgumentError(
     _ambiguous_operation(model, measure)*
-    "If your model really is making probabilistic predictions, try explicitly "*
+    "If your model is truly making probabilistic predictions, try explicitly "*
     "specifiying operations. For example, for "*
     "`measures = [area_under_curve, accuracy]`, try "*
     "`operations=[predict, predict_mode]`. ")
-
+const LOG_AVOID = "\nTo override measure checks, set check_measure=false. "
+const LOG_SUGGESTION1 =
+    "\nPerhaps you want to set `operation="*
+    "predict_mode` or need to "*
+    "specify multiple operations, "*
+    "one for each measure. "
+const LOG_SUGGESTION2 =
+    "\nPerhaps you want to set `operation="*
+    "predict_mean` or `operation=predict_median`, or "*
+    "specify multiple operations, "*
+    "one for each measure. "
+ERR_MEASURES_OBSERVATION_SCITYPE(measure, T_measure, T) = ArgumentError(
+    "\nobservation scitype of target = `$T` but ($measure) only supports "*
+        "`$T_measure`."*LOG_AVOID
+)
+ERR_MEASURES_PROBABILISTIC(measure, suggestion) = ArgumentError(
+    "The model subtypes `Probabilistic`, and so is not supported by "*
+        "`$measure`. $suggestion"*LOG_AVOID
+)
+ERR_MEASURES_DETERMINISTIC(measure) = ArgumentError(
+    "The model subtypes `Deterministic`, "*
+        "and so is not supported by `$measure`. "*LOG_AVOID
+)
 
 # ==================================================================
 ## MODEL TYPES THAT CAN BE EVALUATED
@@ -345,7 +365,7 @@ For example, if you run `replace!(y, 'a' => 'b', 'b' => 'a')` and then re-run
 `train_test_pairs`, the returned `(train, test)` pairs will be the same.
 
 Pre-shuffling of `rows` is controlled by `rng` and `shuffle`. If `rng`
-is an integer, then the `StratifedCV` keyword constructor resets it to
+is an integer, then the `StratifedCV` keywod constructor resets it to
 `MersenneTwister(rng)`. Otherwise some `AbstractRNG` object is
 expected.
 
@@ -448,65 +468,58 @@ end
 """
     PerformanceEvaluation
 
-Type of object returned by [`evaluate`](@ref) (for models plus data)
-or [`evaluate!`](@ref) (for machines). Such objects encode estimates
-of the performance (generalization error) of a supervised model or
-outlier detection model.
+Type of object returned by [`evaluate`](@ref) (for models plus data) or
+[`evaluate!`](@ref) (for machines). Such objects encode estimates of the performance
+(generalization error) of a supervised model or outlier detection model.
 
-When `evaluate`/`evaluate!` is called, a number of train/test pairs
-("folds") of row indices are generated, according to the options
-provided, which are discussed in the [`evaluate!`](@ref)
-doc-string. Rows correspond to observations. The generated train/test
-pairs are recorded in the `train_test_rows` field of the
-`PerformanceEvaluation` struct, and the corresponding estimates,
-aggregated over all train/test pairs, are recorded in `measurement`, a
-vector with one entry for each measure (metric) recorded in `measure`.
+When `evaluate`/`evaluate!` is called, a number of train/test pairs ("folds") of row
+indices are generated, according to the options provided, which are discussed in the
+[`evaluate!`](@ref) doc-string. Rows correspond to observations. The generated train/test
+pairs are recorded in the `train_test_rows` field of the `PerformanceEvaluation` struct,
+and the corresponding estimates, aggregated over all train/test pairs, are recorded in
+`measurement`, a vector with one entry for each measure (metric) recorded in `measure`.
 
-When displayed, a `PerformanceEvalution` object includes a value under
-the heading `1.96*SE`, derived from the standard error of the `per_fold`
-entries. This value is suitable for constructing a formal 95%
-confidence interval for the given `measurement`. Such intervals should
-be interpreted with caution. See, for example, Bates et al.
-[(2021)](https://arxiv.org/abs/2104.00673).
+When displayed, a `PerformanceEvalution` object includes a value under the heading
+`1.96*SE`, derived from the standard error of the `per_fold` entries. This value is
+suitable for constructing a formal 95% confidence interval for the given
+`measurement`. Such intervals should be interpreted with caution. See, for example, Bates
+et al.  [(2021)](https://arxiv.org/abs/2104.00673).
 
 ### Fields
 
-These fields are part of the public API of the `PerformanceEvaluation`
-struct.
+These fields are part of the public API of the `PerformanceEvaluation` struct.
 
 - `measure`: vector of measures (metrics) used to evaluate performance
 
-- `measurement`: vector of measurements - one for each element of
-  `measure` - aggregating the performance measurements over all
-  train/test pairs (folds). The aggregation method applied for a given
-  measure `m` is `aggregation(m)` (commonly `Mean` or `Sum`)
+- `measurement`: vector of measurements - one for each element of `measure` - aggregating
+  the performance measurements over all train/test pairs (folds). The aggregation method
+  applied for a given measure `m` is `aggregation(m)` (commonly `Mean` or `Sum`)
 
-- `operation` (e.g., `predict_mode`): the operations applied for each
-  measure to generate predictions to be evaluated. Possibilities are:
-  $PREDICT_OPERATIONS_STRING.
+- `operation` (e.g., `predict_mode`): the operations applied for each measure to generate
+  predictions to be evaluated. Possibilities are: $PREDICT_OPERATIONS_STRING.
 
-- `per_fold`: a vector of vectors of individual test fold evaluations
-  (one vector per measure). Useful for obtaining a rough estimate of
-  the variance of the performance estimate.
+- `per_fold`: a vector of vectors of individual test fold evaluations (one vector per
+  measure). Useful for obtaining a rough estimate of the variance of the performance
+  estimate.
 
-- `per_observation`: a vector of vectors of individual observation
-  evaluations of those measures for which
-  `reports_each_observation(measure)` is true, which is otherwise
-  reported `missing`. Useful for some forms of hyper-parameter
-  optimization.
+- `per_observation`: a vector of vectors of vectors containing individual per-observation
+  measurements: for an evaluation `e`, `e.per_observation[m][f][i]` is the measurement for
+  the `i`th observation in the `f`th test fold, evaluated using the `m`th measure.  Useful
+  for some forms of hyper-parameter optimization. Note that an aggregregated measurement
+  for some measure `measure` is repeated across all observations in a fold if
+  `StatisticalMeasures.can_report_unaggregated(measure) == true`.
 
-- `fitted_params_per_fold`: a vector containing `fitted params(mach)`
-  for each machine `mach` trained during resampling - one machine per
-  train/test pair. Use this to extract the learned parameters for each
-  individual training event.
+- `fitted_params_per_fold`: a vector containing `fitted params(mach)` for each machine
+  `mach` trained during resampling - one machine per train/test pair. Use this to extract
+  the learned parameters for each individual training event.
 
-- `report_per_fold`: a vector containing `report(mach)` for each
-  machine `mach` training in resampling - one machine per train/test
-  pair.
+- `report_per_fold`: a vector containing `report(mach)` for each machine `mach` training
+  in resampling - one machine per train/test pair.
 
-- `train_test_rows`: a vector of tuples, each of the form `(train, test)`,
-  where `train` and `test` are vectors of row (observation) indices for
-  training and evaluation respectively.
+- `train_test_rows`: a vector of tuples, each of the form `(train, test)`, where `train`
+  and `test` are vectors of row (observation) indices for training and evaluation
+  respectively.
+
 """
 struct PerformanceEvaluation{M,
                              Measurement,
@@ -605,48 +618,37 @@ end
 
 function _check_measure(measure, operation, model, y)
 
-    T = scitype(y)
+    # get observation scitype:
+    T = MLJBase.guess_observation_scitype(y)
 
+    # get type supported by measure:
+    T_measure = StatisticalMeasuresBase.observation_scitype(measure)
+ 
     T == Unknown && (return true)
-    target_scitype(measure) == Unknown && (return true)
-    prediction_type(measure) == :unknown && (return true)
+    T_measure == Union{} && (return true)
+    isnothing(StatisticalMeasuresBase.kind_of_proxy(measure)) && (return true)
 
-    avoid = "\nTo override measure checks, set check_measure=false. "
 
-    T <: target_scitype(measure) ||
-        throw(ArgumentError(
-            "\nscitype of target = $T but target_scitype($measure) = "*
-            "$(target_scitype(measure))."*avoid))
+    T <: T_measure || throw(ERR_MEASURES_OBSERVATION_SCITYPE(measure, T_measure, T))
 
     incompatible = model isa Probabilistic &&
         operation == predict &&
-        prediction_type(measure) != :probabilistic
+        StatisticalMeasuresBase.kind_of_proxy(measure) != LearnAPI.Distribution()
 
     if incompatible
-        if target_scitype(measure) <:
-            AbstractVector{<:Union{Missing,Finite}}
-            suggestion = "\nPerhaps you want to set `operation="*
-                "predict_mode` or need to "*
-                "specify multiple operations, "*
-                "one for each measure. "
-        elseif target_scitype(measure) <:
-            AbstractVector{<:Union{Missing,Continuous}}
-            suggestion = "\nPerhaps you want to set `operation="*
-                "predict_mean` or `operation=predict_median`, or "*
-                "specify multiple operations, "*
-                "one for each measure. "
+        if T <: Union{Missing,Finite}
+            suggestion = LOG_SUGGESTION1
+        elseif T <: Union{Missing,Infinite}
+            suggestion = LOG_SUGGESTION2
         else
             suggestion = ""
         end
-        throw(ArgumentError(
-            "\n$model <: Probabilistic but prediction_type($measure) = "*
-            ":$(prediction_type(measure)). "*suggestion*avoid))
+        throw(ERR_MEASURES_PROBABILISTIC(measure, suggestion))
     end
 
-    model isa Deterministic && prediction_type(measure) != :deterministic &&
-        throw(ArgumentError("$model <: Deterministic but "*
-                            "prediction_type($measure) ="*
-              ":$(prediction_type(measure))."*avoid))
+    model isa Deterministic &&
+        StatisticalMeasuresBase.kind_of_proxy(measure) != LearnAPI.LiteralTarget() &&
+        throw(ERR_MEASURES_DETERMINISTIC(measure))
 
     return true
 
@@ -670,13 +672,14 @@ function _actual_measures(measures, model)
         _measures = measures
     end
 
-    return _measures
+    # wrap in `robust_measure` to allow unsupported weights to be silently treated as
+    # uniform when invoked; `_check_measure` will throw appropriate warnings unless
+    # explicitly suppressed.
+    return StatisticalMeasuresBase.robust_measure.(_measures)
 
 end
 
 function _check_weights(weights, nrows)
-    weights isa AbstractVector{<:Real} ||
-        throw(ERR_WEIGHTS_REAL)
     length(weights) == nrows ||
         throw(ERR_WEIGHTS_LENGTH)
     return true
@@ -729,21 +732,35 @@ function _actual_operations(operation::Nothing,
                             verbosity)
     map(measures) do m
 
-        prediction_type = MLJBase.prediction_type(m)
-        target_scitype = MLJBase.target_scitype(m)
+        # `kind_of_proxy` is the measure trait corresponding to `prediction_type` model
+        # trait. But it's values are instances of LearnAPI.KindOfProxy, instead of
+        # symbols:
+        #
+        # `LearnAPI.LiteralTarget()` ~ `:deterministic` (`model isa Deterministic`)
+        # `LearnAPI.Distribution()` ~ `:probabilistic` (`model isa Deterministic`)
+        #
+        kind_of_proxy = StatisticalMeasuresBase.kind_of_proxy(m)
 
-        if prediction_type === :unknown
-            return predict
-        end
+        # `observation_type` is the measure trait which we need to match the model
+        # `target_scitype` but the latter refers to the whole target `y`, not a single
+        # observation.
+        #
+        # One day, models will have their own `observation_scitype`
+        observation_scitype = StatisticalMeasuresBase.observation_scitype(m)
+
+        # One day, models will implement LearnAPI and will get their own `kind_of_proxy`
+        # trait replacing `prediction_type` and `observation_scitype` trait replacing
+        # `target_scitype`.
+
+        isnothing(kind_of_proxy) && (return predict)
 
         if MLJBase.prediction_type(model) === :probabilistic
-            if prediction_type === :probabilistic
+            if kind_of_proxy === LearnAPI.Distribution()
                 return predict
-            elseif prediction_type === :deterministic
-                if target_scitype <: AbstractArray{<:Union{Missing,Finite}}
+            elseif kind_of_proxy === LearnAPI.LiteralTarget()
+                if observation_scitype <: Union{Missing,Finite}
                     return predict_mode
-                elseif target_scitype <:
-                    AbstractArray{<:Union{Missing,Continuous,Count}}
+                elseif observation_scitype <:Union{Missing,Infinite}
                     return predict_mean
                 else
                     throw(err_ambiguous_operation(model, m))
@@ -752,19 +769,21 @@ function _actual_operations(operation::Nothing,
                 throw(err_ambiguous_operation(model, m))
             end
         elseif MLJBase.prediction_type(model) === :deterministic
-            if prediction_type === :probabilistic
+            if kind_of_proxy === LearnAPI.Distribution()
                 throw(err_incompatible_prediction_types(model, m))
-            elseif prediction_type === :deterministic
+            elseif kind_of_proxy === LearnAPI.LiteralTarget()
+                return predict
+            else
+                throw(err_ambiguous_operation(model, m))
+            end
+        elseif MLJBase.prediction_type(model) === :interval
+            if kind_of_proxy === LearnAPI.ConfidenceInterval()
                 return predict
             else
                 throw(err_ambiguous_operation(model, m))
             end
         else
-            if prediction_type === :interval
-                return predict
-            else
-                throw(err_ambiguous_operation(model, m))
-            end
+            throw(err_ambiguous_operation(model, m))
         end
     end
 end
@@ -856,12 +875,11 @@ pairs for evaluation and subsequent aggregation.
 If `resampling isa MLJ.ResamplingStrategy` then one may optionally
 restrict the data used in evaluation by specifying `rows`.
 
-An optional `weights` vector may be passed for measures that support
-sample weights (`MLJ.supports_weights(measure) == true`), which is
-ignored by those that don't. These weights are not to be confused with
-any weights `w` bound to `mach` (as in `mach = machine(model, X,
-y, w)`). To pass these to the performance evaluation measures you must
-explictly specify `weights=w` in the `evaluate!` call.
+An optional `weights` vector may be passed for measures that support sample weights
+(`StatisticalMeasuresBase.supports_weights(measure) == true`), which is ignored by those
+that don't. These weights are not to be confused with any weights `w` bound to `mach` (as
+in `mach = machine(model, X, y, w)`). To pass these to the performance evaluation measures
+you must explictly specify `weights=w` in the `evaluate!` call.
 
 Additionally, optional `class_weights` dictionary may be passed
 for measures that support class weights
@@ -973,10 +991,20 @@ function evaluate!(mach::Machine{<:Measurable};
                             verbosity,
                             check_measure)
 
-    _warn_about_unsupported(supports_weights,
-                            "Sample", _measures, weights, verbosity)
-    _warn_about_unsupported(supports_class_weights,
-                            "Class", _measures, class_weights, verbosity)
+    _warn_about_unsupported(
+        StatisticalMeasuresBase.supports_weights,
+        "Sample",
+        _measures,
+        weights,
+        verbosity,
+    )
+    _warn_about_unsupported(
+        StatisticalMeasuresBase.supports_class_weights,
+        "Class",
+        _measures,
+        class_weights,
+        verbosity,
+    )
 
     _acceleration= _process_accel_settings(acceleration)
 
@@ -1140,22 +1168,8 @@ const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow, AbstractRow}
 const TrainTestPairs = AbstractVector{<:TrainTestPair}
 
-# helper:
-_feature_dependencies_exist(measures) =
-    !all(m->!(is_feature_dependent(m)), measures)
-
-# helper:
-function measure_specific_weights(measure, weights, class_weights, test)
-    supports_weights(measure) && supports_class_weights(measure) &&
-        error("Encountered a measure that simultaneously supports "*
-              "(per-sample) weights and class weights. ")
-    if supports_weights(measure)
-        weights === nothing && return nothing
-        return weights[test]
-    end
-    supports_class_weights(measure) && return class_weights
-    return nothing
-end
+_view(::Nothing, rows) = nothing
+_view(weights, rows) = view(weights, rows)
 
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
@@ -1172,12 +1186,21 @@ function evaluate!(mach::Machine, resampling, weights,
 
     X = mach.args[1]()
     y = mach.args[2]()
+    nrows = MLJBase.nrows(y)
 
     nfolds = length(resampling)
+    test_fold_sizes = map(resampling) do train_test_pair
+        test = last(train_test_pair)
+        test isa Colon && (return nrows)
+        length(test)
+    end
+
+    # weights used to aggregate per-fold measurements, which depends on a measures
+    # external mode of aggregation:
+    fold_weights(mode) = nfolds .* test_fold_sizes ./ sum(test_fold_sizes)
+    fold_weights(::StatisticalMeasuresBase.Sum) = nothing
 
     nmeasures = length(measures)
-
-    feature_dependencies_exist = _feature_dependencies_exist(measures)
 
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
@@ -1186,21 +1209,17 @@ function evaluate!(mach::Machine, resampling, weights,
         # that appear (`predict`, `predict_mode`, etc):
         yhat_given_operation =
             Dict(op=>op(mach, rows=test) for op in unique(operations))
-        if feature_dependencies_exist
-            Xtest = selectrows(X, test)
-        else
-            Xtest = nothing
-        end
+
         ytest = selectrows(y, test)
 
         measurements =  map(measures, operations) do m, op
-            wtest = measure_specific_weights(
+            StatisticalMeasuresBase.measurements(
                 m,
-                weights,
+                yhat_given_operation[op],
+                ytest,
+                _view(weights, test),
                 class_weights,
-                test
             )
-            value(m, yhat_given_operation[op], Xtest, ytest, wtest)
         end
 
         fp = fitted_params(mach)
@@ -1233,35 +1252,35 @@ function evaluate!(mach::Machine, resampling, weights,
 
     measurements_flat = vcat(measurements_vector_of_vectors...)
 
-    # in the following rows=folds, columns=measures:
+    # in the following rows=folds, columns=measures; each element of the matrix is a
+    # vector of meausurements, one per observation, over a fold for a particular metric.
     measurements_matrix = permutedims(
         reshape(collect(measurements_flat), (nmeasures, nfolds))
     )
 
     # measurements for each observation:
     per_observation = map(1:nmeasures) do k
-        m = measures[k]
-        if reports_each_observation(m)
             measurements_matrix[:,k]
-        else
-            missing
-        end
     end
 
     # measurements for each fold:
     per_fold = map(1:nmeasures) do k
         m = measures[k]
-        if reports_each_observation(m)
-            broadcast(MLJBase.aggregate, per_observation[k], [m,])
-        else
-            measurements_matrix[:,k]
+        mode = StatisticalMeasuresBase.external_aggregation_mode(m)
+        map(per_observation[k]) do v
+            StatisticalMeasuresBase.aggregate(v; mode)
         end
     end
 
     # overall aggregates:
     per_measure = map(1:nmeasures) do k
         m = measures[k]
-        MLJBase.aggregate(per_fold[k], m)
+        mode = StatisticalMeasuresBase.external_aggregation_mode(m)
+        StatisticalMeasuresBase.aggregate(
+            per_fold[k];
+            mode,
+            weights=fold_weights(mode),
+        )
     end
 
     return PerformanceEvaluation(
