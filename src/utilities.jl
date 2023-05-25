@@ -470,9 +470,46 @@ end
 generate_name!(model, existing_names; kwargs...) =
     generate_name!(typeof(model), existing_names; kwargs...)
 
-# This is a bit of hack in the case of tables, it is based on the first row.  If some some
-# rows have `missing`s, they may not be accounted for in the type. If the first row has
-# `missing`s the "regular" type will not be accounted for. So use
+
+# # OBSERVATION VS CONTAINER HACKINGS TOOLS
+
+# The following tools are used to bridge the gap between old paradigm of prescribing
+# the scitype of containers of observations, and the LearnAPI.jl paradigm of prescribing
+# only the scitype of the observations themeselves. This is needed because measures are
+# now taken from StatisticalMeasures.jl which follows the LearnAPI.jl paradigm, but model
+# `target_scitype` refers to containers.
+
+"""
+    observation(S)
+
+*Private method.*
+
+Tries to infer the per-observation scitype from the scitype of `S`, when `S` is known to
+be the scitype of some container with multiple observations; here we view the scitype for
+one row of a table to be the scitype of the row converted to a vector. Return `Unknown` if
+unable to draw reliable inferrence.
+
+
+The observation scitype for a table is here understood as the scitype of a row converted
+to a vector.
+
+"""
+observation(::Type) = Unknown
+observation(::Type{AbstractVector{S}}) where S = S
+observation(::Type{AbstractArray{S,N}}) where {S,N} = AbstractArray{S,N-1}
+for T in [:Continuous, :Count, :Finite, :Infinite, :Multiclass, :OrderedFactor]
+    TM = "Union{Missing,$T}" |> Meta.parse
+    for S in [T, TM]
+        quote
+            observation(::Type{AbstractVector{<:$S}}) = $S
+            observation(::Type{AbstractArray{<:$S,N}}) where N = AbstractArray{<:$S,N-1}
+            observation(::Type{Table{<:AbstractVector{<:$S}}}) = AbstractVector{<:$S}
+        end |> eval
+    end
+end
+# note that in Julia `f(::Type{AbstractVector{<:T}}) where T = T` has not a well-formed
+# left-hand side
+
 """
     guess_observation_scitype(y)
 
@@ -500,12 +537,25 @@ Unknown
 """
 guess_observation_scitype(y) = guess_observation_scitype(y, Val(Tables.istable(y)))
 guess_observation_scitype(y, ::Any) = Unknown
-guess_observation_scitype(y::AbstractArray, ::Val{false}) = _observation(scitype(y))
-_observation(::Type{AbstractVector{S}}) where S = S
-_observation(::Type{AbstractArray{S,N}}) where {S,N} = AbstractArray{S,N-1}
+guess_observation_scitype(y::AbstractArray, ::Val{false}) = observation(scitype(y))
 function guess_observation_scitype(table, ::Val{true})
     row = Tables.subset(table, 1, viewhint=false) |> collect
     E = eltype(row)
     nonmissingtype(E) == E || return Unknown
     scitype(row)
 end
+
+"""
+    guess_model_targetobservation_scitype(model)
+
+*Private method*
+
+Try to infer a lowest upper bound on the scitype of target observations acceptable to
+`model`, by inspecting `target_scitype(model)`. Return `Unknown` if unable to draw reliable
+inferrence.
+
+The observation scitype for a table is here understood as the scitype of a row converted
+to a vector.
+
+"""
+guess_model_target_observation_scitype(model) =  observation(target_scitype(model))

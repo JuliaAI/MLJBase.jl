@@ -341,10 +341,11 @@ end
     model = Models.DeterministicConstantRegressor()
     for cache in [true, false]
         mach = machine(model, X, y, cache=cache)
+        # to see if a default measure is found:
+        evaluate!(mach, resampling=holdout, verbosity=verb,
+                  acceleration=accel)
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
                            measure=[rms, rmslp1], acceleration=accel)
-        result = evaluate!(mach, resampling=holdout, verbosity=verb,
-                           acceleration=accel)
         @test result.measurement[1] ≈ 2/3
 
         # test direct evaluation of a model + data:

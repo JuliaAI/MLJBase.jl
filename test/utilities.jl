@@ -171,6 +171,22 @@ end
         "sin, cos, tan, ..."
 end
 
+@testset "observation" begin
+    @test MLJBase.observation(AbstractVector{Count}) ==
+        Count
+    @test MLJBase.observation(AbstractVector{<:Count}) ==
+        Count
+    @test MLJBase.observation(AbstractVector{<:Union{Missing,Count}}) ==
+        Union{Missing,Count}
+    @test MLJBase.observation(AbstractMatrix{<:Count}) ==
+        AbstractVector{<:Count}
+    @test MLJBase.observation(AbstractMatrix{Union{Missing,Count}}) ==
+        AbstractVector{Union{Missing,Count}}
+    @test MLJBase.observation(AbstractMatrix{<:Union{Missing,Count}}) ==
+        AbstractVector{<:Union{Missing,Count}}
+    @test MLJBase.observation(Table(Count)) == AbstractVector{<:Count}
+end
+
 @testset "guess_observation_scitype" begin
     @test MLJBase.guess_observation_scitype([missing, 1, 2, 3]) ==
         Union{Missing, Count}
@@ -181,7 +197,14 @@ end
     @test MLJBase.guess_observation_scitype((x=[missing, 1, 2], y=[1, 2, 3])) ==
         Unknown
     @test MLJBase.guess_observation_scitype(5) == Unknown
-end 
+end
+
+mutable struct DRegressor2 <: Deterministic end
+MLJBase.target_scitype(::Type{<:DRegressor2}) =
+    AbstractVector{<:Continuous}
+
+@test MLJBase.guess_model_target_observation_scitype(DRegressor2()) == Continuous
+
 
 end # module
 true

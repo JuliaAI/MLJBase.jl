@@ -48,7 +48,7 @@ end
 ###################
 # Hack Block ends #
 ###################
-
+import MLJModelInterface: ProbabilisticDetector, DeterministicDetector
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
