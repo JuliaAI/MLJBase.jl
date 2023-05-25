@@ -79,7 +79,6 @@ using ProgressMeter
 import .Threads
 
 # Operations & extensions
-import LossFunctions
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
