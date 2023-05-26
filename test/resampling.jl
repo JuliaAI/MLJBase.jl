@@ -548,7 +548,7 @@ end
     X, y = make_blobs(rng=rng)
     cv=CV(nfolds = 2)
     fold1, fold2 = partition(eachindex(y), 0.5)
-    m = MLJBase.MulticlassFScore()
+    m = MulticlassFScore()
     class_w = Dict(1=>1, 2=>2, 3=>3)
 
     model = Models.DeterministicConstantClassifier()

@@ -2,11 +2,11 @@ module TestStacking
 
 using Test
 using MLJBase
+using StatisticalMeasures
 using MLJModelInterface
 using ..Models
 using Random
 using StableRNGs
-
 import Distributions
 
 rng = StableRNGs.StableRNG(1234)

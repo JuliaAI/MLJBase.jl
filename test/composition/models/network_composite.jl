@@ -1,4 +1,4 @@
-module TestNetowrkComposite
+module TestNetoworkComposite
 
 using Test
 using MLJBase
@@ -9,6 +9,7 @@ using Tables
 using MLJModelInterface
 using CategoricalArrays
 using OrderedCollections
+using StatisticalMeasures
 using Serialization
 
 const MMI = MLJModelInterface

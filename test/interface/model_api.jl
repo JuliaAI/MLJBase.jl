@@ -2,6 +2,7 @@ module TestModelAPI
 
 using Test
 using MLJBase
+using StatisticalMeasures
 import MLJModelInterface
 using ..Models
 using Distributions

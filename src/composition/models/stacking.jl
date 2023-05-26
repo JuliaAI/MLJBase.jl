@@ -425,7 +425,7 @@ function internal_stack_report(
                 model_results.operation,
             ))
                 ypred = operation(mach, Xtest)
-                measurements = StatisticalMeasures.measurements(measure, ypred, ytest)
+                measurements = StatisticalMeasuresBase.measurements(measure, ypred, ytest)
 
                 # Update per observation:
                 model_results.per_observation[i][foldid] = measurements

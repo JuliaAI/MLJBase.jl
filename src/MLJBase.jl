@@ -89,8 +89,7 @@ import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
 # Measures
-@reexport using StatisticalMeasures
-import StatisticalMeasures.StatisticalMeasuresBase
+import StatisticalMeasuresBase
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
@@ -311,5 +310,11 @@ export default_measure
 # OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
+
+# for julia < 1.9
+if !isdefined(Base, :get_extension)
+    include(joinpath("..","ext", "DefaultMeasuresExt.jl"))
+    @reexport using .DefaultMeasuresExt.StatisticalMeasures
+end
 
 end # module
