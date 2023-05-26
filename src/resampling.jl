@@ -829,6 +829,17 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
 
+const RESAMPLING_STRATEGIES = subtypes(ResamplingStrategy)
+const RESAMPLING_STRATEGIES_LIST =
+    join(
+        map(RESAMPLING_STRATEGIES) do s
+             name = split(string(s), ".") |> last
+             "`$name`"
+        end,
+        ", ",
+        " and ",
+    )
+
 """
     evaluate!(mach; resampling=CV(), measure=nothing, options...)
 
@@ -837,9 +848,9 @@ the specified `resampling` strategy (defaulting to 6-fold cross-validation) and 
 which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@ref)
 object.
 
-Do `subtypes(MLJ.ResamplingStrategy)` to obtain a list of available resampling
-strategies. If `resampling` is not an object of type `MLJ.ResamplingStrategy`, then a
-vector of tuples (of the form `(train_rows, test_rows)` is expected. For example, setting
+Available resampling strategies are $RESAMPLING_STRATEGIES_LIST. If `resampling` is not an
+instance of one of these, then a vector of tuples of the form `(train_rows, test_rows)`
+is expected. For example, setting
 
     resampling = [((1:100), (101:200)),
                    ((101:200), (1:100))]
