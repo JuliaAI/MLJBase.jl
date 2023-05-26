@@ -507,7 +507,9 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
   the `i`th observation in the `f`th test fold, evaluated using the `m`th measure.  Useful
   for some forms of hyper-parameter optimization. Note that an aggregregated measurement
   for some measure `measure` is repeated across all observations in a fold if
-  `StatisticalMeasures.can_report_unaggregated(measure) == true`.
+  `StatisticalMeasures.can_report_unaggregated(measure) == true`. If `e` has been computed
+  with the `per_observation=false` option, then `e_per_observation` is a vector of
+  `missings`.
 
 - `fitted_params_per_fold`: a vector containing `fitted params(mach)` for each machine
   `mach` trained during resampling - one machine per train/test pair. Use this to extract
@@ -828,23 +830,12 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
 # User interface points: `evaluate!` and `evaluate`
 
 """
-    evaluate!(mach,
-              resampling=CV(),
-              measure=nothing,
-              rows=nothing,
-              weights=nothing,
-              class_weights=nothing,
-              operation=nothing,
-              repeats=1,
-              acceleration=default_resource(),
-              force=false,
-              check_measure=true,
-              per_observation=true,
-              verbosity=1)
+    evaluate!(mach; resampling=CV(), measure=nothing, options...)
 
 Estimate the performance of a machine `mach` wrapping a supervised model in data, using
 the specified `resampling` strategy (defaulting to 6-fold cross-validation) and `measure`,
-which can be a single measure or vector.
+which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@ref)
+object.
 
 Do `subtypes(MLJ.ResamplingStrategy)` to obtain a list of available resampling
 strategies. If `resampling` is not an object of type `MLJ.ResamplingStrategy`, then a
@@ -855,89 +846,55 @@ vector of tuples (of the form `(train_rows, test_rows)` is expected. For example
 
 gives two-fold cross-validation using the first 200 rows of data.
 
-The type of operation (`predict`, `predict_mode`, etc) to be associated with `measure` is
-automatically inferred from measure traits where possible. For example, `predict_mode`
-will be used for a `Multiclass` target, if `model` is probabilistic but `measure` is
-deterministic. The operations applied can be inspected from the `operation` field of the
-object returned. Alternatively, operations can be explicitly specified using
-`operation=...`. If `measure` is a vector, then `operation` must be a single operation,
-which will be associated with all measures, or a vector of the same length as `measure`.
+Any measure conforming to the
+[StatisticalMeasuresBase.jl](https://juliaai.github.io/StatisticalMeasuresBase.jl/dev/)
+API can be provided, assuming it can consume multiple observations.
 
-The resampling strategy is applied repeatedly (Monte Carlo resampling) if `repeats >
-1`. For example, if `repeats = 10`, then `resampling = CV(nfolds=5, shuffle=true)`,
-generates a total of 50 `(train, test)` pairs for evaluation and subsequent aggregation.
+Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
 
-If `resampling isa MLJ.ResamplingStrategy` then one may optionally restrict the data used
-in evaluation by specifying `rows`.
+# Additional keyword options
 
-An optional `weights` vector may be passed for measures that support sample weights
-(`StatisticalMeasuresBase.supports_weights(measure) == true`), which is ignored by those
-that don't. These weights are not to be confused with any weights `w` bound to `mach` (as
-in `mach = machine(model, X, y, w)`). To pass these to the performance evaluation measures
-you must explictly specify `weights=w` in the `evaluate!` call.
+- `rows` - vector of observation indices from which both train and test folds are
+  constructed (default is all observations)
 
-Additionally, optional `class_weights` dictionary may be passed for measures that support
-class weights (`MLJ.supports_class_weights(measure) == true`), which is ignored by those
-that don't. These weights are not to be confused with any weights `class_w` bound to
-`mach` (as in `mach = machine(model, X, y, class_w)`). To pass these to the performance
-evaluation measures you must explictly specify `class_weights=w` in the `evaluate!` call.
+- `operation`/`operations=nothing` - One of $PREDICT_OPERATIONS_STRING, or a vector of
+  these of the same length as `measure`/`measures`. Automatically inferred if left
+  unspecified. For example, `predict_mode` will be used for a `Multiclass` target, if
+  `model` is a probabilistic predictor, but `measure` is expects literal (point) target
+  predictions. Operations actually applied can be inspected from the `operation` field of
+  the object returned.
 
-User-defined measures are supported; see the manual for details.
+- `weights` - per-sample `Real` weights for measures that support them (not to be confused
+  with weights used in training, such as the `w` in `mach = machine(model, X, y, w)`).
 
-If no measure is specified, then `default_measure(mach.model)` is used, unless this
-default is `nothing` and an error is thrown.
+- `class_weights` - dictionary of `Real` per-class weights for use with measures that
+  support these, in classification problems (not to be confused
+  with weights used in training, such as the `w` in `mach = machine(model, X, y, w)`).
 
-The `acceleration` keyword argument is used to specify the compute resource (a subtype of
-`ComputationalResources.AbstractResource`) that will be used to accelerate/parallelize the
-resampling operation.
+- `repeats::Int=1`: set to a higher value for repeated (Monte Carlo)
+  resampling. For example, if `repeats = 10`, then `resampling = CV(nfolds=5,
+  shuffle=true)`, generates a total of 50 `(train, test)` pairs for evaluation and
+  subsequent aggregation.
 
-Although `evaluate!` is mutating, `mach.model` and `mach.args` are untouched.
+- `acceleration=CPU1()`: acceleration/parallelization option; can be any instance of
+  `CPU1`, (single-threaded computation), `CPUThreads` (multi-threaded computation) or
+  `CPUProcesses` (multi-process computation); default is `default_resource()`. These types
+  are owned by ComputationalResources.jl.
 
-### Summary of key-word arguments
-
-- `resampling` - resampling strategy (default is `CV(nfolds=6)`)
-
-- `measure`/`measures` - measure or vector of measures (losses, scores, etc)
-
-- `rows` - vector of observation indices from which both train and
-  test folds are constructed (default is all observations)
-
-- `weights` - per-sample weights for measures that support them (not
-  to be confused with weights used in training)
-
-- `class_weights` - dictionary of per-class weights for use with
-  measures that support these, in classification problems (not to be
-  confused with per-sample `weights` or with class weights used in
-  training)
-
-- `operation`/`operations` - One of $PREDICT_OPERATIONS_STRING, or a
-  vector of these of the same length as
-  `measure`/`measures`. Automatically inferred if left unspecified.
-
-- `repeats` - default is 1; set to a higher value for repeated
-  (Monte Carlo) resampling
-
-- `acceleration` - parallelization option; currently supported
-  options are instances of `CPU1` (single-threaded computation)
-  `CPUThreads` (multi-threaded computation) and `CPUProcesses`
-  (multi-process computation); default is `default_resource()`.
-
-- `force` - default is `false`; set to `true` to force cold-restart
+- `force=false`: set to `true` to force cold-restart
   of each training event
 
-- `verbosity` level, an integer defaulting to 1.
+- `verbosity::Int=1` logging level; can be negative
 
-- `check_measure` - default is `true`
+- `check_measure=true`: whether to screen measures for possible incompatibility with the
+  model. Will not catch all incompatibilities.
 
 - `per_observation=true`: whether to calculate estimates for individual observations; if
   `false` the `per_observation` field of the returned object is populated with
   `missing`s. Setting to `false` may reduce compute time and allocations.
 
 
-### Return value
-
-A [`PerformanceEvaluation`](@ref) object. See
-[`PerformanceEvaluation`](@ref) for details.
+See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref)
 
 """
 function evaluate!(mach::Machine{<:Measurable};
@@ -1011,11 +968,15 @@ function evaluate!(mach::Machine{<:Measurable};
 end
 
 """
-    evaluate(model, data...; cache=true, kw_options...)
+    evaluate(model, data...; cache=true, options...)
 
 Equivalent to `evaluate!(machine(model, data..., cache=cache);
-wk_options...)`.  See the machine version `evaluate!` for the complete
+options...)`.  See the machine version `evaluate!` for the complete
 list of options.
+
+Returns a  [`PerformanceEvaluation`](@ref) object.
+
+See also [`evaluate!`](@ref).
 
 """
 evaluate(model::Measurable, args...; cache=true, kwargs...) =
