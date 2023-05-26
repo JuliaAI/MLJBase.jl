@@ -177,7 +177,7 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
-include("measures.jl")
+include("default_measures.jl.jl")
 
 include("composition/models/stacking.jl")
 

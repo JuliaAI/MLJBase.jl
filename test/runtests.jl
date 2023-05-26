@@ -25,8 +25,8 @@ end
     @test include("interface/data_utils.jl")
 end
 
-@conditional_testset "measures" begin
-    @test include("measures.jl")
+@conditional_testset "default_measures.jl" begin
+    @test include("default_measures.jl.jl")
 end
 
 @conditional_testset "resampling" begin

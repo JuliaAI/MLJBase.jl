@@ -6,6 +6,9 @@
 Return a measure that should work with `model`, or return `nothing` if none can be
 reliably inferred.
 
+For Julia 1.9 and higher, `nothing` is returned, unless StatisticalMeasures.jl is
+loaded.
+
 """
 default_measure(m) = nothing
 default_measure(m::Union{Supervised,Annotator}) =
