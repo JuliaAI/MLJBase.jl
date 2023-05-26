@@ -841,39 +841,33 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
               verbosity=1,
               check_measure=true)
 
-Estimate the performance of a machine `mach` wrapping a supervised
-model in data, using the specified `resampling` strategy (defaulting
-to 6-fold cross-validation) and `measure`, which can be a single
-measure or vector.
+Estimate the performance of a machine `mach` wrapping a supervised model in data, using
+the specified `resampling` strategy (defaulting to 6-fold cross-validation) and `measure`,
+which can be a single measure or vector.
 
-Do `subtypes(MLJ.ResamplingStrategy)` to obtain a list of available
-resampling strategies. If `resampling` is not an object of type
-`MLJ.ResamplingStrategy`, then a vector of tuples (of the form
-`(train_rows, test_rows)` is expected. For example, setting
+Do `subtypes(MLJ.ResamplingStrategy)` to obtain a list of available resampling
+strategies. If `resampling` is not an object of type `MLJ.ResamplingStrategy`, then a
+vector of tuples (of the form `(train_rows, test_rows)` is expected. For example, setting
 
     resampling = [((1:100), (101:200)),
                    ((101:200), (1:100))]
 
 gives two-fold cross-validation using the first 200 rows of data.
 
-The type of operation (`predict`, `predict_mode`, etc) to be
-associated with `measure` is automatically inferred from measure
-traits where possible. For example, `predict_mode` will be used for a
-`Multiclass` target, if `model` is probabilistic but `measure` is
-deterministic. The operations applied can be inspected from the
-`operation` field of the object returned. Alternatively, operations
-can be explicitly specified using `operation=...`. If `measure` is a
-vector, then `operation` must be a single operation, which will be
-associated with all measures, or a vector of the same length as
-`measure`.
+The type of operation (`predict`, `predict_mode`, etc) to be associated with `measure` is
+automatically inferred from measure traits where possible. For example, `predict_mode`
+will be used for a `Multiclass` target, if `model` is probabilistic but `measure` is
+deterministic. The operations applied can be inspected from the `operation` field of the
+object returned. Alternatively, operations can be explicitly specified using
+`operation=...`. If `measure` is a vector, then `operation` must be a single operation,
+which will be associated with all measures, or a vector of the same length as `measure`.
 
-The resampling strategy is applied repeatedly (Monte Carlo resampling)
-if `repeats > 1`. For example, if `repeats = 10`, then `resampling =
-CV(nfolds=5, shuffle=true)`, generates a total of 50 `(train, test)`
-pairs for evaluation and subsequent aggregation.
+The resampling strategy is applied repeatedly (Monte Carlo resampling) if `repeats >
+1`. For example, if `repeats = 10`, then `resampling = CV(nfolds=5, shuffle=true)`,
+generates a total of 50 `(train, test)` pairs for evaluation and subsequent aggregation.
 
-If `resampling isa MLJ.ResamplingStrategy` then one may optionally
-restrict the data used in evaluation by specifying `rows`.
+If `resampling isa MLJ.ResamplingStrategy` then one may optionally restrict the data used
+in evaluation by specifying `rows`.
 
 An optional `weights` vector may be passed for measures that support sample weights
 (`StatisticalMeasuresBase.supports_weights(measure) == true`), which is ignored by those
@@ -881,25 +875,22 @@ that don't. These weights are not to be confused with any weights `w` bound to `
 in `mach = machine(model, X, y, w)`). To pass these to the performance evaluation measures
 you must explictly specify `weights=w` in the `evaluate!` call.
 
-Additionally, optional `class_weights` dictionary may be passed
-for measures that support class weights
-(`MLJ.supports_class_weights(measure) == true`), which is
-ignored by those that don't. These weights are not to be confused with
-any weights `class_w` bound to `mach` (as in `mach = machine(model, X,
-y, class_w)`). To pass these to the performance evaluation measures you
-must explictly specify `class_weights=w` in the `evaluate!` call.
+Additionally, optional `class_weights` dictionary may be passed for measures that support
+class weights (`MLJ.supports_class_weights(measure) == true`), which is ignored by those
+that don't. These weights are not to be confused with any weights `class_w` bound to
+`mach` (as in `mach = machine(model, X, y, class_w)`). To pass these to the performance
+evaluation measures you must explictly specify `class_weights=w` in the `evaluate!` call.
 
 User-defined measures are supported; see the manual for details.
 
-If no measure is specified, then `default_measure(mach.model)` is
-used, unless this default is `nothing` and an error is thrown.
+If no measure is specified, then `default_measure(mach.model)` is used, unless this
+default is `nothing` and an error is thrown.
 
-The `acceleration` keyword argument is used to specify the compute resource (a
-subtype of `ComputationalResources.AbstractResource`) that will be used to
-accelerate/parallelize the resampling operation.
+The `acceleration` keyword argument is used to specify the compute resource (a subtype of
+`ComputationalResources.AbstractResource`) that will be used to accelerate/parallelize the
+resampling operation.
 
-Although `evaluate!` is mutating, `mach.model` and `mach.args` are
-untouched.
+Although `evaluate!` is mutating, `mach.model` and `mach.args` are untouched.
 
 ### Summary of key-word arguments
 
@@ -930,7 +921,7 @@ untouched.
   `CPUThreads` (multi-threaded computation) and `CPUProcesses`
   (multi-process computation); default is `default_resource()`.
 
-- `force` - default is `false`; set to `true` for force cold-restart
+- `force` - default is `false`; set to `true` to force cold-restart
   of each training event
 
 - `verbosity` level, an integer defaulting to 1.
