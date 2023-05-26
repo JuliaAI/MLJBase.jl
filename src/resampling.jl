@@ -623,7 +623,7 @@ function _check_measure(measure, operation, model, y)
 
     # get type supported by measure:
     T_measure = StatisticalMeasuresBase.observation_scitype(measure)
- 
+
     T == Unknown && (return true)
     T_measure == Union{} && (return true)
     isnothing(StatisticalMeasuresBase.kind_of_proxy(measure)) && (return true)
@@ -838,8 +838,9 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
               repeats=1,
               acceleration=default_resource(),
               force=false,
-              verbosity=1,
-              check_measure=true)
+              check_measure=true,
+              per_observation=true,
+              verbosity=1)
 
 Estimate the performance of a machine `mach` wrapping a supervised model in data, using
 the specified `resampling` strategy (defaulting to 6-fold cross-validation) and `measure`,
@@ -928,6 +929,10 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are untouched.
 
 - `check_measure` - default is `true`
 
+- `per_observation=true`: whether to calculate estimates for individual observations; if
+  `false` the `per_observation` field of the returned object is populated with
+  `missing`s. Setting to `false` may reduce compute time and allocations.
+
 
 ### Return value
 
@@ -948,7 +953,8 @@ function evaluate!(mach::Machine{<:Measurable};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1)
+                   per_observation=true,
+                   verbosity=1,)
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
@@ -1000,7 +1006,7 @@ function evaluate!(mach::Machine{<:Measurable};
     _acceleration= _process_accel_settings(acceleration)
 
     evaluate!(mach, resampling, weights, class_weights, rows, verbosity,
-              repeats, _measures, _operations, _acceleration, force)
+              repeats, _measures, _operations, _acceleration, force, per_observation)
 
 end
 
@@ -1165,7 +1171,7 @@ _view(weights, rows) = view(weights, rows)
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
-                   measures, operations, acceleration, force)
+                   measures, operations, acceleration, force, per_observation_flag)
 
     # Note: `rows` and `repeats` are ignored here
 
@@ -1202,15 +1208,25 @@ function evaluate!(mach::Machine, resampling, weights,
             Dict(op=>op(mach, rows=test) for op in unique(operations))
 
         ytest = selectrows(y, test)
-
-        measurements =  map(measures, operations) do m, op
-            StatisticalMeasuresBase.measurements(
-                m,
-                yhat_given_operation[op],
-                ytest,
-                _view(weights, test),
-                class_weights,
-            )
+        if per_observation_flag
+            measurements =  map(measures, operations) do m, op
+                StatisticalMeasuresBase.measurements(
+                    m,
+                    yhat_given_operation[op],
+                    ytest,
+                    _view(weights, test),
+                    class_weights,
+                )
+            end
+        else
+            measurements =  map(measures, operations) do m, op
+                m(
+                    yhat_given_operation[op],
+                    ytest,
+                    _view(weights, test),
+                    class_weights,
+                )
+            end
         end
 
         fp = fitted_params(mach)
@@ -1243,23 +1259,39 @@ function evaluate!(mach::Machine, resampling, weights,
 
     measurements_flat = vcat(measurements_vector_of_vectors...)
 
-    # in the following rows=folds, columns=measures; each element of the matrix is a
-    # vector of meausurements, one per observation, over a fold for a particular metric.
+    # In the `measurements_matrix` below, rows=folds, columns=measures; each element of
+    # the matrix is:
+    #
+    # - a vector of meausurements, one per observation within a fold, if
+    # - `per_observation_flag = true`; or
+    #
+    # - a single measurment for the whole fold, if `per_observation_flag = false`.
+    #
     measurements_matrix = permutedims(
         reshape(collect(measurements_flat), (nmeasures, nfolds))
     )
 
     # measurements for each observation:
-    per_observation = map(1:nmeasures) do k
-            measurements_matrix[:,k]
+    per_observation = if per_observation_flag
+       map(1:nmeasures) do k
+           measurements_matrix[:,k]
+       end
+    else
+        fill(missing, nmeasures)
     end
 
     # measurements for each fold:
-    per_fold = map(1:nmeasures) do k
-        m = measures[k]
-        mode = StatisticalMeasuresBase.external_aggregation_mode(m)
-        map(per_observation[k]) do v
-            StatisticalMeasuresBase.aggregate(v; mode)
+    per_fold = if per_observation_flag
+        map(1:nmeasures) do k
+            m = measures[k]
+            mode = StatisticalMeasuresBase.external_aggregation_mode(m)
+            map(per_observation[k]) do v
+                StatisticalMeasuresBase.aggregate(v; mode)
+            end
+        end
+    else
+        map(1:nmeasures) do k
+            measurements_matrix[:,k]
         end
     end
 
@@ -1329,7 +1361,8 @@ end
         operation=predict,
         repeats = 1,
         acceleration=default_resource(),
-        check_measure=true
+        check_measure=true,
+        per_observation=true,
     )
 
 Resampling model wrapper, used internally by the `fit` method of
@@ -1375,6 +1408,7 @@ mutable struct Resampler{S} <: Model
     check_measure::Bool
     repeats::Int
     cache::Bool
+    per_observation::Bool
 end
 
 # Some traits are markded as `missing` because we cannot determine
@@ -1403,8 +1437,8 @@ function MLJModelInterface.clean!(resampler::Resampler)
     return warning
 end
 
-function Resampler(;
-    model=nothing,
+function Resampler(
+    ;model=nothing,
     resampling=CV(),
     measure=nothing,
     weights=nothing,
@@ -1413,7 +1447,8 @@ function Resampler(;
     acceleration=default_resource(),
     check_measure=true,
     repeats=1,
-    cache=true
+    cache=true,
+    per_observation=true,
 )
     resampler = Resampler(
         model,
@@ -1425,7 +1460,8 @@ function Resampler(;
         acceleration,
         check_measure,
         repeats,
-        cache
+        cache,
+        per_observation,
     )
     message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
@@ -1470,7 +1506,8 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
         _measures,
         _operations,
         _acceleration,
-        false
+        false,
+        resampler.per_observation,
     )
 
     fitresult = (machine = mach, evaluation = e)
@@ -1533,7 +1570,8 @@ function MLJModelInterface.update(
         measures,
         operations,
         acceleration,
-        false
+        false,
+        resampler.per_observation
     )
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)

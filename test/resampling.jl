@@ -304,6 +304,42 @@ end
     end
 end
 
+@testset "folds specified - per_observation=false" begin
+    accel = CPU1()
+    cache = true
+    x1 = ones(10)
+    x2 = ones(10)
+    X  = (x1=x1, x2=x2)
+    y  = [1.0, 1.0, 2.0, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]
+
+    resampling = [(3:10, 1:2),
+                  ([1, 2, 5, 6, 7, 8, 9, 10], 3:4),
+                  ([1, 2, 3, 4, 7, 8, 9, 10], 5:6),
+                  ([1, 2, 3, 4, 5, 6, 9, 10], 7:8),
+                  (1:8, 9:10)]
+
+    model = DeterministicConstantRegressor()
+    mach  = machine(model, X, y, cache=cache)
+
+    result = evaluate!(mach, resampling=resampling, verbosity=verb,
+                       measure=[user_rms, mae, rmslp1], acceleration=accel,
+                       per_observation=false)
+
+    v = [1/2, 3/4, 1/2, 3/4, 1/2]
+
+    @test result.per_fold[1] ≈ v
+    @test result.per_fold[2] ≈ v
+    @test result.per_fold[3][1] ≈ abs(log(2) - log(2.5))
+    @test result.per_observation isa Vector{Missing}
+    @test result.measurement[1] ≈ mean(v)
+    @test result.measurement[2] ≈ mean(v)
+
+    # fitted_params and report per fold:
+    @test map(fp->fp.fitresult, result.fitted_params_per_fold) ≈
+        [1.5, 1.25, 1.5, 1.25, 1.5]
+    @test all(isnothing, result.report_per_fold)
+end
+
 @testset "repeated resampling" begin
     x1 = ones(20)
     x2 = ones(20)
