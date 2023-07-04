@@ -292,10 +292,14 @@ export coerce, coerce!, autotype, schema, info
 export UnivariateFiniteArray, UnivariateFiniteVector
 
 # -----------------------------------------------------------------------
-# abstract model types defined in MLJModelInterface.jl and extended here:
+# re-export from MLJModelInterface.jl
+
+#abstract model types defined in MLJModelInterface.jl and extended here:
 for T in EXTENDED_ABSTRACT_MODEL_TYPES
     @eval(export $T)
 end
+
+export params
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
@@ -305,9 +309,6 @@ export default_resource
 
 # one_dimensional_ranges.jl:
 export ParamRange, NumericRange, NominalRange, iterator, scale
-
-# parameter_inspection.jl:
-export params # note this is *not* an extension of StatsBase.params
 
 # data.jl:
 export partition, unpack, complement, restrict, corestrict
