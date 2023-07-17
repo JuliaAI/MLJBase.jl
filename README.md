@@ -29,9 +29,7 @@ repository provides core functionality for MLJ, including:
   [MLJModelInterface](https://github.com/JuliaAI/MLJModelInterface.jl) (/src/interface)
 
 - definition of **machines** and their associated methods, such as
-  `fit!` and `predict`/`transform` (src/machines). Serialization of machines,
-  however, now lives in
-  [MLJSerialization](https://github.com/JuliaAI/MLJSerialization.jl).
+  `fit!` and `predict`/`transform` (src/machines).
 
 - MLJ's **model composition** interface, including **learning
   networks**, **pipelines**, **stacks**, **target transforms** (/src/composition)
