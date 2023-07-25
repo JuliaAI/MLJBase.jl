@@ -138,7 +138,7 @@ for operation in OPERATIONS
             get!(ret, $quoted_operation, mach)
         end
 
-        function $operation(mach::Machine{<:Static}, Xraw, Xraw_more...)
+        function $operation(mach::Machine, Xraw, Xraw_more...)
             _check_and_fit_if_warranted!(mach)
             ret = $(operation)(
                 last_model(mach),
@@ -153,10 +153,11 @@ for operation in OPERATIONS
         $operation(mach::Machine, X::AbstractNode) =
             node($(operation), mach, X)
 
-        $operation(mach::Machine{<:Static},
-                   X::AbstractNode,
-                   Xmore::AbstractNode...) =
-                       node($(operation), mach, X, Xmore...)
+        $operation(
+            mach::Machine,
+            X::AbstractNode,
+            Xmore::AbstractNode...,
+        ) = node($(operation), mach, X, Xmore...)
     end
     eval(ex)
 end
