@@ -79,6 +79,7 @@ import .Threads
 
 # Operations & extensions
 import LossFunctions
+import LossFunctions.Traits
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
