@@ -13,7 +13,7 @@ makedocs(;
         "Composition" => "composition.md",
         "Datasets" => "datasets.md",
         "Distributions" => "distributions.md",
-        "Utilities" => "utilities.md"
+        "Utilities" => "utilities.md",
     ],
     repo="https://$REPO/blob/{commit}{path}#L{line}",
     sitename="MLJBase.jl"

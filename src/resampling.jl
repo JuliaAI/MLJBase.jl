@@ -509,6 +509,7 @@ struct.
   training and evaluation respectively.
 """
 struct PerformanceEvaluation{M,
+                             Model,
                              Measurement,
                              Operation,
                              PerFold,
@@ -516,6 +517,7 @@ struct PerformanceEvaluation{M,
                              FittedParamsPerFold,
                              ReportPerFold} <: MLJType
     measure::M
+    model::Model
     measurement::Measurement
     operation::Operation
     per_fold::PerFold
@@ -919,7 +921,6 @@ untouched.
 
 - `check_measure` - default is `true`
 
-
 ### Return value
 
 A [`PerformanceEvaluation`](@ref) object. See
@@ -1157,6 +1158,23 @@ function measure_specific_weights(measure, weights, class_weights, test)
     return nothing
 end
 
+# Workflow logging interfaces, such as MLJFlow (MLFlow connection via
+# MLFlowClient.jl), overload the following method but replace the `logger`
+# argument with `logger::LoggerType`, where `LoggerType <: MLJLogger`
+# is specific to the logging platform.
+abstract type MLJLogger end
+"""
+    log_evaluation(logger::MLJLogger, performance_evaluation)
+
+Logs a performance evaluation (the returning object from `evaluate!`)
+to a logging platform. The default implementation does nothing.
+Can be overloaded by logging interfaces, such as MLJFlow (MLFlow
+connection via MLFlowClient.jl), which replace the `logger` argument
+with `logger::LoggerType`, where `LoggerType <: MLJLogger` is specific
+to the logging platform.
+"""
+log_evaluation(logger::MLJLogger, performance_evaluation) = nothing
+
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
@@ -1266,6 +1284,7 @@ function evaluate!(mach::Machine, resampling, weights,
 
     return PerformanceEvaluation(
         measures,
+        mach.model,
         per_measure,
         operations,
         per_fold,
