@@ -1163,20 +1163,19 @@ end
 
 # Workflow logging interfaces, such as MLJFlow (MLFlow connection via
 # MLFlowClient.jl), overload the following method but replace the `logger`
-# argument with `logger::LoggerType`, where `LoggerType <: MLJLogger`
-# is specific to the logging platform.
-abstract type MLJLogger end
+# argument with `logger::LoggerType`, where `LoggerType` is specific to the
+# logging platform.
 """
-    log_evaluation(logger::MLJLogger, performance_evaluation)
+    log_evaluation(logger, performance_evaluation)
 
 Logs a performance evaluation (the returning object from `evaluate!`)
 to a logging platform. The default implementation does nothing.
 Can be overloaded by logging interfaces, such as MLJFlow (MLFlow
 connection via MLFlowClient.jl), which replace the `logger` argument
-with `logger::LoggerType`, where `LoggerType <: MLJLogger` is specific
-to the logging platform.
+with `logger::LoggerType`, where `LoggerType` is specific to the logging
+platform.
 """
-log_evaluation(logger::MLJLogger, performance_evaluation) = nothing
+log_evaluation(logger, performance_evaluation) = nothing
 
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
