@@ -476,6 +476,9 @@ struct.
 
 - `measure`: vector of measures (metrics) used to evaluate performance
 
+- `model`: model used to create the performance evaluation. In the case a
+    tuning model, this is the best model found.
+
 - `measurement`: vector of measurements - one for each element of
   `measure` - aggregating the performance measurements over all
   train/test pairs (folds). The aggregation method applied for a given
