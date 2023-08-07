@@ -794,9 +794,6 @@ end
     print(show_text)
     docstring_text = string(@doc(PerformanceEvaluation))
     for fieldname in fieldnames(PerformanceEvaluation)
-        if fieldname == :model
-            continue
-        end
         @test contains(show_text, string(fieldname))
         # string(text::Markdown.MD) converts `-` list items to `*`.
         @test contains(docstring_text, " * `$fieldname`")

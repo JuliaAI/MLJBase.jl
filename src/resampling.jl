@@ -575,7 +575,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
             "with these fields:")
     println(io, "  measure, operation, measurement, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
-            "  report_per_fold, train_test_rows")
+            "  report_per_fold, train_test_rows", "model")
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
