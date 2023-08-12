@@ -388,8 +388,8 @@ function internal_stack_report(
     # For each model we record the results mimicking the fields PerformanceEvaluation
     results = NamedTuple{modelnames}(
         [(
-            measure = stack.measures,
             model = model,
+            measure = stack.measures,
             measurement = Vector{Any}(undef, n_measures),
             operation = _actual_operations(nothing, stack.measures, model, verbosity),
             per_fold = [Vector{Any}(undef, nfolds) for _ in 1:n_measures],

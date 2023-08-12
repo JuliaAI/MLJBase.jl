@@ -474,10 +474,10 @@ be interpreted with caution. See, for example, Bates et al.
 These fields are part of the public API of the `PerformanceEvaluation`
 struct.
 
-- `measure`: vector of measures (metrics) used to evaluate performance
-
 - `model`: model used to create the performance evaluation. In the case a
     tuning model, this is the best model found.
+
+- `measure`: vector of measures (metrics) used to evaluate performance
 
 - `measurement`: vector of measurements - one for each element of
   `measure` - aggregating the performance measurements over all
@@ -512,15 +512,15 @@ struct.
   training and evaluation respectively.
 """
 struct PerformanceEvaluation{M,
-                             Model,
+                             Measure,
                              Measurement,
                              Operation,
                              PerFold,
                              PerObservation,
                              FittedParamsPerFold,
                              ReportPerFold} <: MLJType
-    measure::M
-    model::Model
+    model::M
+    measure::Measure
     measurement::Measurement
     operation::Operation
     per_fold::PerFold
@@ -573,9 +573,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
 
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
-    println(io, "  measure, operation, measurement, per_fold,\n"*
+    println(io, "  model, measure, operation, measurement, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
-            "  report_per_fold, train_test_rows", "model")
+            "  report_per_fold, train_test_rows")
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
@@ -812,6 +812,24 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
 
 # --------------------------------------------------------------
 # User interface points: `evaluate!` and `evaluate`
+#
+"""
+    log_evaluation(logger, performance_evaluation)
+
+Log a performance evaluation to `logger`, an object specific to some logging
+platform, such as mlflow. If `logger=nothing` then no logging is performed.
+The method is called at the end of every call to `evaluate/evaluate!` using
+the logger provided by the `logger` keyword argument.
+
+# Implementations for new logging platforms
+#
+Julia interfaces to workflow logging platforms, such as mlflow (provided by
+the MLFlowClient.jl interface) should overload
+`log_evaluation(logger::LoggerType, performance_evaluation)`,
+where `LoggerType` is a platform-specific type for logger objects. For an
+example, see the implementation provided by the MLJFlow.jl package.
+"""
+log_evaluation(logger, performance_evaluation) = nothing
 
 """
     evaluate!(mach,
@@ -825,7 +843,8 @@ _process_accel_settings(accel) =  throw(ArgumentError("unsupported" *
               acceleration=default_resource(),
               force=false,
               verbosity=1,
-              check_measure=true)
+              check_measure=true,
+              logger=nothing)
 
 Estimate the performance of a machine `mach` wrapping a supervised
 model in data, using the specified `resampling` strategy (defaulting
@@ -924,6 +943,8 @@ untouched.
 
 - `check_measure` - default is `true`
 
+- `logger` - a logger object (see [`MLJBase.log_evaluation`](@ref))
+
 ### Return value
 
 A [`PerformanceEvaluation`](@ref) object. See
@@ -943,7 +964,8 @@ function evaluate!(mach::Machine{<:Measurable};
                    repeats=1,
                    force=false,
                    check_measure=true,
-                   verbosity=1)
+                   verbosity=1,
+                   logger=nothing)
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
@@ -984,9 +1006,12 @@ function evaluate!(mach::Machine{<:Measurable};
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluate!(mach, resampling, weights, class_weights, rows, verbosity,
-              repeats, _measures, _operations, _acceleration, force)
+    evaluation = evaluate!(mach, resampling, weights, class_weights, rows,
+                           verbosity, repeats, _measures, _operations,
+                           _acceleration, force)
+    log_evaluation(logger, evaluation)
 
+    evaluation
 end
 
 """
@@ -1161,22 +1186,6 @@ function measure_specific_weights(measure, weights, class_weights, test)
     return nothing
 end
 
-# Workflow logging interfaces, such as MLJFlow (MLFlow connection via
-# MLFlowClient.jl), overload the following method but replace the `logger`
-# argument with `logger::LoggerType`, where `LoggerType` is specific to the
-# logging platform.
-"""
-    log_evaluation(logger, performance_evaluation)
-
-Logs a performance evaluation (the returning object from `evaluate!`)
-to a logging platform. The default implementation does nothing.
-Can be overloaded by logging interfaces, such as MLJFlow (MLFlow
-connection via MLFlowClient.jl), which replace the `logger` argument
-with `logger::LoggerType`, where `LoggerType` is specific to the logging
-platform.
-"""
-log_evaluation(logger, performance_evaluation) = nothing
-
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
@@ -1285,8 +1294,8 @@ function evaluate!(mach::Machine, resampling, weights,
     end
 
     return PerformanceEvaluation(
-        measures,
         mach.model,
+        measures,
         per_measure,
         operations,
         per_fold,
