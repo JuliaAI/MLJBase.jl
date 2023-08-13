@@ -1006,12 +1006,9 @@ function evaluate!(mach::Machine{<:Measurable};
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluation = evaluate!(mach, resampling, weights, class_weights, rows,
+    evaluate!(mach, resampling, weights, class_weights, rows,
                            verbosity, repeats, _measures, _operations,
-                           _acceleration, force)
-    log_evaluation(logger, evaluation)
-
-    evaluation
+                           _acceleration, force, logger)
 end
 
 """
@@ -1189,7 +1186,7 @@ end
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(mach::Machine, resampling, weights,
                    class_weights, rows, verbosity, repeats,
-                   measures, operations, acceleration, force)
+                   measures, operations, acceleration, force, logger)
 
     # Note: `rows` and `repeats` are ignored here
 
@@ -1293,7 +1290,7 @@ function evaluate!(mach::Machine, resampling, weights,
         MLJBase.aggregate(per_fold[k], m)
     end
 
-    return PerformanceEvaluation(
+    evaluation = PerformanceEvaluation(
         mach.model,
         measures,
         per_measure,
@@ -1305,6 +1302,9 @@ function evaluate!(mach::Machine, resampling, weights,
         resampling
     )
 
+    log_evaluation(logger, evaluation)
+
+    evaluation
 end
 
 # ----------------------------------------------------------------
@@ -1349,7 +1349,8 @@ end
         operation=predict,
         repeats = 1,
         acceleration=default_resource(),
-        check_measure=true
+        check_measure=true,
+        logger=nothing,
     )
 
 Resampling model wrapper, used internally by the `fit` method of
@@ -1384,7 +1385,7 @@ are not to be confused with any weights bound to a `Resampler` instance
 in a machine, used for training the wrapped `model` when supported.
 
 """
-mutable struct Resampler{S} <: Model
+mutable struct Resampler{S, L} <: Model
     model
     resampling::S # resampling strategy
     measure
@@ -1395,6 +1396,7 @@ mutable struct Resampler{S} <: Model
     check_measure::Bool
     repeats::Int
     cache::Bool
+    logger::L
 end
 
 # Some traits are markded as `missing` because we cannot determine
@@ -1433,7 +1435,8 @@ function Resampler(;
     acceleration=default_resource(),
     check_measure=true,
     repeats=1,
-    cache=true
+    cache=true,
+    logger=nothing
 )
     resampler = Resampler(
         model,
@@ -1445,7 +1448,8 @@ function Resampler(;
         acceleration,
         check_measure,
         repeats,
-        cache
+        cache,
+        logger
     )
     message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
@@ -1490,7 +1494,8 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
         _measures,
         _operations,
         _acceleration,
-        false
+        false,
+        resampler.logger
     )
 
     fitresult = (machine = mach, evaluation = e)
@@ -1553,7 +1558,8 @@ function MLJModelInterface.update(
         measures,
         operations,
         acceleration,
-        false
+        false,
+        resampler.logger
     )
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)
