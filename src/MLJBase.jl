@@ -53,7 +53,7 @@ import MLJModelInterface: fit, update, update_data, transform,
     predict_mean, predict_median, predict_joint,
     evaluate, clean!, is_same_except,
     save, restore, is_same_except, istransparent,
-    params, training_losses, feature_importances
+    params, flat_params, training_losses, feature_importances
 
 # Macros
 using Parameters
@@ -300,7 +300,7 @@ for T in EXTENDED_ABSTRACT_MODEL_TYPES
     @eval(export $T)
 end
 
-export params
+export params, flat_params
 
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
