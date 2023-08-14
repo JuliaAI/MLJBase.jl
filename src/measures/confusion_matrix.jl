@@ -164,12 +164,12 @@ splitw(w::Int) = (sp1 = div(w, 2); sp2 = w - sp1; (sp1, sp2))
 
 function Base.show(stream::IO, m::MIME"text/plain", cm::ConfusionMatrixObject{C}
                    ) where C
-    mincw    = ceil(Int, 12/C)
     width    = displaysize(stream)[2]
+    mincw    = ceil(Int, 12/C)
     cw       = max(length(string(maximum(cm.mat))),maximum(length.(cm.labels)),mincw)
     firstcw  = max(length(string(maximum(cm.mat))),maximum(length.(cm.labels)),9)
     textlim  = 9
-    totalwidth = cw * (C+1) + C + 2
+    totalwidth = firstcw + cw * C + C + 2
     width < totalwidth && (show(stream, m, cm.mat); return)
 
     iob     = IOBuffer()
