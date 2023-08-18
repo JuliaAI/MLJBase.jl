@@ -396,7 +396,9 @@ function internal_stack_report(
             per_observation = Vector{Union{Missing, Vector{Any}}}(missing, n_measures),
             fitted_params_per_fold = [],
             report_per_fold = [],
-            train_test_pairs = tt_pairs
+            train_test_pairs = tt_pairs,
+            resampling = stack.resampling,
+            repeats = 1
         )
          for model in getfield(stack, :models)
          ]
