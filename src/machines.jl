@@ -533,7 +533,7 @@ last_model(mach) = isdefined(mach, :old_model) ? mach.old_model : nothing
         rows=nothing,
         verbosity=1,
         force=false,
-        composite=nothing
+        composite=nothing,
     )
 
 Without mutating any other machine on which it may depend, perform one of the following
@@ -553,7 +553,7 @@ data to `rows` if specified:
    increment `mach.state`.
 
 If the model, `model`, bound to `mach` is a symbol, then instead perform the action using
-the true model `getproperty(composite, model)`.
+the true model given by `getproperty(composite, model)`. See also [`machine`](@ref).
 
 
 ### Training action logic
@@ -762,13 +762,13 @@ end
 
 """
 
-    fit!(mach::Machine, rows=nothing, verbosity=1, force=false)
+    fit!(mach::Machine, rows=nothing, verbosity=1, force=false, composite=nothing)
 
 Fit the machine `mach`. In the case that `mach` has `Node` arguments,
 first train all other machines on which `mach` depends.
 
 To attempt to fit a machine without touching any other machine, use
-`fit_only!`. For more on the internal logic of fitting see
+`fit_only!`. For more on options and the the internal logic of fitting see
 [`fit_only!`](@ref)
 
 """

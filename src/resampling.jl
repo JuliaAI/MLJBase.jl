@@ -489,11 +489,15 @@ et al.  [(2021)](https://arxiv.org/abs/2104.00673).
 
 These fields are part of the public API of the `PerformanceEvaluation` struct.
 
+- `model`: model used to create the performance evaluation. In the case a
+    tuning model, this is the best model found.
+
 - `measure`: vector of measures (metrics) used to evaluate performance
 
 - `measurement`: vector of measurements - one for each element of `measure` - aggregating
   the performance measurements over all train/test pairs (folds). The aggregation method
-  applied for a given measure `m` is `aggregation(m)` (commonly `Mean` or `Sum`)
+  applied for a given measure `m` is
+  `StatisticalMeasuresBase.external_aggregation_mode(m)` (commonly `Mean()` or `Sum()`)
 
 - `operation` (e.g., `predict_mode`): the operations applied for each measure to generate
   predictions to be evaluated. Possibilities are: $PREDICT_OPERATIONS_STRING.
@@ -522,15 +526,22 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
   and `test` are vectors of row (observation) indices for training and evaluation
   respectively.
 
+- `resampling`: the resampling strategy used to generate the train/test pairs.
+
+- `repeats`: the number of times the resampling strategy was repeated.
+
 """
 struct PerformanceEvaluation{M,
+                             Measure,
                              Measurement,
                              Operation,
                              PerFold,
                              PerObservation,
                              FittedParamsPerFold,
-                             ReportPerFold} <: MLJType
-    measure::M
+                             ReportPerFold,
+                             R} <: MLJType
+    model::M
+    measure::Measure
     measurement::Measurement
     operation::Operation
     per_fold::PerFold
@@ -538,6 +549,8 @@ struct PerformanceEvaluation{M,
     fitted_params_per_fold::FittedParamsPerFold
     report_per_fold::ReportPerFold
     train_test_rows::TrainTestPairs
+    resampling::R
+    repeats::Int
 end
 
 # pretty printing:
@@ -583,9 +596,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
 
     println(io, "PerformanceEvaluation object "*
             "with these fields:")
-    println(io, "  measure, operation, measurement, per_fold,\n"*
+    println(io, "  model, measure, operation, measurement, per_fold,\n"*
             "  per_observation, fitted_params_per_fold,\n"*
-            "  report_per_fold, train_test_rows")
+            "  report_per_fold, train_test_rows, resampling, repeats")
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
@@ -841,6 +854,24 @@ const RESAMPLING_STRATEGIES_LIST =
     )
 
 """
+    log_evaluation(logger, performance_evaluation)
+
+Log a performance evaluation to `logger`, an object specific to some logging platform,
+such as mlflow. If `logger=nothing` then no logging is performed.  The method is called at
+the end of every call to `evaluate/evaluate!` using the logger provided by the `logger`
+keyword argument.
+
+# Implementations for new logging platforms
+
+Julia interfaces to workflow logging platforms, such as mlflow (provided by the
+MLFlowClient.jl interface) should overload `log_evaluation(logger::LoggerType,
+performance_evaluation)`, where `LoggerType` is a platform-specific type for logger
+objects. For an example, see the implementation provided by the MLJFlow.jl package.
+
+"""
+log_evaluation(logger, performance_evaluation) = nothing
+
+"""
     evaluate!(mach; resampling=CV(), measure=nothing, options...)
 
 Estimate the performance of a machine `mach` wrapping a supervised model in data, using
@@ -904,25 +935,30 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
   `false` the `per_observation` field of the returned object is populated with
   `missing`s. Setting to `false` may reduce compute time and allocations.
 
+- `logger` - a logger object (see [`MLJBase.log_evaluation`](@ref))
 
 See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref)
 
 """
-function evaluate!(mach::Machine{<:Measurable};
-                   resampling=CV(),
-                   measures=nothing,
-                   measure=measures,
-                   weights=nothing,
-                   class_weights=nothing,
-                   operations=nothing,
-                   operation=operations,
-                   acceleration=default_resource(),
-                   rows=nothing,
-                   repeats=1,
-                   force=false,
-                   check_measure=true,
-                   per_observation=true,
-                   verbosity=1,)
+
+function evaluate!(
+    mach::Machine{<:Measurable};
+    resampling=CV(),
+    measures=nothing,
+    measure=measures,
+    weights=nothing,
+    class_weights=nothing,
+    operations=nothing,
+    operation=operations,
+    acceleration=default_resource(),
+    rows=nothing,
+    repeats=1,
+    force=false,
+    check_measure=true,
+    per_observation=true,
+    verbosity=1,
+    logger=nothing,
+    )
 
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
@@ -973,9 +1009,22 @@ function evaluate!(mach::Machine{<:Measurable};
 
     _acceleration= _process_accel_settings(acceleration)
 
-    evaluate!(mach, resampling, weights, class_weights, rows, verbosity,
-              repeats, _measures, _operations, _acceleration, force, per_observation)
-
+    evaluate!(
+        mach,
+        resampling,
+        weights,
+        class_weights,
+        rows,
+        verbosity,
+        repeats,
+        _measures,
+        _operations,
+        _acceleration,
+        force,
+        per_observation,
+        logger,
+        resampling,
+    )
 end
 
 """
@@ -1141,11 +1190,28 @@ _view(::Nothing, rows) = nothing
 _view(weights, rows) = view(weights, rows)
 
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
-function evaluate!(mach::Machine, resampling, weights,
-                   class_weights, rows, verbosity, repeats,
-                   measures, operations, acceleration, force, per_observation_flag)
+function evaluate!(
+    mach::Machine,
+    resampling,
+    weights,
+    class_weights,
+    rows,
+    verbosity,
+    repeats,
+    measures,
+    operations,
+    acceleration,
+    force,
+    per_observation_flag,
+    logger,
+    user_resampling,
+    )
 
-    # Note: `rows` and `repeats` are ignored here
+    # Note: `user_resampling` keyword argument is the user-defined resampling strategy,
+    # while `resampling` is always a `TrainTestPairs`.
+
+    # Note: `rows` and `repeats` are only passed to the final `PeformanceEvaluation`
+    # object to be returned and are not otherwise used here.
 
     if !(resampling isa TrainTestPairs)
         error("`resampling` must be an "*
@@ -1278,7 +1344,8 @@ function evaluate!(mach::Machine, resampling, weights,
         )
     end
 
-    return PerformanceEvaluation(
+    evaluation = PerformanceEvaluation(
+        mach.model,
         measures,
         per_measure,
         operations,
@@ -1286,9 +1353,13 @@ function evaluate!(mach::Machine, resampling, weights,
         per_observation,
         fitted_params_per_fold |> collect,
         report_per_fold |> collect,
-        resampling
+        resampling,
+        user_resampling,
+        repeats
     )
+    log_evaluation(logger, evaluation)
 
+    evaluation
 end
 
 # ----------------------------------------------------------------
@@ -1307,7 +1378,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
             [train_test_pairs(resampling, _rows, train_args...) for i in 1:repeats]...
         )
 
-    return evaluate!(
+    evaluate!(
         mach,
         repeated_train_test_pairs,
         weights,
@@ -1317,7 +1388,6 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
         repeats,
         args...
     )
-
 end
 
 # ====================================================================
@@ -1335,41 +1405,38 @@ end
         acceleration=default_resource(),
         check_measure=true,
         per_observation=true,
+        logger=nothing,
     )
 
-Resampling model wrapper, used internally by the `fit` method of
-`TunedModel` instances and `IteratedModel` instances. See
-[`evaluate!](@ref) for options. Not intended for general use.
+Resampling model wrapper, used internally by the `fit` method of `TunedModel` instances
+and `IteratedModel` instances. See [`evaluate!](@ref) for options. Not intended for use by
+general user, who will ordinarily use [`evaluate!`](@ref) directly.
 
-Given a machine `mach = machine(resampler, args...)` one obtains a
-performance evaluation of the specified `model`, performed according
-to the prescribed `resampling` strategy and other parameters, using
-data `args...`, by calling `fit!(mach)` followed by
+Given a machine `mach = machine(resampler, args...)` one obtains a performance evaluation
+of the specified `model`, performed according to the prescribed `resampling` strategy and
+other parameters, using data `args...`, by calling `fit!(mach)` followed by
 `evaluate(mach)`.
 
-On subsequent calls to `fit!(mach)` new train/test pairs of row
-indices are only regenerated if `resampling`, `repeats` or `cache`
-fields of `resampler` have changed. The evolution of an RNG field of
-`resampler` does *not* constitute a change (`==` for `MLJType` objects
-is not sensitive to such changes; see [`is_same_except`](@ref)).
+On subsequent calls to `fit!(mach)` new train/test pairs of row indices are only
+regenerated if `resampling`, `repeats` or `cache` fields of `resampler` have changed. The
+evolution of an RNG field of `resampler` does *not* constitute a change (`==` for
+`MLJType` objects is not sensitive to such changes; see [`is_same_except`](@ref)).
 
-If there is single train/test pair, then warm-restart behavior of the
-wrapped model `resampler.model` will extend to warm-restart behaviour
-of the wrapper `resampler`, with respect to mutations of the wrapped
-model.
+If there is single train/test pair, then warm-restart behavior of the wrapped model
+`resampler.model` will extend to warm-restart behaviour of the wrapper `resampler`, with
+respect to mutations of the wrapped model.
 
-The sample `weights` are passed to the specified performance measures
-that support weights for evaluation. These weights are not to be
-confused with any weights bound to a `Resampler` instance in a
-machine, used for training the wrapped `model` when supported.
+The sample `weights` are passed to the specified performance measures that support weights
+for evaluation. These weights are not to be confused with any weights bound to a
+`Resampler` instance in a machine, used for training the wrapped `model` when supported.
 
-The sample `class_weights` are passed to the specified performance
-measures that support per-class weights for evaluation. These weights
-are not to be confused with any weights bound to a `Resampler` instance
-in a machine, used for training the wrapped `model` when supported.
+The sample `class_weights` are passed to the specified performance measures that support
+per-class weights for evaluation. These weights are not to be confused with any weights
+bound to a `Resampler` instance in a machine, used for training the wrapped `model` when
+supported.
 
 """
-mutable struct Resampler{S} <: Model
+mutable struct Resampler{S, L} <: Model
     model
     resampling::S # resampling strategy
     measure
@@ -1381,6 +1448,7 @@ mutable struct Resampler{S} <: Model
     repeats::Int
     cache::Bool
     per_observation::Bool
+    logger::L
 end
 
 # Some traits are markded as `missing` because we cannot determine
@@ -1412,15 +1480,18 @@ end
 function Resampler(
     ;model=nothing,
     resampling=CV(),
-    measure=nothing,
+    measures=nothing,
+    measure=measures,
     weights=nothing,
     class_weights=nothing,
-    operation=predict,
+    operations=predict,
+    operation=operations,
     acceleration=default_resource(),
     check_measure=true,
     repeats=1,
     cache=true,
     per_observation=true,
+    logger=nothing,
 )
     resampler = Resampler(
         model,
@@ -1434,6 +1505,7 @@ function Resampler(
         repeats,
         cache,
         per_observation,
+        logger,
     )
     message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
@@ -1480,6 +1552,8 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
         _acceleration,
         false,
         resampler.per_observation,
+        resampler.logger,
+        resampler.resampling,
     )
 
     fitresult = (machine = mach, evaluation = e)
@@ -1543,7 +1617,9 @@ function MLJModelInterface.update(
         operations,
         acceleration,
         false,
-        resampler.per_observation
+        resampler.per_observation,
+        resampler.logger,
+        resampler.resampling,
     )
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)

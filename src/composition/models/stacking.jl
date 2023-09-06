@@ -397,6 +397,7 @@ function internal_stack_report(
     # For each model we record the results mimicking the fields of PerformanceEvaluation
     results = NamedTuple{modelnames}(
         [(
+            model = model,
             measure = stack.measures,
             measurement = Vector{Any}(undef, n_measures),
             operation = _actual_operations(nothing, stack.measures, model, verbosity),
@@ -404,7 +405,9 @@ function internal_stack_report(
             per_observation = [Vector{Vector{Any}}(undef, nfolds) for _ in 1:n_measures],
             fitted_params_per_fold = [],
             report_per_fold = [],
-            train_test_pairs = tt_pairs
+            train_test_pairs = tt_pairs,
+            resampling = stack.resampling,
+            repeats = 1
         )
          for model in getfield(stack, :models)
          ]
