@@ -12,12 +12,8 @@ using Distributed
 addprocs(; exeflags="--project=$(Base.active_project())")
 
 @info "nprocs() = $(nprocs())"
-@static if VERSION >= v"1.3.0-DEV.573"
-    import .Threads
-    @info "nthreads() = $(Threads.nthreads())"
-else
-    @info "Running julia $(VERSION). Multithreading tests excluded. "
-end
+import .Threads
+@info "nthreads() = $(Threads.nthreads())"
 
 @everywhere begin
     using MLJModelInterface
@@ -27,6 +23,7 @@ end
     using Logging
     using ComputationalResources
     using StableRNGs
+    using StatisticalMeasures
 end
 
 import TypedTables

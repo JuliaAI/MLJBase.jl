@@ -1,8 +1,9 @@
-module MLJBase 
+module MLJBase
 
 # ===================================================================
 # IMPORTS
 
+using Reexport
 import Base: ==, precision, getindex, setindex!
 import Base.+, Base.*, Base./
 
@@ -16,7 +17,7 @@ for trait in StatisticalTraits.TRAITS
     eval(:(import StatisticalTraits.$trait))
 end
 
-import Base.instances # considered a trait for measures
+import LearnAPI
 import StatisticalTraits.snakecase
 import StatisticalTraits.info
 
@@ -47,7 +48,7 @@ end
 ###################
 # Hack Block ends #
 ###################
-
+import MLJModelInterface: ProbabilisticDetector, DeterministicDetector
 import MLJModelInterface: fit, update, update_data, transform,
     inverse_transform, fitted_params, predict, predict_mode,
     predict_mean, predict_median, predict_joint,
@@ -78,8 +79,6 @@ using ProgressMeter
 import .Threads
 
 # Operations & extensions
-import LossFunctions
-import LossFunctions.Traits
 import StatsBase
 import StatsBase: fit!, mode, countmap
 import Missings: levels
@@ -88,6 +87,9 @@ import Distributions
 using CategoricalDistributions
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
+
+# Measures
+import StatisticalMeasuresBase
 
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
@@ -127,57 +129,6 @@ const CatArrMissing{T,N} = ArrMissing{CategoricalValue{T},N}
 
 const MMI = MLJModelInterface
 const FI  = MLJModelInterface.FullInterface
-
-const MARGIN_LOSSES = [
-    :DWDMarginLoss,
-    :ExpLoss,
-    :L1HingeLoss,
-    :L2HingeLoss,
-    :L2MarginLoss,
-    :LogitMarginLoss,
-    :ModifiedHuberLoss,
-    :PerceptronLoss,
-    :SigmoidLoss,
-    :SmoothedL1HingeLoss,
-    :ZeroOneLoss
-]
-
-const DISTANCE_LOSSES = [
-    :HuberLoss,
-    :L1EpsilonInsLoss,
-    :L2EpsilonInsLoss,
-    :LPDistLoss,
-    :LogitDistLoss,
-    :PeriodicLoss,
-    :QuantileLoss
-]
-
-const WITH_PARAMETERS = [
-    :DWDMarginLoss,
-    :SmoothedL1HingeLoss,
-    :HuberLoss,
-    :L1EpsilonInsLoss,
-    :L2EpsilonInsLoss,
-    :LPDistLoss,
-    :QuantileLoss,
-]
-
-const MEASURE_TYPE_ALIASES = [
-    :FPR, :FNR, :TPR, :TNR,
-    :FDR, :PPV, :NPV, :Recall, :Specificity,
-    :MFPR, :MFNR, :MTPR, :MTNR,
-    :MFDR, :MPPV, :MNPV, :MulticlassRecall, :MulticlassSpecificity,
-    :MCR,
-    :MCC,
-    :BAC, :BACC,
-    :RMS, :RMSPV, :RMSL, :RMSLP, :RMSP,
-    :MAV, :MAE, :MAPE,
-    :RSQ, :LogCosh,
-    :CrossEntropy,
-    :AUC
-]
-
-const LOSS_FUNCTIONS = vcat(MARGIN_LOSSES, DISTANCE_LOSSES)
 
 # ===================================================================
 # Computational Resource
@@ -225,14 +176,9 @@ include("data/data.jl")
 include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
-include("measures/measures.jl")
-include("measures/measure_search.jl")
-include("measures/doc_strings.jl")
+include("default_measures.jl")
 
 include("composition/models/stacking.jl")
-
-# function on the right-hand side is defined in src/measures/meta_utilities.jl:
-const MEASURE_TYPES_ALIASES_AND_INSTANCES = measures_for_export()
 
 const EXTENDED_ABSTRACT_MODEL_TYPES = vcat(
     MLJBase.MLJModelInterface.ABSTRACT_MODEL_SUBTYPES,
@@ -357,28 +303,19 @@ export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
 # -------------------------------------------------------------------
 # exports from MLJBase specific to measures
 
-# measure names:
-for m in MEASURE_TYPES_ALIASES_AND_INSTANCES
-    :(export $m) |> eval
-end
-
-# measures/registry.jl:
-export measures, metadata_measure
-
 # measure/measures.jl (excluding traits):
-export aggregate, default_measure, value, skipinvalid
-
-# measures/probabilistic:
-export roc_curve, roc
-
-# measures/finite.jl (averaging modes for multiclass scores)
-export no_avg, macro_avg, micro_avg
-
+export default_measure
 
 # -------------------------------------------------------------------
 # re-export from Random, StatsBase, Statistics, Distributions,
 # OrderedCollections, CategoricalArrays, InvertedIndices:
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
+
+# for julia < 1.9
+if !isdefined(Base, :get_extension)
+    include(joinpath("..","ext", "DefaultMeasuresExt.jl"))
+    @reexport using .DefaultMeasuresExt.StatisticalMeasures
+end
 
 end # module

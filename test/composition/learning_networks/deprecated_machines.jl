@@ -9,6 +9,7 @@ using MLJBase
 using Tables
 using StableRNGs
 using Serialization
+using StatisticalMeasures
 rng = StableRNG(616161)
 
 # A dummy clustering model:
