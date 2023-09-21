@@ -222,9 +222,9 @@ for operation in [:predict,
                   :transform,
                   :inverse_transform]
     quote
-        function $operation(model::NetworkComposite, fitresult, Xnew)
+        function $operation(model::NetworkComposite, fitresult, Xnew...)
             if $(QuoteNode(operation)) in MLJBase.operations(fitresult)
-                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
+                return output_and_report(fitresult, $(QuoteNode(operation)), Xnew...)
             end
             throw(err_unsupported_operation($operation))
         end

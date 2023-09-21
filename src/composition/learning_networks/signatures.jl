@@ -356,7 +356,7 @@ function fitted_params(signature::Signature; supplement=true)
 end
 
 """
-    output_and_report(signature, operation, Xnew)
+    output_and_report(signature, operation, Xnew...)
 
 **Private method.**
 
@@ -375,3 +375,6 @@ function output_and_report(signature, operation, Xnew)
     report = MLJBase.report(signature_clone; supplement=false)
     return output, report
 end
+# special case for static transformers with multiple inputs:
+output_and_report(signature, operation, Xnew...) =
+    output_and_report(signature, operation, Xnew)
