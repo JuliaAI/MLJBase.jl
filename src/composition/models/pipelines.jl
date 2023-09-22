@@ -138,13 +138,7 @@ const ERR_MIXED_PIPELINE_SPEC = ArgumentError(
     "Either specify all pipeline components without names, as in "*
     "`Pipeline(model1, model2)` or specify names for all "*
     "components, as in `Pipeline(myfirstmodel=model1, mysecondmodel=model2)`. ")
-const ERR_USING_TARGET_KWARG = ArgumentError(
-    "You are not permitted to name a pipeline component \"target\", "*
-    "as this may be confused with the `target` keyword argument for "*
-    "the older `@pipeline` macro. `Pipeline` does not support target "*
-    "transformations. To implement one, wrap a supervised "*
-    "`model` using `TransformedTargetModel`, as in "*
-    "`TransformedTargetModel(model, transformer=Standardizer())`. ")
+
 
 # The following combines its arguments into a named tuple, performing
 # a number of checks and modifications. Specifically, it checks
@@ -277,7 +271,6 @@ function Pipeline(args...; prediction_type=nothing,
     # construct the named tuple of components:
     if isempty(args)
         _names = keys(kwargs)
-        :target in _names && throw(ERR_USING_TARGET_KWARG)
         _components = values(values(kwargs))
     else
         _names = Symbol[]
