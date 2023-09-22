@@ -150,18 +150,13 @@ include("models.jl")
 include("sources.jl")
 include("machines.jl")
 
-include("composition/deprecated_abstract_types.jl")
 include("composition/learning_networks/nodes.jl")
 include("composition/learning_networks/inspection.jl")
 include("composition/learning_networks/signatures.jl")
-include("composition/learning_networks/deprecated_machines.jl")
 include("composition/learning_networks/replace.jl")
 
-include("composition/models/deprecated_pipelines.jl")
-include("composition/models/deprecated_methods.jl")
 include("composition/models/network_composite_types.jl")
 include("composition/models/network_composite.jl")
-include("composition/models/deprecated_from_network.jl")
 include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
@@ -183,9 +178,7 @@ include("composition/models/stacking.jl")
 const EXTENDED_ABSTRACT_MODEL_TYPES = vcat(
     MLJBase.MLJModelInterface.ABSTRACT_MODEL_SUBTYPES,
     MLJBase.NETWORK_COMPOSITE_TYPES, # src/composition/models/network_composite_types.jl
-    MLJBase.COMPOSITE_TYPES, # src/composition/abstract_types.jl
-    MLJBase.SURROGATE_TYPES, # src/composition/abstract_types.jl
-    [:MLJType, :Model, :NetworkComposite, :Surrogate, :Composite],
+    [:MLJType, :Model, :NetworkComposite],
 )
 
 # ===================================================================
@@ -283,8 +276,8 @@ export machine, Machine, fit!, report, fit_only!, default_scitype_check_level,
 # datasets_synthetics.jl
 export make_blobs, make_moons, make_circles, make_regression
 
-# composition (surrogates and composites are exported in composition):
-export machines, sources, @from_network, @pipeline, Stack,
+# composition
+export machines, sources, Stack,
     glb, @tuple, node, @node, sources, origins, return!,
     nrows_at_source, machine, rebind!, nodes, freeze!, thaw!,
     Node, AbstractNode, Pipeline,
