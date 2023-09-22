@@ -157,7 +157,6 @@ include("composition/learning_networks/replace.jl")
 
 include("composition/models/network_composite_types.jl")
 include("composition/models/network_composite.jl")
-include("composition/models/inspection.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
 
