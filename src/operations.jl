@@ -168,43 +168,7 @@ const err_unsupported_operation(operation) = ErrorException(
     "network machine that does not support it. "
 )
 
-## SURROGATE AND COMPOSITE MODELS
-
-
-for operation in [:predict,
-                  :predict_joint,
-                  :transform,
-                  :inverse_transform]
-    ex = quote
-        function $operation(model::Union{Composite,Surrogate}, fitresult,X)
-            if hasproperty(fitresult, $(QuoteNode(operation)))
-                return fitresult.$operation(X)
-            else
-                throw(err_unsupported_operation($operation))
-            end
-        end
-    end
-    eval(ex)
-end
-
-for (operation, fallback) in [(:predict_mode, :mode),
-                              (:predict_mean, :mean),
-                              (:predict_median, :median)]
-    ex = quote
-        function $(operation)(m::Union{ProbabilisticComposite,ProbabilisticSurrogate},
-                              fitresult,
-                              Xnew)
-            if hasproperty(fitresult, $(QuoteNode(operation)))
-                return fitresult.$(operation)(Xnew)
-            end
-            return $(fallback).(predict(m, fitresult, Xnew))
-        end
-    end
-    eval(ex)
-end
-
-
-## NETWORKCOMPOSITE MODELS
+## NETWORK COMPOSITE MODELS
 
 # In the case of `NetworkComposite` models, the `fitresult` is a learning network
 # signature. If we call a node in the signature (eg, do `fitresult.predict()`) then we may
@@ -242,7 +206,7 @@ for (operation, fallback) in [(:predict_mode, :mode),
                 return output_and_report(fitresult, $(QuoteNode(operation)), Xnew)
             end
             # The following line retuns a `Tuple` since `m` is a `NetworkComposite`
-            predictions, report = predict(m, fitresult, Xnew) 
+            predictions, report = predict(m, fitresult, Xnew)
             return $(fallback).(predictions), report
         end
     end |> eval

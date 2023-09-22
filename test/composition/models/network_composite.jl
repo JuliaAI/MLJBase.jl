@@ -829,7 +829,7 @@ end
     # Test data as been erased at the first and second level of composition
     for submach in machines(glb(smach.fitresult))
         TestUtilities.test_data(submach)
-        if submach isa Machine{<:Composite}
+        if submach isa Machine{<:NetworkComposite}
             for subsubmach in machines(glb(submach.fitresult))
                 TestUtilities.test_data(subsubmach)
             end

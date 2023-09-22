@@ -57,26 +57,11 @@ using ..Models
     @test_throws ArgumentError transform(m, Tuple(y1), Tuple(y2))
 end
 
-@testset "operations on network-composite models" begin
+@testset "operations on NetworkComposite models" begin
     X = MLJBase.table(rand(4, 4))
     y = rand(4)
     m = fit!(machine(SimpleProbabilisticNetworkCompositeModel(), X, y), verbosity=0)
     predictions = first(MLJBase.output_and_report(m.fitresult, :predict, X))
-    @test predict(m, X) == predictions
-    @test predict_mode(m, X) == mode.(predictions)
-    @test_throws ErrorException transform(m, X)
-end
-
-# Test below to be removed after next breaking release
-@testset "operations on composite/surrogate models" begin
-    X = MLJBase.table(rand(4, 4))
-    y = rand(4)
-    m = fit!(machine(SimpleDeterministicCompositeModel(), X, y), verbosity=0)
-    @test predict(m, X) == m.fitresult.predict(X)
-    @test_throws ErrorException transform(m, X)
-
-    m = fit!(machine(SimpleProbabilisticCompositeModel(), X, y), verbosity=0)
-    predictions = m.fitresult.predict(X)
     @test predict(m, X) == predictions
     @test predict_mode(m, X) == mode.(predictions)
     @test_throws ErrorException transform(m, X)
