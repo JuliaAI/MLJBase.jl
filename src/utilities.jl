@@ -136,20 +136,6 @@ function recursive_setproperty!(obj, ex::Expr, value)
 end
 
 """
-    check_dimensions(X, Y)
-
-Internal function to check two arrays have the same shape.
-
-"""
-@inline function check_dimensions(X, Y)
-    size(X)  == size(Y) ||
-        throw(DimensionMismatch(
-            "Encountered two objects with sizes $(size(X)) and "*
-            "$(size(Y)) which needed to match but don't. "))
-    return nothing
-end
-
-"""
     check_same_nrows(X, Y)
 
 Internal function to check two objects, each a vector or a matrix,
