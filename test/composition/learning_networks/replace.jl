@@ -33,8 +33,6 @@ zhat = inverse_transform(standM, uhat)
 yhat = exp(zhat)
 enode = @node mae(ys, yhat)
 
-_header(accel) =
-
 @testset "replace()  method; $(typeof(accel))" for accel in (CPU1(), CPUThreads())
 
     fit!(yhat, verbosity=0, acceleration=accel)
@@ -158,7 +156,6 @@ _header(accel) =
                         [(:update, hotM2), (:skip, standM2),
                          (:train, oakM2), (:train, knnM2)])
 end
-
 
 end # module
 
