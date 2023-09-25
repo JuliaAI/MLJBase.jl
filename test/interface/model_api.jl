@@ -2,6 +2,7 @@ module TestModelAPI
 
 using Test
 using MLJBase
+using StatisticalMeasures
 import MLJModelInterface
 using ..Models
 using Distributions
@@ -77,7 +78,7 @@ UnivariateFiniteFitter(;alpha=1.0) = UnivariateFiniteFitter(alpha)
     yhat = predict(mach, nothing) # single UnivariateFinite distribution
 
     @test cross_entropy(fill(yhat, 3), ytest) ≈
-        [-log(1/2), -log(1/2), -log(1/4)]
+        mean([-log(1/2), -log(1/2), -log(1/4)])
 
 end
 

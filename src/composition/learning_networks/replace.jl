@@ -177,29 +177,6 @@ function Base.replace(signature::Signature, pairs::Pair...; node_dict=false, kwa
     return newsignature, newnode_given_old
 end
 
-"""
-    replace(mach, a1=>b1, a2=>b2, ...; options...)
-
-Return a copy the learning network machine `mach`, and it's underlying learning network,
-but replacing any specified sources and models `a1, a2, ...` of the original underlying
-network with `b1, b2, ...`.
-
-$DOC_REPLACE_OPTIONS
-
-"""
-function Base.replace(mach::Machine{<:Surrogate}, pairs::Pair...; kwargs...)
-    signature = MLJBase.signature(mach.fitresult) |> Signature
-
-    newsignature, newnode_given_old =
-        replace(signature, pairs...; node_dict=true, kwargs...)
-
-    newinterface = unwrap(newsignature)
-
-    newargs = [newnode_given_old[arg] for arg in mach.args]
-
-    return machine(mach.model, newargs...; newinterface...)
-end
-
 # Copy the complete learning network having `W` as a greatest lower bound, executing the
 # specified replacements, and return the dictionary mapping old nodes to new nodes.
 function _replace(

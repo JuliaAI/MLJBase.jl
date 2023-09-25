@@ -36,7 +36,11 @@ repository provides core functionality for MLJ, including:
 
 - basic utilities for **manipulating datasets** and for **synthesizing datasets** (src/data)
   
-- a [small interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1) for **resampling strategies** and implementations, including `CV()`, `StratifiedCV` and `Holdout` (src/resampling.jl)
+- a [small
+  interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1)
+  for **resampling strategies** and implementations, including `CV()`, `StratifiedCV` and
+  `Holdout` (src/resampling.jl). Actual performance evaluation measures (aka metrics), which previously
+  were provided by MLJBase.jl, now live in [StatisticalMeasures.jl](https://juliaai.github.io/StatisticalMeasures.jl/dev/).
 
 - methods for **performance evaluation**, based on those resampling strategies (src/resampling.jl)
 
@@ -44,9 +48,4 @@ repository provides core functionality for MLJ, including:
   associated methods, for use with
   [MLJTuning](https://github.com/JuliaAI/MLJTuning.jl) (src/hyperparam)
 
-- a [small
-  interface](https://alan-turing-institute.github.io/MLJ.jl/dev/performance_measures/#Traits-and-custom-measures-1)
-  for **performance measures** (losses and scores), implementation of about 60 such measures, including integration of the
-  [LossFunctions.jl](https://github.com/JuliaML/LossFunctions.jl)
-  library (src/measures). To be migrated into separate package in the near future. 
 

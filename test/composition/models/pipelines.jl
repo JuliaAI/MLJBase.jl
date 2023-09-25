@@ -113,7 +113,6 @@ end
     @test_logs @test Pipeline(m, t, u, d, u) isa DeterministicPipeline
 
     # named components:
-    @test_throws MLJBase.ERR_USING_TARGET_KWARG Pipeline(target=u)
     @test Pipeline(c1=m, c2=t, c3=u) isa UnsupervisedPipeline
     @test Pipeline(c1=m, c2=t, c3=u, c5=p) isa ProbabilisticPipeline
     @test Pipeline(c1=m, c2=t) isa StaticPipeline

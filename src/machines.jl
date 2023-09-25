@@ -682,7 +682,6 @@ function fit_only!(
                 @error "Problem fitting the machine $mach. "
                 _sources = sources(glb(mach.args...))
                 length(_sources) > 2 ||
-                    model isa Composite ||
                     all((!isempty).(_sources)) ||
                     @warn "Some learning network source nodes are empty. "
                 @info "Running type checks... "

@@ -140,14 +140,11 @@ tmodel2 = TransformedTargetModel(model, transformer=y->log.(y), inverse=z->exp.(
 function TransformedTargetModel(
     args...;
     model=nothing,
-    target=nothing,    # to be deprecated
-    transformer=target,  # then this should be `nothing`
+    transformer=nothing,
     inverse=nothing,
     cache=true,
 )
 
-    isnothing(target) ||
-        Base.depwarn(WARN_TARGET_DEPRECATED, :TransformedTargetModel, force=true)
     length(args) < 2 || throw(ERR_TOO_MANY_ARGUMENTS)
 
     if length(args) === 1
