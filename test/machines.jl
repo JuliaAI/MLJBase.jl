@@ -7,6 +7,7 @@ using ..Models
 using StableRNGs
 using Serialization
 using ..TestUtilities
+using StatisticalMeasures
 
 const MLJModelInterface = MLJBase.MLJModelInterface
 const MMI = MLJModelInterface

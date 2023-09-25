@@ -7,6 +7,7 @@ using Tables
 using Test
 using MLJModelInterface
 using OrderedCollections
+using StatisticalMeasures
 
 @testset "signatures - accessor functions" begin
     a = source(:a)

@@ -2,11 +2,11 @@ module TestStacking
 
 using Test
 using MLJBase
+using StatisticalMeasures
 using MLJModelInterface
 using ..Models
 using Random
 using StableRNGs
-
 import Distributions
 
 rng = StableRNGs.StableRNG(1234)
@@ -31,7 +31,7 @@ function test_internal_evaluation(internalreport, std_evaluation, modelnames)
         @test model_ev isa PerformanceEvaluation
         @test model_ev.per_fold == std_ev.per_fold
         @test model_ev.measurement == std_ev.measurement
-        @test model_ev.per_observation[1] === std_ev.per_observation[1] === missing
+        @test model_ev.per_observation[1] == std_ev.per_observation[1]
         @test model_ev.per_observation[2] == std_ev.per_observation[2]
         @test model_ev.operation == std_ev.operation
         @test model_ev.report_per_fold == std_ev.report_per_fold

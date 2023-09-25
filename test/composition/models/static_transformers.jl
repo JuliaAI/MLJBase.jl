@@ -5,6 +5,7 @@ using Test
 using MLJBase
 using ..Models
 using CategoricalArrays
+using StatisticalMeasures
 import Random.seed!
 seed!(1234)
 

@@ -18,10 +18,6 @@ whitener = UnivariateStandardizer()
         TransformedTargetModel(atom),
     )
     @test_logs TransformedTargetModel(atom, transformer=UnivariateStandardizer)
-    model = @test_logs(
-        (:warn, MLJBase.WARN_TARGET_DEPRECATED),
-        TransformedTargetModel(atom, target=whitener),
-    )
     model = @test_logs TransformedTargetModel(atom, transformer=whitener)
     @test model.model == atom
     @test model.inverse == nothing

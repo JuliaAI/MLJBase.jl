@@ -1,4 +1,4 @@
-module TestNetowrkComposite
+module TestNetoworkComposite
 
 using Test
 using MLJBase
@@ -9,6 +9,7 @@ using Tables
 using MLJModelInterface
 using CategoricalArrays
 using OrderedCollections
+using StatisticalMeasures
 using Serialization
 
 const MMI = MLJModelInterface
@@ -645,6 +646,39 @@ end
 
 end
 
+# # STATIC MODEL WITH MULTIPLE INPUTS
+
+mutable struct Balancer <: Static end
+MLJBase.transform(::Balancer, _, X, y) = (selectrows(X, 1:2), selectrows(y, 1:2))
+
+struct ThinWrapper <: StaticNetworkComposite
+    balancer
+end
+
+function MLJBase.prefit(wrapper::ThinWrapper, verbosity)
+
+    data = source() # empty source because there is no training data
+    Xs = first(data)
+    ys = last(data)
+
+    mach=machine(:balancer)
+
+    output = transform(mach, Xs, ys)
+
+    (; transform = output)
+
+end
+
+balancer = Balancer()
+wrapper = ThinWrapper(balancer)
+
+X, y = make_blobs()
+mach = machine(wrapper)
+Xunder, yunder = transform(mach, X, y)
+@test Xunder == selectrows(X, 1:2)
+@test yunder == selectrows(y, 1:2)
+
+
 
 # # MACHINE INTEGRATION TESTS
 
@@ -795,7 +829,7 @@ end
     # Test data as been erased at the first and second level of composition
     for submach in machines(glb(smach.fitresult))
         TestUtilities.test_data(submach)
-        if submach isa Machine{<:Composite}
+        if submach isa Machine{<:NetworkComposite}
             for subsubmach in machines(glb(submach.fitresult))
                 TestUtilities.test_data(subsubmach)
             end

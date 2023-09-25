@@ -116,5 +116,16 @@ end
                range(any1, :any, lower=1, upper=10))
 end
 
+@testset "coverage" begin
+    io = IOBuffer()
+    r1 = range(Int, :junk, lower=1, upper=10)
+    r2 = range(Char, :junk, values=['c', 'd'])
+    show(io, r1)
+    @test String(take!(io)) == "NumericRange(1 ≤ junk ≤ 10; origin=5.5, unit=4.5)"
+    show(io, r2)
+    @test String(take!(io)) == "NominalRange(junk = c, d)"
+    close(io)
+end
+
 end
 true
