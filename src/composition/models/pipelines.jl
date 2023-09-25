@@ -579,13 +579,6 @@ function supervised_component(pipe::SupervisedPipeline)
     return getproperty(named_components, name)
 end
 
-model_type(::Machine{M}) where M = M
-function supervised(machines)
-    model_types = model_type.(machines)
-    idx = findfirst(M -> M <: Supervised, model_types)
-    return machines[idx]
-end
-
 
 # ## Traits
 
