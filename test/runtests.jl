@@ -18,6 +18,7 @@ include("preliminaries.jl")
 @conditional_testset "misc" begin
     @test include("utilities.jl")
     @test include("static.jl")
+    @test include("show.jl")
 end
 
 @conditional_testset "interface" begin
