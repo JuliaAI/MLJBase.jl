@@ -205,6 +205,16 @@ MLJBase.target_scitype(::Type{<:DRegressor2}) =
 
 @test MLJBase.guess_model_target_observation_scitype(DRegressor2()) == Continuous
 
+@testset "pretty" begin
+    X = (x=fill(1, 3), y=fill(2, 3))
+    io = IOBuffer()
+    pretty(X)
+    pretty(io, X)
+    str = take!(io) |> String
+    @test contains(str, "x")
+    @test contains(str, "y")
+    @test contains(str, "│")
+end
 
 end # module
 true
