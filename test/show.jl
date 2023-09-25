@@ -1,3 +1,5 @@
+using .Models
+
 @testset "display of models" begin
     io = IOBuffer()
     show(io, KNNRegressor())
