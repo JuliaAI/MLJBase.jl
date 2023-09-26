@@ -940,7 +940,6 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
 See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref)
 
 """
-
 function evaluate!(
     mach::Machine{<:Measurable};
     resampling=CV(),
