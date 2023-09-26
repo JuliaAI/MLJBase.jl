@@ -557,12 +557,6 @@ end
 round3(x) = x
 round3(x::AbstractFloat) = round(x, sigdigits=3)
 
-_short(v) = v
-_short(v::Vector{<:Real}) = MLJBase.short_string(v)
-_short(v::Vector) = string("[", join(_short.(v), ", "), "]")
-_short(::Missing) = missing
-
-
 const SE_FACTOR = 1.96 # For a 95% confidence interval.
 
 _standard_error(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
