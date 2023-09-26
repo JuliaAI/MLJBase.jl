@@ -788,18 +788,17 @@ Return the learned parameters for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, such as a model
-constructed using `@pipeline`, then the returned named tuple has the
-composite type's field names as keys. The corresponding value is the
-fitted parameters for the machine in the underlying learning network
-bound to that model. (If multiple machines share the same model, then the
-value is a vector.)
+If `mach` is a machine for a composite model, such as a model constructed using the
+pipeline syntax `model1 |> model2 |> ...`, then the returned named tuple has the composite
+type's field names as keys. The corresponding value is the fitted parameters for the
+machine in the underlying learning network bound to that model. (If multiple machines
+share the same model, then the value is a vector.)
 
 ```julia
 using MLJ
 @load LogisticClassifier pkg=MLJLinearModels
 X, y = @load_crabs;
-pipe = @pipeline Standardizer LogisticClassifier
+pipe = Standardizer() |> LogisticClassifier()
 mach = machine(pipe, X, y) |> fit!
 
 julia> fitted_params(mach).logistic_classifier
@@ -831,18 +830,17 @@ Return the report for a machine `mach` that has been
 
 This is a named tuple and human-readable if possible.
 
-If `mach` is a machine for a composite model, such as a model
-constructed using `@pipeline`, then the returned named tuple has the
-composite type's field names as keys. The corresponding value is the
-report for the machine in the underlying learning network
-bound to that model. (If multiple machines share the same model, then the
-value is a vector.)
+If `mach` is a machine for a composite model, such as a model constructed using the
+pipeline syntax `model1 |> model2 |> ...`, then the returned named tuple has the composite
+type's field names as keys. The corresponding value is the report for the machine in the
+underlying learning network bound to that model. (If multiple machines share the same
+model, then the value is a vector.)
 
 ```julia
 using MLJ
 @load LinearBinaryClassifier pkg=GLM
 X, y = @load_crabs;
-pipe = @pipeline Standardizer LinearBinaryClassifier
+pipe = Standardizer() |> LinearBinaryClassifier()
 mach = machine(pipe, X, y) |> fit!
 
 julia> report(mach).linear_binary_classifier
