@@ -45,7 +45,7 @@ The calling behaviour of a `Source` object is this:
     Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
     Xs(Xnew) = Xnew
 
-See also: [`@from_network`](@ref), [`sources`](@ref),
+See also: [`MLJBase.prefit`](@ref), [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).
 
 """
