@@ -1,4 +1,4 @@
-## MLJBase  
+## MLJBase
 
 Repository for developers that provides core functionality for the
 [MLJ](https://github.com/alan-turing-institute/MLJ.jl) machine
