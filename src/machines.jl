@@ -218,8 +218,9 @@ function check(model::Model, scitype_check_level, args...)
         return is_okay
     end
 
-    # we use `elscitype` here instead of `scitype` because the data is
-    # wrapped in source nodes:
+    # Sometimes (X, ) is a table, when X is a table, which leads to scitype((X,)) =
+    # Table(...) where `Tuple{scitype(X)}` is wanted.  Also, we use `elscitype` here
+    # instead of `scitype` because the data is wrapped in source nodes;
     S = Tuple{elscitype.(args)...}
     if !(S <: F)
         is_okay = false
