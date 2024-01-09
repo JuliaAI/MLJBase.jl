@@ -8,7 +8,6 @@ makedocs(;
     format=Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true"),
     pages=[
         "Home" => "index.md",
-        "Measures" => "measures.md",
         "Resampling" => "resampling.md",
         "Composition" => "composition.md",
         "Datasets" => "datasets.md",
