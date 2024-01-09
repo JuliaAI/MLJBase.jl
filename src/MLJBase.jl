@@ -91,6 +91,9 @@ const Dist = Distributions
 # Measures
 import StatisticalMeasuresBase
 
+# Plots
+using RecipesBase: RecipesBase, @recipe
+
 # from Standard Library:
 using Statistics, LinearAlgebra, Random, InteractiveUtils
 
@@ -171,6 +174,8 @@ include("data/datasets.jl")
 include("data/datasets_synthetic.jl")
 
 include("default_measures.jl")
+
+include("plots.jl")
 
 include("composition/models/stacking.jl")
 
