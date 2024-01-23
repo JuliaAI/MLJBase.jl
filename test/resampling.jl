@@ -1,5 +1,3 @@
-#module TestResampling
-
 using Distributed
 import ComputationalResources: CPU1, CPUProcesses, CPUThreads
 using .TestUtilities
@@ -876,5 +874,21 @@ end
     @test contains(printed_evaluations, "N/A")
 end
 
-#end
+@testset_accelerated "issue with Resampler #954" acceleration begin
+    knn = KNNClassifier()
+    cnst =DeterministicConstantClassifier()
+    X, y = make_blobs(10)
+
+    resampler = MLJBase.Resampler(
+        ;model=knn,
+        measure=accuracy,
+        operation=nothing,
+        acceleration,
+    )
+    mach = machine(resampler, X, y) |> fit!
+
+    resampler.model = cnst
+    fit!(mach)
+end
+
 true
