@@ -1591,8 +1591,15 @@ function MLJModelInterface.update(
     mach, e = fitresult
     train_test_rows = e.train_test_rows
 
-    measures = e.measure
-    operations = e.operation
+    # since `resampler.model` could have changed, so might the actual measures and
+    # operations that should be passed to the (low level) `evaluate!`:
+    measures = _actual_measures(resampler.measure, resampler.model)
+    operations = _actual_operations(
+        resampler.operation,
+        measures,
+        resampler.model,
+        verbosity
+    )
 
     # update the model:
     mach2 = _update!(mach, resampler.model)
