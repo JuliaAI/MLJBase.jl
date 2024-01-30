@@ -31,7 +31,7 @@ end
 # case that `r.scale` is not a symbol, and returning "?" if applying the transformation
 # throws an exception:
 function _repr(r::NumericRange{T}, field) where T
-    value = getproperty(r, field)
+    value = round(getproperty(r, field), sigdigits=4)
     r.scale isa Symbol && return repr(value)
     return try
         scaled = (r.scale)(value)
