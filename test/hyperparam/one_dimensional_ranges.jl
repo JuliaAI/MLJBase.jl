@@ -120,10 +120,13 @@ end
     io = IOBuffer()
     r1 = range(Int, :junk, lower=1, upper=10)
     r2 = range(Char, :junk, values=['c', 'd'])
+    r3 = range(Float64, :junk, lower=3.14159, upper=6.283185)
     show(io, r1)
     @test String(take!(io)) == "NumericRange(1 ≤ junk ≤ 10; origin=5.5, unit=4.5)"
     show(io, r2)
     @test String(take!(io)) == "NominalRange(junk = c, d)"
+    show(io, r3)
+    @test String(take!(io)) == "NumericRange(3.142 ≤ junk ≤ 6.283; origin=4.712, unit=1.571)"
     close(io)
 end
 
