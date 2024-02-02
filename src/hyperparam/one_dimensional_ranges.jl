@@ -32,7 +32,7 @@ end
 # throws an exception:
 function _repr(r::NumericRange{T}, field) where T
     value = getproperty(r, field)
-    if !(typeof(value) <: Integer)
+    if !(value isa Integer)
         value = round(value, sigdigits=4)
     end
     r.scale isa Symbol && return repr(value)
