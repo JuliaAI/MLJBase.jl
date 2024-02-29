@@ -549,9 +549,15 @@ end
     fit!(mach, verbosity=0)
     v = MLJBase.transform(mach, X).x
     io = IOBuffer()
-    MLJBase.save(io, serializable(mach))
+    serialize(io, serializable(mach))
     seekstart(io)
     mach2 = restore!(deserialize(io))
+    @test MLJBase.transform(mach2, X).x == v
+
+    # using `save`/`machine`:
+    MLJBase.save(io, mach)
+    seekstart(io)
+    mach2 = machine(io)
     @test MLJBase.transform(mach2, X).x == v
 end
 
@@ -564,10 +570,16 @@ end
     fit!(mach, verbosity=0)
     v = MLJBase.transform(mach, X).x
     io = IOBuffer()
-    MLJBase.save(io, serializable(mach))
+    serialize(io, serializable(mach))
     seekstart(io)
     mach2 = restore!(deserialize(io))
-    @test_broken MLJBase.transform(mach2, X).x == v
+    @test MLJBase.transform(mach2, X).x == v
+
+    # using `save`/`machine`:
+    MLJBase.save(io, mach)
+    seekstart(io)
+    mach2 = machine(io)
+    @test MLJBase.transform(mach2, X).x == v
 end
 
 struct ReportingDynamic <: Unsupervised end

@@ -975,7 +975,7 @@ A machine returned by `serializable` is characterized by the property
 See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
-function serializable(mach::Machine{<:Any, C}; verbosity=1) where C
+function serializable(mach::Machine{<:Any, C}, model=mach.model; verbosity=1) where C
 
     isdefined(mach, :fitresult) || throw(ERR_SERIALIZING_UNTRAINED)
     mach.state == -1 && return mach
@@ -985,7 +985,7 @@ function serializable(mach::Machine{<:Any, C}; verbosity=1) where C
     # involves calls to `serializable` on the old machines in the network to create the
     # new ones.
 
-    serializable_fitresult = save(mach.model, mach.fitresult)
+    serializable_fitresult = save(model, mach.fitresult)
 
     # Duplication currenty needs to happen in two steps for this to work in case of
     # `Composite` models.
@@ -1017,9 +1017,9 @@ useable form.
 For an example see [`serializable`](@ref).
 
 """
-function restore!(mach::Machine)
+function restore!(mach::Machine, model=mach.model)
     mach.state != -1 && return mach
-    mach.fitresult = restore(mach.model, mach.fitresult)
+    mach.fitresult = restore(model, mach.fitresult)
     mach.state = 1
     return mach
 end

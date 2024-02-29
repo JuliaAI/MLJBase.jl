@@ -88,18 +88,33 @@ MLJModelInterface.fitted_params(composite::NetworkComposite, signature) =
 MLJModelInterface.reporting_operations(::Type{<:NetworkComposite}) = OPERATIONS
 
 # here `fitresult` has type `Signature`.
-save(model::NetworkComposite, fitresult) = replace(fitresult, serializable=true)
+function save(model::NetworkComposite, fitresult)
+    # The network includes machines with symbolic models. These machines need to be
+    # replaced by serializable versions, but we cannot naively use `serializable(mach)`,
+    # because the absence of the concrete model means this just returns `mach` (because
+    # `save(::Symbol, fitresult)` returns `fitresult`). We need to use the special
+    # `serialiable(mach, model)` instead. This is what `replace` below does, because we
+    # pass it the flag `serializable=true` but we must also pass `symbol =>
+    # concrete_model` replacements, which we calculate first:
+
+    greatest_lower_bound = MLJBase.glb(fitresult)
+    machines_given_model = MLJBase.machines_given_model(greatest_lower_bound)
+    atomic_models = keys(machines_given_model)
+    pairs = [atom => getproperty(model, atom) for atom in atomic_models]
+
+    replace(fitresult, pairs...; serializable=true)
+end
 
 function MLJModelInterface.restore(model::NetworkComposite, serializable_fitresult)
     greatest_lower_bound = MLJBase.glb(serializable_fitresult)
     machines_given_model = MLJBase.machines_given_model(greatest_lower_bound)
-    models = keys(machines_given_model)
+    atomic_models = keys(machines_given_model)
 
     # the following indirectly mutates `serialiable_fiteresult`, returning it to
     # usefulness:
-    for model in models
-        for mach in machines_given_model[model]
-            mach.fitresult = restore(model, mach.fitresult)
+    for atom in atomic_models
+        for mach in machines_given_model[atom]
+            mach.fitresult = MLJBase.restore(getproperty(model, atom), mach.fitresult)
             mach.state = 1
         end
     end
