@@ -38,6 +38,7 @@ end
         newnode_given_old,
         newmach_given_old,
         newmodel_given_old,
+        serializable,
         node::AbstractNode)
 
 **Private method.**

@@ -977,13 +977,13 @@ See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 """
 function serializable(mach::Machine{<:Any, C}; verbosity=1) where C
 
+    isdefined(mach, :fitresult) || throw(ERR_SERIALIZING_UNTRAINED)
+    mach.state == -1 && return mach
+
     # The next line of code makes `serializable` recursive, in the case that `mach.model`
     # is a `Composite` model: `save` duplicates the underlying learning network, which
     # involves calls to `serializable` on the old machines in the network to create the
     # new ones.
-
-    isdefined(mach, :fitresult) || throw(ERR_SERIALIZING_UNTRAINED)
-    mach.state == -1 && return mach
 
     serializable_fitresult = save(mach.model, mach.fitresult)
 

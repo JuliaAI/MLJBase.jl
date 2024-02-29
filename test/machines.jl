@@ -508,6 +508,68 @@ end
     rm(filename)
 end
 
+# define a model with non-persistent fitresult:
+thing = []
+struct EphemeralTransformer <: Unsupervised end
+function MLJModelInterface.fit(::EphemeralTransformer, verbosity, X)
+    view = pointer(thing)
+    fitresult = (thing, view)
+    return fitresult, nothing, NamedTuple()
+end
+function MLJModelInterface.transform(::EphemeralTransformer, fitresult, X)
+    thing, view = fitresult
+    return view == pointer(thing) ? X : throw(ErrorException("dead fitresult"))
+end
+function MLJModelInterface.save(::EphemeralTransformer, fitresult)
+    thing, _ = fitresult
+    return thing
+end
+function MLJModelInterface.restore(::EphemeralTransformer, serialized_fitresult)
+    view = pointer(thing)
+    return (thing, view)
+end
+
+# commented out code just tests the transformer above has desired properties for testing:
+
+# # test model transforms:
+# model = EphemeralTransformer()
+# mach = machine(model, 42) |> fit!
+# @test MLJBase.transform(mach, 27) == 27
+
+# # direct serialization fails:
+# io = IOBuffer()
+# serialize(io, mach)
+# seekstart(io)
+# mach2 = deserialize(io)
+# @test_throws ErrorException("dead fitresult") transform(mach2, 42)
+
+@testset "serialization for model with non-persistent fitresult" begin
+    X = (; x=randn(5))
+    mach = machine(EphemeralTransformer(), X)
+    fit!(mach, verbosity=0)
+    v = MLJBase.transform(mach, X).x
+    io = IOBuffer()
+    MLJBase.save(io, serializable(mach))
+    seekstart(io)
+    mach2 = restore!(deserialize(io))
+    @test MLJBase.transform(mach2, X).x == v
+end
+
+@testset "serialization for model with non-persistent fitresult in pipeline" begin
+    # https://github.com/JuliaAI/MLJBase.jl/issues/927
+    X = (; x=randn(5))
+    pipe =  Standardizer |> EphemeralTransformer
+    X = (; x=randn(5))
+    mach = machine(pipe, X)
+    fit!(mach, verbosity=0)
+    v = MLJBase.transform(mach, X).x
+    io = IOBuffer()
+    MLJBase.save(io, serializable(mach))
+    seekstart(io)
+    mach2 = restore!(deserialize(io))
+    @test_broken MLJBase.transform(mach2, X).x == v
+end
+
 struct ReportingDynamic <: Unsupervised end
 MLJBase.fit(::ReportingDynamic, _, X) = nothing, 16, NamedTuple()
 MLJBase.transform(::ReportingDynamic,_, X) = (X, (news=42,))
