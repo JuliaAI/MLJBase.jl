@@ -117,6 +117,15 @@ API.@trait(
                                    [LogLoss(), ], dummy_interval, 1))
 end
 
+@everywhere begin
+    nfolds = 6
+    nmeasures = 2
+    func(mach, k) = (
+        (sleep(MLJBase.PROG_METER_DT*rand(rng)); fill(1:k, nmeasures)),
+        :fitted_params,
+        :report,
+    )
+end
 @testset_accelerated "dispatch of resources and progress meter" accel begin
 
     @info "Checking progress bars:"
@@ -124,15 +133,6 @@ end
     X = (x = [1, ],)
     y = [2.0, ]
 
-    @everywhere begin
-        nfolds = 6
-        nmeasures = 2
-        func(mach, k) = (
-            (sleep(MLJBase.PROG_METER_DT*rand(rng)); fill(1:k, nmeasures)),
-            :fitted_params,
-            :report,
-        )
-    end
     mach = machine(ConstantRegressor(), X, y)
     if accel isa CPUThreads
         result = MLJBase._evaluate!(
@@ -643,15 +643,15 @@ end
 
 struct DummyResamplingStrategy <: MLJBase.ResamplingStrategy end
 
-@testset_accelerated "custom strategy depending on X, y" accel begin
-    function MLJBase.train_test_pairs(resampling::DummyResamplingStrategy,
-                              rows, X, y)
-        train = filter(rows) do j
-            y[j] == y[1]
+function MLJBase.train_test_pairs(resampling::DummyResamplingStrategy,
+                                  rows, X, y)
+    train = filter(rows) do j
+        y[j] == y[1]
         end
-        test = setdiff(rows, train)
-        return [(train, test),]
-    end
+    test = setdiff(rows, train)
+    return [(train, test),]
+end
+@testset_accelerated "custom strategy depending on X, y" accel begin
 
     X = (x = rand(rng,8), )
     y = categorical(string.([:x, :y, :x, :x, :y, :x, :x, :y]))

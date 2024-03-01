@@ -13,9 +13,9 @@ the `model` and `args` field values as derived from the provided dictionaries. I
 the returned machine is hooked into the new learning network defined by the values of
 `newnode_given_old`.
 
-If `serializable=true`, return a serializable copy instead (namely,
-`serializable(node.mach)`) and ignore the `newmodel_given_old` dictionary (no model
-replacement).
+If `serializable=true`, return a serializable copy instead, but make no model replacement.
+The `newmodel_given_old` dictionary is still used, but now to look up the concrete model
+corresponding to the symbolic one stored in `node`'s machine.
 
 See also [`serializable`](@ref).
 
@@ -26,9 +26,10 @@ function machine_replacement(
     newnode_given_old,
     serializable
 )
-    # the `replace` called here is defined in src/machines.jl:
-    mach = serializable ? MLJBase.serializable(N.machine) :
-        replace(N.machine, :model => newmodel_given_old[N.machine.model])
+    # the `replace` called below is defined in src/machines.jl.
+    newmodel = newmodel_given_old[N.machine.model]
+    mach = serializable ? MLJBase.serializable(N.machine, newmodel) :
+        replace(N.machine, :model => newmodel)
     mach.args = Tuple(newnode_given_old[arg] for arg in N.machine.args)
     return mach
 end
@@ -38,6 +39,7 @@ end
         newnode_given_old,
         newmach_given_old,
         newmodel_given_old,
+        serializable,
         node::AbstractNode)
 
 **Private method.**
@@ -86,9 +88,11 @@ const DOC_REPLACE_OPTIONS =
     - `copy_unspecified_deeply=true`: If `false`, models or sources not listed for
       replacement are identically equal in the original and returned node.
 
-    - `serializable=false`: If `true`, all machines in the new network are serializable.
-      However, all `model` replacements are ignored, and unspecified sources are always
-      replaced with empty ones.
+    - `serializable=false`: If `true`, all machines in the new network are made
+      serializable and the specified model replacements are only used for serialization
+      purposes: for each pair `s => model` (`s` assumed to be a symbolic model) each
+      machine with model `s` is replaced with `serializable(mach, model)`. All unspecified
+      sources are always replaced with empty ones.
 
     """
 
@@ -192,7 +196,7 @@ function _replace(
 
     # Instantiate model dictionary:
     model_pairs = filter(collect(pairs)) do pair
-        first(pair) isa Model
+        first(pair) isa Model || first(pair) isa Symbol
     end
     models_ = models(W)
     models_to_copy = setdiff(models_, first.(model_pairs))
