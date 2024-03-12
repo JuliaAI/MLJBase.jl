@@ -85,10 +85,21 @@ function diagnostics(X::AbstractNode, input...; kwargs...)
     _sources = sources(X)
     scitypes = scitype.(raw_args)
     mach = X.machine
-    model = mach.model
-    _input = input_scitype(model)
-    _target = target_scitype(model)
-    _output = output_scitype(model)
+
+    table0 = if !isnothing(mach)
+        model = mach.model
+        _input = input_scitype(model)
+        _target = target_scitype(model)
+        _output = output_scitype(model)
+        """
+        Model ($model):
+        input_scitype = $_input
+        target_scitype =$_target
+        output_scitype =$_output
+        """
+    else
+        ""
+    end
 
     table1 = "Incoming data:\n"*
     "arg of $(X.operation)\tscitype\n"*
@@ -97,11 +108,7 @@ function diagnostics(X::AbstractNode, input...; kwargs...)
 
     table2 =  diagnostic_table_sources(X)
     return """
-    Model ($model):
-    input_scitype = $_input
-    target_scitype =$_target
-    output_scitype =$_output
-
+    $table0
     $table1
     $table2"""
 end

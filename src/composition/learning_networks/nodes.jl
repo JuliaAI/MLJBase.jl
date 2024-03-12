@@ -150,13 +150,18 @@ function _apply(y_plus, input...; kwargs...)
     try
         (y.operation)(mach..., raw_args...)
     catch exception
-        @error "Failed "*
-        "to apply the operation `$(y.operation)` to the machine "*
-        "$(y.machine), which receives it's data arguments from one or more "*
-        "nodes in a learning network. Possibly, one of these nodes "*
-        "is delivering data that is incompatible with the machine's model.\n"*
-        diagnostics(y, input...; kwargs...)
-        throw(exception)
+        if !isempty(mach)
+            @error "Failed "*
+                "to apply the operation `$(y.operation)` to the machine "*
+                "$(y.machine), which receives it's data arguments from one or more "*
+                "nodes in a learning network. Possibly, one of these nodes "*
+                "is delivering data that is incompatible with the machine's model.\n"
+        else
+            @error "Failed "*
+                "to apply the operation `$(y.operation)`."
+        end
+        @error diagnostics(y, input...; kwargs...) # defined in sources.jl
+        rethrow(exception)
     end
 end
 
