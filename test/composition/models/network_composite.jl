@@ -48,7 +48,7 @@ end
 MLJBase.reporting_operations(::Type{<:ReportingScaler}) = (:transform, )
 
 MLJBase.transform(model::ReportingScaler, _, X) = (
-    model.alpha*Tables.matrix(X),
+    Tables.table(model.alpha*Tables.matrix(X)),
     (; nrows = size(MLJBase.matrix(X))[1]),
 )
 
@@ -143,7 +143,7 @@ composite = WatermelonComposite(
         Set([:scaler, :clusterer, :classifier1, :training_loss, :len])
     @test fitr.scaler == (nrows=10,)
     @test fitr.clusterer == (labels=['A', 'B', 'C'],)
-    @test Set(keys(fitr.classifier1)) == Set([:classes_seen, :print_tree])
+    @test Set(keys(fitr.classifier1)) == Set([:classes_seen, :print_tree, :features])
     @test fitr.training_loss isa Real
     @test fitr.len == 10
 
@@ -164,7 +164,7 @@ composite = WatermelonComposite(
         Set([:scaler, :clusterer, :classifier1, :finalizer])
     @test predictr.scaler == (nrows=5,)
     @test predictr.clusterer == (labels=['A', 'B', 'C'],)
-    @test Set(keys(predictr.classifier1)) == Set([:classes_seen, :print_tree])
+    @test Set(keys(predictr.classifier1)) == Set([:classes_seen, :print_tree, :features])
     @test predictr.finalizer == (nrows=5,)
 
     o, predictr = predict(composite, f, selectrows(X, 1:2))
@@ -174,7 +174,7 @@ composite = WatermelonComposite(
         Set([:scaler, :clusterer, :classifier1, :finalizer])
     @test predictr.scaler == (nrows=2,)    # <----------- different
     @test predictr.clusterer == (labels=['A', 'B', 'C'],)
-    @test Set(keys(predictr.classifier1)) == Set([:classes_seen, :print_tree])
+    @test Set(keys(predictr.classifier1)) == Set([:classes_seen, :print_tree, :features])
     @test predictr.finalizer == (nrows=2,) # <---------- different
 
     r = MMI.report(composite, Dict(:fit => fitr, :predict=> predictr))
