@@ -237,10 +237,23 @@ const ERR_TT_MISSING_REPORT =
     "Cannot find report for `TransformedTargetModel` atomic model, from which "*
     "to extract training losses. "
 
-function training_losses(composite::SomeTT, tt_report)
+function MMI.training_losses(composite::SomeTT, tt_report)
     hasproperty(tt_report, :model) || throw(ERR_TT_MISSING_REPORT)
     atomic_report = getproperty(tt_report, :model)
     return training_losses(composite.model, atomic_report)
+end
+
+
+# # FEATURE IMPORTANCES
+
+function MMI.feature_importances(composite::SomeTT, fitresult, report)
+    # locate the machine associated with the supervised component:
+    predict_node = fitresult.interface.predict
+    mach = only(MLJBase.machines_given_model(predict_node)[:model])
+
+    # To extract the feature_importances, we can't do `feature_importances(mach)` because
+    # `mach.model` is just a symbol; instead we do:
+    return feature_importances(composite.model, mach.fitresult, mach.report[:fit])
 end
 
 
@@ -250,15 +263,15 @@ MMI.package_name(::Type{<:SomeTT}) = "MLJBase"
 MMI.package_license(::Type{<:SomeTT}) = "MIT"
 MMI.package_uuid(::Type{<:SomeTT}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 MMI.is_wrapper(::Type{<:SomeTT}) = true
-MMI.package_url(::Type{<:SomeTT}) =
-    "https://github.com/JuliaAI/MLJBase.jl"
+MMI.package_url(::Type{<:SomeTT}) = "https://github.com/JuliaAI/MLJBase.jl"
 
 for New in TT_TYPE_EXS
     quote
         MMI.iteration_parameter(::Type{<:$New{M}}) where M =
             MLJBase.prepend(:model, iteration_parameter(M))
     end |> eval
-    for trait in [:input_scitype,
+    for trait in [
+        :input_scitype,
         :output_scitype,
         :target_scitype,
         :fit_data_scitype,
@@ -270,8 +283,10 @@ for New in TT_TYPE_EXS
         :supports_class_weights,
         :supports_online,
         :supports_training_losses,
+        :reports_feature_importances,
         :is_supervised,
-        :prediction_type]
+        :prediction_type
+        ]
         quote
             MMI.$trait(::Type{<:$New{M}}) where M = MMI.$trait(M)
         end |> eval

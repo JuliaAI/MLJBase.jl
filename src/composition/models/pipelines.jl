@@ -402,15 +402,13 @@ end
 
 # ## Methods to extend a pipeline learning network
 
-# The "front" of a pipeline network, as we grow it, consists of a
-# "predict" and a "transform" node. Once the pipeline is complete
-# (after a series of `extend` operations - see below) the "transform"
-# node is what is used to deliver the output of `transform(pipe)` in
-# the exported model, and the "predict" node is what will be used to
-# deliver the output of `predict(pipe). Both nodes can be changed by
-# `extend` but only the "active" node is propagated.  Initially
-# "transform" is active and "predict" only becomes active when a
-# supervised model is encountered; this change is permanent.
+# The "front" of a pipeline network, as we grow it, consists of a "predict" and a
+# "transform" node. Once the pipeline is complete (after a series of `extend` operations -
+# see below) the "transform" node is what is used to deliver the output of
+# `transform(pipe, ...)` in the exported model, and the "predict" node is what will be
+# used to deliver the output of `predict(pipe, ...). Both nodes can be changed by `extend`
+# but only the "active" node is propagated.  Initially "transform" is active and "predict"
+# only becomes active when a supervised model is encountered; this change is permanent.
 # https://github.com/JuliaAI/MLJClusteringInterface.jl/issues/10
 
 abstract type ActiveNodeOperation end
@@ -587,7 +585,10 @@ end
 # component, only its `abstract_type`. See comment at top of page.
 
 MMI.supports_training_losses(pipe::SupervisedPipeline) =
-    MMI.supports_training_losses(getproperty(pipe, supervised_component_name(pipe)))
+    MMI.supports_training_losses(supervised_component(pipe))
+
+MMI.reports_feature_importances(pipe::SupervisedPipeline) =
+    MMI.reports_feature_importances(supervised_component(pipe))
 
 # This trait cannot be defined at the level of types (see previous comment):
 function MMI.iteration_parameter(pipe::SupervisedPipeline)
@@ -617,4 +618,19 @@ function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
     supervised_name in propertynames(pipe_report) || throw(ERR_PIPE_TRAINING_LOSSES1)
     report = getproperty(pipe_report, supervised_name)
     return training_losses(supervised, report)
+end
+
+
+# ## Feature importances
+
+function feature_importances(pipe::SupervisedPipeline, fitresult, report)
+    # locate the machine associated with the supervised component:
+    supervised_name = MLJBase.supervised_component_name(pipe)
+    predict_node = fitresult.interface.predict
+    mach = only(MLJBase.machines_given_model(predict_node)[supervised_name])
+
+    # To extract the feature_importances, we can't do `feature_importances(mach)` because
+    # `mach.model` is just a symbol; instead we do:
+    supervised = MLJBase.supervised_component(pipe)
+    return feature_importances(supervised, mach.fitresult, mach.report[:fit])
 end

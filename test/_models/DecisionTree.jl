@@ -2,7 +2,7 @@ export DecisionTreeClassifier, DecisionTreeRegressor
 
 import MLJBase
 import MLJBase: @mlj_model, metadata_pkg, metadata_model
-
+import MLJBase.Tables
 using ScientificTypes
 
 using CategoricalArrays
@@ -98,8 +98,11 @@ function MLJBase.fit(model::DecisionTreeClassifier, verbosity::Int, X, y)
     #> empty values):
 
     cache = nothing
-    report = (classes_seen=classes_seen,
-              print_tree=TreePrinter(tree))
+    report = (
+        classes_seen=classes_seen,
+        print_tree=TreePrinter(tree),
+        features=Tables.columnnames(Tables.columns(X)) |> collect,
+    )
 
     return fitresult, cache, report
 end
@@ -137,6 +140,17 @@ function MLJBase.predict(model::DecisionTreeClassifier
             for i in 1:size(y_probabilities, 1)]
 end
 
+MLJBase.reports_feature_importances(::Type{<:DecisionTreeClassifier}) = true
+
+function MMI.feature_importances(m::DecisionTreeClassifier, fitresult, report)
+    features = report.features
+    fi = DecisionTree.impurity_importance(first(fitresult), normalize=true)
+    fi_pairs = Pair.(features, fi)
+    # sort descending
+    sort!(fi_pairs, by= x->-x[2])
+
+    return fi_pairs
+end
 
 ## REGRESSOR
 

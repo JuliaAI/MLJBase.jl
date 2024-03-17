@@ -690,6 +690,16 @@ end
     rm(filename)
 end
 
+@testset "feature importances" begin
+    # the DecisionTreeClassifier in /test/_models/ supports feature importances.
+    pipe = Standardizer |> DecisionTreeClassifier()
+    @test reports_feature_importances(pipe)
+    X, y = @load_iris
+    fitresult, _, report = MLJBase.fit(pipe, 0, X, y)
+    features = first.(feature_importances(pipe, fitresult, report))
+    @test Set(features) == Set(keys(X))
+end
+
 end # module
 
 true
