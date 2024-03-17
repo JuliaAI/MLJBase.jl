@@ -808,10 +808,6 @@ julia> fitted_params(mach).logistic_classifier
  intercept = 0.0883301599726305,)
 ```
 
-Additional keys, `machines` and `fitted_params_given_machine`, give a
-list of *all* machines in the underlying network, and a dictionary of
-fitted parameters keyed on those machines.
-
 See also [`report`](@ref)
 
 """
@@ -851,10 +847,6 @@ julia> report(mach).linear_binary_classifier
  vcov = [3.592857686311793e8 9.122732393971942e6 … -8.454645589364915e7 5.38856837634321e6; 9.122732393971942e6 4.228700272808351e7 … -4.978433790526467e7 -8.442545425533723e6; … ; -8.454645589364915e7 -4.978433790526467e7 … 4.2662172244975924e8 2.1799125705781363e7; 5.38856837634321e6 -8.442545425533723e6 … 2.1799125705781363e7 4.456867590446599e6],)
 
 ```
-
-Additional keys, `machines` and `report_given_machine`, give a
-list of *all* machines in the underlying network, and a dictionary of
-reports keyed on those machines.
 
 See also [`fitted_params`](@ref)
 

@@ -177,5 +177,14 @@ y = rand(5)
     @test training_losses(mach) == ones(5)
 end
 
+@testset "feature_importances" begin
+    X, y = @load_iris
+    atom = DecisionTreeClassifier()
+    model = TransformedTargetModel(atom, transformer=identity, inverse=identity)
+    @test reports_feature_importances(model)
+    fitresult, _, rpt = MMI.fit(model, 0, X, y)
+    @test Set(first.(feature_importances(model, fitresult, rpt))) == Set(keys(X))
+end
+
 end
 true
