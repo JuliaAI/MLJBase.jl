@@ -602,20 +602,12 @@ MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(
 
 # ## Training losses
 
-const ERR_TRAINING_LOSSES1 = ErrorException(
-    "Looking for training losses in a model's report but cannot find any. "
-)
-
-const ERR_TRAINING_LOSSES2 = ErrorException(
-    "Composite model does not appear to support training losses. "
-)
-
+# If supervised model does not support training losses, we won't find an entry in the
+# report and so we need to return `nothing` (and not throw an error).
 function MMI.training_losses(pipe::SupervisedPipeline, pipe_report)
-    supports_training_losses(pipe::SupervisedPipeline) ||
-        throw(ERR_PIPE_TRAINING_LOSSES2)
     supervised = MLJBase.supervised_component(pipe)
     supervised_name = MLJBase.supervised_component_name(pipe)
-    supervised_name in propertynames(pipe_report) || throw(ERR_PIPE_TRAINING_LOSSES1)
+    supervised_name in propertynames(pipe_report) || return nothing
     report = getproperty(pipe_report, supervised_name)
     return training_losses(supervised, report)
 end
