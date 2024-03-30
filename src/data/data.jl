@@ -218,7 +218,7 @@ julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
    1 │     1  a        10.0  A
    2 │     2  b        20.0  B
 
-Z, XY, W = unpack(table, ==(:z), !=(:w))
+julia> Z, XY, W = unpack(table, ==(:z), !=(:w));
 julia> Z
 2-element Vector{Float64}:
  10.0
