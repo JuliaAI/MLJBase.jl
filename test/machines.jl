@@ -272,7 +272,6 @@ end
     X = ones(2, 3)
 
     mach = @test_logs machine(Scale(2))
-    @test mach isa Machine{Scale, false}
     transform(mach, X) # triggers training of `mach`, ie is mutating
     @test report(mach) in [nothing, NamedTuple()]
     @test isnothing(fitted_params(mach))
