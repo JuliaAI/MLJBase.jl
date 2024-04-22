@@ -158,7 +158,7 @@ const COERCE_SUNSPOTS = (
     (:sunspot_number=>Continuous),)
 
 """
-load_dataset(fpath, coercions)
+    load_dataset(fpath, coercions)
 
 Load one of standard dataset like Boston etc assuming the file is a
 comma separated file with a header.

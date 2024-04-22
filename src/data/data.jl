@@ -107,20 +107,21 @@ fraction is not provided, as it is inferred from the preceding ones.
 For "synchronized" partitioning of multiple objects, use the
 `multi=true` option described below.
 
-    julia> partition(1:1000, 0.8)
-    ([1,...,800], [801,...,1000])
+```julia-repl
+julia> partition(1:1000, 0.8)
+([1,...,800], [801,...,1000])
 
-    julia> partition(1:1000, 0.2, 0.7)
-    ([1,...,200], [201,...,900], [901,...,1000])
+julia> partition(1:1000, 0.2, 0.7)
+([1,...,200], [201,...,900], [901,...,1000])
 
-    julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
-    ([1 6], [2 7; 3 8], [4 9; 5 10])
+julia> partition(reshape(1:10, 5, 2), 0.2, 0.4)
+([1 6], [2 7; 3 8], [4 9; 5 10])
 
-    X, y = make_blobs() # a table and vector
-    Xtrain, Xtest = partition(X, 0.8, stratify=y)
+julia> X, y = make_blobs() # a table and vector
+julia> Xtrain, Xtest = partition(X, 0.8, stratify=y)
 
-    (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=true)
-
+julia> (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=true)
+```
 
 ## Keywords
 
@@ -209,7 +210,7 @@ Returns a tuple of tables/vectors with length one greater than the
 number of supplied predicates, with the last component including all
 previously unselected columns.
 
-```
+```julia-repl
 julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
 2×4 DataFrame
  Row │ x      y     z        w
@@ -300,9 +301,11 @@ The method is curried, so that `restrict(folds, i)` is the operator
 on data defined by `restrict(folds, i)(X) = restrict(X, folds, i)`.
 
 ### Example
-
-    folds = ([1, 2], [3, 4, 5],  [6,])
-    restrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x3, :x4, :x5]
+#
+```julia
+folds = ([1, 2], [3, 4, 5],  [6,])
+restrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x3, :x4, :x5]
+```
 
 See also [`corestrict`](@ref)
 
@@ -322,7 +325,9 @@ all elements of `folds`. Here `folds` is a vector or tuple of integer
 vectors, typically representing row indices or a vector, matrix or
 table.
 
-    complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
+```julia
+complement(([1,2], [3,], [4, 5]), 2) # [1 ,2, 4, 5]
+```
 
 """
 complement(f, i) = reduce(vcat, collect(f)[Not(i)])
@@ -345,8 +350,10 @@ on data defined by `corestrict(folds, i)(X) = corestrict(X, folds, i)`.
 
 ### Example
 
-    folds = ([1, 2], [3, 4, 5],  [6,])
-    corestrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x1, :x2, :x6]
+```julia
+folds = ([1, 2], [3, 4, 5],  [6,])
+corestrict([:x1, :x2, :x3, :x4, :x5, :x6], folds, 2) # [:x1, :x2, :x6]
+```
 
 """
 corestrict(f::NTuple{N}, i) where N = FoldComplementRestrictor{i,N}(f)
