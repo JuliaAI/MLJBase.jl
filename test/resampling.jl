@@ -891,4 +891,16 @@ end
     fit!(mach)
 end
 
+@testset "compact evaluation objects" begin
+    model = ConstantClassifier()
+    X, y = make_blobs(10)
+    e = evaluate(model, X, y)
+    ec = evaluate(model, X, y, compact=true)
+    @test e isa PeformanceEvaluation
+    @test ec isa CompactPerformanceEvaluation
+    @test startswith(sprint(show, MIME("text/plain"), e), "PerformanceEvaluation")
+    @test startswith(sprint(show, MIME("text/plain"), ec), "CompactPerformanceEvaluation")
+    @test e.measurement[1] == ec.measurement[1]
+end
+
 true

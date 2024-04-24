@@ -532,7 +532,8 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
   and `test` are vectors of row (observation) indices for training and evaluation
   respectively.
 
-- `resampling`: the resampling strategy used to generate the train/test pairs.
+- `resampling`: the user-specified resampling strategy to generate the train/test pairs
+  (or literal train/test pairs if that was directly specified).
 
 - `repeats`: the number of times the resampling strategy was repeated.
 
@@ -999,6 +1000,7 @@ function evaluate!(
     per_observation=true,
     verbosity=1,
     logger=nothing,
+    compact=false,
     )
 
     # this method just checks validity of options, preprocess the
@@ -1065,6 +1067,7 @@ function evaluate!(
         per_observation,
         logger,
         resampling,
+        compact,
     )
 end
 
@@ -1246,6 +1249,7 @@ function evaluate!(
     per_observation_flag,
     logger,
     user_resampling,
+    compact,
     )
 
     # Note: `user_resampling` keyword argument is the user-defined resampling strategy,
@@ -1385,7 +1389,19 @@ function evaluate!(
         )
     end
 
-    evaluation = PerformanceEvaluation(
+    if compact
+        evaluation = CompactPerformanceEvaluation(
+        mach.model,
+        measures,
+        per_measure,
+        operations,
+        per_fold,
+        per_observation,
+        user_resampling,
+        repeats,
+        )
+    else
+        evaluation = PerformanceEvaluation(
         mach.model,
         measures,
         per_measure,
@@ -1397,7 +1413,8 @@ function evaluate!(
         resampling,
         user_resampling,
         repeats
-    )
+        )
+    end 
     log_evaluation(logger, evaluation)
 
     evaluation
