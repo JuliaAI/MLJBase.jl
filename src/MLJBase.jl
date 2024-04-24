@@ -292,7 +292,7 @@ export TransformedTargetModel
 
 # resampling.jl:
 export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
-    evaluate!, Resampler, PerformanceEvaluation
+    evaluate!, Resampler, PerformanceEvaluation, CompactPerformanceEvaluation
 
 # `MLJType` and the abstract `Model` subtypes are exported from within
 # src/composition/abstract_types.jl

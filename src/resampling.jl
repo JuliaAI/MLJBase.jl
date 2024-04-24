@@ -465,12 +465,18 @@ end
 # ================================================================
 ## EVALUATION RESULT TYPE
 
+abstract type AbstractPerformanceEvaluation <: MLJType end
+
 """
-    PerformanceEvaluation
+    PerformanceEvaluation <: AbstractPerformanceEvaluation
 
 Type of object returned by [`evaluate`](@ref) (for models plus data) or
 [`evaluate!`](@ref) (for machines). Such objects encode estimates of the performance
-(generalization error) of a supervised model or outlier detection model.
+(generalization error) of a supervised model or outlier detection model, and store other
+information ancillary to the computation.
+
+If [`evaluate`](@ref) or [`evaluate!`](@ref) is called with the `compact=true` option,
+then a [`CompactPerformanceEvaluation`](@ref) object is returned instead.
 
 When `evaluate`/`evaluate!` is called, a number of train/test pairs ("folds") of row
 indices are generated, according to the options provided, which are discussed in the
@@ -530,6 +536,8 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
 
 - `repeats`: the number of times the resampling strategy was repeated.
 
+See also [`CompactPerformanceEvaluation`](@ref).
+
 """
 struct PerformanceEvaluation{M,
                              Measure,
@@ -539,7 +547,7 @@ struct PerformanceEvaluation{M,
                              PerObservation,
                              FittedParamsPerFold,
                              ReportPerFold,
-                             R} <: MLJType
+                             R} <: AbstractPerformanceEvaluation
     model::M
     measure::Measure
     measurement::Measurement
@@ -553,6 +561,35 @@ struct PerformanceEvaluation{M,
     repeats::Int
 end
 
+"""
+    CompactPerformanceEvaluation <: AbstractPerformanceEvaluation
+
+Type of object returned by [`evaluate`](@ref) (for models plus data) or
+[`evaluate!`](@ref) (for machines) when called with the option `compact = true`. Such
+objects have the same structure as the [`PerformanceEvaluation`](@ref) objects returned by
+default, except that the following fields are omitted to save memory:
+`fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
+
+For more on the remaining fields, see [`PerformanceEvaluation`](@ref).
+
+"""
+struct CompactPerformanceEvaluation{M,
+                             Measure,
+                             Measurement,
+                             Operation,
+                             PerFold,
+                             PerObservation,
+                             R} <: AbstractPerformanceEvaluation
+    model::M
+    measure::Measure
+    measurement::Measurement
+    operation::Operation
+    per_fold::PerFold
+    per_observation::PerObservation
+    resampling::R
+    repeats::Int
+end
+
 # pretty printing:
 round3(x) = x
 round3(x::AbstractFloat) = round(x, sigdigits=3)
@@ -562,7 +599,7 @@ const SE_FACTOR = 1.96 # For a 95% confidence interval.
 _standard_error(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
 _standard_error(v) = "N/A"
 
-function _standard_errors(e::PerformanceEvaluation)
+function _standard_errors(e::AbstractPerformanceEvaluation)
     measure = e.measure
     length(e.per_fold[1]) == 1 && return [nothing]
     std_errors = map(_standard_error, e.per_fold)
@@ -573,7 +610,7 @@ end
 _repr_(f::Function) = repr(f)
 _repr_(x) = repr("text/plain", x)
 
-function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
+function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
@@ -582,17 +619,26 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     # Only show the standard error if the number of folds is higher than 1.
     show_sterr = any(!isnothing, _sterr)
     data = show_sterr ?
-        hcat(_measure, e.operation, _measurement, _sterr, _per_fold) :
-        hcat(_measure, e.operation, _measurement, _per_fold)
+        hcat(_measure, e.operation, _measurement, _sterr) :
+        hcat(_measure, e.operation, _measurement)
     header = show_sterr ?
-        ["measure", "operation", "measurement", "1.96*SE", "per_fold"] :
-        ["measure", "operation", "measurement", "per_fold"]
+        ["measure", "operation", "measurement", "1.96*SE"] :
+        ["measure", "operation", "measurement"]
 
-    println(io, "PerformanceEvaluation object "*
+    if e isa PerformanceEvaluation
+        println(io, "PerformanceEvaluation object "*
             "with these fields:")
-    println(io, "  model, measure, operation, measurement, per_fold,\n"*
-            "  per_observation, fitted_params_per_fold,\n"*
-            "  report_per_fold, train_test_rows, resampling, repeats")
+        println(io, "  model, measure, operation,\n"*
+            "  measurement, per_fold, per_observation,\n"*
+            "  fitted_params_per_fold, report_per_fold,\n"*
+            "  train_test_rows, resampling, repeats")
+    else
+        println(io, "CompactPerformanceEvaluation object "*
+            "with these fields:")
+        println(io, "  model, measure, operation,\n"*
+            "  measurement, per_fold, per_observation,\n"*
+            "  resampling, repeats")
+    end
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
@@ -605,10 +651,12 @@ function Base.show(io::IO, ::MIME"text/plain", e::PerformanceEvaluation)
     show_color ? color_on() : color_off()
 end
 
-function Base.show(io::IO, e::PerformanceEvaluation)
-    summary = Tuple(round3.(e.measurement))
-    print(io, "PerformanceEvaluation$summary")
-end
+_summary(e) = Tuple(round3.(e.measurement))
+Base.show(io::IO, e::PerformanceEvaluation) =
+    print(io, "PerformanceEvaluation$(summary(e))")
+Base.show(io::IO, e::CompactPerformanceEvaluation) =
+    print(io, "CompactPerformanceEvaluation$(summary(e))")
+
 
 # ===============================================================
 ## EVALUATION METHODS
