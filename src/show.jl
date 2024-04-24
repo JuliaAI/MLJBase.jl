@@ -337,7 +337,6 @@ of `_show(stream, f)` is as follows:
    overload the `_show` method for the type in question.
 
 """
-function _recursive_show end
 function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
     if depth == 0 || isempty(propertynames(object))
         println(stream, object)
