@@ -1106,7 +1106,7 @@ end
 @static if VERSION >= v"1.3.0-DEV.573"
 
 # determines if an instantiated machine caches data:
-_caches_data(::Machine{M, C}) where {M, C} = C
+_caches_data(::Machine{<:Any,<:Any,C}) where C = C
 
 function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
