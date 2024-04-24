@@ -364,6 +364,22 @@ end
     end
 end
 
+@testset "insample" begin
+    rows = rand(Int, 100)
+    @test MLJBase.train_test_pairs(InSample(), rows) == [(rows, rows),]
+
+    X, y = make_regression(20)
+    model = Models.DeterministicConstantRegressor()
+
+    # all rows:
+    e = evaluate(model, X, y, resampling=InSample(), measure=rms)
+    @test e.measurement[1] ≈ std(y, corrected=false)
+
+    # subsample of rows:
+    e = evaluate(model, X, y, resampling=InSample(), measure=rms, rows=1:7)
+    @test e.measurement[1] ≈ std(y[1:7], corrected=false)
+end
+
 @testset_accelerated "holdout" accel begin
     x1 = ones(4)
     x2 = ones(4)
