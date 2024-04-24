@@ -113,9 +113,7 @@ end
 # Holdout
 
 """
-    holdout = Holdout(; fraction_train=0.7,
-                        shuffle=nothing,
-                        rng=nothing)
+    holdout = Holdout(; fraction_train=0.7, shuffle=nothing, rng=nothing)
 
 Holdout resampling strategy, for use in `evaluate!`, `evaluate` and in
 tuning.
