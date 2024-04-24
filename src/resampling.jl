@@ -1464,6 +1464,7 @@ end
         check_measure=true,
         per_observation=true,
         logger=nothing,
+        compact=false,
     )
 
 Resampling model wrapper, used internally by the `fit` method of `TunedModel` instances
@@ -1507,6 +1508,7 @@ mutable struct Resampler{S, L} <: Model
     cache::Bool
     per_observation::Bool
     logger::L
+    compact::Bool
 end
 
 # Some traits are markded as `missing` because we cannot determine
@@ -1550,6 +1552,7 @@ function Resampler(
     cache=true,
     per_observation=true,
     logger=nothing,
+    compact=false,
 )
     resampler = Resampler(
         model,
@@ -1564,6 +1567,7 @@ function Resampler(
         cache,
         per_observation,
         logger,
+        compact,
     )
     message = MLJModelInterface.clean!(resampler)
     isempty(message) || @warn message
@@ -1612,6 +1616,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
         resampler.per_observation,
         resampler.logger,
         resampler.resampling,
+        resampler.compact,
     )
 
     fitresult = (machine = mach, evaluation = e)
@@ -1685,6 +1690,7 @@ function MLJModelInterface.update(
         resampler.per_observation,
         resampler.logger,
         resampler.resampling,
+        resampler.compact,
     )
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)

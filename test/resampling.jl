@@ -896,7 +896,7 @@ end
     X, y = make_blobs(10)
     e = evaluate(model, X, y)
     ec = evaluate(model, X, y, compact=true)
-    @test e isa PeformanceEvaluation
+    @test e isa PerformanceEvaluation
     @test ec isa CompactPerformanceEvaluation
     @test startswith(sprint(show, MIME("text/plain"), e), "PerformanceEvaluation")
     @test startswith(sprint(show, MIME("text/plain"), ec), "CompactPerformanceEvaluation")
