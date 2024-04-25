@@ -1000,7 +1000,11 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
 
 - `logger` - a logger object (see [`MLJBase.log_evaluation`](@ref))
 
-See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref)
+- `compact=false` - if `true`, the returned evaluation object excludes these fields:
+  `fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
+
+See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref),
+[`CompactPerformanceEvaluation`](@ref).
 
 """
 function evaluate!(
