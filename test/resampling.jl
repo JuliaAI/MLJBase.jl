@@ -348,7 +348,7 @@ end
     model = Models.DeterministicConstantRegressor()
 
     for cache in [true, false]
-        mach = machine(model, X, y, cache=cache)
+        mach = machine(model, X, y, cache=cache) 
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
         per_fold = result.per_fold[1]
@@ -661,7 +661,7 @@ end
     e = evaluate(ConstantClassifier(), X, y,
                  measure=misclassification_rate,
                  resampling=DummyResamplingStrategy(),
-                 operation=predict_mode,
+                 operaton=predict_mode,
                  acceleration=accel,
                  verbosity=verb)
     @test e.measurement[1] ≈ 1.0

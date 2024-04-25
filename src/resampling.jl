@@ -349,7 +349,6 @@ Stratified cross-validation resampling strategy, for use in
 problems (`OrderedFactor` or `Multiclass` targets).
 
     train_test_pairs(stratified_cv, rows, y)
-
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices) where each `train` and `test` is a sub-vector of
 `rows`. The `test` vectors are mutually exclusive and exhaust
@@ -611,20 +610,35 @@ end
 _repr_(f::Function) = repr(f)
 _repr_(x) = repr("text/plain", x)
 
+# helper for row labels: _label(1) ="A", _label(2) = "B", _label(27) = "BA", etc
+const alphabet = Char.(65:90)
+_label(i) = map(digits(i - 1, base=26)) do d alphabet[d + 1] end |> join |> reverse
+
 function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
     _sterr = round3.(_standard_errors(e))
+    row_labels = _label.(eachindex(e.measure))
+
+    # 1. Define header and data for main table
 
     # Only show the standard error if the number of folds is higher than 1.
     show_sterr = any(!isnothing, _sterr)
     data = show_sterr ?
-        hcat(_measure, e.operation, _measurement, _sterr) :
-        hcat(_measure, e.operation, _measurement)
+        hcat(row_labels, _measure, e.operation, _measurement, _sterr) :
+        hcat(row_labels, _measure, e.operation, _measurement)
     header = show_sterr ?
-        ["measure", "operation", "measurement", "1.96*SE"] :
+        ["", "measure", "operation", "measurement", "1.96*SE"] :
         ["measure", "operation", "measurement"]
+
+
+    # 2. Define header and data for secondary table
+
+    data2 = hcat(row_labels, _per_fold)
+    header2 = ["", "per_fold"]
+
+    # 3. Display type info and tables
 
     if e isa PerformanceEvaluation
         println(io, "PerformanceEvaluation object "*
@@ -646,6 +660,12 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     PrettyTables.pretty_table(io,
                               data;
                               header,
+                              header_crayon=PrettyTables.Crayon(bold=false),
+                              alignment=:l,
+                              linebreaks=true)
+    PrettyTables.pretty_table(io,
+                              data2;
+                              header=header2,
                               header_crayon=PrettyTables.Crayon(bold=false),
                               alignment=:l,
                               linebreaks=true)
@@ -1414,7 +1434,7 @@ function evaluate!(
         user_resampling,
         repeats
         )
-    end 
+    end
     log_evaluation(logger, evaluation)
 
     evaluation
