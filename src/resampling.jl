@@ -484,7 +484,7 @@ pairs are recorded in the `train_test_rows` field of the `PerformanceEvaluation`
 and the corresponding estimates, aggregated over all train/test pairs, are recorded in
 `measurement`, a vector with one entry for each measure (metric) recorded in `measure`.
 
-When displayed, a `PerformanceEvalution` object includes a value under the heading
+When displayed, a `PerformanceEvaluation` object includes a value under the heading
 `1.96*SE`, derived from the standard error of the `per_fold` entries. This value is
 suitable for constructing a formal 95% confidence interval for the given
 `measurement`. Such intervals should be interpreted with caution. See, for example, Bates
@@ -568,7 +568,7 @@ Type of object returned by [`evaluate`](@ref) (for models plus data) or
 [`evaluate!`](@ref) (for machines) when called with the option `compact = true`. Such
 objects have the same structure as the [`PerformanceEvaluation`](@ref) objects returned by
 default, except that the following fields are omitted to save memory:
-`fitted_params_per_fold`, `report_per_fold`.
+`fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
 
 For more on the remaining fields, see [`PerformanceEvaluation`](@ref).
 
@@ -586,10 +586,21 @@ struct CompactPerformanceEvaluation{M,
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
-    train_test_rows::TrainTestPairs
     resampling::R
     repeats::Int
 end
+
+compactify(e::CompactPerformanceEvaluation) = e
+compactify(e::PerformanceEvaluation) = CompactPerformanceEvaluation(
+    e.model,
+    e.measure,
+    e.measurement,
+    e.operation,
+    e.per_fold,
+    e. per_observation,
+    e.resampling,
+    e.repeats,
+)
 
 # pretty printing:
 round3(x) = x
@@ -1427,20 +1438,7 @@ function evaluate!(
         )
     end
 
-    if compact
-        evaluation = CompactPerformanceEvaluation(
-        mach.model,
-        measures,
-        per_measure,
-        operations,
-        per_fold,
-        per_observation,
-        resampling,
-        user_resampling,
-        repeats,
-        )
-    else
-        evaluation = PerformanceEvaluation(
+    evaluation = PerformanceEvaluation(
         mach.model,
         measures,
         per_measure,
@@ -1452,11 +1450,11 @@ function evaluate!(
         resampling,
         user_resampling,
         repeats
-        )
-    end
+    )
     log_evaluation(logger, evaluation)
 
-    evaluation
+    compact && return compactify(evaluation)
+    return evaluation
 end
 
 # ----------------------------------------------------------------
@@ -1640,6 +1638,10 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     _acceleration = _process_accel_settings(resampler.acceleration)
 
+    # the value of `compact` below is always `false`, because we need
+    # `e.train_test_rows` in `update`. (If `resampler.compact=true`, then
+    # `evaluate(resampler, ...)` returns the compactified version of the current
+    # `PerformanceEvaluation` object.)
     e = evaluate!(
         mach,
         resampler.resampling,
@@ -1655,7 +1657,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
         resampler.per_observation,
         resampler.logger,
         resampler.resampling,
-        resampler.compact,
+        false, # compact
     )
 
     fitresult = (machine = mach, evaluation = e)
@@ -1729,7 +1731,7 @@ function MLJModelInterface.update(
         resampler.per_observation,
         resampler.logger,
         resampler.resampling,
-        resampler.compact,
+        false # we use `compact=false`; see comment in `fit` above
     )
     report = (evaluation = e, )
     fitresult = (machine=mach2, evaluation=e)
@@ -1753,7 +1755,8 @@ StatisticalTraits.load_path(::Type{<:Resampler}) = "MLJBase.Resampler"
 
 fitted_params(::Resampler, fitresult) = fitresult
 
-evaluate(resampler::Resampler, fitresult) = fitresult.evaluation
+evaluate(resampler::Resampler, fitresult) = resampler.compact ?
+    compactify(fitresult.evaluation) : fitresult.evaluation
 
 function evaluate(machine::Machine{<:Resampler})
     if isdefined(machine, :fitresult)
