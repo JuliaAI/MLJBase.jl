@@ -633,31 +633,14 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     _sterr = round3.(_standard_errors(e))
     row_labels = _label.(eachindex(e.measure))
 
-    # 1. Define header and data for main table
+    # Define header and data for main table
 
-    # Only show the standard error if the number of folds is higher than 1.
-    show_sterr = any(!isnothing, _sterr)
-    data = show_sterr ?
-        hcat(_measure, e.operation, _measurement, _sterr) :
-        hcat(_measure, e.operation, _measurement)
-    header = show_sterr ?
-        ["measure", "operation", "measurement", "1.96*SE"] :
-        ["measure", "operation", "measurement"]
+    data = hcat(_measure, e.operation, _measurement)
+    header = ["measure", "operation", "measurement"]
     if length(row_labels) > 1
         data = hcat(row_labels, data)
         header =["", header...]
     end
-
-    # 2. Define header and data for secondary table
-
-    data2 = _per_fold
-    header2 = ["per_fold",]
-    if length(row_labels) > 1
-        data2 = hcat(row_labels, data2)
-        header2 =["", header2...]
-    end
-
-    # 3. Display type info and tables
 
     if e isa PerformanceEvaluation
         println(io, "PerformanceEvaluation object "*
@@ -673,6 +656,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
             "  measurement, per_fold, per_observation,\n"*
             "  train_test_rows, resampling, repeats")
     end
+
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
@@ -684,7 +668,17 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         alignment=:l,
         linebreaks=true,
     )
+
+    # Show the per-fold table if needed:
+
     if length(first(e.per_fold)) > 1
+        show_sterr = any(!isnothing, _sterr)
+        data2 = hcat(_per_fold, _sterr)
+        header2 = ["per_fold", "1.96*SE"]
+        if length(row_labels) > 1
+            data2 = hcat(row_labels, data2)
+            header2 =["", header2...]
+        end
         PrettyTables.pretty_table(
             io,
             data2;

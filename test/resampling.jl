@@ -907,8 +907,8 @@ end
     for e in [
         evaluate!(mach, measures=[brier_loss, accuracy]),
         evaluate!(mach, measures=[brier_loss, accuracy], compact=true),
-        evaluate!(mach, resampling=CV(), measures=[brier_loss, accuracy]),
-        evaluate!(mach, resampling=CV(), measures=[brier_loss, accuracy], compact=true),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy]),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy], compact=true),
         ]
         @test contains(sprint(show, MIME("text/plain"), e), "predict")
         @test contains(sprint(show, MIME("text/plain"), e), "[")
