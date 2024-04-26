@@ -627,17 +627,24 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     # Only show the standard error if the number of folds is higher than 1.
     show_sterr = any(!isnothing, _sterr)
     data = show_sterr ?
-        hcat(row_labels, _measure, e.operation, _measurement, _sterr) :
-        hcat(row_labels, _measure, e.operation, _measurement)
+        hcat(_measure, e.operation, _measurement, _sterr) :
+        hcat(_measure, e.operation, _measurement)
     header = show_sterr ?
-        ["", "measure", "operation", "measurement", "1.96*SE"] :
+        ["measure", "operation", "measurement", "1.96*SE"] :
         ["measure", "operation", "measurement"]
-
+    if length(row_labels) > 1
+        data = hcat(row_labels, data)
+        header =["", header...]
+    end
 
     # 2. Define header and data for secondary table
 
-    data2 = hcat(row_labels, _per_fold)
-    header2 = ["", "per_fold"]
+    data2 = _per_fold
+    header2 = ["per_fold",]
+    if length(row_labels) > 1
+        data2 = hcat(row_labels, data2)
+        header2 =["", header2...]
+    end
 
     # 3. Display type info and tables
 
@@ -658,26 +665,32 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
-    PrettyTables.pretty_table(io,
-                              data;
-                              header,
-                              header_crayon=PrettyTables.Crayon(bold=false),
-                              alignment=:l,
-                              linebreaks=true)
-    PrettyTables.pretty_table(io,
-                              data2;
-                              header=header2,
-                              header_crayon=PrettyTables.Crayon(bold=false),
-                              alignment=:l,
-                              linebreaks=true)
+    PrettyTables.pretty_table(
+        io,
+        data;
+        header,
+        header_crayon=PrettyTables.Crayon(bold=false),
+        alignment=:l,
+        linebreaks=true,
+    )
+    if length(first(e.per_fold)) > 1
+        PrettyTables.pretty_table(
+            io,
+            data2;
+            header=header2,
+            header_crayon=PrettyTables.Crayon(bold=false),
+            alignment=:l,
+            linebreaks=true,
+        )
+    end
     show_color ? color_on() : color_off()
 end
 
 _summary(e) = Tuple(round3.(e.measurement))
 Base.show(io::IO, e::PerformanceEvaluation) =
-    print(io, "PerformanceEvaluation$(summary(e))")
+    print(io, "PerformanceEvaluation$(_summary(e))")
 Base.show(io::IO, e::CompactPerformanceEvaluation) =
-    print(io, "CompactPerformanceEvaluation$(summary(e))")
+    print(io, "CompactPerformanceEvaluation$(_summary(e))")
 
 
 # ===============================================================

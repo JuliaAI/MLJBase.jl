@@ -348,7 +348,7 @@ end
     model = Models.DeterministicConstantRegressor()
 
     for cache in [true, false]
-        mach = machine(model, X, y, cache=cache) 
+        mach = machine(model, X, y, cache=cache)
         result = evaluate!(mach, resampling=holdout, verbosity=verb,
                        measure=[rms, rmslp1], repeats=6)
         per_fold = result.per_fold[1]
@@ -661,7 +661,7 @@ end
     e = evaluate(ConstantClassifier(), X, y,
                  measure=misclassification_rate,
                  resampling=DummyResamplingStrategy(),
-                 operaton=predict_mode,
+                 operation=predict_mode,
                  acceleration=accel,
                  verbosity=verb)
     @test e.measurement[1] ≈ 1.0
@@ -901,6 +901,20 @@ end
     @test startswith(sprint(show, MIME("text/plain"), e), "PerformanceEvaluation")
     @test startswith(sprint(show, MIME("text/plain"), ec), "CompactPerformanceEvaluation")
     @test e.measurement[1] == ec.measurement[1]
+
+    # smoke tests:
+    mach = machine(model, X, y)
+    for e in [
+        evaluate!(mach, measures=[brier_loss, accuracy]),
+        evaluate!(mach, measures=[brier_loss, accuracy], compact=true),
+        evaluate!(mach, resampling=CV(), measures=[brier_loss, accuracy]),
+        evaluate!(mach, resampling=CV(), measures=[brier_loss, accuracy], compact=true),
+        ]
+        @test contains(sprint(show, MIME("text/plain"), e), "predict")
+        @test contains(sprint(show, MIME("text/plain"), e), "[")
+        @test contains(sprint(show, e), "PerformanceEvaluation(")
+        @test !contains(sprint(show, e), "predict")
+    end
 end
 
 true
