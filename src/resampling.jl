@@ -568,7 +568,7 @@ Type of object returned by [`evaluate`](@ref) (for models plus data) or
 [`evaluate!`](@ref) (for machines) when called with the option `compact = true`. Such
 objects have the same structure as the [`PerformanceEvaluation`](@ref) objects returned by
 default, except that the following fields are omitted to save memory:
-`fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
+`fitted_params_per_fold`, `report_per_fold`.
 
 For more on the remaining fields, see [`PerformanceEvaluation`](@ref).
 
@@ -586,6 +586,7 @@ struct CompactPerformanceEvaluation{M,
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
+    train_test_rows::TrainTestPairs
     resampling::R
     repeats::Int
 end
@@ -652,7 +653,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
             "with these fields:")
         println(io, "  model, measure, operation,\n"*
             "  measurement, per_fold, per_observation,\n"*
-            "  resampling, repeats")
+            "  train_test_rows, resampling, repeats")
     end
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
@@ -1421,6 +1422,7 @@ function evaluate!(
         operations,
         per_fold,
         per_observation,
+        resampling,
         user_resampling,
         repeats,
         )
