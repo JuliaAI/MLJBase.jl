@@ -51,8 +51,10 @@ mutable struct Machine{M,OM,C} <: MLJType
 
     model::M
     old_model::OM  # for remembering the model used in last call to `fit!`
+
+    # the next two refer to objects returned by `MLJModlelInterface.fit(::M, ...)`.
     fitresult
-    cache
+    cache # relevant to `MLJModelInterface.update`, not to be confused with type param `C`
 
     # training arguments (`Node`s or user-specified data wrapped in
     # `Source`s):
@@ -81,7 +83,7 @@ mutable struct Machine{M,OM,C} <: MLJType
         # In the case of symbolic model, machine cannot know the type of model to be fit
         # at time of construction:
         OM = M == Symbol ? Any : M
-        mach = new{M,OM,cache}(model)
+        mach = new{M,OM,cache}(model) # (this `cache` is not the *field* `cache`)
         mach.frozen = false
         mach.state = 0
         mach.args = args
@@ -91,6 +93,8 @@ mutable struct Machine{M,OM,C} <: MLJType
     end
 
 end
+
+caches_data(::Machine{<:Any, <:Any, C}) where C = C
 
 """
     age(mach::Machine)
