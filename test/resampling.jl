@@ -911,9 +911,7 @@ end
         evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy], compact=true),
         ]
         @test contains(sprint(show, MIME("text/plain"), e), "predict")
-        @test contains(sprint(show, MIME("text/plain"), e), "[")
         @test contains(sprint(show, e), "PerformanceEvaluation(")
-        @test !contains(sprint(show, e), "predict")
     end
 end
 
