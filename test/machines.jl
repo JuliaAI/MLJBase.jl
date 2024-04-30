@@ -68,7 +68,12 @@ end
     predict(t, selectrows(X,test));
     @test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
 
+    # cache type parameter
+    mach = machine(ConstantRegressor(), X, y, cache=false)
+    @test !MLJBase.caches_data(mach)
     mach = machine(ConstantRegressor(), X, y)
+    @test MLJBase.caches_data(mach)
+
     @test_logs (:info, r"Training") fit!(mach)
     yhat = predict_mean(mach, X);
 

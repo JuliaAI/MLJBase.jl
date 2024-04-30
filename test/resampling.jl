@@ -907,4 +907,29 @@ end
     fit!(mach)
 end
 
+@testset "compact evaluation objects" begin
+    model = ConstantClassifier()
+    X, y = make_blobs(10)
+    e = evaluate(model, X, y)
+    ec = evaluate(model, X, y, compact=true)
+    @test MLJBase.compactify(ec) == ec == MLJBase.compactify(e)
+    @test e isa PerformanceEvaluation
+    @test ec isa CompactPerformanceEvaluation
+    @test startswith(sprint(show, MIME("text/plain"), e), "PerformanceEvaluation")
+    @test startswith(sprint(show, MIME("text/plain"), ec), "CompactPerformanceEvaluation")
+    @test e.measurement[1] == ec.measurement[1]
+
+    # smoke tests:
+    mach = machine(model, X, y)
+    for e in [
+        evaluate!(mach, measures=[brier_loss, accuracy]),
+        evaluate!(mach, measures=[brier_loss, accuracy], compact=true),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy]),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy], compact=true),
+        ]
+        @test contains(sprint(show, MIME("text/plain"), e), "predict")
+        @test contains(sprint(show, e), "PerformanceEvaluation(")
+    end
+end
+
 true
