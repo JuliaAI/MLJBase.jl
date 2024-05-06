@@ -389,7 +389,7 @@ end
                                    rng=Random.GLOBAL_RNG)
 
 Stratified cross-validation resampling strategy, for use in
-`evaluate!`, `evaluate` and intuning. Applies only to classification
+`evaluate!`, `evaluate` and in tuning. Applies only to classification
 problems (`OrderedFactor` or `Multiclass` targets).
 
     train_test_pairs(stratified_cv, rows, y)
