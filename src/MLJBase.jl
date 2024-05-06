@@ -291,7 +291,7 @@ export machines, sources, Stack,
 export TransformedTargetModel
 
 # resampling.jl:
-export ResamplingStrategy, Holdout, CV, StratifiedCV, TimeSeriesCV,
+export ResamplingStrategy, InSample, Holdout, CV, StratifiedCV, TimeSeriesCV,
     evaluate!, Resampler, PerformanceEvaluation, CompactPerformanceEvaluation
 
 # `MLJType` and the abstract `Model` subtypes are exported from within
