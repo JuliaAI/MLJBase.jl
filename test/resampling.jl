@@ -364,6 +364,22 @@ end
     end
 end
 
+@testset "insample" begin
+    rows = rand(Int, 100)
+    @test MLJBase.train_test_pairs(InSample(), rows) == [(rows, rows),]
+
+    X, y = make_regression(20)
+    model = Models.DeterministicConstantRegressor()
+
+    # all rows:
+    e = evaluate(model, X, y, resampling=InSample(), measure=rms)
+    @test e.measurement[1] ≈ std(y, corrected=false)
+
+    # subsample of rows:
+    e = evaluate(model, X, y, resampling=InSample(), measure=rms, rows=1:7)
+    @test e.measurement[1] ≈ std(y[1:7], corrected=false)
+end
+
 @testset_accelerated "holdout" accel begin
     x1 = ones(4)
     x2 = ones(4)
@@ -889,6 +905,31 @@ end
 
     resampler.model = cnst
     fit!(mach)
+end
+
+@testset "compact evaluation objects" begin
+    model = ConstantClassifier()
+    X, y = make_blobs(10)
+    e = evaluate(model, X, y)
+    ec = evaluate(model, X, y, compact=true)
+    @test MLJBase.compactify(ec) == ec == MLJBase.compactify(e)
+    @test e isa PerformanceEvaluation
+    @test ec isa CompactPerformanceEvaluation
+    @test startswith(sprint(show, MIME("text/plain"), e), "PerformanceEvaluation")
+    @test startswith(sprint(show, MIME("text/plain"), ec), "CompactPerformanceEvaluation")
+    @test e.measurement[1] == ec.measurement[1]
+
+    # smoke tests:
+    mach = machine(model, X, y)
+    for e in [
+        evaluate!(mach, measures=[brier_loss, accuracy]),
+        evaluate!(mach, measures=[brier_loss, accuracy], compact=true),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy]),
+        evaluate!(mach, resampling=Holdout(), measures=[brier_loss, accuracy], compact=true),
+        ]
+        @test contains(sprint(show, MIME("text/plain"), e), "predict")
+        @test contains(sprint(show, e), "PerformanceEvaluation(")
+    end
 end
 
 true

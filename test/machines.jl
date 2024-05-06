@@ -68,7 +68,12 @@ end
     predict(t, selectrows(X,test));
     @test rms(predict(t, selectrows(X, test)), y[test]) < std(y)
 
+    # cache type parameter
+    mach = machine(ConstantRegressor(), X, y, cache=false)
+    @test !MLJBase.caches_data(mach)
     mach = machine(ConstantRegressor(), X, y)
+    @test MLJBase.caches_data(mach)
+
     @test_logs (:info, r"Training") fit!(mach)
     yhat = predict_mean(mach, X);
 
@@ -272,7 +277,6 @@ end
     X = ones(2, 3)
 
     mach = @test_logs machine(Scale(2))
-    @test mach isa Machine{Scale, false}
     transform(mach, X) # triggers training of `mach`, ie is mutating
     @test report(mach) in [nothing, NamedTuple()]
     @test isnothing(fitted_params(mach))

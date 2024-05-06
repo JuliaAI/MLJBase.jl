@@ -296,9 +296,11 @@ Construct an object `s` which can be used to generate random samples
 from a `ParamRange` object `r` (a one-dimensional range) using one of
 the following calls:
 
-    rand(s)             # for one sample
-    rand(s, n)          # for n samples
-    rand(rng, s [, n])  # to specify an RNG
+```julia
+rand(s)             # for one sample
+rand(s, n)          # for n samples
+rand(rng, s [, n])  # to specify an RNG
+```
 
 The argument `probs` can be any probability vector with the same
 length as `r.values`. The second `sampler` method above calls the
@@ -329,30 +331,32 @@ in the special case `r.scale` is a callable object `f`. In that case,
 
 ### Examples
 
-    r = range(Char, :letter, values=collect("abc"))
-    s = sampler(r, [0.1, 0.2, 0.7])
-    samples =  rand(s, 1000);
-    StatsBase.countmap(samples)
-    Dict{Char,Int64} with 3 entries:
-      'a' => 107
-      'b' => 205
-      'c' => 688
+```julia-repl
+julia> r = range(Char, :letter, values=collect("abc"))
+julia> s = sampler(r, [0.1, 0.2, 0.7])
+julia> samples =  rand(s, 1000);
+julia> StatsBase.countmap(samples)
+Dict{Char,Int64} with 3 entries:
+  'a' => 107
+  'b' => 205
+  'c' => 688
 
-    r = range(Int, :k, lower=2, upper=6) # numeric but discrete
-    s = sampler(r, Normal)
-    samples = rand(s, 1000);
-    UnicodePlots.histogram(samples)
-               ┌                                        ┐
-    [2.0, 2.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 119
-    [2.5, 3.0) ┤ 0
-    [3.0, 3.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 296
-    [3.5, 4.0) ┤ 0
-    [4.0, 4.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 275
-    [4.5, 5.0) ┤ 0
-    [5.0, 5.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 221
-    [5.5, 6.0) ┤ 0
-    [6.0, 6.5) ┤▇▇▇▇▇▇▇▇▇▇▇ 89
-               └                                        ┘
+julia> r = range(Int, :k, lower=2, upper=6) # numeric but discrete
+julia> s = sampler(r, Normal)
+julia> samples = rand(s, 1000);
+julia> UnicodePlots.histogram(samples)
+           ┌                                        ┐
+[2.0, 2.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 119
+[2.5, 3.0) ┤ 0
+[3.0, 3.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 296
+[3.5, 4.0) ┤ 0
+[4.0, 4.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 275
+[4.5, 5.0) ┤ 0
+[5.0, 5.5) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 221
+[5.5, 6.0) ┤ 0
+[6.0, 6.5) ┤▇▇▇▇▇▇▇▇▇▇▇ 89
+           └                                        ┘
+```
 
 """
 Distributions.sampler(r::NumericRange{T},

@@ -14,7 +14,7 @@ The effect of the `scitype_check_level` option in calls of the form
 `machine(model, data, scitype_check_level=...)` is summarized below:
 
 `scitype_check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
-|:-------------------:|:-----------------:|:------------------------:|:-------------------------:|
+|:--------------------|:-----------------:|:------------------------:|:-------------------------:|
 0                     | ×                 |                          |                           |
 1 (value at startup)  | ✓                 |                          | warning                   |
 2                     | ✓                 | warning                  | warning                   |
@@ -47,12 +47,14 @@ caches_data_by_default(m) = caches_data_by_default(typeof(m))
 caches_data_by_default(::Type) = true
 caches_data_by_default(::Type{<:Symbol}) = false
 
-mutable struct Machine{M,C} <: MLJType
+mutable struct Machine{M,OM,C} <: MLJType
 
     model::M
-    old_model  # for remembering the model used in last call to `fit!`
+    old_model::OM  # for remembering the model used in last call to `fit!`
+
+    # the next two refer to objects returned by `MLJModlelInterface.fit(::M, ...)`.
     fitresult
-    cache
+    cache # relevant to `MLJModelInterface.update`, not to be confused with type param `C`
 
     # training arguments (`Node`s or user-specified data wrapped in
     # `Source`s):
@@ -77,8 +79,11 @@ mutable struct Machine{M,C} <: MLJType
     function Machine(
         model::M, args::AbstractNode...;
         cache=caches_data_by_default(model),
-    ) where M
-        mach = new{M,cache}(model)
+        ) where M
+        # In the case of symbolic model, machine cannot know the type of model to be fit
+        # at time of construction:
+        OM = M == Symbol ? Any : M
+        mach = new{M,OM,cache}(model) # (this `cache` is not the *field* `cache`)
         mach.frozen = false
         mach.state = 0
         mach.args = args
@@ -88,6 +93,8 @@ mutable struct Machine{M,C} <: MLJType
     end
 
 end
+
+caches_data(::Machine{<:Any, <:Any, C}) where C = C
 
 """
     age(mach::Machine)
@@ -113,9 +120,9 @@ any upstream dependencies in a learning network):
 
 ```julia
 replace(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
-
+```
 """
-function Base.replace(mach::Machine{<:Any,C}, field_value_pairs::Pair...) where C
+function Base.replace(mach::Machine{<:Any,<:Any,C}, field_value_pairs::Pair...) where C
     # determined new `model` and `args` and build replacement dictionary:
     newfield_given_old = Dict(field_value_pairs) # to be extended
     fields_to_be_replaced = keys(newfield_given_old)
@@ -199,8 +206,7 @@ const WARN_UNKNOWN_SCITYPE =
     "Some data contains `Unknown` scitypes, which might lead to model-data mismatches. "
 
 err_length_mismatch(model) = DimensionMismatch(
-    "Differing number of observations "*
-    "in input and target. ")
+    "Differing number of observations in input and target. ")
 
 function check(model::Model, scitype_check_level, args...)
 
@@ -436,8 +442,8 @@ machines(::Source) = Machine[]
 
 ## DISPLAY
 
-_cache_status(::Machine{<:Any,true}) = "caches model-specific representations of data"
-_cache_status(::Machine{<:Any,false}) = "does not cache data"
+_cache_status(::Machine{<:Any,<:Any,true}) = "caches model-specific representations of data"
+_cache_status(::Machine{<:Any,<:Any,false}) = "does not cache data"
 
 function Base.show(io::IO, mach::Machine)
     model = mach.model
@@ -502,8 +508,8 @@ end
 # for getting model specific representation of the row-restricted
 # training data from a machine, according to the value of the machine
 # type parameter `C` (`true` or `false`):
-_resampled_data(mach::Machine{<:Any,true}, model, rows) = mach.resampled_data
-function _resampled_data(mach::Machine{<:Any,false}, model, rows)
+_resampled_data(mach::Machine{<:Any,<:Any,true}, model, rows) = mach.resampled_data
+function _resampled_data(mach::Machine{<:Any,<:Any,false}, model, rows)
     raw_args = map(N -> N(), mach.args)
     data = MMI.reformat(model, raw_args...)
     return selectrows(model, rows, data...)
@@ -516,6 +522,10 @@ err_no_real_model(mach) = ErrorException(
     forgot to specify `composite=... ` in a `fit!` call?
 
     """
+)
+
+err_missing_model(model) = ErrorException(
+    "Specified `composite` model does not have `:$(model)` as a field."
 )
 
 """
@@ -605,7 +615,7 @@ more on these lower-level training methods.
 
 """
 function fit_only!(
-    mach::Machine{<:Any,cache_data};
+    mach::Machine{<:Any,<:Any,cache_data};
     rows=nothing,
     verbosity=1,
     force=false,
@@ -628,7 +638,8 @@ function fit_only!(
     # `getproperty(composite, mach.model)`:
     model = if mach.model isa Symbol
         isnothing(composite) && throw(err_no_real_model(mach))
-        mach.model in propertynames(composite)
+        mach.model in propertynames(composite) ||
+            throw(err_missing_model(model))
         getproperty(composite, mach.model)
     else
         mach.model
@@ -670,7 +681,7 @@ function fit_only!(
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
         condition_iv ||         # condition (iv)
-        modeltype_changed      # conditions (vi) or (vii)
+        modeltype_changed       # conditions (vi) or (vii)
 
         isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
 
@@ -795,12 +806,12 @@ type's field names as keys. The corresponding value is the fitted parameters for
 machine in the underlying learning network bound to that model. (If multiple machines
 share the same model, then the value is a vector.)
 
-```julia
-using MLJ
-@load LogisticClassifier pkg=MLJLinearModels
-X, y = @load_crabs;
-pipe = Standardizer() |> LogisticClassifier()
-mach = machine(pipe, X, y) |> fit!
+```julia-repl
+julia> using MLJ
+julia> @load LogisticClassifier pkg=MLJLinearModels
+julia> X, y = @load_crabs;
+julia> pipe = Standardizer() |> LogisticClassifier();
+julia> mach = machine(pipe, X, y) |> fit!;
 
 julia> fitted_params(mach).logistic_classifier
 (classes = CategoricalArrays.CategoricalValue{String,UInt32}["B", "O"],
@@ -833,12 +844,12 @@ type's field names as keys. The corresponding value is the report for the machin
 underlying learning network bound to that model. (If multiple machines share the same
 model, then the value is a vector.)
 
-```julia
-using MLJ
-@load LinearBinaryClassifier pkg=GLM
-X, y = @load_crabs;
-pipe = Standardizer() |> LinearBinaryClassifier()
-mach = machine(pipe, X, y) |> fit!
+```julia-repl
+julia> using MLJ
+julia> @load LinearBinaryClassifier pkg=GLM
+julia> X, y = @load_crabs;
+julia> pipe = Standardizer() |> LinearBinaryClassifier();
+julia> mach = machine(pipe, X, y) |> fit!;
 
 julia> report(mach).linear_binary_classifier
 (deviance = 3.8893386087844543e-7,
@@ -945,29 +956,29 @@ A machine returned by `serializable` is characterized by the property
 `mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
+```julia
+using MLJ
+using JLSO
+Tree = @load DecisionTreeClassifier
+tree = Tree()
+X, y = @load_iris
+mach = fit!(machine(tree, X, y))
 
-    using MLJ
-    using JLSO
-    Tree = @load DecisionTreeClassifier
-    tree = Tree()
-    X, y = @load_iris
-    mach = fit!(machine(tree, X, y))
+# This machine can now be serialized
+smach = serializable(mach)
+JLSO.save("machine.jlso", :machine => smach)
 
-    # This machine can now be serialized
-    smach = serializable(mach)
-    JLSO.save("machine.jlso", :machine => smach)
+# Deserialize and restore learned parameters to useable form:
+loaded_mach = JLSO.load("machine.jlso")[:machine]
+restore!(loaded_mach)
 
-    # Deserialize and restore learned parameters to useable form:
-    loaded_mach = JLSO.load("machine.jlso")[:machine]
-    restore!(loaded_mach)
-
-    predict(loaded_mach, X)
-    predict(mach, X)
-
+predict(loaded_mach, X)
+predict(mach, X)
+```
 See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
-function serializable(mach::Machine{<:Any, C}, model=mach.model; verbosity=1) where C
+function serializable(mach::Machine{<:Any,<:Any,C}, model=mach.model; verbosity=1) where C
 
     isdefined(mach, :fitresult) || throw(ERR_SERIALIZING_UNTRAINED)
     mach.state == -1 && return mach
@@ -1039,21 +1050,23 @@ the example below.
 
 ### Example
 
-    using MLJ
-    Tree = @load DecisionTreeClassifier
-    X, y = @load_iris
-    mach = fit!(machine(Tree(), X, y))
+```julia
+using MLJ
+Tree = @load DecisionTreeClassifier
+X, y = @load_iris
+mach = fit!(machine(Tree(), X, y))
 
-    MLJ.save("tree.jls", mach)
-    mach_predict_only = machine("tree.jls")
-    predict(mach_predict_only, X)
+MLJ.save("tree.jls", mach)
+mach_predict_only = machine("tree.jls")
+predict(mach_predict_only, X)
 
-    # using a buffer:
-    io = IOBuffer()
-    MLJ.save(io, mach)
-    seekstart(io)
-    predict_only_mach = machine(io)
-    predict(predict_only_mach, X)
+# using a buffer:
+io = IOBuffer()
+MLJ.save(io, mach)
+seekstart(io)
+predict_only_mach = machine(io)
+predict(predict_only_mach, X)
+```
 
 !!! warning "Only load files from trusted sources"
     Maliciously constructed JLS files, like pickles, and most other
@@ -1066,8 +1079,7 @@ the example below.
 See also [`serializable`](@ref), [`machine`](@ref).
 
 """
-function save(file::Union{String,IO},
-              mach::Machine)
+function save(file::Union{String,IO}, mach::Machine)
     isdefined(mach, :fitresult)  ||
         error("Cannot save an untrained machine. ")
 

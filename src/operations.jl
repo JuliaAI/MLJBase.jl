@@ -74,12 +74,12 @@ for operation in OPERATIONS
     operation == :inverse_transform && continue
 
     ex = quote
-        function $(operation)(mach::Machine{<:Model,false}; rows=:)
+        function $(operation)(mach::Machine{<:Model,<:Any,false}; rows=:)
             # catch deserialized machine with no data:
             isempty(mach.args) && throw(err_serialized($operation))
             return ($operation)(mach, mach.args[1](rows=rows))
         end
-        function $(operation)(mach::Machine{<:Model,true}; rows=:)
+        function $(operation)(mach::Machine{<:Model,<:Any,true}; rows=:)
             # catch deserialized machine with no data:
             isempty(mach.args) && throw(err_serialized($operation))
             model = last_model(mach)
@@ -92,8 +92,10 @@ for operation in OPERATIONS
         end
 
         # special case of Static models (no training arguments):
-        $operation(mach::Machine{<:Static,true}; rows=:) = throw(ERR_ROWS_NOT_ALLOWED)
-        $operation(mach::Machine{<:Static,false}; rows=:) = throw(ERR_ROWS_NOT_ALLOWED)
+        $operation(mach::Machine{<:Static,<:Any,true}; rows=:) =
+            throw(ERR_ROWS_NOT_ALLOWED)
+        $operation(mach::Machine{<:Static,<:Any,false}; rows=:) =
+            throw(ERR_ROWS_NOT_ALLOWED)
     end
     eval(ex)
 

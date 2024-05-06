@@ -41,9 +41,11 @@ expected.
 
 The calling behaviour of a `Source` object is this:
 
-    Xs() = X
-    Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
-    Xs(Xnew) = Xnew
+```julia
+Xs() = X
+Xs(rows=r) = selectrows(X, r)  # eg, X[r,:] for a DataFrame
+Xs(Xnew) = Xnew
+```
 
 See also: [`MLJBase.prefit`](@ref), [`sources`](@ref),
 [`origins`](@ref), [`node`](@ref).

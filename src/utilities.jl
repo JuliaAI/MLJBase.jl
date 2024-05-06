@@ -14,7 +14,7 @@ View a nested named tuple `t` as a tree and return, as a tuple, the values
 at the leaves, in the order they appear in the original tuple.
 
 ```julia-repl
-julia> t = (X = (x = 1, y = 2), Y = 3)
+julia> t = (X = (x = 1, y = 2), Y = 3);
 julia> flat_values(t)
 (1, 2, 3)
 ```
@@ -51,6 +51,7 @@ end
 
 For prepending symbols in expressions like `:(y.w)` and `:(x1.x2.x3)`.
 
+```julia-repl
 julia> prepend(:x, :y)
 :(x.y)
 
@@ -59,6 +60,7 @@ julia> prepend(:x, :(y.z))
 
 julia> prepend(:w, ans)
 :(w.x.y.z)
+```
 
 If the second argument is `nothing`, then `nothing` is returned.
 
@@ -74,10 +76,11 @@ prepend(s::Symbol, ex::Expr) = Expr(:(.), prepend(s, ex.args[1]), ex.args[2])
 Call getproperty recursively on `object` to extract the value of some
 nested property, as in the following example:
 
-    julia> object = (X = (x = 1, y = 2), Y = 3)
-    julia> recursive_getproperty(object, :(X.y))
-    2
-
+```julia-repl
+julia> object = (X = (x = 1, y = 2), Y = 3);
+julia> recursive_getproperty(object, :(X.y))
+2
+```
 """
 recursive_getproperty(obj, property::Symbol) = getproperty(obj, property)
 function recursive_getproperty(obj, ex::Expr)
@@ -105,7 +108,7 @@ end
 
 Set a nested property of an `object` to `value`, as in the following example:
 
-```
+```julia-repl
 julia> mutable struct Foo
            X
            Y
@@ -150,7 +153,7 @@ have the same number of rows.
 end
 
 """
-_permute_rows(obj, perm)
+    _permute_rows(obj, perm)
 
 Internal function to return a vector or matrix with permuted rows given
 the permutation `perm`.
@@ -182,7 +185,7 @@ function shuffle_rows(
 end
 
 """
-init_rng(rng)
+    init_rng(rng)
 
 Create an `AbstractRNG` from `rng`. If `rng` is a non-negative `Integer`, it returns a
 `MersenneTwister` random number generator seeded with `rng`; If `rng` is
@@ -249,8 +252,10 @@ end
 Return a "sequence" string from the first `n` elements generated
 by `itr`.
 
-    julia> MLJBase.sequence_string(1:10, 4)
-    "1, 2, 3, 4, ..."
+```julia-repl
+julia> MLJBase.sequence_string(1:10, 4)
+"1, 2, 3, 4, ..."
+```
 
 **Private method.**
 
@@ -293,7 +298,7 @@ column cycle fastest, those in the last clolumn slowest.
 
 ### Example
 
-```julia
+```julia-repl
 julia> iterators = ([1, 2], ["a","b"], ["x", "y", "z"]);
 julia> MLJTuning.unwind(iterators...)
 12×3 Array{Any,2}:
@@ -340,15 +345,15 @@ end
 Split an `AbstractRange`  into `n` subranges of approximately equal length.
 
 ### Example
-```julia
+```julia-repl
 julia> collect(chunks(1:5, 2))
 2-element Array{UnitRange{Int64},1}:
  1:3
  4:5
+```
 
 **Private method**
 
-```
 """
 function chunks(c::AbstractRange, n::Integer)
     n < 1 && throw(ArgumentError("cannot split range into $n subranges"))
@@ -410,8 +415,8 @@ If `only` is specified, then the operation is restricted to those `M`
 for which `M isa only`. In all other cases the symbolic name is
 generated using `substitute` as the base symbol.
 
-```
-existing_names = []
+```julia-repl
+julia> existing_names = [];
 julia> generate_name!(Vector{Int}, existing_names)
 :vector
 
@@ -470,14 +475,14 @@ generate_name!(model, existing_names; kwargs...) =
 
 *Private method.*
 
-Tries to infer the per-observation scitype from the scitype of `S`, when `S` is known to
-be the scitype of some container with multiple observations; here we view the scitype for
-one row of a table to be the scitype of the row converted to a vector. Return `Unknown` if
-unable to draw reliable inferrence.
+Tries to infer the per-observation scitype from the scitype of `S`, when `S` is
+known to be the scitype of some container with multiple observations; here we
+view the scitype for one row of a table to be the scitype of the row converted
+to a vector. Return `Unknown` if unable to draw reliable inferrence.
 
 
-The observation scitype for a table is here understood as the scitype of a row converted
-to a vector.
+The observation scitype for a table is here understood as the scitype of a row
+converted to a vector.
 
 """
 observation(::Type) = Unknown
@@ -501,13 +506,13 @@ end
 
 *Private method.*
 
-If `y` is an `AbstractArray`, return the scitype of `y[:, :, ..., :, 1]`. If `y` is a
-table, return the scitype of the first row, converted to a vector, unless this row has
-`missing` elements, in which case return `Unknown`.
+If `y` is an `AbstractArray`, return the scitype of `y[:, :, ..., :, 1]`. If `y`
+is a table, return the scitype of the first row, converted to a vector, unless
+this row has `missing` elements, in which case return `Unknown`.
 
 In all other cases, `Unknown`.
 
-```
+```julia-repl
 julia> guess_observation_scitype([missing, 1, 2, 3])
 Union{Missing, Count}
 
@@ -536,12 +541,12 @@ end
 
 *Private method*
 
-Try to infer a lowest upper bound on the scitype of target observations acceptable to
-`model`, by inspecting `target_scitype(model)`. Return `Unknown` if unable to draw reliable
-inferrence.
+Try to infer a lowest upper bound on the scitype of target observations
+acceptable to `model`, by inspecting `target_scitype(model)`. Return `Unknown`
+if unable to draw reliable inferrence.
 
-The observation scitype for a table is here understood as the scitype of a row converted
-to a vector.
+The observation scitype for a table is here understood as the scitype of a row
+converted to a vector.
 
 """
 guess_model_target_observation_scitype(model) =  observation(target_scitype(model))
