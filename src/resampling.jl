@@ -15,8 +15,7 @@ const PREDICT_OPERATIONS_STRING = begin
 end
 const PROG_METER_DT = 0.1
 const ERR_WEIGHTS_LENGTH =
-    DimensionMismatch("`weights` and target "*
-                      "have different lengths. ")
+    DimensionMismatch("`weights` and target have different lengths. ")
 const ERR_WEIGHTS_DICT =
     ArgumentError("`class_weights` must be a "*
                   "dictionary with `Real` values. ")
@@ -158,14 +157,14 @@ train_test_pairs(::InSample, rows) = [(rows, rows),]
 # Holdout
 
 """
-    holdout = Holdout(; fraction_train=0.7,
-                         shuffle=nothing,
-                         rng=nothing)
+    holdout = Holdout(; fraction_train=0.7, shuffle=nothing, rng=nothing)
 
 Instantiate a `Holdout` resampling strategy, for use in `evaluate!`, `evaluate` and in
 tuning.
 
-    train_test_pairs(holdout, rows)
+```julia
+train_test_pairs(holdout, rows)
+```
 
 Returns the pair `[(train, test)]`, where `train` and `test` are
 vectors such that `rows=vcat(train, test)` and
@@ -200,7 +199,7 @@ Holdout(; fraction_train::Float64=0.7, shuffle=nothing, rng=nothing) =
 function train_test_pairs(holdout::Holdout, rows)
 
     train, test = partition(rows, holdout.fraction_train,
-                          shuffle=holdout.shuffle, rng=holdout.rng)
+                            shuffle=holdout.shuffle, rng=holdout.rng)
     return [(train, test),]
 
 end
@@ -214,7 +213,9 @@ end
 Cross-validation resampling strategy, for use in `evaluate!`,
 `evaluate` and tuning.
 
-    train_test_pairs(cv, rows)
+```julia
+train_test_pairs(cv, rows)
+```
 
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices), where each `train` and `test` is a sub-vector
@@ -297,7 +298,9 @@ Cross-validation resampling strategy, for use in `evaluate!`,
 `evaluate` and tuning, when observations are chronological and not
 expected to be independent.
 
-    train_test_pairs(tscv, rows)
+```julia
+train_test_pairs(tscv, rows)
+```
 
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices), where each `train` and `test` is a sub-vector
@@ -392,7 +395,9 @@ Stratified cross-validation resampling strategy, for use in
 `evaluate!`, `evaluate` and in tuning. Applies only to classification
 problems (`OrderedFactor` or `Multiclass` targets).
 
-    train_test_pairs(stratified_cv, rows, y)
+```julia
+train_test_pairs(stratified_cv, rows, y)
+```
 Returns an `nfolds`-length iterator of `(train, test)` pairs of
 vectors (row indices) where each `train` and `test` is a sub-vector of
 `rows`. The `test` vectors are mutually exclusive and exhaust
@@ -1009,8 +1014,10 @@ Available resampling strategies are $RESAMPLING_STRATEGIES_LIST. If `resampling`
 instance of one of these, then a vector of tuples of the form `(train_rows, test_rows)`
 is expected. For example, setting
 
-    resampling = [((1:100), (101:200)),
-                   ((101:200), (1:100))]
+```julia
+resampling = [((1:100), (101:200)),
+              ((101:200), (1:100))]
+```
 
 gives two-fold cross-validation using the first 200 rows of data.
 
@@ -1161,9 +1168,8 @@ end
 """
     evaluate(model, data...; cache=true, options...)
 
-Equivalent to `evaluate!(machine(model, data..., cache=cache);
-options...)`.  See the machine version `evaluate!` for the complete
-list of options.
+Equivalent to `evaluate!(machine(model, data..., cache=cache); options...)`.
+See the machine version `evaluate!` for the complete list of options.
 
 Returns a  [`PerformanceEvaluation`](@ref) object.
 

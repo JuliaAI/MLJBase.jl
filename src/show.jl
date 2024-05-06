@@ -27,7 +27,9 @@ Private method (used in testing).
 
 Equivalent to `const x = value` but registers the binding thus:
 
-    MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
+```julia
+MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
+```
 
 Registered objects get displayed using the variable name to which it
 was bound in calls to `show(x)`, etc.
@@ -320,19 +322,21 @@ _show(stream::IO, ::Nothing) = println(stream, "nothing")
 """
     _recursive_show(stream, object, current_depth, depth)
 
+**Private method.**
+
 Generate a table of the properties of the `MLJType` object, dislaying
 each property value by calling the method `_show` on it. The behaviour
 of `_show(stream, f)` is as follows:
 
 1. If `f` is itself a `MLJType` object, then its short form is shown
-and `_recursive_show` generates as separate table for each of its
-properties (and so on, up to a depth of argument `depth`).
+   and `_recursive_show` generates as separate table for each of its
+   properties (and so on, up to a depth of argument `depth`).
 
 2. Otherwise `f` is displayed as "(omitted T)" where `T = typeof(f)`,
-unless `istoobig(f)` is false (the `istoobig` fall-back for arbitrary
-types being `true`). In the latter case, the long (ie,
-MIME"plain/text") form of `f` is shown. To override this behaviour,
-overload the `_show` method for the type in question.
+   unless `istoobig(f)` is false (the `istoobig` fall-back for arbitrary
+   types being `true`). In the latter case, the long (ie,
+   MIME"plain/text") form of `f` is shown. To override this behaviour,
+   overload the `_show` method for the type in question.
 
 """
 function _recursive_show(stream::IO, object::MLJType, current_depth, depth)

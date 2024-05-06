@@ -61,7 +61,7 @@ const ERR_MODEL_UNSPECIFIED = ArgumentError(
     "Expecting atomic model as argument. None specified. "
 )
 const ERR_TRANSFORMER_UNSPECIFIED = ArgumentError(
-"You must specify `transformer=...`. ."
+    "You must specify `transformer=...`. ."
 )
 const ERR_TOO_MANY_ARGUMENTS = ArgumentError(
     "At most one non-keyword argument, a model, allowed. "
@@ -123,7 +123,7 @@ y -> mode.(y))`.
 A model that normalizes the target before applying ridge regression,
 with predictions returned on the original scale:
 
-```
+```julia
 @load RidgeRegressor pkg=MLJLinearModels
 model = RidgeRegressor()
 tmodel = TransformedTargetModel(model, transformer=Standardizer())
@@ -132,7 +132,7 @@ tmodel = TransformedTargetModel(model, transformer=Standardizer())
 A model that applies a static `log` transformation to the data, again
 returning predictions to the original scale:
 
-```
+```julia
 tmodel2 = TransformedTargetModel(model, transformer=y->log.(y), inverse=z->exp.(y))
 ```
 

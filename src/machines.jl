@@ -14,7 +14,7 @@ The effect of the `scitype_check_level` option in calls of the form
 `machine(model, data, scitype_check_level=...)` is summarized below:
 
 `scitype_check_level` | Inspect scitypes? | If `Unknown` in scitypes | If other scitype mismatch |
-|:-------------------:|:-----------------:|:------------------------:|:-------------------------:|
+|:--------------------|:-----------------:|:------------------------:|:-------------------------:|
 0                     | ×                 |                          |                           |
 1 (value at startup)  | ✓                 |                          | warning                   |
 2                     | ✓                 | warning                  | warning                   |
@@ -120,7 +120,7 @@ any upstream dependencies in a learning network):
 
 ```julia
 replace(mach, :args => (), :data => (), :data_resampled_data => (), :cache => nothing)
-
+```
 """
 function Base.replace(mach::Machine{<:Any,<:Any,C}, field_value_pairs::Pair...) where C
     # determined new `model` and `args` and build replacement dictionary:
@@ -206,8 +206,7 @@ const WARN_UNKNOWN_SCITYPE =
     "Some data contains `Unknown` scitypes, which might lead to model-data mismatches. "
 
 err_length_mismatch(model) = DimensionMismatch(
-    "Differing number of observations "*
-    "in input and target. ")
+    "Differing number of observations in input and target. ")
 
 function check(model::Model, scitype_check_level, args...)
 
@@ -682,7 +681,7 @@ function fit_only!(
         force == true ||        # condition (ii)
         upstream_has_changed || # condition (iii)
         condition_iv ||         # condition (iv)
-        modeltype_changed      # conditions (vi) or (vii)
+        modeltype_changed       # conditions (vi) or (vii)
 
         isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
 
@@ -807,12 +806,12 @@ type's field names as keys. The corresponding value is the fitted parameters for
 machine in the underlying learning network bound to that model. (If multiple machines
 share the same model, then the value is a vector.)
 
-```julia
-using MLJ
-@load LogisticClassifier pkg=MLJLinearModels
-X, y = @load_crabs;
-pipe = Standardizer() |> LogisticClassifier()
-mach = machine(pipe, X, y) |> fit!
+```julia-repl
+julia> using MLJ
+julia> @load LogisticClassifier pkg=MLJLinearModels
+julia> X, y = @load_crabs;
+julia> pipe = Standardizer() |> LogisticClassifier();
+julia> mach = machine(pipe, X, y) |> fit!;
 
 julia> fitted_params(mach).logistic_classifier
 (classes = CategoricalArrays.CategoricalValue{String,UInt32}["B", "O"],
@@ -845,12 +844,12 @@ type's field names as keys. The corresponding value is the report for the machin
 underlying learning network bound to that model. (If multiple machines share the same
 model, then the value is a vector.)
 
-```julia
-using MLJ
-@load LinearBinaryClassifier pkg=GLM
-X, y = @load_crabs;
-pipe = Standardizer() |> LinearBinaryClassifier()
-mach = machine(pipe, X, y) |> fit!
+```julia-repl
+julia> using MLJ
+julia> @load LinearBinaryClassifier pkg=GLM
+julia> X, y = @load_crabs;
+julia> pipe = Standardizer() |> LinearBinaryClassifier();
+julia> mach = machine(pipe, X, y) |> fit!;
 
 julia> report(mach).linear_binary_classifier
 (deviance = 3.8893386087844543e-7,
@@ -957,25 +956,25 @@ A machine returned by `serializable` is characterized by the property
 `mach.state == -1`.
 
 ### Example using [JLSO](https://invenia.github.io/JLSO.jl/stable/)
+```julia
+using MLJ
+using JLSO
+Tree = @load DecisionTreeClassifier
+tree = Tree()
+X, y = @load_iris
+mach = fit!(machine(tree, X, y))
 
-    using MLJ
-    using JLSO
-    Tree = @load DecisionTreeClassifier
-    tree = Tree()
-    X, y = @load_iris
-    mach = fit!(machine(tree, X, y))
+# This machine can now be serialized
+smach = serializable(mach)
+JLSO.save("machine.jlso", :machine => smach)
 
-    # This machine can now be serialized
-    smach = serializable(mach)
-    JLSO.save("machine.jlso", :machine => smach)
+# Deserialize and restore learned parameters to useable form:
+loaded_mach = JLSO.load("machine.jlso")[:machine]
+restore!(loaded_mach)
 
-    # Deserialize and restore learned parameters to useable form:
-    loaded_mach = JLSO.load("machine.jlso")[:machine]
-    restore!(loaded_mach)
-
-    predict(loaded_mach, X)
-    predict(mach, X)
-
+predict(loaded_mach, X)
+predict(mach, X)
+```
 See also [`restore!`](@ref), [`MLJBase.save`](@ref).
 
 """
@@ -1051,21 +1050,23 @@ the example below.
 
 ### Example
 
-    using MLJ
-    Tree = @load DecisionTreeClassifier
-    X, y = @load_iris
-    mach = fit!(machine(Tree(), X, y))
+```julia
+using MLJ
+Tree = @load DecisionTreeClassifier
+X, y = @load_iris
+mach = fit!(machine(Tree(), X, y))
 
-    MLJ.save("tree.jls", mach)
-    mach_predict_only = machine("tree.jls")
-    predict(mach_predict_only, X)
+MLJ.save("tree.jls", mach)
+mach_predict_only = machine("tree.jls")
+predict(mach_predict_only, X)
 
-    # using a buffer:
-    io = IOBuffer()
-    MLJ.save(io, mach)
-    seekstart(io)
-    predict_only_mach = machine(io)
-    predict(predict_only_mach, X)
+# using a buffer:
+io = IOBuffer()
+MLJ.save(io, mach)
+seekstart(io)
+predict_only_mach = machine(io)
+predict(predict_only_mach, X)
+```
 
 !!! warning "Only load files from trusted sources"
     Maliciously constructed JLS files, like pickles, and most other
@@ -1078,8 +1079,7 @@ the example below.
 See also [`serializable`](@ref), [`machine`](@ref).
 
 """
-function save(file::Union{String,IO},
-              mach::Machine)
+function save(file::Union{String,IO}, mach::Machine)
     isdefined(mach, :fitresult)  ||
         error("Cannot save an untrained machine. ")
 
