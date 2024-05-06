@@ -409,14 +409,14 @@ of nodes, sources and other arguments.
 
 ### Examples
 
-```
-X = source(π)
-W = @node sin(X)
+```julia-repl
+julia> X = source(π)
+julia> W = @node sin(X)
 julia> W()
 0
 
-X = source(1:10)
-Y = @node selectrows(X, 3:4)
+julia> X = source(1:10)
+julia> Y = @node selectrows(X, 3:4)
 julia> Y()
 3:4
 
@@ -425,10 +425,10 @@ julia> Y(["one", "two", "three", "four"])
  "three"
  "four"
 
-X1 = source(4)
-X2 = source(5)
-add(a, b, c) = a + b + c
-N = @node add(X1, 1, X2)
+julia> X1 = source(4)
+julia> X2 = source(5)
+julia> add(a, b, c) = a + b + c
+julia> N = @node add(X1, 1, X2)
 julia> N()
 10
 

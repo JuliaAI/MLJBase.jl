@@ -8,10 +8,10 @@
 
 **Private method.**
 
-Return a dictionary of machines, keyed on model, for the all machines in the completed
-learning network for which `node` is the greatest lower bound. Only machines bound to
-symbolic models are included. Values are always vectors, even if they contain only a
-single machine.
+Return a dictionary of machines, keyed on model, for the all machines in the
+completed learning network for which `node` is the greatest lower bound. Only
+machines bound to symbolic models are included. Values are always vectors,
+even if they contain only a single machine.
 
 """
 function machines_given_model(node::AbstractNode)
@@ -35,14 +35,14 @@ attempt_scalarize(v) = length(v) == 1 ? v[1] : v
 
 **Private method.**
 
-Given a dictionary of machine vectors, keyed on model names (symbols), broadcast `f` over
-each vector, and make the result, in the returned named tuple, the value associated with
-the corresponding model name as key.
+Given a dictionary of machine vectors, keyed on model names (symbols), broadcast
+`f` over each vector, and make the result, in the returned named tuple, the
+value associated with the corresponding model name as key.
 
 Singleton vector values are scalarized, unless `scalarize = false`.
 
-If a value in the computed named tuple is `nothing`, or a vector of `nothing`s, then the
-entry is dropped from the tuple, unless `drop_nothings=false`.
+If a value in the computed named tuple is `nothing`, or a vector of `nothing`s,
+then the entry is dropped from the tuple, unless `drop_nothings=false`.
 
 """
 function tuple_keyed_on_model(f, machines_given_model; scalarize=true, drop_nothings=true)

@@ -18,9 +18,6 @@ const EXTRA_CLASSIFICATION =
 Internal function to  finalize the `make_*` functions.
 
 """
-x = [1 2 3 ; 4 5 6]
-x
-length(size(collect(1:3))) # (
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
@@ -78,7 +75,7 @@ By default, a table `X` with `p` columns (features) and `n` rows
 
 ### Example
 
-```
+```julia
 X, y = make_blobs(100, 3; centers=2, cluster_std=[1.0, 3.0])
 ```
 
@@ -95,8 +92,7 @@ function make_blobs(n::Integer=100,
 
     # check arguments make sense
     if n < 1 || p < 1
-        throw(ArgumentError(
-            "Expected `n` and `p` to be at least 1."))
+        throw(ArgumentError("Expected `n` and `p` to be at least 1."))
     end
     if center_box.first >= center_box.second
         throw(ArgumentError(
@@ -181,7 +177,7 @@ $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
 ### Example
 
-```
+```julia
 X, y = make_circles(100; noise=0.5, factor=0.3)
 ```
 
@@ -196,12 +192,10 @@ function make_circles(n::Integer=100;
 
     # check arguments make sense
     if n < 1
-        throw(ArgumentError(
-            "Expected `n` to be at least 1."))
+        throw(ArgumentError("Expected `n` to be at least 1."))
     end
     if noise < 0
-        throw(ArgumentError(
-            "Noise argument cannot be negative."))
+        throw(ArgumentError("Noise argument cannot be negative."))
     end
     if !(0 < factor < 1)
         throw(ArgumentError(
@@ -224,12 +218,12 @@ function make_circles(n::Integer=100;
         X .+= noise .* randn(rng, n, 2)
     end
 
-        return finalize_Xy(X, y, shuffle, as_table, eltype, rng)
+    return finalize_Xy(X, y, shuffle, as_table, eltype, rng)
 end
 
 
 """
-        make_moons(n::Int=100; kwargs...)
+    make_moons(n::Int=100; kwargs...)
 
 Generates labeled two-dimensional points lying close to two
 interleaved semi-circles, for use with classification and clustering
@@ -257,7 +251,7 @@ membership to the left or right semi-circle.
 
 ### Example
 
-```
+```julia
 X, y = make_moons(100; noise=0.5)
 ```
 
@@ -273,12 +267,10 @@ function make_moons(n::Int=150;
 
     # check arguments make sense
     if n < 1
-        throw(ArgumentError(
-            "Expected `n` to be at least 1."))
+        throw(ArgumentError("Expected `n` to be at least 1."))
     end
     if noise < 0
-        throw(ArgumentError(
-            "Noise argument cannot be negative."))
+        throw(ArgumentError("Noise argument cannot be negative."))
     end
 
     rng = init_rng(rng)
@@ -324,8 +316,7 @@ end
 Make portion `s` of vector `θ` exactly 0.
 
 """
-sparsify!(rng, θ, s) =
-        (θ .*= (rand(rng, length(θ)) .< s))
+sparsify!(rng, θ, s) = (θ .*= (rand(rng, length(θ)) .< s))
 
 """Add outliers to portion s of vector."""
 outlify!(rng, y, s) =
@@ -338,19 +329,18 @@ const SIGMOID_32 = log(Float32(1)/eps(Float32) - Float32(1))
     sigmoid(x)
 
 Return the sigmoid computed in a numerically stable way:
-
 ``σ(x) = 1/(1+exp(-x))``
 
 """
 function sigmoid(x::Float64)
-        x > SIGMOID_64  && return one(x)
-        x < -SIGMOID_64 && return zero(x)
-        return one(x) / (one(x) + exp(-x))
+    x > SIGMOID_64  && return one(x)
+    x < -SIGMOID_64 && return zero(x)
+    return one(x) / (one(x) + exp(-x))
 end
 function sigmoid(x::Float32)
-        x > SIGMOID_32  && return one(x)
-        x < -SIGMOID_32 && return zero(x)
-        return one(x) / (one(x) + exp(-x))
+    x > SIGMOID_32  && return one(x)
+    x < -SIGMOID_32 && return zero(x)
+    return one(x) / (one(x) + exp(-x))
 end
 sigmoid(x) = sigmoid(float(x))
 
@@ -392,7 +382,7 @@ $EXTRA_KW_MAKE
 
 ### Example
 
-```
+```julia
 X, y = make_regression(100, 5; noise=0.5, sparse=0.2, outliers=0.1)
 ```
 
@@ -411,24 +401,19 @@ function make_regression(n::Int=100,
 
     # check arguments make sense
     if n < 1 || p < 1
-        throw(ArgumentError(
-            "Expected `n` and `p` to be at least 1."))
+        throw(ArgumentError("Expected `n` and `p` to be at least 1."))
     end
     if n_targets < 1
-        throw(ArgumentError(
-            "Expected `n_targets` to be at least 1."))
+        throw(ArgumentError("Expected `n_targets` to be at least 1."))
     end
     if !(0 <= sparse < 1)
-        throw(ArgumentError(
-            "Sparsity argument must be in [0, 1)."))
+        throw(ArgumentError("Sparsity argument must be in [0, 1)."))
     end
     if noise < 0
-        throw(ArgumentError(
-            "Noise argument cannot be negative."))
+        throw(ArgumentError("Noise argument cannot be negative."))
     end
     if !(0 <= outliers <= 1)
-        throw(ArgumentError(
-            "Outliers argument must be in [0, 1]."))
+        throw(ArgumentError("Outliers argument must be in [0, 1]."))
     end
 
     rng = init_rng(rng)

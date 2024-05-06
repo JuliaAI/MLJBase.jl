@@ -337,12 +337,12 @@ internal_stack_report(
 ) = NamedTuple{}()
 
 """
-internal_stack_report(
-    m::Stack,
-    verbosity::Int,
-    y::AbstractNode,
-    folds_evaluations::Vararg{AbstractNode},
-)
+    internal_stack_report(
+        m::Stack,
+        verbosity::Int,
+        y::AbstractNode,
+        folds_evaluations::Vararg{AbstractNode},
+    )
 
 When measure/measures is provided, the folds_evaluation will have been filled by
 `store_for_evaluation`. This function is not doing any heavy work (not constructing nodes
@@ -518,7 +518,7 @@ function oos_set(m::Stack{modelnames}, Xs::Source, ys::Source, tt_pairs) where m
 end
 
 #######################################
-################# Prefit #################
+################# Prefit ##############
 #######################################
 
 function prefit(m::Stack{modelnames}, verbosity::Int, X, y) where modelnames
@@ -564,8 +564,7 @@ const DOC_STACK =
     Stack(; metalearner=nothing, name1=model1, name2=model2, ..., keyword_options...)
 
 Implements the two-layer generalized stack algorithm introduced by
-[Wolpert
-(1992)](https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231)
+[Wolpert (1992)](https://www.sciencedirect.com/science/article/abs/pii/S0893608005800231)
 and generalized by [Van der Laan et al
 (2007)](https://biostats.bepress.com/ucbbiostat/paper222/). Returns an
 instance of type `ProbabilisticStack` or `DeterministicStack`,
