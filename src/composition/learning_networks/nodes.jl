@@ -182,7 +182,7 @@ function ScientificTypes.elscitype(
 end
 
 # TODO after
-# https://github.com/alan-turing-institute/ScientificTypesBase.jl/issues/102 :
+# https://github.com/JuliaAI/ScientificTypesBase.jl/issues/102 :
 # Add Probabilistic case to above
 
 ScientificTypes.scitype(N::Node) = CallableReturning{elscitype(N)}

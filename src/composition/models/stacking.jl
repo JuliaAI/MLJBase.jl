@@ -276,7 +276,7 @@ MLJBase.load_path(::Type{<:ProbabilisticStack}) = "MLJBase.ProbabilisticStack"
 MLJBase.load_path(::Type{<:DeterministicStack}) = "MLJBase.DeterministicStack"
 MLJBase.package_name(::Type{<:Stack}) = "MLJBase"
 MLJBase.package_uuid(::Type{<:Stack}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
-MLJBase.package_url(::Type{<:Stack}) = "https://github.com/alan-turing-institute/MLJBase.jl"
+MLJBase.package_url(::Type{<:Stack}) = "https://github.com/JuliaAI/MLJBase.jl"
 MLJBase.package_license(::Type{<:Stack}) = "MIT"
 
 ###########################################################

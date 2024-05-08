@@ -171,7 +171,7 @@ metadata_pkg.((ConstantRegressor, ConstantClassifier,
                DeterministicConstantRegressor, DeterministicConstantClassifier),
               name="MLJModels",
               uuid="d491faf4-2d78-11e9-2867-c94bc002c0b7",
-              url="https://github.com/alan-turing-institute/MLJModels.jl",
+              url="https://github.com/JuliaAI/MLJModels.jl",
               julia=true,
               license="MIT",
               is_wrapper=false)

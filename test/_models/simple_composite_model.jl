@@ -54,7 +54,7 @@ for model in COMPOSITE_MODELS
 
         MLJBase.metadata_pkg(
             $(model);
-            package_url = "https://github.com/alan-turing-institute/MLJBase.jl",
+            package_url = "https://github.com/JuliaAI/MLJBase.jl",
             is_pure_julia = true,
             is_wrapper = true
         )
