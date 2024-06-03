@@ -397,7 +397,7 @@ end
 
 # # LEARNING NETWORK INTERFACE
 
-# https://alan-turing-institute.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
+# https://JuliaAI.github.io/MLJ.jl/dev/composing_models/#Learning-network-machines
 
 
 # ## Methods to extend a pipeline learning network
@@ -599,6 +599,9 @@ end
 
 MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
 
+MMI.package_name(::Type{<:SomePipeline}) = "MLJBase"
+MMI.load_path(::Type{<:SomePipeline}) = "MLJBase.Pipeline"
+MMI.constructor(::Type{<:SomePipeline}) = Pipeline
 
 # ## Training losses
 

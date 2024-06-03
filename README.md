@@ -1,7 +1,7 @@
 ## MLJBase
 
 Repository for developers that provides core functionality for the
-[MLJ](https://github.com/alan-turing-institute/MLJ.jl) machine
+[MLJ](https://github.com/JuliaAI/MLJ.jl) machine
 learning framework.
 
 | Branch   | Julia | Build  | Coverage |
@@ -20,7 +20,7 @@ learning framework.
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaai.github.io/MLJBase.jl/stable/)
 
-[MLJ](https://github.com/alan-turing-institute/MLJ.jl) is a Julia
+[MLJ](https://github.com/JuliaAI/MLJ.jl) is a Julia
 framework for combining and tuning machine learning models. This
 repository provides core functionality for MLJ, including:
 
@@ -37,7 +37,7 @@ repository provides core functionality for MLJ, including:
 - basic utilities for **manipulating datasets** and for **synthesizing datasets** (src/data)
   
 - a [small
-  interface](https://alan-turing-institute.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1)
+  interface](https://JuliaAI.github.io/MLJ.jl/dev/evaluating_model_performance/#Custom-resampling-strategies-1)
   for **resampling strategies** and implementations, including `CV()`, `StratifiedCV` and
   `Holdout` (src/resampling.jl). Actual performance evaluation measures (aka metrics), which previously
   were provided by MLJBase.jl, now live in [StatisticalMeasures.jl](https://juliaai.github.io/StatisticalMeasures.jl/dev/).

@@ -95,7 +95,9 @@ end
 
 @testset "public constructor" begin
     # un-named components:
-    @test Pipeline(m, t, u) isa UnsupervisedPipeline
+    flute = Pipeline(m, t, u)
+    @test flute isa UnsupervisedPipeline
+    @test MLJBase.constructor(flute) == Pipeline
     @test Pipeline(m, t, u, p) isa ProbabilisticPipeline
     @test Pipeline(m, t, u, p, operation=predict_mean) isa DeterministicPipeline
     @test Pipeline(u, p, u, operation=predict_mean) isa DeterministicPipeline

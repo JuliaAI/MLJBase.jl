@@ -606,6 +606,9 @@ end
     holdout = Holdout(fraction_train=0.75)
     resampler = Resampler(resampling=holdout, model=ridge_model, measure=mae,
                           acceleration=accel)
+    @test constructor(resampler) == Resampler
+    @test package_name(resampler) == "MLJBase"
+    @test load_path(resampler) == "MLJBase.Resampler"
     resampling_machine = machine(resampler, X, y)
     @test_logs((:info, r"^Training"), fit!(resampling_machine))
     e1=evaluate(resampling_machine).measurement[1]

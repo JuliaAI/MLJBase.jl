@@ -264,6 +264,8 @@ function Base.setproperty!(stack::Stack{modelnames}, _name::Symbol, val) where m
 end
 
 
+# # TRAITS
+
 MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where
     {modelnames, input_scitype, target_scitype} = target_scitype
 
@@ -271,12 +273,11 @@ MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) w
 MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where
     {modelnames, input_scitype, target_scitype} = input_scitype
 
-
-MLJBase.load_path(::Type{<:ProbabilisticStack}) = "MLJBase.ProbabilisticStack"
-MLJBase.load_path(::Type{<:DeterministicStack}) = "MLJBase.DeterministicStack"
+MMI.constructor(::Type{<:Stack}) = Stack
+MLJBase.load_path(::Type{<:Stack}) = "MLJBase.Stack"
 MLJBase.package_name(::Type{<:Stack}) = "MLJBase"
 MLJBase.package_uuid(::Type{<:Stack}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
-MLJBase.package_url(::Type{<:Stack}) = "https://github.com/alan-turing-institute/MLJBase.jl"
+MLJBase.package_url(::Type{<:Stack}) = "https://github.com/JuliaAI/MLJBase.jl"
 MLJBase.package_license(::Type{<:Stack}) = "MIT"
 
 ###########################################################

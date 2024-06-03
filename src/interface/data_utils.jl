@@ -89,7 +89,7 @@ MMI.selectcols(::FI, ::Val{:table}, X, ::Colon) = X
 function MMI.selectrows(::FI, ::Val{:table}, X, r)
     r = r isa Integer ? (r:r) : r
     # next uncommented line is a hack; see
-    # https://github.com/alan-turing-institute/MLJBase.jl/issues/151
+    # https://github.com/JuliaAI/MLJBase.jl/issues/151
     isdataframe(X) && return X[r, :]
     cols = Tables.columntable(X)
     new_cols = NamedTuple{keys(cols)}(tuple((c[r] for c in values(cols))...))
