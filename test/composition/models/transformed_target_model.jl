@@ -86,6 +86,7 @@ avg_nonlinear = g(mean(f(y))) # = g(mean(z))
 
     # Test wrapping using f and g:
     model = TransformedTargetModel(atom, transformer=f, inverse=g)
+    @test MLJBase.constructor(model) == TransformedTargetModel
     fr1, _, _ = MMI.fit(model, 0, X, y)
     @test first(predict(model, fr1, X)) ≈ fill(avg_nonlinear, 5)
 

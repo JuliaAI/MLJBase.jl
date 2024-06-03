@@ -10,7 +10,8 @@ const TT_SUPPORTED_ATOMS = (
     :Deterministic,
     :DeterministicUnsupervisedDetector,
     :DeterministicSupervisedDetector,
-    :Interval)
+    :Interval,
+)
 
 # Each supported atomic type gets its own wrapper:
 
@@ -264,6 +265,10 @@ MMI.package_license(::Type{<:SomeTT}) = "MIT"
 MMI.package_uuid(::Type{<:SomeTT}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
 MMI.is_wrapper(::Type{<:SomeTT}) = true
 MMI.package_url(::Type{<:SomeTT}) = "https://github.com/JuliaAI/MLJBase.jl"
+
+MMI.load_path(::Type{<:SomeTT}) = "MLJBase.TransformedTargetModel"
+MMI.constructor(::Type{<:SomeTT}) = TransformedTargetModel
+
 
 for New in TT_TYPE_EXS
     quote

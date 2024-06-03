@@ -599,6 +599,9 @@ end
 
 MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
 
+MMI.package_name(::Type{<:SomePipeline}) = "MLJBase"
+MMI.load_path(::Type{<:SomePipeline}) = "MLJBase.Pipeline"
+MMI.constructor(::Type{<:SomePipeline}) = Pipeline
 
 # ## Training losses
 

@@ -1548,9 +1548,11 @@ end
         compact=false,
     )
 
+*Private method.* Use at own risk.
+
 Resampling model wrapper, used internally by the `fit` method of `TunedModel` instances
-and `IteratedModel` instances. See [`evaluate!](@ref) for options. Not intended for use by
-general user, who will ordinarily use [`evaluate!`](@ref) directly.
+and `IteratedModel` instances. See [`evaluate!`](@ref) for meaning of the options. Not
+intended for use by general user, who will ordinarily use [`evaluate!`](@ref) directly.
 
 Given a machine `mach = machine(resampler, args...)` one obtains a performance evaluation
 of the specified `model`, performed according to the prescribed `resampling` strategy and
@@ -1591,16 +1593,6 @@ mutable struct Resampler{S, L} <: Model
     logger::L
     compact::Bool
 end
-
-# Some traits are markded as `missing` because we cannot determine
-# them from from the type because we have removed `M` (for "model"} as
-# a `Resampler` type parameter. See
-# https://github.com/JuliaAI/MLJTuning.jl/issues/141#issue-951221466
-
-StatisticalTraits.is_wrapper(::Type{<:Resampler}) = true
-StatisticalTraits.supports_weights(::Type{<:Resampler}) = missing
-StatisticalTraits.supports_class_weights(::Type{<:Resampler}) = missing
-StatisticalTraits.is_pure_julia(::Type{<:Resampler}) = true
 
 function MLJModelInterface.clean!(resampler::Resampler)
     warning = ""
@@ -1787,11 +1779,16 @@ function MLJModelInterface.update(
 
 end
 
-# The input and target scitypes cannot be determined from the type
-# because we have removed `M` (for "model") as a `Resampler` type
-# parameter. See
+# Some traits are marked as `missing` because we cannot determine
+# them from from the type because we have removed `M` (for "model"} as
+# a `Resampler` type parameter. See
 # https://github.com/JuliaAI/MLJTuning.jl/issues/141#issue-951221466
 
+StatisticalTraits.is_wrapper(::Type{<:Resampler}) = true
+StatisticalTraits.supports_weights(::Type{<:Resampler}) = missing
+StatisticalTraits.supports_class_weights(::Type{<:Resampler}) = missing
+StatisticalTraits.is_pure_julia(::Type{<:Resampler}) = true
+StatisticalTraits.constructor(::Type{<:Resampler}) = Resampler
 StatisticalTraits.input_scitype(::Type{<:Resampler}) = Unknown
 StatisticalTraits.target_scitype(::Type{<:Resampler}) = Unknown
 StatisticalTraits.package_name(::Type{<:Resampler}) = "MLJBase"

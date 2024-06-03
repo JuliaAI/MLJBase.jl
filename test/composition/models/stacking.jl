@@ -202,6 +202,9 @@ end
                     measures=rmse,
                     resampling=CV(;nfolds=3),
                     models...)
+
+    @test MLJBase.constructor(mystack) == Stack
+
     @test mystack.ridge_lambda.lambda == 0.1
     @test mystack.metalearner isa FooBarRegressor
     @test mystack.resampling isa CV
