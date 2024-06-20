@@ -760,7 +760,7 @@ const DOC_DEFAULT_LOGGER =
 
    !!! note
 
-   In MLJ version prior to 0.21 the default logger is always `nothing`.
+   Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
 
 """
 

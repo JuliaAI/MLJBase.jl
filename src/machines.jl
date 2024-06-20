@@ -1089,9 +1089,10 @@ function save(file::Union{String,IO}, mach::Machine)
 end
 
 const ERR_INVALID_DEFAULT_LOGGER = ArgumentError(
-    "`default_logger()` is currently `nothing`. "*
-    "Either specify an explicit path or stream as "*
-    "target of the save, or use `default_logger(logger)` "*
+    "You have attempted to save a machine to the default logger "*
+    "but `default_logger()` is currently `nothing`. "*
+    "Either specify an explicit logger, path or stream to save to, "*
+    "or use `default_logger(logger)` "*
     "to change the default logger. "
 )
 

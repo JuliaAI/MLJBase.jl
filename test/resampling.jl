@@ -932,4 +932,21 @@ end
     end
 end
 
+# DUMMY LOGGER
+
+struct  DummyLogger end
+
+MLJBase.save(logger::DummyLogger, mach::Machine) = mach.model
+
+@testset "default logger" begin
+    @test isnothing(default_logger())
+    model = ConstantClassifier()
+    mach = machine(model, make_moons(10)...)
+    fit!(mach, verbosity=0)
+    @test_throws MLJBase.ERR_INVALID_DEFAULT_LOGGER MLJBase.save(mach)
+    default_logger(DummyLogger())
+    @test default_logger() == DummyLogger()
+    @test MLJBase.save(mach) == model
+end
+
 true
