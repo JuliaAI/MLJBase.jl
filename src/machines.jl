@@ -1088,6 +1088,25 @@ function save(file::Union{String,IO}, mach::Machine)
     serialize(file, smach)
 end
 
+const ERR_INVALID_DEFAULT_LOGGER = ArgumentError(
+    "You have attempted to save a machine to the default logger "*
+    "but `default_logger()` is currently `nothing`. "*
+    "Either specify an explicit logger, path or stream to save to, "*
+    "or use `default_logger(logger)` "*
+    "to change the default logger. "
+)
+
+"""
+    MLJ.save(mach)
+    MLJBase.save(mach)
+
+Save the current machine as an artifact at the location associated with
+`default_logger`](@ref).
+
+"""
+MLJBase.save(mach::Machine) = MLJBase.save(default_logger(), mach)
+MLJBase.save(::Nothing, ::Machine) = throw(ERR_INVALID_DEFAULT_LOGGER)
+
 report_for_serialization(mach) = mach.report
 
 # NOTE. there is also a specialization of `report_for_serialization` for `Composite`

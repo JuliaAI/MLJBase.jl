@@ -1,4 +1,4 @@
-# # TYPE ALIASES
+ # TYPE ALIASES
 
 const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
@@ -747,6 +747,64 @@ Base.show(io::IO, e::CompactPerformanceEvaluation) =
     print(io, "CompactPerformanceEvaluation$(_summary(e))")
 
 
+
+# ===============================================================
+## USER CONTROL OF DEFAULT LOGGING
+
+const DOC_DEFAULT_LOGGER =
+    """
+
+   The default logger is used in calls to [`evaluate!`](@ref) and [`evaluate`](@ref), and
+   in the constructors `TunedModel` and `IteratedModel`, unless the `logger` keyword is
+   explicitly specified.
+
+   !!! note
+
+   Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
+
+"""
+
+"""
+    default_logger()
+
+Return the current value of the default logger for use with supported machine learning
+tracking platforms, such as [MLflow](https://mlflow.org/docs/latest/index.html).
+
+$DOC_DEFAULT_LOGGER
+
+ When MLJBase is first loaded, the default logger is `nothing`. To reset the logger, see
+ beow.
+
+"""
+default_logger() = DEFAULT_LOGGER[]
+
+"""
+    default_logger(logger)
+
+Reset the default logger.
+
+# Example
+
+Suppose an [MLflow](https://mlflow.org/docs/latest/index.html) tracking service is running
+on a local server at `http://127.0.0.1:500`. Then every in every `evaluate` call in which
+`logger` is not specified, as in the example below, the peformance evaluation is
+automatically logged to the service.
+
+```julia-repl
+using MLJ
+logger = MLJFlow.Logger("http://127.0.0.1:5000/api")
+default_logger(logger)
+
+X, y = make_moons()
+model = ConstantClassifier()
+evaluate(model, X, y, measures=[log_loss, accuracy)])
+
+"""
+function default_logger(logger)
+    DEFAULT_LOGGER[] = logger
+end
+
+
 # ===============================================================
 ## EVALUATION METHODS
 
@@ -1068,7 +1126,8 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
   `false` the `per_observation` field of the returned object is populated with
   `missing`s. Setting to `false` may reduce compute time and allocations.
 
-- `logger` - a logger object (see [`MLJBase.log_evaluation`](@ref))
+- `logger=default_logger()` - a logger object for forwarding results to a machine learning
+  tracking platform; see [`default_logger`](@ref) for details.
 
 - `compact=false` - if `true`, the returned evaluation object excludes these fields:
   `fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
@@ -1093,7 +1152,7 @@ function evaluate!(
     check_measure=true,
     per_observation=true,
     verbosity=1,
-    logger=nothing,
+    logger=default_logger(),
     compact=false,
     )
 
@@ -1544,7 +1603,7 @@ end
         acceleration=default_resource(),
         check_measure=true,
         per_observation=true,
-        logger=nothing,
+        logger=default_logger(),
         compact=false,
     )
 
@@ -1624,7 +1683,7 @@ function Resampler(
     repeats=1,
     cache=true,
     per_observation=true,
-    logger=nothing,
+    logger=default_logger(),
     compact=false,
 )
     resampler = Resampler(

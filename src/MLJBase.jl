@@ -248,7 +248,8 @@ export params
 # -------------------------------------------------------------------
 # exports from this module, MLJBase
 
-# computational_resources.jl:
+# get/set global constants:
+export default_logger
 export default_resource
 
 # one_dimensional_ranges.jl:

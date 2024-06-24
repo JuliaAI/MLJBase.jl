@@ -3,6 +3,7 @@ function __init__()
     global DEFAULT_RESOURCE = Ref{AbstractResource}(CPU1())
     global DEFAULT_SCITYPE_CHECK_LEVEL = Ref{Int}(1)
     global SHOW_COLOR = Ref{Bool}(true)
+    global DEFAULT_LOGGER = Ref{Any}(nothing)
 
     # for testing asynchronous training of learning networks:
     global TESTING = parse(Bool, get(ENV, "TEST_MLJBASE", "false"))
