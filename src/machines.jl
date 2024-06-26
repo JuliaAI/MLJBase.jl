@@ -572,31 +572,31 @@ the true model given by `getproperty(composite, model)`. See also [`machine`](@r
 For the action to be a no-operation, either `mach.frozen == true` or
 or none of the following apply:
 
-- (i) `mach` has never been trained (`mach.state == 0`).
+1. `mach` has never been trained (`mach.state == 0`).
 
-- (ii) `force == true`.
+2. `force == true`.
 
-- (iii) The `state` of some other machine on which `mach` depends has
-  changed since the last time `mach` was trained (ie, the last time
-  `mach.state` was last incremented).
+3. The `state` of some other machine on which `mach` depends has
+   changed since the last time `mach` was trained (ie, the last time
+   `mach.state` was last incremented).
 
-- (iv) The specified `rows` have changed since the last retraining and
-  `mach.model` does not have `Static` type.
+4.  The specified `rows` have changed since the last retraining and
+   `mach.model` does not have `Static` type.
 
-- (v) `mach.model` is a model and different from the last model used for training, but has
-  the same type.
+5.  `mach.model` is a model and different from the last model used for training, but has
+   the same type.
 
-- (vi) `mach.model` is a model but has a type different from the last model used for
-  training.
+6. `mach.model` is a model but has a type different from the last model used for
+   training.
 
-- (vii) `mach.model` is a symbol and `(composite, mach.model)` is different from the last
-  model used for training, but has the same type.
+7. `mach.model` is a symbol and `(composite, mach.model)` is different from the last
+   model used for training, but has the same type.
 
-- (viii) `mach.model` is a symbol and `(composite, mach.model)` has a different type from
-  the last model used for training.
+8. `mach.model` is a symbol and `(composite, mach.model)` has a different type from
+   the last model used for training.
 
-In any of the cases (i) - (iv), (vi), or (viii), `mach` is trained ab initio. If (v) or
-(vii) is true, then a training update is applied.
+In any of the cases (1) - (4), (6), or (8), `mach` is trained ab initio.
+If (5) or (7) is true, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
