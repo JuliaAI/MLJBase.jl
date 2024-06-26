@@ -334,7 +334,7 @@ const SIGMOID_32 = log(Float32(1)/eps(Float32) - Float32(1))
     sigmoid(x)
 
 Return the sigmoid computed in a numerically stable way:
-``σ(x) = 1/(1+exp(-x))``
+``σ(x) = 1/(1+\\exp(-x))``
 
 """
 function sigmoid(x::Float64)
