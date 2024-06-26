@@ -752,15 +752,15 @@ Base.show(io::IO, e::CompactPerformanceEvaluation) =
 ## USER CONTROL OF DEFAULT LOGGING
 
 const DOC_DEFAULT_LOGGER =
-    """
+"""
 
-   The default logger is used in calls to [`evaluate!`](@ref) and [`evaluate`](@ref), and
-   in the constructors `TunedModel` and `IteratedModel`, unless the `logger` keyword is
-   explicitly specified.
+The default logger is used in calls to [`evaluate!`](@ref) and [`evaluate`](@ref), and
+in the constructors `TunedModel` and `IteratedModel`, unless the `logger` keyword is
+explicitly specified.
 
-   !!! note
+!!! note
 
-   Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
+    Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
 
 """
 
