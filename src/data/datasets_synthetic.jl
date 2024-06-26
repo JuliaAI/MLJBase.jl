@@ -172,7 +172,6 @@ membership to the smaller or larger circle, respectively.
 * `noise=0`: standard deviation of the Gaussian noise added to the data,
 
 * `factor=0.8`: ratio of the smaller radius over the larger one,
-
 $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
 ### Example
