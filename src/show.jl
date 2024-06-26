@@ -347,7 +347,7 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
         print(stream, "#"^current_depth, " ")
         show(stream, object)
         println(stream, ": ")
-#        println(stream)
+        # println(stream)
         if isempty(fields)
             println(stream)
             return
@@ -358,10 +358,10 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
             print(stream, fld_string)
             if isdefined(object, fld)
                 _show(stream, getproperty(object, fld))
-                #           println(stream)
+                # println(stream)
             else
                 println(stream, "(undefined)")
-                #           println(stream)
+                # println(stream)
             end
         end
         println(stream)

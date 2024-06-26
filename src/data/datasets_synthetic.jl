@@ -21,12 +21,12 @@ Internal function to  finalize the `make_*` functions.
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
-                X, y = shuffle_rows(X, y; rng=rng)
-        end
-        if eltype != Float64
-                X = convert.(eltype, X)
-        end
-        # return as matrix if as_table=false
+        X, y = shuffle_rows(X, y; rng=rng)
+    end
+    if eltype != Float64
+        X = convert.(eltype, X)
+    end
+    # return as matrix if as_table=false
     as_table || return X, y
     clf && return MLJBase.table(X), categorical(y)
     if length(size(y)) > 1

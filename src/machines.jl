@@ -1073,8 +1073,7 @@ predict(predict_only_mach, X)
     general purpose serialization formats, can allow for arbitrary code
     execution during loading. This means it is possible for someone
     to use a JLS file that looks like a serialized MLJ machine as a
-    [Trojan
-    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+    [Trojan horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 
 See also [`serializable`](@ref), [`machine`](@ref).
 
