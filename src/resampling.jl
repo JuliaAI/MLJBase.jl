@@ -790,7 +790,7 @@ on a local server at `http://127.0.0.1:500`. Then every in every `evaluate` call
 `logger` is not specified, as in the example below, the peformance evaluation is
 automatically logged to the service.
 
-```julia-repl
+```julia
 using MLJ
 logger = MLJFlow.Logger("http://127.0.0.1:5000/api")
 default_logger(logger)
@@ -798,6 +798,7 @@ default_logger(logger)
 X, y = make_moons()
 model = ConstantClassifier()
 evaluate(model, X, y, measures=[log_loss, accuracy)])
+```
 
 """
 function default_logger(logger)
