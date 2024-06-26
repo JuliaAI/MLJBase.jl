@@ -772,8 +772,8 @@ tracking platforms, such as [MLflow](https://mlflow.org/docs/latest/index.html).
 
 $DOC_DEFAULT_LOGGER
 
- When MLJBase is first loaded, the default logger is `nothing`. To reset the logger, see
- beow.
+When MLJBase is first loaded, the default logger is `nothing`. To reset the logger, see
+below.
 
 """
 default_logger() = DEFAULT_LOGGER[]
@@ -1073,8 +1073,8 @@ instance of one of these, then a vector of tuples of the form `(train_rows, test
 is expected. For example, setting
 
 ```julia
-resampling = [((1:100), (101:200)),
-              ((101:200), (1:100))]
+resampling = [(1:100, 101:200),
+              (101:200, 1:100)]
 ```
 
 gives two-fold cross-validation using the first 200 rows of data.
