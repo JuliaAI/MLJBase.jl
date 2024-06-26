@@ -318,7 +318,12 @@ Make portion `s` of vector `θ` exactly 0.
 """
 sparsify!(rng, θ, s) = (θ .*= (rand(rng, length(θ)) .< s))
 
-"""Add outliers to portion s of vector."""
+"""
+    outlify!(rng, y, s)
+
+Add outliers to portion `s` of vector.
+
+"""
 outlify!(rng, y, s) =
         (n = length(y); y .+= 20 * randn(rng, n) .* (rand(rng, n) .< s))
 

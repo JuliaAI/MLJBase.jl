@@ -50,14 +50,22 @@ macro constant(ex)
     end
 end
 
-"""to display abbreviated versions of integers"""
+"""
+    abbreviated(n)
+
+Display abbreviated versions of integers.
+"""
 function abbreviated(n)
     as_string = string(n)
     return "@"*as_string[end-2:end]
 end
 
-"""return abbreviated object id (as string) or it's registered handle
-(as string) if this exists"""
+"""
+    handle(X)
+
+return abbreviated object id (as string) or it's registered handle
+(as string) if this exists
+"""
 function handle(X)
     id = objectid(X)
     if id in keys(HANDLE_GIVEN_ID)
