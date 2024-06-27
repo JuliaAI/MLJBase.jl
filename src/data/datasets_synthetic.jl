@@ -320,7 +320,7 @@ sparsify!(rng, θ, s) = (θ .*= (rand(rng, length(θ)) .< s))
 """
     outlify!(rng, y, s)
 
-Add outliers to portion `s` of vector.
+Add outliers to portion `s` of vector `y`.
 
 """
 outlify!(rng, y, s) =
