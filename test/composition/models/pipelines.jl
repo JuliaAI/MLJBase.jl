@@ -544,6 +544,7 @@ end
     # inverse transform:
     p = Pipeline(UnivariateBoxCoxTransformer,
                  UnivariateStandardizer)
+    @test !target_in_fit(p)
     xtrain = rand(rng, 10)
     mach = machine(p, xtrain)
     fit!(mach, verbosity=0)
@@ -701,6 +702,40 @@ end
     features = first.(feature_importances(pipe, fitresult, report))
     @test Set(features) == Set(keys(X))
 end
+
+struct SupervisedTransformer <: Unsupervised end
+
+MLJBase.fit(::SupervisedTransformer, verbosity, X, y) = (mean(y), nothing, nothing)
+MLJBase.transform(::SupervisedTransformer, fitresult, X) =
+   fitresult*MLJBase.matrix(X) |> MLJBase.table
+MLJBase.target_in_fit(::Type{<:SupervisedTransformer}) = true
+
+struct DummyTransformer <: Unsupervised end
+MLJBase.fit(::DummyTransformer, verbosity, X) = (nothing, nothing, nothing)
+MLJBase.transform(::DummyTransformer, fitresult, X) = X
+
+@testset "supervised transformers in a pipeline" begin
+    X = MLJBase.table((a=fill(10.0, 3),))
+    y = fill(2, 3)
+    pipe = SupervisedTransformer() |> DeterministicConstantRegressor()
+    @test target_in_fit(pipe)
+    mach = machine(pipe, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill(2.0, 3)
+
+    pipe2 = DummyTransformer |> pipe
+    @test target_in_fit(pipe2)
+    mach = machine(pipe2, X, y)
+    fit!(mach, verbosity=0)
+    @test predict(mach, X) == fill(2.0, 3)
+
+    pipe3 = DummyTransformer |> SupervisedTransformer |> DummyTransformer
+    @test target_in_fit(pipe3)
+    mach = machine(pipe3, X, y)
+    fit!(mach, verbosity=0)
+    @test transform(mach, X).x1 == fill(20.0, 3)
+end
+
 
 end # module
 
