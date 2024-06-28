@@ -182,7 +182,7 @@ or what `transform` returns if it is `Unsupervised`.
 Names for the component fields are automatically generated unless
 explicitly specified, as in
 
-```
+```julia
 Pipeline(encoder=ContinuousEncoder(drop_last=false),
          stand=Standardizer())
 ```

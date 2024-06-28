@@ -21,12 +21,12 @@ Internal function to  finalize the `make_*` functions.
 function finalize_Xy(X, y, shuffle, as_table, eltype, rng; clf::Bool=true)
     # Shuffle the rows if required
     if shuffle
-                X, y = shuffle_rows(X, y; rng=rng)
-        end
-        if eltype != Float64
-                X = convert.(eltype, X)
-        end
-        # return as matrix if as_table=false
+        X, y = shuffle_rows(X, y; rng=rng)
+    end
+    if eltype != Float64
+        X = convert.(eltype, X)
+    end
+    # return as matrix if as_table=false
     as_table || return X, y
     clf && return MLJBase.table(X), categorical(y)
     if length(size(y)) > 1
@@ -172,7 +172,6 @@ membership to the smaller or larger circle, respectively.
 * `noise=0`: standard deviation of the Gaussian noise added to the data,
 
 * `factor=0.8`: ratio of the smaller radius over the larger one,
-
 $(EXTRA_KW_MAKE*EXTRA_CLASSIFICATION)
 
 ### Example
@@ -318,7 +317,12 @@ Make portion `s` of vector `θ` exactly 0.
 """
 sparsify!(rng, θ, s) = (θ .*= (rand(rng, length(θ)) .< s))
 
-"""Add outliers to portion s of vector."""
+"""
+    outlify!(rng, y, s)
+
+Add outliers to portion `s` of vector `y`.
+
+"""
 outlify!(rng, y, s) =
         (n = length(y); y .+= 20 * randn(rng, n) .* (rand(rng, n) .< s))
 
@@ -329,7 +333,7 @@ const SIGMOID_32 = log(Float32(1)/eps(Float32) - Float32(1))
     sigmoid(x)
 
 Return the sigmoid computed in a numerically stable way:
-``σ(x) = 1/(1+exp(-x))``
+``σ(x) = 1/(1+\\exp(-x))``
 
 """
 function sigmoid(x::Float64)

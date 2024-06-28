@@ -529,7 +529,7 @@ err_missing_model(model) = ErrorException(
 )
 
 """
-   last_model(mach::Machine)
+    last_model(mach::Machine)
 
 Return the last model used to train the machine `mach`. This is a bona fide model, even if
 `mach.model` is a symbol.
@@ -572,31 +572,31 @@ the true model given by `getproperty(composite, model)`. See also [`machine`](@r
 For the action to be a no-operation, either `mach.frozen == true` or
 or none of the following apply:
 
-- (i) `mach` has never been trained (`mach.state == 0`).
+1. `mach` has never been trained (`mach.state == 0`).
 
-- (ii) `force == true`.
+2. `force == true`.
 
-- (iii) The `state` of some other machine on which `mach` depends has
-  changed since the last time `mach` was trained (ie, the last time
-  `mach.state` was last incremented).
+3. The `state` of some other machine on which `mach` depends has
+   changed since the last time `mach` was trained (ie, the last time
+   `mach.state` was last incremented).
 
-- (iv) The specified `rows` have changed since the last retraining and
-  `mach.model` does not have `Static` type.
+4. The specified `rows` have changed since the last retraining and
+   `mach.model` does not have `Static` type.
 
-- (v) `mach.model` is a model and different from the last model used for training, but has
-  the same type.
+5. `mach.model` is a model and different from the last model used for training, but has
+   the same type.
 
-- (vi) `mach.model` is a model but has a type different from the last model used for
-  training.
+6. `mach.model` is a model but has a type different from the last model used for
+   training.
 
-- (vii) `mach.model` is a symbol and `(composite, mach.model)` is different from the last
-  model used for training, but has the same type.
+7. `mach.model` is a symbol and `(composite, mach.model)` is different from the last
+   model used for training, but has the same type.
 
-- (viii) `mach.model` is a symbol and `(composite, mach.model)` has a different type from
-  the last model used for training.
+8. `mach.model` is a symbol and `(composite, mach.model)` has a different type from
+   the last model used for training.
 
-In any of the cases (i) - (iv), (vi), or (viii), `mach` is trained ab initio. If (v) or
-(vii) is true, then a training update is applied.
+In any of the cases (1) - (4), (6), or (8), `mach` is trained ab initio.
+If (5) or (7) is true, then a training update is applied.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -658,7 +658,7 @@ function fit_only!(
     rows === nothing && (rows = (:))
     rows_is_new = !isdefined(mach, :old_rows) || rows != mach.old_rows
 
-    condition_iv = rows_is_new && !(mach.model isa Static)
+    condition_4 = rows_is_new && !(mach.model isa Static)
 
     upstream_has_changed = mach.old_upstream_state != upstream_state
 
@@ -672,16 +672,16 @@ function fit_only!(
 
     # build or update cached `resampled_data` if necessary (`mach.data` is already defined
     # above if needed here):
-    if cache_data && (!data_is_valid || condition_iv)
+    if cache_data && (!data_is_valid || condition_4)
         mach.resampled_data = selectrows(model, rows, mach.data...)
     end
 
     # `fit`, `update`, or return untouched:
-    if mach.state == 0 ||       # condition (i)
-        force == true ||        # condition (ii)
-        upstream_has_changed || # condition (iii)
-        condition_iv ||         # condition (iv)
-        modeltype_changed       # conditions (vi) or (vii)
+    if mach.state == 0 ||       # condition (1)
+        force == true ||        # condition (2)
+        upstream_has_changed || # condition (3)
+        condition_4 ||          # condition (4)
+        modeltype_changed       # conditions (6) or (7)
 
         isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
 
@@ -709,7 +709,7 @@ function fit_only!(
                 rethrow()
             end
 
-    elseif model != mach.old_model # condition (v)
+    elseif model != mach.old_model # condition (5)
 
         # update the model:
         fitlog(mach, :update, verbosity)
@@ -1044,9 +1044,10 @@ To serialise using a different format, see [`serializable`](@ref).
 Machines are deserialized using the `machine` constructor as shown in
 the example below.
 
-> The implementation of `save` for machines changed in MLJ 0.18
->  (MLJBase 0.20). You can only restore a machine saved using older
->  versions of MLJ using an older version.
+!!! note
+    The implementation of `save` for machines changed in MLJ 0.18
+    (MLJBase 0.20). You can only restore a machine saved using older
+    versions of MLJ using an older version.
 
 ### Example
 
@@ -1073,8 +1074,7 @@ predict(predict_only_mach, X)
     general purpose serialization formats, can allow for arbitrary code
     execution during loading. This means it is possible for someone
     to use a JLS file that looks like a serialized MLJ machine as a
-    [Trojan
-    horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
+    [Trojan horse](https://en.wikipedia.org/wiki/Trojan_horse_(computing)).
 
 See also [`serializable`](@ref), [`machine`](@ref).
 

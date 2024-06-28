@@ -277,7 +277,7 @@ function _formula(stream, X::Node, depth, indent)
     if X.machine !== nothing
         print(stream, crind(indent + length(operation_name) - anti))
         printstyled(IOContext(stream, :color=>SHOW_COLOR[]),
-#                        handle(X.machine),
+                        #handle(X.machine),
                         X.machine,
                         bold=SHOW_COLOR[])
         n_args == 0 || print(stream, ", ")
