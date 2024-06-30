@@ -25,6 +25,8 @@ end
 struct DummyInterval <: Interval end
 dummy_interval=DummyInterval()
 
+struct GoofyTransformer <: Unsupervised end
+
 dummy_measure_det(yhat, y) = 42
 API.@trait(
     typeof(dummy_measure_det),
@@ -115,6 +117,12 @@ API.@trait(
         MLJBase.err_ambiguous_operation(dummy_interval, LogLoss()),
         MLJBase._actual_operations(nothing,
                                    [LogLoss(), ], dummy_interval, 1))
+
+    # model not have a valid `prediction_type`:
+    @test_throws(
+        MLJBase.ERR_UNSUPPORTED_PREDICTION_TYPE,
+        MLJBase._actual_operations(nothing, [LogLoss(),], GoofyTransformer(), 0),
+    )
 end
 
 @everywhere begin
@@ -935,7 +943,23 @@ end
     end
 end
 
-# DUMMY LOGGER
+
+# # TRANSFORMER WITH PREDICT
+
+struct PredictingTransformer <:Unsupervised end
+MLJBase.fit(::PredictingTransformer, verbosity, X, y) = (mean(y), nothing, nothing)
+MLJBase.predict(::PredictingTransformer, fitresult, X) = fill(fitresult, nrows(X))
+MLJBase.prediction_type(::Type{<:PredictingTransformer}) = :deterministic
+
+@testset "`Unsupervised` model with a predict" begin
+    X = rand(10)
+    y = fill(42.0, 10)
+    e = evaluate(PredictingTransformer(), X, y, resampling=Holdout(), measure=l2)
+    @test e.measurement[1] ≈ 0
+end
+
+
+# # DUMMY LOGGER
 
 struct  DummyLogger end
 
