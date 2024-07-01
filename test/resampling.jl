@@ -118,7 +118,7 @@ API.@trait(
         MLJBase._actual_operations(nothing,
                                    [LogLoss(), ], dummy_interval, 1))
 
-    # model not have a valid `prediction_type`:
+    # model does not have a valid `prediction_type`:
     @test_throws(
         MLJBase.ERR_UNSUPPORTED_PREDICTION_TYPE,
         MLJBase._actual_operations(nothing, [LogLoss(),], GoofyTransformer(), 0),
