@@ -948,7 +948,9 @@ end
 
 struct PredictingTransformer <:Unsupervised end
 MLJBase.fit(::PredictingTransformer, verbosity, X, y) = (mean(y), nothing, nothing)
+MLJBase.fit(::PredictingTransformer, verbosity, X) = (nothing, nothing, nothing)
 MLJBase.predict(::PredictingTransformer, fitresult, X) = fill(fitresult, nrows(X))
+MLJBase.predict(::PredictingTransformer, ::Nothing, X) = nothing
 MLJBase.prediction_type(::Type{<:PredictingTransformer}) = :deterministic
 
 @testset "`Unsupervised` model with a predict" begin
@@ -956,6 +958,10 @@ MLJBase.prediction_type(::Type{<:PredictingTransformer}) = :deterministic
     y = fill(42.0, 10)
     e = evaluate(PredictingTransformer(), X, y, resampling=Holdout(), measure=l2)
     @test e.measurement[1] ≈ 0
+    @test_throws(
+        MLJBase.ERR_NEED_TARGET,
+        evaluate(PredictingTransformer(), X, measure=l2),
+    )
 end
 
 

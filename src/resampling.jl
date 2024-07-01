@@ -68,7 +68,7 @@ err_ambiguous_operation(model, measure) = ArgumentError(
     "Possible value(s) are: $PREDICT_OPERATIONS_STRING. "
 )
 
-ERR_UNSUPPORTED_PREDICTION_TYPE = ArgumentError(
+const ERR_UNSUPPORTED_PREDICTION_TYPE = ArgumentError(
     """
 
     The `prediction_type` of your model needs to be one of: `:deterministic`,
@@ -79,6 +79,18 @@ ERR_UNSUPPORTED_PREDICTION_TYPE = ArgumentError(
     evaluation is not supported.
 
    """
+)
+
+const ERR_NEED_TARGET = ArgumentError(
+   """
+
+    To evaluate a model's performance you must provide a target variable `y`, as in
+    `evaluate(model, X, y; options...)` or
+
+        mach = machine(model, X, y)
+        evaluate!(mach; options...)
+
+    """
 )
 
 # ==================================================================
@@ -1169,6 +1181,8 @@ function evaluate!(
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
     # strategy-specific `evaluate!`
+
+    length(mach.args) > 1 || throw(ERR_NEED_TARGET)
 
     repeats > 0 || error("Need `repeats > 0`. ")
 
