@@ -225,6 +225,15 @@ implements it (some clustering models). Similarly, calling `transform`
 on a supervised pipeline calls `transform` on the supervised
 component.
 
+### Transformers that need a target in training
+
+Some transformers that have type `Unsupervised` (so that the output of `transform` is
+propagated in pipelines) may require a target variable for training. An example are
+so-called target encoders (which transform categorical input features, based on some
+target observations). Provided they appear before any `Supervised` component in the
+pipelines, such models are supported. Of course a target must be provided whenever
+training such a pipeline, whether or not it contains a `Supervised` component.
+
 ### Optional key-word arguments
 
 - `prediction_type`  -
@@ -444,9 +453,13 @@ function extend(front::Front{Pred}, ::Static, name, cache, args...)
     Front(transform(mach, active(front)), front.transform, Pred())
 end
 
-function extend(front::Front{Trans}, component::Unsupervised, name, cache, args...)
+function extend(front::Front{Trans}, component::Unsupervised, name, cache, ::Any, sources...)
     a = active(front)
-    mach = machine(name, a; cache=cache)
+    if target_in_fit(component)
+        mach = machine(name, a, first(sources); cache=cache)
+    else
+        mach = machine(name, a; cache=cache)
+    end
     Front(predict(mach, a), transform(mach, a), Trans())
 end
 
@@ -598,6 +611,7 @@ function MMI.iteration_parameter(pipe::SupervisedPipeline)
 end
 
 MMI.target_scitype(p::SupervisedPipeline) = target_scitype(supervised_component(p))
+MMI.target_in_fit(p::SomePipeline) = any(target_in_fit, components(p))
 
 MMI.package_name(::Type{<:SomePipeline}) = "MLJBase"
 MMI.load_path(::Type{<:SomePipeline}) = "MLJBase.Pipeline"
