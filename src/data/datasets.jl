@@ -199,7 +199,7 @@ function load_smarket()
 end
 
 """Load a well-known sunspot time series (table with one column).
-[https://www.sws.bom.gov.au/Educational/2/3/6]](https://www.sws.bom.gov.au/Educational/2/3/6)
+<https://www.sws.bom.gov.au/Educational/2/3/6>
 """
 load_sunspots() = load_dataset("sunspots.csv", COERCE_SUNSPOTS)
 
@@ -250,9 +250,10 @@ macro load_crabs()
     end
 end
 
-""" Load S&P Stock Market dataset, as used in (An Introduction to
-Statistical Learning with applications in
-R)[https://rdrr.io/cran/ISLR/man/Smarket.html](https://rdrr.io/cran/ISLR/man/Smarket.html),
+"""
+Load S&P Stock Market dataset, as used in
+[An Introduction to Statistical Learning with applications in
+R](https://rdrr.io/cran/ISLR/man/Smarket.html),
 by Witten et al (2013), Springer-Verlag, New York."""
 macro load_smarket()
     quote
