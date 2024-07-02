@@ -301,7 +301,7 @@ column cycle fastest, those in the last clolumn slowest.
 ```julia-repl
 julia> iterators = ([1, 2], ["a","b"], ["x", "y", "z"]);
 julia> MLJTuning.unwind(iterators...)
-12×3 Array{Any,2}:
+12×3 Matrix{Any}:
  1  "a"  "x"
  2  "a"  "x"
  1  "b"  "x"
@@ -347,7 +347,7 @@ Split an `AbstractRange`  into `n` subranges of approximately equal length.
 ### Example
 ```julia-repl
 julia> collect(chunks(1:5, 2))
-2-element Array{UnitRange{Int64},1}:
+2-element Vector{UnitRange{Int64}}:
  1:3
  4:5
 ```

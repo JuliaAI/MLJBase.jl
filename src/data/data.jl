@@ -401,12 +401,18 @@ _isnan(x::Number) = isnan(x)
 
 skipnan(x) = Iterators.filter(!_isnan, x)
 
+isinvalid(x) = ismissing(x) || _isnan(x)
+
 """
     skipinvalid(itr)
 
 Return an iterator over the elements in `itr` skipping `missing` and
 `NaN` values. Behaviour is similar to [`skipmissing`](@ref).
 
+"""
+skipinvalid(v) = v |> skipmissing |> skipnan
+
+"""
     skipinvalid(A, B)
 
 For vectors `A` and `B` of the same length, return a tuple of vectors
@@ -417,10 +423,6 @@ always returns a vector. Does not remove `Missing` from the element
 types if present in the original iterators.
 
 """
-skipinvalid(v) = v |> skipmissing |> skipnan
-
-isinvalid(x) = ismissing(x) || _isnan(x)
-
 function skipinvalid(yhat, y)
     mask = .!(isinvalid.(yhat) .| isinvalid.(y))
     return yhat[mask], y[mask]
