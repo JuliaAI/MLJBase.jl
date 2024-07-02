@@ -228,11 +228,11 @@ component.
 ### Transformers that need a target in training
 
 Some transformers that have type `Unsupervised` (so that the output of `transform` is
-propagated in pipelines) also see a target variable in training. An example are so-called
-target encoders (which transform categorical input features, based on some target
-observations). Provided they appear before any `Supervised` component in the pipelines,
-such models are supported. Of course a target must be provided whenever training such a
-pipeline, whether or not it contains a `Supervised` component.
+propagated in pipelines) may require a target variable for training. An example are
+so-called target encoders (which transform categorical input features, based on some
+target observations). Provided they appear before any `Supervised` component in the
+pipelines, such models are supported. Of course a target must be provided whenever
+training such a pipeline, whether or not it contains a `Supervised` component.
 
 ### Optional key-word arguments
 
