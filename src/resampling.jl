@@ -772,8 +772,7 @@ tracking platforms, such as [MLflow](https://mlflow.org/docs/latest/index.html).
 
 $DOC_DEFAULT_LOGGER
 
-When MLJBase is first loaded, the default logger is `nothing`. To reset the logger, see
-below.
+When MLJBase is first loaded, the default logger is `nothing`.
 
 """
 default_logger() = DEFAULT_LOGGER[]
@@ -786,9 +785,9 @@ Reset the default logger.
 # Example
 
 Suppose an [MLflow](https://mlflow.org/docs/latest/index.html) tracking service is running
-on a local server at `http://127.0.0.1:500`. Then every in every `evaluate` call in which
-`logger` is not specified, as in the example below, the peformance evaluation is
-automatically logged to the service.
+on a local server at `http://127.0.0.1:500`. Then in every `evaluate` call in which
+`logger` is not specified, the peformance evaluation is
+automatically logged to the service, as here:
 
 ```julia
 using MLJ
