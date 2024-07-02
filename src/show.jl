@@ -34,8 +34,10 @@ MLJBase.HANDLE_GIVEN_ID[objectid(value)] = :x
 Registered objects get displayed using the variable name to which it
 was bound in calls to `show(x)`, etc.
 
-WARNING: As with any `const` declaration, binding `x` to new value of
-the same type is not prevented and the registration will not be updated.
+!!! warning
+
+    As with any `const` declaration, binding `x` to new value of
+    the same type is not prevented and the registration will not be updated.
 
 """
 macro constant(ex)
@@ -50,14 +52,22 @@ macro constant(ex)
     end
 end
 
-"""to display abbreviated versions of integers"""
+"""
+    abbreviated(n)
+
+Display abbreviated versions of integers.
+"""
 function abbreviated(n)
     as_string = string(n)
     return "@"*as_string[end-2:end]
 end
 
-"""return abbreviated object id (as string) or it's registered handle
-(as string) if this exists"""
+"""
+    handle(X)
+
+return abbreviated object id (as string) or it's registered handle
+(as string) if this exists
+"""
 function handle(X)
     id = objectid(X)
     if id in keys(HANDLE_GIVEN_ID)
@@ -347,7 +357,7 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
         print(stream, "#"^current_depth, " ")
         show(stream, object)
         println(stream, ": ")
-#        println(stream)
+        # println(stream)
         if isempty(fields)
             println(stream)
             return
@@ -358,10 +368,10 @@ function _recursive_show(stream::IO, object::MLJType, current_depth, depth)
             print(stream, fld_string)
             if isdefined(object, fld)
                 _show(stream, getproperty(object, fld))
-                #           println(stream)
+                # println(stream)
             else
                 println(stream, "(undefined)")
-                #           println(stream)
+                # println(stream)
             end
         end
         println(stream)

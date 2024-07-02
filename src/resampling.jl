@@ -536,8 +536,8 @@ and the corresponding estimates, aggregated over all train/test pairs, are recor
 When displayed, a `PerformanceEvaluation` object includes a value under the heading
 `1.96*SE`, derived from the standard error of the `per_fold` entries. This value is
 suitable for constructing a formal 95% confidence interval for the given
-`measurement`. Such intervals should be interpreted with caution. See, for example, Bates
-et al.  [(2021)](https://arxiv.org/abs/2104.00673).
+`measurement`. Such intervals should be interpreted with caution. See, for example, [Bates
+et al.  (2021)](https://arxiv.org/abs/2104.00673).
 
 ### Fields
 
@@ -752,15 +752,15 @@ Base.show(io::IO, e::CompactPerformanceEvaluation) =
 ## USER CONTROL OF DEFAULT LOGGING
 
 const DOC_DEFAULT_LOGGER =
-    """
+"""
 
-   The default logger is used in calls to [`evaluate!`](@ref) and [`evaluate`](@ref), and
-   in the constructors `TunedModel` and `IteratedModel`, unless the `logger` keyword is
-   explicitly specified.
+The default logger is used in calls to [`evaluate!`](@ref) and [`evaluate`](@ref), and
+in the constructors `TunedModel` and `IteratedModel`, unless the `logger` keyword is
+explicitly specified.
 
-   !!! note
+!!! note
 
-   Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
+    Prior to MLJ v0.20.7 (and MLJBase 1.5) the default logger was always `nothing`.
 
 """
 
@@ -772,8 +772,7 @@ tracking platforms, such as [MLflow](https://mlflow.org/docs/latest/index.html).
 
 $DOC_DEFAULT_LOGGER
 
- When MLJBase is first loaded, the default logger is `nothing`. To reset the logger, see
- beow.
+When MLJBase is first loaded, the default logger is `nothing`.
 
 """
 default_logger() = DEFAULT_LOGGER[]
@@ -786,11 +785,11 @@ Reset the default logger.
 # Example
 
 Suppose an [MLflow](https://mlflow.org/docs/latest/index.html) tracking service is running
-on a local server at `http://127.0.0.1:500`. Then every in every `evaluate` call in which
-`logger` is not specified, as in the example below, the peformance evaluation is
-automatically logged to the service.
+on a local server at `http://127.0.0.1:500`. Then in every `evaluate` call in which
+`logger` is not specified, the peformance evaluation is
+automatically logged to the service, as here:
 
-```julia-repl
+```julia
 using MLJ
 logger = MLJFlow.Logger("http://127.0.0.1:5000/api")
 default_logger(logger)
@@ -798,6 +797,7 @@ default_logger(logger)
 X, y = make_moons()
 model = ConstantClassifier()
 evaluate(model, X, y, measures=[log_loss, accuracy)])
+```
 
 """
 function default_logger(logger)
@@ -1073,8 +1073,8 @@ instance of one of these, then a vector of tuples of the form `(train_rows, test
 is expected. For example, setting
 
 ```julia
-resampling = [((1:100), (101:200)),
-              ((101:200), (1:100))]
+resampling = [(1:100, 101:200),
+              (101:200, 1:100)]
 ```
 
 gives two-fold cross-validation using the first 200 rows of data.

@@ -307,7 +307,8 @@ See also [`MLJBase.Signature`](@ref).
 """
 fitted_params_supplement(signature::Signature) = call_and_copy(fitted_params_nodes(signature))
 
-""" report(signature; supplement=true)
+"""
+    report(signature; supplement=true)
 
 **Private method.**
 
