@@ -101,7 +101,7 @@ function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Symbol, Integer})
     return Tables.getcolumn(cols, c)
 end
 
-function MMI.selectcols(::FI, ::Val{:table}, X, c::Union{Colon, AbstractArray})
+function MMI.selectcols(::FI, ::Val{:table}, X, c)
     if isdataframe(X)
         return X[!, c]
     else
@@ -115,7 +115,7 @@ end
 # utils for `select`*
 
 # project named tuple onto a tuple with only specified `labels` or indices:
-function project(t::NamedTuple, labels::AbstractArray{Symbol})
+function project(t::NamedTuple, labels::Union{AbstractArray{Symbol},NTuple{<:Any,Symbol}})
     return NamedTuple{tuple(labels...)}(t)
 end
 
@@ -123,8 +123,18 @@ project(t::NamedTuple, label::Colon) = t
 project(t::NamedTuple, label::Symbol) = project(t, [label,])
 project(t::NamedTuple, i::Integer) = project(t, [i,])
 
-function project(t::NamedTuple, indices::AbstractArray{<:Integer})
+function project(
+    t::NamedTuple,
+    indices::AbstractArray{<:Integer},
+    )
     return NamedTuple{tuple(keys(t)[indices]...)}(tuple([t[i] for i in indices]...))
+end
+
+function project(
+    t::NamedTuple,
+    indices::NTuple{<:Any,<:Integer},
+    )
+    return NamedTuple{tuple(keys(t)[[indices...]]...)}(tuple([t[i] for i in indices]...))
 end
 
 # utils for selectrows
