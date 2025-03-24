@@ -132,7 +132,7 @@ end
 
 function project(
     t::NamedTuple,
-    indices::NTuple{<:Any,<:Integer},
+    indices::Tuple{<:Any,Vararg{<:Integer}},
     )
     return NamedTuple{tuple(keys(t)[[indices...]]...)}(tuple([t[i] for i in indices]...))
 end
