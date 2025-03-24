@@ -199,6 +199,9 @@ end
     v = categorical(collect("asdfasdf"))
     tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
+
+    X = (; x1=ones(3), x2=ones(3), x3=ones(3));
+    selectcols(X, MLJBase.schema(X).names)
 end
 
 # https://github.com/JuliaAI/MLJBase.jl/issues/784
