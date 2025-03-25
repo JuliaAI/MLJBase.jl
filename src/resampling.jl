@@ -1,4 +1,4 @@
- # TYPE ALIASES
+# TYPE ALIASES
 
 const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow,AbstractRow}
@@ -873,7 +873,7 @@ function _check_measure(measure, operation, model, y)
     end
 
     model isa Deterministic &&
-        StatisticalMeasuresBase.kind_of_proxy(measure) != LearnAPI.LiteralTarget() &&
+        StatisticalMeasuresBase.kind_of_proxy(measure) != LearnAPI.Point() &&
         throw(ERR_MEASURES_DETERMINISTIC(measure))
 
     return true
@@ -962,7 +962,7 @@ function _actual_operations(operation::Nothing,
         # trait. But it's values are instances of LearnAPI.KindOfProxy, instead of
         # symbols:
         #
-        # `LearnAPI.LiteralTarget()` ~ `:deterministic` (`model isa Deterministic`)
+        # `LearnAPI.Point()`        ~ `:deterministic` (`model isa Deterministic`)
         # `LearnAPI.Distribution()` ~ `:probabilistic` (`model isa Deterministic`)
         #
         kind_of_proxy = StatisticalMeasuresBase.kind_of_proxy(m)
@@ -983,7 +983,7 @@ function _actual_operations(operation::Nothing,
         if MLJBase.prediction_type(model) === :probabilistic
             if kind_of_proxy === LearnAPI.Distribution()
                 return predict
-            elseif kind_of_proxy === LearnAPI.LiteralTarget()
+            elseif kind_of_proxy === LearnAPI.Point()
                 if observation_scitype <: Union{Missing,Finite}
                     return predict_mode
                 elseif observation_scitype <:Union{Missing,Infinite}
@@ -997,7 +997,7 @@ function _actual_operations(operation::Nothing,
         elseif MLJBase.prediction_type(model) === :deterministic
             if kind_of_proxy === LearnAPI.Distribution()
                 throw(err_incompatible_prediction_types(model, m))
-            elseif kind_of_proxy === LearnAPI.LiteralTarget()
+            elseif kind_of_proxy === LearnAPI.Point()
                 return predict
             else
                 throw(err_ambiguous_operation(model, m))

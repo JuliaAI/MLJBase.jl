@@ -149,7 +149,9 @@ end
     s = schema(tt)
     @test nrows(tt) == N
 
-    @test selectcols(tt, 4:6) ==
+    @test selectcols(tt, 4:6) == selectcols(tt, (4, 5, 6)) ==
+        selectcols(tt, (:x4, :x5, :z)) ==
+        selectcols(tt, [:x4, :x5, :z]) ==
         selectcols(TypedTables.Table(x4=tt.x4, x5=tt.x5, z=tt.z), :)
     @test selectcols(tt, [:x1, :z]) ==
         selectcols(TypedTables.Table(x1=tt.x1, z=tt.z), :)
@@ -197,6 +199,9 @@ end
     v = categorical(collect("asdfasdf"))
     tt = TypedTables.Table(v=v, w=v)
     @test selectcols(tt, :w) == v
+
+    X = (; x1=ones(3), x2=ones(3), x3=ones(3));
+    selectcols(X, MLJBase.schema(X).names)
 end
 
 # https://github.com/JuliaAI/MLJBase.jl/issues/784
