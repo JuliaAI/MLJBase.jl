@@ -88,7 +88,7 @@ ERROR_AMBIGUOUS_UNION = ArgumentError(
     " in the example, `range(Int, :dummy, lower=1, upper=10)`.")
 
 """
-    r = range(model, :hyper; values=nothing)
+    r = range(model, :hyper; values=...)
 
 Define a one-dimensional `NominalRange` object for a field `hyper` of
 `model`. Note that `r` is not directly iterable but `iterator(r)` is.
@@ -97,19 +97,14 @@ A nested hyperparameter is specified using dot notation. For example,
 `:(atom.max_depth)` specifies the `max_depth` hyperparameter of
 the submodel `model.atom`.
 
-    r = range(model, :hyper; upper=nothing, lower=nothing,
-              scale=nothing, values=nothing)
+    r = range(model, :hyper; upper=..., lower..., unit=..., origin=...,
+              scale=nothing)
 
-Assuming `values` is not specified, define a one-dimensional
-`NumericRange` object for a `Real` field `hyper` of `model`.  Note
-that `r` is not directly iteratable but `iterator(r, n)`is an iterator
-of length `n`. To generate random elements from `r`, instead apply
-`rand` methods to `sampler(r)`. The supported scales are `:linear`,`
-:log`, `:logminus`, `:log10`, `:log10minus`, `:log2`, or a callable
-object.
-
-Note that `r` is not directly iterable, but `iterator(r, n)` is, for
-given resolution (length) `n`.
+Define a one-dimensional `NumericRange` object for a `Real` property `hyper` of `model`.
+Note that `r` is not directly iteratable but `iterator(r, n)`is an iterator of length
+`n`. To generate random elements from `r`, instead apply `rand` methods to
+`sampler(r)`. The supported scales are `:linear`,` :log`, `:logminus`, `:log10`,
+`:log10minus`, `:log2`, or a callable object.
 
 By default, the behaviour of the constructed object depends on the
 type of the value of the hyperparameter `:hyper` at `model` *at the
@@ -119,11 +114,21 @@ behaviour is determined by the value of the specified type.
 
 A nested hyperparameter is specified using dot notation (see above).
 
+# keyword options
+
 If `scale` is unspecified, it is set to `:linear`, `:log`,
 `:log10minus`, or `:linear`, according to whether the interval
 `(lower, upper)` is bounded, right-unbounded, left-unbounded, or
 doubly unbounded, respectively.  Note `upper=Inf` and `lower=-Inf` are
 allowed.
+
+You must specify at least two of the keyword arguments `upper`, `lower`, `unit` and
+`origin`. The last two parameters are used when fitting some distributions to
+unbounded `NumericRange` objects. See [`Distributions.fit`](@ref) for details.
+
+A range is *unbounded* if `lower=-Inf` or `upper=Inf`, or one of these is left
+unspecified. In this case, both `unit` and `origin` must be specified. In the bounded
+case, these have the radius and midpoint of `[lower, upper]` as fallbacks.
 
 If `values` is specified, the other keyword arguments are ignored and
 a `NominalRange` object is returned (see above).
