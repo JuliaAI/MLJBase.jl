@@ -31,7 +31,7 @@ dummy_measure_det(yhat, y) = 42
 API.@trait(
     typeof(dummy_measure_det),
     observation_scitype = MLJBase.Textual,
-    kind_of_proxy = LearnAPI.LiteralTarget(),
+    kind_of_proxy = LearnAPI.Point(),
 )
 
 dummy_measure_interval(yhat, y) = 42
@@ -256,7 +256,7 @@ end
 @everywhere begin
     user_rms(yhat, y) = mean((yhat -y).^2) |> sqrt
     # deliberately omitting `consumes_multiple_observations` trait:
-    API.@trait typeof(user_rms) kind_of_proxy=LearnAPI.LiteralTarget()
+    API.@trait typeof(user_rms) kind_of_proxy=LearnAPI.Point()
 end
 
 @testset_accelerated "folds specified" accel begin

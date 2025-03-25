@@ -475,11 +475,9 @@ generate_name!(model, existing_names; kwargs...) =
 
 *Private method.*
 
-Tries to infer the per-observation scitype from the scitype of `S`, when `S` is
-known to be the scitype of some container with multiple observations; here we
-view the scitype for one row of a table to be the scitype of the row converted
-to a vector. Return `Unknown` if unable to draw reliable inferrence.
-
+Tries to infer the per-observation scitype from the scitype of `S`, when `S` is known to
+be the scitype of some container with multiple observations. Return `Unknown` if unable to
+draw reliable inferrence.
 
 The observation scitype for a table is here understood as the scitype of a row
 converted to a vector.
