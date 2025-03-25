@@ -310,10 +310,4 @@ export default_measure
 export pdf, sampler, mode, median, mean, shuffle!, categorical, shuffle,
    levels, levels!, std, Not, support, logpdf, LittleDict
 
-# for julia < 1.9
-if !isdefined(Base, :get_extension)
-    include(joinpath("..","ext", "DefaultMeasuresExt.jl"))
-    @reexport using .DefaultMeasuresExt.StatisticalMeasures
-end
-
 end # module
