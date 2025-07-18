@@ -30,6 +30,9 @@ mutable struct Source <: AbstractNode
     scitype::DataType
 end
 
+# To ensure `source() != source()`:
+MMI.is_same_except(s1::Source, s2::Source; kwargs...) = s1 === s2
+
 """
     Xs = source(X=nothing)
 

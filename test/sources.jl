@@ -13,6 +13,7 @@ Xs = source(X)
 rebind!(Xs, nothing)
 @test isempty(Xs)
 @test Xs.scitype == Nothing
+@test source() != source()
 
 end
 true
