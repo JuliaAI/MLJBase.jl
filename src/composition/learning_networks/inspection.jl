@@ -115,17 +115,6 @@ train_args(N::Node{<:Machine}) = N.machine.args
 train_args(N::Node{Nothing}) = []
 
 """
-    children(N::AbstractNode, y::AbstractNode)
-
-List all (immediate) children of node `N` in the ancestor graph of `y`
-(training edges included).
-
-"""
-children(N::AbstractNode, y::AbstractNode) = filter(nodes(y)) do W
-    N in args(W) || N in train_args(W)
-end |> unique
-
-"""
     lower_bound(type_itr)
 
 Return the minimum type in the collection `type_itr` if one exists
