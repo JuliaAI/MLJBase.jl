@@ -15,7 +15,6 @@ List all (immediate) children of node `N` in the ancestor graph of `y`
 children(N::AbstractNode, y::AbstractNode) = filter(nodes(y)) do Z
     t = MMI.isrepresented(N, MLJBase.args(Z)) ||
         MMI.isrepresented(N, MLJBase.train_args(Z))
-    @show Z t
 end |> unique
 
 @constant X = source()
