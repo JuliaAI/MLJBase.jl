@@ -3,8 +3,19 @@ module TestLearningCompositesInspection
 using Test
 using MLJBase
 using ..Models
+import MLJModelInterface as MMI
 
-KNNRegressor()
+"""
+    children(N::AbstractNode, y::AbstractNode)
+
+List all (immediate) children of node `N` in the ancestor graph of `y`
+(training edges included).
+
+"""
+children(N::AbstractNode, y::AbstractNode) = filter(nodes(y)) do Z
+    t = N in MLJBase.args(Z) ||
+        N in MLJBase.train_args(Z)
+end |> unique
 
 @constant X = source()
 @constant y = source()
@@ -36,12 +47,12 @@ knnM = machine(knn, W, y)
 @test Set(machines(yhat)) == Set([knnM, hotM])
 @test Set(MLJBase.args(yhat)) == Set([W, ])
 @test Set(MLJBase.train_args(yhat)) == Set([W, y])
-@test Set(MLJBase.children(X, all)) == Set([W, K])
+@test Set(children(X, all)) == Set([W, K])
 
 @constant Q = 2X
 @constant R = 3X
 @constant S = glb(X, Q, R)
-@test Set(MLJBase.children(X, S)) == Set([Q, R, S])
+@test Set(children(X, S)) == Set([Q, R, S])
 @test MLJBase.lower_bound([Int, Float64]) == Union{}
 @test MLJBase.lower_bound([Int, Integer]) == Int
 @test MLJBase.lower_bound([Int, Integer]) == Int
