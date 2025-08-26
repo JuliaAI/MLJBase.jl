@@ -1436,7 +1436,7 @@ function evaluate!(
 
     if !(resampling isa TrainTestPairs)
         error("`resampling` must be an "*
-              "`MLJ.ResamplingStrategy` or tuple of rows "*
+              "`MLJ.ResamplingStrategy` or an vector tuples "*
               "of the form `(train_rows, test_rows)`")
     end
 
