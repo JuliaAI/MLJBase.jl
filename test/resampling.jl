@@ -276,6 +276,19 @@ end
         model = DeterministicConstantRegressor()
         mach  = machine(model, X, y, cache=cache)
 
+        # check catch for bad `resampling` option:
+        @test_throws(
+            MLJBase.ERR_BAD_RESAMPLING_OPTION,
+            evaluate(model, X, y; resampling="junk", verbosity=0, acceleration=accel),
+        )
+
+        # check we can provide tuples of pairs, instead of vectors of pairs, in
+        # `resampling` option:
+        e1 = evaluate(model, X, y; resampling, verbosity=0, acceleration=accel)
+        e2 = evaluate(model, X, y;
+                      resampling=Tuple(resampling), verbosity=0, acceleration=accel)
+        @test e1.measurement[1] ≈ e2.measurement[1]
+
         # check detection of incompatible measure (cross_entropy):
         @test_throws(
             MLJBase.err_incompatible_prediction_types(model, cross_entropy),
