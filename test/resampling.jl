@@ -276,10 +276,14 @@ end
         model = DeterministicConstantRegressor()
         mach  = machine(model, X, y, cache=cache)
 
-        # check catch for bad `resampling` option:
+        # check catch for bad `resampling` options:
         @test_throws(
             MLJBase.ERR_BAD_RESAMPLING_OPTION,
             evaluate(model, X, y; resampling="junk", verbosity=0, acceleration=accel),
+        )
+        @test_throws(
+            MLJBase.ERR_EMPTY_RESAMPLING_OPTION,
+            evaluate(model, X, y; resampling=[], verbosity=0, acceleration=accel),
         )
 
         # check we can provide tuples of pairs, instead of vectors of pairs, in

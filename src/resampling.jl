@@ -3,7 +3,7 @@
 const AbstractRow = Union{AbstractVector{<:Integer}, Colon}
 const TrainTestPair = Tuple{AbstractRow, AbstractRow}
 const TrainTestPairs = Union{
-    NTuple{<:Any,TrainTestPair},
+    Tuple{Vararg{TrainTestPair}},
     AbstractVector{<:TrainTestPair},
 }
 
@@ -98,6 +98,12 @@ const ERR_NEED_TARGET = ArgumentError(
 
 const ERR_BAD_RESAMPLING_OPTION = ArgumentError(
     "`resampling` must be an "*
+        "`MLJ.ResamplingStrategy` or a vector (or tuple) of tuples "*
+        "of the form `(train_rows, test_rows)`"
+)
+
+const ERR_EMPTY_RESAMPLING_OPTION = ArgumentError(
+    "`resampling` cannot be emtpy. It must be an "*
         "`MLJ.ResamplingStrategy` or a vector (or tuple) of tuples "*
         "of the form `(train_rows, test_rows)`"
 )
@@ -1440,6 +1446,7 @@ function evaluate!(
     # Note: `rows` and `repeats` are only passed to the final `PeformanceEvaluation`
     # object to be returned and are not otherwise used here.
 
+    isempty(resampling) && throw(ERR_EMPTY_RESAMPLING_OPTION)
     resampling isa TrainTestPairs || throw(ERR_BAD_RESAMPLING_OPTION)
 
     X = mach.args[1]()
