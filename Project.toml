@@ -40,7 +40,7 @@ DefaultMeasuresExt = "StatisticalMeasures"
 
 [compat]
 CategoricalArrays = "0.9, 0.10"
-CategoricalDistributions = "0.1"
+CategoricalDistributions = "0.1, 0.2"
 ComputationalResources = "0.3"
 DelimitedFiles = "1"
 Distributions = "0.25.3"
