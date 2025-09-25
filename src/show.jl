@@ -78,32 +78,6 @@ function handle(X)
 end
 
 
-## SHOW METHOD FOR NAMED TUPLES
-
-# long version of showing a named tuple:
-Base.show(stream::IO, ::MIME"text/plain", t::NamedTuple) = fancy_nt(stream, t)
-fancy_nt(t) = fancy_nt(stdout, t) # is this used?
-fancy_nt(stream, t::NamedTuple{(), Tuple{}}) = print(stream, "NamedTuple()")
-fancy_nt(stream, t) = fancy_nt(stream, t, 0)
-fancy_nt(stream, t, n) = show(stream, t)
-function fancy_nt(stream, t::NamedTuple, n)
-    print(stream, "(")
-    first_item = true
-    for k in keys(t)
-        value =  getproperty(t, k)
-        if !first_item
-            print(stream, crind(n + 1))
-        else
-            first_item = false
-        end
-        print(stream, "$k = ")
-        fancy_nt(stream, value, n + length("$k = ") + 1)
-        print(stream, ",")
-    end
-    print(stream, ")")
-end
-
-
 ## OTHER EXPOSED SHOW METHODS
 
 # string consisting of carriage return followed by indentation of length n:
