@@ -583,17 +583,17 @@ or none of the following apply:
 4. The specified `rows` have changed since the last retraining and
    `mach.model` does not have `Static` type.
 
-5. `mach.model` is a model and different from the last model used for training, but has
-   the same type.
+5. `mach.model` is a `Model` (i.e, not a symbol) and is different from the last model used
+   for training (but has the same type).
 
-6. `mach.model` is a model but has a type different from the last model used for
+6. `mach.model` is a `Model` but has a type different from the last model used for
    training.
 
-7. `mach.model` is a symbol and `(composite, mach.model)` is different from the last
-   model used for training, but has the same type.
+7. `mach.model` is a symbol and `getproperty(composite, mach.model)` is different from the
+   last model used for training (but has the same type).
 
-8. `mach.model` is a symbol and `(composite, mach.model)` has a different type from
-   the last model used for training.
+8. `mach.model` is a symbol and `getproperty(composite, mach.model)` has a different type
+   from the last model used for training.
 
 In any of the cases (1) - (4), (6), or (8), `mach` is trained ab initio.
 If (5) or (7) is true, then a training update is applied.
@@ -645,6 +645,7 @@ function fit_only!(
         mach.model
     end
 
+    # neither `old_model` nor `model` are symbols here:
     modeltype_changed = !isdefined(mach, :old_model) ? true  :
             typeof(model) === typeof(mach.old_model) ? false :
                                                        true
