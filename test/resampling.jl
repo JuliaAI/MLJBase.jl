@@ -1047,7 +1047,7 @@ MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
     AbstractVector{<:Finite}
 
 @testset "resampling for density estimators" begin
-    y = coerce(collect("aabbccaa"), Multiclass)
+    y = coerce(rand(StableRNG(123), "abc", 20), Multiclass)
     X = nothing
 
     train, test = partition(eachindex(y), 0.8)
