@@ -92,12 +92,11 @@ show_as_constructed(object) = show_as_constructed(typeof(object))
 show_compact(object) = show_compact(typeof(object))
 show_handle(object) = false
 
-# simplified string rep of an Type:
 function simple_repr(T)
-    # get rid of qualifiers:
-    output = split(repr(T), ".") |> last
     # get rid of type parameters:
-    output = split(output, "{") |> first
+    output = split(repr(T), "{") |> first
+    # get rid of qualifiers:
+    output = split(output, ".") |> last
     return output
 end
 
