@@ -108,8 +108,6 @@ inverse_transform(mach::Machine; rows=:) =
                                 "must be explictly specified, "*
                                 "as in `inverse_transform(mach, X)`. "))
 
-_symbol(f) = Base.Core.Typeof(f).name.mt.name
-
 # catches improperly deserialized machines and silently fits the machine if it is
 # untrained and has no training arguments:
 function _check_and_fit_if_warranted!(mach)
