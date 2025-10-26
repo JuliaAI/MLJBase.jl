@@ -150,7 +150,7 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
         show(stream, object)
     else
         prefix = MLJModelInterface.name(object)
-        anti = max(length(prefix) - INDENT)
+        anti = max(length(prefix) - INDENT, 0)
         print(stream, prefix, "(")
         names = propertynames(object)
         n_names = length(names)

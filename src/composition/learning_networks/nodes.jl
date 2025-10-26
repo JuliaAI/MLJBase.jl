@@ -271,7 +271,7 @@ _formula(stream::IO, X::AbstractNode, indent) =
 _formula(stream::IO, X::Source, depth, indent) = show(stream, X)
 function _formula(stream, X::Node, depth, indent)
     operation_name = simple_repr(X.operation)
-    anti = max(length(operation_name) - INDENT)
+    anti = max(length(operation_name) - INDENT, 0)
     print(stream, operation_name, "(")
     n_args = length(X.args)
     if X.machine !== nothing
