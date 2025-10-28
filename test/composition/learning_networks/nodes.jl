@@ -481,6 +481,17 @@ y = source(7)
     end
 end
 
+@testset "show for nodes" begin
+    # https://github.com/JuliaAI/MLJBase.jl/issues/1022
+    X, y = make_blobs(3)
+    X, y = source.([X, y])
+    mach = machine(Standardizer(), X)
+    W = transform(mach, X)
+    str = sprint(show, MIME("text/plain"), W)
+    # smoke test:
+    @test contains(str, "formula:\n    transform")
+end
+
 end # module
 
 true
