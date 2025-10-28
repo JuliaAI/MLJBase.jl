@@ -92,27 +92,12 @@ show_as_constructed(object) = show_as_constructed(typeof(object))
 show_compact(object) = show_compact(typeof(object))
 show_handle(object) = false
 
-# simplified string rep of an Type:
 function simple_repr(T)
-    repr = string(T.name.name)
-    parameters = T.parameters
-
-    # # add abbreviated type parameters:
-    # p_string = ""
-    # if length(parameters) > 0
-    #     p = parameters[1]
-    #     if p isa DataType
-    #         p_string = simple_repr(p)
-    #     elseif p isa Symbol
-    #         p_string = string(":", p)
-    #     end
-    #     if length(parameters) > 1
-    #         p_string *= ",…"
-    #     end
-    # end
-    # isempty(p_string) || (repr *= "{"*p_string*"}")
-
-    return repr
+    # get rid of type parameters:
+    output = split(repr(T), "{") |> first
+    # get rid of qualifiers:
+    output = split(output, ".") |> last
+    return output
 end
 
 # short version of showing a `MLJType` object:
@@ -165,7 +150,7 @@ function fancy(stream, object::MLJType, current_depth, depth, n)
         show(stream, object)
     else
         prefix = MLJModelInterface.name(object)
-        anti = max(length(prefix) - INDENT)
+        anti = max(length(prefix) - INDENT, 0)
         print(stream, prefix, "(")
         names = propertynames(object)
         n_names = length(names)

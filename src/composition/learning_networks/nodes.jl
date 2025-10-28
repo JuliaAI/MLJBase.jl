@@ -270,8 +270,8 @@ _formula(stream::IO, X::AbstractNode, indent) =
     (print(stream, repeat(' ', indent));_formula(stream, X, 0, indent))
 _formula(stream::IO, X::Source, depth, indent) = show(stream, X)
 function _formula(stream, X::Node, depth, indent)
-    operation_name = string(typeof(X.operation).name.mt.name)
-    anti = max(length(operation_name) - INDENT)
+    operation_name = simple_repr(X.operation)
+    anti = max(length(operation_name) - INDENT, 0)
     print(stream, operation_name, "(")
     n_args = length(X.args)
     if X.machine !== nothing
@@ -287,9 +287,9 @@ function _formula(stream, X::Node, depth, indent)
         _formula(stream, X.args[k],
                         depth + 1,
                         indent + length(operation_name) - anti )
-        k == n_args || print(stream, ",")
+        print(stream, ",")
     end
-    print(stream, ")")
+    print(stream, crind(indent), ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", X::Node)
@@ -303,7 +303,7 @@ function Base.show(io::IO, ::MIME"text/plain", X::Node)
     _formula(io, X, 4)
 end
 
-# for displaying withing other objects:
+# for displaying within other objects:
 function Base.show(stream::IO, object::Node)
     str = simple_repr(typeof(object)) * " $(handle(object))"
     mach = object.machine
