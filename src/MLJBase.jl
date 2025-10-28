@@ -91,6 +91,8 @@ const Dist = Distributions
 # Measures
 import StatisticalMeasuresBase
 
+import FillArrays
+
 # Plots
 using RecipesBase: RecipesBase, @recipe
 
