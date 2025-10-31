@@ -16,7 +16,7 @@ MMI.int(::FI, x; args...) = CategoricalDistributions.int(x; args...)
 # ------------------------------------------------------------------------
 # classes
 
-MMI.classes(::FI, x) = CategoricalDistributions.classes(x)
+MMI.classes(::FI, x) = levels(x)
 
 # ------------------------------------------------------------------------
 # `scitype`
