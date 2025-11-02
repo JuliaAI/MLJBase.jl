@@ -849,6 +849,10 @@ end
 # ---------------------------------------------------------------
 # Helpers
 
+# to fill out predictions in the case of density estimation ("cone" construction):
+fill_if_needed(yhat, X, n) = yhat
+fill_if_needed(yhat, X::Nothing, n) = FillArrays.Fill(yhat, n)
+
 function actual_rows(rows, N, verbosity)
     unspecified_rows = (rows === nothing)
     _rows = unspecified_rows ? (1:N) : rows
@@ -1470,10 +1474,15 @@ function evaluate!(
     function fit_and_extract_on_fold(mach, k)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
+        ntest = MLJBase.nrows(test)
         # build a dictionary of predictions keyed on the operations
         # that appear (`predict`, `predict_mode`, etc):
         yhat_given_operation =
-            Dict(op=>op(mach, rows=test) for op in unique(operations))
+            Dict(op=>
+            fill_if_needed(op(mach, rows=test), X, ntest)
+                 for op in unique(operations))
+        # Note: `fill_if_need(yhat, X, n) = yhat` in typical case that `X` is different
+        # from `nothing`.
 
         ytest = selectrows(y, test)
         if per_observation_flag

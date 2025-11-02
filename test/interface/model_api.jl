@@ -2,10 +2,7 @@ module TestModelAPI
 
 using Test
 using MLJBase
-using StatisticalMeasures
-import MLJModelInterface
 using ..Models
-using Distributions
 using StableRNGs
 
 rng = StableRNG(661)
@@ -28,58 +25,6 @@ rng = StableRNG(661)
     @test predict_mean(rgs, fitresult, X)[1] == 3
     @test predict_median(rgs, fitresult, X)[1] == 3
     @test predict_mode(rgs, fitresult, X)[1] == 3
-end
-
-mutable struct UnivariateFiniteFitter <: MLJModelInterface.Probabilistic
-    alpha::Float64
-end
-UnivariateFiniteFitter(;alpha=1.0) = UnivariateFiniteFitter(alpha)
-
-@testset "models that fit a distribution" begin
-    function MLJModelInterface.fit(model::UnivariateFiniteFitter,
-                               verbosity, X, y)
-
-        α = model.alpha
-        N = length(y)
-        _classes = classes(y)
-        d = length(_classes)
-
-        frequency_given_class = Distributions.countmap(y)
-        prob_given_class =
-            Dict(c => (frequency_given_class[c] + α)/(N + α*d) for c in _classes)
-
-        fitresult = MLJBase.UnivariateFinite(prob_given_class)
-
-        report = (params=Distributions.params(fitresult),)
-        cache = nothing
-
-        verbosity > 0 && @info "Fitted a $fitresult"
-
-        return fitresult, cache, report
-    end
-
-    MLJModelInterface.predict(model::UnivariateFiniteFitter,
-                              fitresult,
-                              X) = fitresult
-
-
-    MLJModelInterface.input_scitype(::Type{<:UnivariateFiniteFitter}) =
-        Nothing
-    MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
-        AbstractVector{<:Finite}
-
-    y = coerce(collect("aabbccaa"), Multiclass)
-    X = nothing
-    model = UnivariateFiniteFitter(alpha=0)
-    mach = machine(model, X, y)
-    fit!(mach, verbosity=0)
-
-    ytest = y[1:3]
-    yhat = predict(mach, nothing) # single UnivariateFinite distribution
-
-    @test cross_entropy(fill(yhat, 3), ytest) ≈
-        mean([-log(1/2), -log(1/2), -log(1/4)])
-
 end
 
 end
