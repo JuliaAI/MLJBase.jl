@@ -1061,12 +1061,12 @@ MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
     ytest = y[test]
     yhat = predict(mach, nothing) # single UnivariateFinite distribution
 
-    # Estmiate out-of-sample loss.  Notice we have to make duplicate versions `yhat`, to
+    # Estimate out-of-sample loss.  Notice we have to make duplicate versions `yhat`, to
     # match the number ground truth observations with which we are pairing it ("cone"
     # construction):
     by_hand = log_loss(fill(yhat, length(ytest)), ytest)
 
-    # test some behaviour on which the implementation of `evaluate` for density estimators
+    # test some behavior on which the implementation of `evaluate` for density estimators
     # is predicated:
     @test isnothing(selectrows(X, 1:3))
     @test predict(mach, rows=1:3) ≈ yhat
