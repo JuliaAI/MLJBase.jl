@@ -714,6 +714,11 @@ const alphabet = Char.(65:90)
 _label(i) = map(digits(i - 1, base=26)) do d alphabet[d + 1] end |> join |> reverse
 
 function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
+    # for getting rid of bold in table headings:
+    style = PrettyTables.TextTableStyle(
+        first_line_column_label = PrettyTables.crayon"black",
+    )
+
     _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
@@ -750,10 +755,10 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     PrettyTables.pretty_table(
         io,
         data;
-        header,
-        header_crayon=PrettyTables.Crayon(bold=false),
+        column_labels = [header,],
         alignment=:l,
-        linebreaks=true,
+        line_breaks=true,
+        style,
     )
 
     # Show the per-fold table if needed:
@@ -769,10 +774,10 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         PrettyTables.pretty_table(
             io,
             data2;
-            header=header2,
-            header_crayon=PrettyTables.Crayon(bold=false),
+            column_labels = header2,
             alignment=:l,
-            linebreaks=true,
+            line_breaks=true,
+            style,
         )
     end
     show_color ? color_on() : color_off()

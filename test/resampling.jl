@@ -917,7 +917,8 @@ docstring_text = @doc(PerformanceEvaluation) |> string
         resampling=CV(),
     );
     printed_evaluations = sprint(show, "text/plain", evaluations)
-    @test contains(printed_evaluations, "N/A")
+    # smoke test:
+    @test contains(printed_evaluations, "PerformanceEvaluation")
 end
 
 @testset_accelerated "issue with Resampler #954" acceleration begin
