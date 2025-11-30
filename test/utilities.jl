@@ -207,13 +207,18 @@ MLJBase.target_scitype(::Type{<:DRegressor2}) =
 
 @testset "pretty" begin
     X = (x=fill(1, 3), y=fill(2, 3))
-    io = IOBuffer()
-    pretty(X)
-    pretty(io, X)
-    str = take!(io) |> String
+    str = sprint(pretty, X)
     @test contains(str, "x")
     @test contains(str, "y")
     @test contains(str, "│")
+    @test contains(str, "Count")
+    @test contains(str, "Int64")
+    str = sprint((io, X) -> pretty(io, X; showtypes=false), X)
+    @test contains(str, "x")
+    @test contains(str, "y")
+    @test contains(str, "│")
+    @test !contains(str, "Count")
+    @test !contains(str, "Int64")
 end
 
 end # module

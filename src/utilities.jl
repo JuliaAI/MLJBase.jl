@@ -210,23 +210,30 @@ end
 
 # of coloumns:
 function pretty(io::IO, X; showtypes=true, alignment=:l, kwargs...)
-    names = schema(X).names |> collect
+    # for getting rid of bold in table headings:
+    style = PrettyTables.TextTableStyle(
+        first_line_column_label = PrettyTables.crayon"black",
+    )
+
+    _names = schema(X).names |> collect
     if showtypes
         types = schema(X).types |> collect
         scitypes = schema(X).scitypes |> collect
-        header = (names, types, scitypes)
+        header = [_names, types, scitypes]
     else
-        header  = (names, )
+        header  = [_names, ]
     end
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
     try
         PrettyTables.pretty_table(io, MLJBase.matrix(X),
-                                  header=header;
-                                  alignment=alignment,
+                                  column_labels=header;
+                                  alignment,
+                                  style,
                                   kwargs...)
-    catch
+    catch excptn
         println("Trouble displaying table.")
+        rethrow(excptn)
     end
     show_color ? color_on() : color_off()
     return nothing
