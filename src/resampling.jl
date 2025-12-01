@@ -575,7 +575,8 @@ When displayed, a `PerformanceEvaluation` object includes a value under the head
 `1.96*SE`, derived from the standard error of the `per_fold` entries. This value is
 suitable for constructing a formal 95% confidence interval for the given
 `measurement`. Such intervals should be interpreted with caution. See, for example, [Bates
-et al.  (2021)](https://arxiv.org/abs/2104.00673).
+et al. (2021)](https://arxiv.org/abs/2104.00673). It is also stored in the field
+`uncertainty_radius_95`.
 
 ### Fields
 
@@ -590,6 +591,9 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
   the performance measurements over all train/test pairs (folds). The aggregation method
   applied for a given measure `m` is
   `StatisticalMeasuresBase.external_aggregation_mode(m)` (commonly `Mean()` or `Sum()`)
+
+- `uncertainty_radius_95`: vector of radii of uncertainty for 95% confidence intervals,
+  one for each element of `meaures`. See cautionary note above.
 
 - `operation` (e.g., `predict_mode`): the operations applied for each measure to generate
   predictions to be evaluated. Possibilities are: $PREDICT_OPERATIONS_STRING.
@@ -638,6 +642,7 @@ struct PerformanceEvaluation{M,
     model::M
     measure::Measure
     measurement::Measurement
+    uncertainty_radius_95::Union{Nothing,Measurement}
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
@@ -670,6 +675,7 @@ struct CompactPerformanceEvaluation{M,
     model::M
     measure::Measure
     measurement::Measurement
+    uncertainty_radius_95::Union{Nothing,Measurement}
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
@@ -682,6 +688,7 @@ compactify(e::PerformanceEvaluation) = CompactPerformanceEvaluation(
     e.model,
     e.measure,
     e.measurement,
+    e.uncertainty_radius_95,
     e.operation,
     e.per_fold,
     e. per_observation,
@@ -692,18 +699,6 @@ compactify(e::PerformanceEvaluation) = CompactPerformanceEvaluation(
 # pretty printing:
 round3(x) = x
 round3(x::AbstractFloat) = round(x, sigdigits=3)
-
-const SE_FACTOR = 1.96 # For a 95% confidence interval.
-
-_standard_error(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
-_standard_error(v) = "N/A"
-
-function _standard_errors(e::AbstractPerformanceEvaluation)
-    measure = e.measure
-    length(e.per_fold[1]) == 1 && return [nothing]
-    std_errors = map(_standard_error, e.per_fold)
-    return std_errors
-end
 
 # to address #874, while preserving the display worked out in #757:
 _repr_(f::Function) = repr(f)
@@ -722,14 +717,14 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
     _per_fold = [round3.(v) for v in e.per_fold]
-    _sterr = round3.(_standard_errors(e))
+    _uncertainty_radius_95 = round3.(e.uncertainty_radius_95)
     row_labels = _label.(eachindex(e.measure))
 
     # Define header and data for main table
 
     data = hcat(_measure, e.operation, _measurement)
     header = ["measure", "operation", "measurement"]
-    if length(row_labels) > 1
+    if length(row_labels) > 1 && length(first(e.per_fold)) > 1
         data = hcat(row_labels, data)
         header =["", header...]
     end
@@ -738,14 +733,14 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         println(io, "PerformanceEvaluation object "*
             "with these fields:")
         println(io, "  model, measure, operation,\n"*
-            "  measurement, per_fold, per_observation,\n"*
+            "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
             "  fitted_params_per_fold, report_per_fold,\n"*
             "  train_test_rows, resampling, repeats")
     else
         println(io, "CompactPerformanceEvaluation object "*
             "with these fields:")
         println(io, "  model, measure, operation,\n"*
-            "  measurement, per_fold, per_observation,\n"*
+            "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
             "  train_test_rows, resampling, repeats")
     end
 
@@ -764,8 +759,8 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     # Show the per-fold table if needed:
 
     if length(first(e.per_fold)) > 1
-        show_sterr = any(!isnothing, _sterr)
-        data2 = hcat(_per_fold, _sterr)
+        show_sterr = any(!isnothing, _uncertainty_radius_95)
+        data2 = hcat(_per_fold, _uncertainty_radius_95)
         header2 = ["per_fold", "1.96*SE"]
         if length(row_labels) > 1
             data2 = hcat(row_labels, data2)
@@ -783,12 +778,17 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     show_color ? color_on() : color_off()
 end
 
-_summary(e) = Tuple(round3.(e.measurement))
+function _summary(e)
+    confidence_intervals = map(zip(e.measurement, e.uncertainty_radius_95)) do (μ, δ)
+        "$(round3(μ))±$(round3(δ))"
+    end
+    return "(\"$(name(e.model))\", "*join(confidence_intervals, ", ")*")"
+end
+
 Base.show(io::IO, e::PerformanceEvaluation) =
     print(io, "PerformanceEvaluation$(_summary(e))")
 Base.show(io::IO, e::CompactPerformanceEvaluation) =
     print(io, "CompactPerformanceEvaluation$(_summary(e))")
-
 
 
 # ===============================================================
@@ -1426,6 +1426,11 @@ end
 _view(::Nothing, rows) = nothing
 _view(weights, rows) = view(weights, rows)
 
+const SE_FACTOR = 1.96 # For a 95% confidence interval.
+
+radius_95(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
+radius_95(v) = "N/A"
+
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(
     mach::Machine,
@@ -1579,10 +1584,14 @@ function evaluate!(
         )
     end
 
+    confidence_radii_95 = length(per_fold[1]) == 1 ? nothing :
+        map(radius_95, per_fold)
+
     evaluation = PerformanceEvaluation(
         mach.model,
         measures,
         per_measure,
+        confidence_radii_95,
         operations,
         per_fold,
         per_observation,
