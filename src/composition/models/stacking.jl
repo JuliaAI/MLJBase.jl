@@ -399,8 +399,10 @@ function internal_stack_report(
     results = NamedTuple{modelnames}(
         [(
             model = model,
+            tag = "",
             measure = stack.measures,
             measurement = Vector{Any}(undef, n_measures),
+            uncertainty_radius_95 = fill(nothing, n_measures),
             operation = _actual_operations(nothing, stack.measures, model, verbosity),
             per_fold = [Vector{Any}(undef, nfolds) for _ in 1:n_measures],
             per_observation = [Vector{Vector{Any}}(undef, nfolds) for _ in 1:n_measures],

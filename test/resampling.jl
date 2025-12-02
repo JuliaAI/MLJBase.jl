@@ -938,11 +938,13 @@ end
     fit!(mach)
 end
 
+model = ConstantClassifier()
+X = (; x = ones(10))
+y = coerce([1, 2, 2, 2, 1, 2, 1, 2, 1, 1], Multiclass)
+
 @testset "compact evaluation objects" begin
-    model = ConstantClassifier()
-    X, y = make_blobs(10)
-    e = evaluate(model, X, y)
-    ec = evaluate(model, X, y, compact=true)
+    e = evaluate("tag" => model, X, y)
+    ec = evaluate("tag" => model, X, y, compact=true)
     @test MLJBase.compactify(ec) == ec == MLJBase.compactify(e)
     @test e isa PerformanceEvaluation
     @test ec isa CompactPerformanceEvaluation
@@ -961,6 +963,185 @@ end
         @test contains(sprint(show, MIME("text/plain"), e), "predict")
         @test contains(sprint(show, e), "PerformanceEvaluation(")
     end
+end
+
+bogus(yhat, y) = [1,]
+# The measures that get stored in a PerformanceEvaluation object are the user-specified
+# measures wrapped in `robust_measure(...)`!
+MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
+
+@testset "more display tests" begin
+    # no extra table (only one train-test pair)
+    e = evaluate("tag" => model, X, y; resampling=Holdout(),
+                 measures = [bogus, log_loss])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌──────────────────────┬───────────┬─────────────┐\n"*
+        "│ measure              │ operation │ measurement │\n"*
+        "├──────────────────────┼───────────┼─────────────┤\n"*
+        "│ bogus                │ predict   │ [1.0]       │\n"*
+        "│ LogLoss(             │ predict   │ 0.751       │\n"*
+        "│   tol = 2.22045e-16) │           │             │\n"*
+        "└──────────────────────┴───────────┴─────────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], 0.751)"
+
+    # extra table - one non-numeric measure:
+    e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
+                 measures = [bogus,])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌─────────┬───────────┬─────────────┐\n"*
+        "│ measure │ operation │ measurement │\n"*
+        "├─────────┼───────────┼─────────────┤\n"*
+        "│ bogus   │ predict   │ [1.0]       │\n"*
+        "└─────────┴───────────┴─────────────┘\n"*
+        "┌────────────────┐\n"*
+        "│ per_fold       │\n"*
+        "├────────────────┤\n"*
+        "│ [[1.0], [1.0]] │\n"*
+        "└────────────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0])"
+
+    # extra table - one numeric measure:
+    e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
+                 measures = [accuracy,])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌────────────┬──────────────┬─────────────┐\n"*
+        "│ measure    │ operation    │ measurement │\n"*
+        "├────────────┼──────────────┼─────────────┤\n"*
+        "│ Accuracy() │ predict_mode │ 0.4         │\n"*
+        "└────────────┴──────────────┴─────────────┘\n"*
+        "┌────────────┬─────────┐\n"*
+        "│ per_fold   │ 1.96*SE │\n"*
+        "├────────────┼─────────┤\n"*
+        "│ [0.4, 0.4] │ 0.0     │\n"*
+        "└────────────┴─────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", 0.4 ± 0.0)"
+
+    # extra table - two numeric measures:
+    e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
+                 measures = [accuracy, log_loss])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌───┬──────────────────────┬──────────────┬─────────────┐\n"*
+        "│   │ measure              │ operation    │ measurement │\n"*
+        "├───┼──────────────────────┼──────────────┼─────────────┤\n"*
+        "│ A │ Accuracy()           │ predict_mode │ 0.4         │\n"*
+        "│ B │ LogLoss(             │ predict      │ 0.754       │\n"*
+        "│   │   tol = 2.22045e-16) │              │             │\n"*
+        "└───┴──────────────────────┴──────────────┴─────────────┘\n"*
+        "┌───┬────────────────┬─────────┐\n"*
+        "│   │ per_fold       │ 1.96*SE │\n"*
+        "├───┼────────────────┼─────────┤\n"*
+        "│ A │ [0.4, 0.4]     │ 0.0     │\n"*
+        "│ B │ [0.754, 0.754] │ 0.0     │\n"*
+        "└───┴────────────────┴─────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", 0.4 ± 0.0, 0.754 ± 0.0)"
+
+    # extra table - two non-numeric measures:
+    e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
+                 measures = [bogus, bogus])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌───┬─────────┬───────────┬─────────────┐\n"*
+        "│   │ measure │ operation │ measurement │\n"*
+        "├───┼─────────┼───────────┼─────────────┤\n"*
+        "│ A │ bogus   │ predict   │ [1.0]       │\n"*
+        "│ B │ bogus   │ predict   │ [1.0]       │\n"*
+        "└───┴─────────┴───────────┴─────────────┘\n"*
+        "┌───┬────────────────┐\n"*
+        "│   │ per_fold       │\n"*
+        "├───┼────────────────┤\n"*
+        "│ A │ [[1.0], [1.0]] │\n"*
+        "│ B │ [[1.0], [1.0]] │\n"*
+        "└───┴────────────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], [1.0])"
+
+    # extra table - mixed type of measures:
+    e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
+                 measures = [bogus, macro_f1score])
+    @test sprint(show, MIME("text/plain"), e) ==
+        "PerformanceEvaluation object with these fields:\n"*
+        "  model, tag, measure, operation,\n"*
+        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  fitted_params_per_fold, report_per_fold,\n"*
+        "  train_test_rows, resampling, repeats\n"*
+        "Tag: tag\n"*
+        "Extract:\n"*
+        "┌───┬──────────────────────────────┬──────────────┬─────────────┐\n"*
+        "│   │ measure                      │ operation    │ measurement │\n"*
+        "├───┼──────────────────────────────┼──────────────┼─────────────┤\n"*
+        "│ A │ bogus                        │ predict      │ [1.0]       │\n"*
+        "│ B │ MulticlassFScore(            │ predict_mode │ 0.286       │\n"*
+        "│   │   beta = 1.0,                │              │             │\n"*
+        "│   │   average = MacroAvg(),      │              │             │\n"*
+        "│   │   return_type = LittleDict,  │              │             │\n"*
+        "│   │   levels = nothing,          │              │             │\n"*
+        "│   │   perm = nothing,            │              │             │\n"*
+        "│   │   rev = nothing,             │              │             │\n"*
+        "│   │   checks = true)             │              │             │\n"*
+        "└───┴──────────────────────────────┴──────────────┴─────────────┘\n"*
+        "┌───┬────────────────┬─────────┐\n"*
+        "│   │ per_fold       │ 1.96*SE │\n"*
+        "├───┼────────────────┼─────────┤\n"*
+        "│ A │ [[1.0], [1.0]] │         │\n"*
+        "│ B │ [0.286, 0.286] │ 0.0     │\n"*
+        "└───┴────────────────┴─────────┘\n"
+    @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], 0.286 ± 0.0)"
+end
+
+@testset "mulitiple performance evaluations" begin
+    # model form:
+    e1 = evaluate("const" => ConstantClassifier(), X, y)
+    e2 = evaluate("knn" => KNNClassifier(), X, y)
+    es = evaluate(["const" => ConstantClassifier(), "knn" => KNNClassifier()], X, y)
+    @test es[1].measurement == e1.measurement
+
+    # machine form:
+    mach1 = machine(ConstantClassifier(), X, y)
+    mach2 = machine(KNNClassifier(), X, y)
+    e1 = evaluate!("const" => mach1)
+    e2 = evaluate!("knn" => mach2)
+    es = evaluate!(["const" => mach1, "knn" => mach2])
+    @test es[1].measurement == e1.measurement
+
+    # display:
+    @test contains(
+        sprint(show, es),
+        "[PerformanceEvaluation(\"const\", 0.774 ± 0.0998), "*
+        "PerformanceEvaluation(\"knn\", 0.795 ± 0.0973)]",
+    )
 end
 
 
