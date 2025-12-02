@@ -585,7 +585,13 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
 - `model`: model used to create the performance evaluation. In the case a
     tuning model, this is the best model found.
 
-- `measure`: vector of measures (metrics) used to evaluate performance
+- `tag`: a string label associated with the evaluation, specified by the user when
+  replacing `model` in `evaluate(model, ...)` with `tag => model`, or `mach` in
+  `evaluate!(mach, ...)` with `tag => mach`. If unspecified, it is auto-generated, but
+  tag-uniqueness is not 100% guaranteed.
+
+ - `measure`: vector of measures (metrics) used
+  to evaluate performance
 
 - `measurement`: vector of measurements - one for each element of `measure` - aggregating
   the performance measurements over all train/test pairs (folds). The aggregation method
@@ -633,6 +639,7 @@ See also [`CompactPerformanceEvaluation`](@ref).
 struct PerformanceEvaluation{M,
                              Measure,
                              Measurement,
+                             Uncertainty,
                              Operation,
                              PerFold,
                              PerObservation,
@@ -640,9 +647,10 @@ struct PerformanceEvaluation{M,
                              ReportPerFold,
                              R} <: AbstractPerformanceEvaluation
     model::M
+    tag::String
     measure::Measure
     measurement::Measurement
-    uncertainty_radius_95::Union{Nothing,Measurement}
+    uncertainty_radius_95::Uncertainty
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
@@ -666,16 +674,18 @@ For more on the remaining fields, see [`PerformanceEvaluation`](@ref).
 
 """
 struct CompactPerformanceEvaluation{M,
-                             Measure,
-                             Measurement,
-                             Operation,
-                             PerFold,
-                             PerObservation,
-                             R} <: AbstractPerformanceEvaluation
+                                    Measure,
+                                    Measurement,
+                                    Uncertainty,
+                                    Operation,
+                                    PerFold,
+                                    PerObservation,
+                                    R} <: AbstractPerformanceEvaluation
     model::M
+    tag::String
     measure::Measure
     measurement::Measurement
-    uncertainty_radius_95::Union{Nothing,Measurement}
+    uncertainty_radius_95::Uncertainty
     operation::Operation
     per_fold::PerFold
     per_observation::PerObservation
@@ -686,6 +696,7 @@ end
 compactify(e::CompactPerformanceEvaluation) = e
 compactify(e::PerformanceEvaluation) = CompactPerformanceEvaluation(
     e.model,
+    e.tag,
     e.measure,
     e.measurement,
     e.uncertainty_radius_95,
@@ -703,6 +714,13 @@ round3(x::AbstractFloat) = round(x, sigdigits=3)
 # to address #874, while preserving the display worked out in #757:
 _repr_(f::Function) = repr(f)
 _repr_(x) = repr("text/plain", x)
+_repr(::Nothing) = ""
+
+function uncertainty_as_string(δ)
+    isnothing(δ) && return ""
+    δ isa Real && isinf(δ) && return ""
+    return string(round3(δ))
+end
 
 # helper for row labels: _label(1) ="A", _label(2) = "B", _label(27) = "BA", etc
 const alphabet = Char.(65:90)
@@ -716,8 +734,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
 
     _measure = [_repr_(m) for m in e.measure]
     _measurement = round3.(e.measurement)
-    _per_fold = [round3.(v) for v in e.per_fold]
-    _uncertainty_radius_95 = round3.(e.uncertainty_radius_95)
+    _per_fold = reshape([round3.(v) for v in e.per_fold], length(e.per_fold), 1)
+    _uncertainty_radius_95 = uncertainty_as_string.(e.uncertainty_radius_95)
+    show_radius = any(x -> !isempty(x), _uncertainty_radius_95)
     row_labels = _label.(eachindex(e.measure))
 
     # Define header and data for main table
@@ -732,18 +751,18 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     if e isa PerformanceEvaluation
         println(io, "PerformanceEvaluation object "*
             "with these fields:")
-        println(io, "  model, measure, operation,\n"*
+        println(io, "  model, tag, measure, operation,\n"*
             "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
             "  fitted_params_per_fold, report_per_fold,\n"*
             "  train_test_rows, resampling, repeats")
     else
         println(io, "CompactPerformanceEvaluation object "*
             "with these fields:")
-        println(io, "  model, measure, operation,\n"*
+        println(io, "  model, tag, measure, operation,\n"*
             "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
             "  train_test_rows, resampling, repeats")
     end
-
+    println(io, "Tag: $(e.tag)")
     println(io, "Extract:")
     show_color = MLJBase.SHOW_COLOR[]
     color_off()
@@ -759,9 +778,12 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     # Show the per-fold table if needed:
 
     if length(first(e.per_fold)) > 1
-        show_sterr = any(!isnothing, _uncertainty_radius_95)
-        data2 = hcat(_per_fold, _uncertainty_radius_95)
-        header2 = ["per_fold", "1.96*SE"]
+        data2 = _per_fold
+        header2 = ["per_fold", ]
+        if show_radius
+            data2 = hcat(_per_fold, _uncertainty_radius_95)
+            header2 = [header2..., "1.96*SE"]
+        end
         if length(row_labels) > 1
             data2 = hcat(row_labels, data2)
             header2 =["", header2...]
@@ -769,7 +791,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         PrettyTables.pretty_table(
             io,
             data2;
-            column_labels = header2,
+            column_labels = [header2,],
             alignment=:l,
             line_breaks=true,
             style,
@@ -780,9 +802,11 @@ end
 
 function _summary(e)
     confidence_intervals = map(zip(e.measurement, e.uncertainty_radius_95)) do (μ, δ)
-        "$(round3(μ))±$(round3(δ))"
+        a = round3(μ)
+        b = uncertainty_as_string(δ)
+        isempty(b) ? a : "$a ± $b"
     end
-    return "(\"$(name(e.model))\", "*join(confidence_intervals, ", ")*")"
+    return "(\"$(e.tag)\", "*join(confidence_intervals, ", ")*")"
 end
 
 Base.show(io::IO, e::PerformanceEvaluation) =
@@ -853,6 +877,12 @@ end
 
 # ---------------------------------------------------------------
 # Helpers
+
+function machine_and_tag(mach::Machine)
+    tag = string(name(mach.model), "-", rand(100:999))
+    return mach, tag
+end
+machine_and_tag(pair::Pair{String,<:Machine}) = last(pair), first(pair)
 
 function actual_rows(rows, N, verbosity)
     unspecified_rows = (rows === nothing)
@@ -1111,6 +1141,9 @@ the specified `resampling` strategy (defaulting to 6-fold cross-validation) and 
 which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@ref)
 object.
 
+In place of `mach`, one can use `tag_string => mach`, or a vector of either of these forms,
+to return a vector of performance evaluation objects.
+
 Available resampling strategies are $RESAMPLING_STRATEGIES_LIST. If `resampling` is not an
 instance of one of these, then a vector of tuples of the form `(train_rows, test_rows)`
 is expected. For example, setting
@@ -1175,12 +1208,49 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
 - `compact=false` - if `true`, the returned evaluation object excludes these fields:
   `fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
 
+# Example
+
+Setup:
+
+```julia
+using MLJ # or using MLJBase, StatisticalMeasures
+X, y = make_moons(rng=123) # a table and a vector
+model = ConstantClassifier()
+mach = machine(model, X, y)
+```
+
+Perform a simple evaluation on a holdout set, against accuracy and area under the ROC
+curve:
+
+```julia
+evaluate!(mach; resampling=Holdout(fraction_train=0.8), measure=[accuracy, auc])
+```
+
+Perform Monte Carlo cross-validation, with 2 folds and 5 repeats, against area Brier score:
+
+```julia
+evaluate!(mach; resampling=CV(nfolds=2, rng=123), repeats=5,  measures=brier_score)
+```
+
+Evaluate on explicitly specified train-test pairs, against cross entropy, and tag the
+result, "explicit folds":
+
+```julia
+e = evaluate!(
+    "explicit folds" => mach;
+    resampling=[(1:140, 141:150), (11:150, 1:10)],
+    measure=log_loss,
+)
+show(e)
+# PerformanceEvaluation("explicit folds", 0.708 ± 0.0328)
+```
+
 See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref),
 [`CompactPerformanceEvaluation`](@ref).
 
 """
 function evaluate!(
-    mach::Machine;
+    mach_or_pair::Union{Machine,Pair{String,<:Machine}};
     resampling=CV(),
     measures=nothing,
     measure=measures,
@@ -1202,6 +1272,8 @@ function evaluate!(
     # this method just checks validity of options, preprocess the
     # weights, measures, operations, and dispatches a
     # strategy-specific `evaluate!`
+
+    mach, tag = machine_and_tag(mach_or_pair)
 
     length(mach.args) > 1 || throw(ERR_NEED_TARGET)
 
@@ -1252,6 +1324,7 @@ function evaluate!(
 
     evaluate!(
         mach,
+        tag,
         resampling,
         weights,
         class_weights,
@@ -1277,11 +1350,52 @@ See the machine version `evaluate!` for the complete list of options.
 
 Returns a  [`PerformanceEvaluation`](@ref) object.
 
+In place of `model`, one can use `tag_string => model`, or a vector of either of these
+forms, to return a vector of performance evaluation objects.
+
+# Example
+
+Setup:
+
+```julia
+using MLJ # or using MLJBase, StatisticalMeasures
+X, y = make_moons(rng=123) # a table and a vector
+model = ConstantClassifier()
+```
+
+Perform a simple evaluation on a holdout set, against accuracy and area under the ROC
+curve:
+
+```julia
+evaluate(model, X, y; resampling=Holdout(fraction_train=0.8), measure=[accuracy, auc])
+```
+
+Perform Monte Carlo cross-validation, with 2 folds and 5 repeats, against area Brier score:
+
+```julia
+evaluate(model, X, y; resampling=CV(nfolds=2, rng=123), repeats=5,  measures=brier_score)
+```
+
+Evaluate on explicitly specified train-test pairs, against cross entropy, and tag the
+result, "explicit folds":
+
+```julia
+e = evaluate(
+    "explicit folds" => model, X, y;
+    resampling=[(1:140, 141:150), (11:150, 1:10)],
+    measure=log_loss,
+)
+show(e)
+# PerformanceEvaluation("explicit folds", 0.708 ± 0.0328)
+```
+
 See also [`evaluate!`](@ref).
 
 """
 evaluate(model::Model, args...; cache=true, kwargs...) =
     evaluate!(machine(model, args...; cache=cache); kwargs...)
+evaluate(pair::Pair{String,<:Model}, args...; cache=true, kwargs...) =
+    evaluate!(first(pair) => machine(last(pair), args...; cache=cache); kwargs...)
 
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by
@@ -1428,12 +1542,16 @@ _view(weights, rows) = view(weights, rows)
 
 const SE_FACTOR = 1.96 # For a 95% confidence interval.
 
-radius_95(v::AbstractVector{<:Real}) = SE_FACTOR*std(v) / sqrt(length(v) - 1)
-radius_95(v) = "N/A"
+function radius_95(v::AbstractVector{<:Real})
+    length(v) < 2 && return Inf
+    return SE_FACTOR*std(v) / sqrt(length(v) - 1)
+end
+radius_95(v) = nothing
 
 # Evaluation when `resampling` is a TrainTestPairs (CORE EVALUATOR):
 function evaluate!(
     mach::Machine,
+    tag,
     resampling,
     weights,
     class_weights,
@@ -1584,14 +1702,17 @@ function evaluate!(
         )
     end
 
-    confidence_radii_95 = length(per_fold[1]) == 1 ? nothing :
-        map(radius_95, per_fold)
+    # The following is a vector with `nothing` values for each measure not returning
+    # `Real` values (e.g., confmat), and `Inf` values for any other kind of measure when
+    # there is only one train-test fold.
+    uncertainty_radius_95 = map(radius_95, per_fold)
 
     evaluation = PerformanceEvaluation(
         mach.model,
+        tag,
         measures,
         per_measure,
-        confidence_radii_95,
+        uncertainty_radius_95,
         operations,
         per_fold,
         per_observation,
@@ -1610,8 +1731,17 @@ end
 # ----------------------------------------------------------------
 # Evaluation when `resampling` is a ResamplingStrategy
 
-function evaluate!(mach::Machine, resampling::ResamplingStrategy,
-                   weights, class_weights, rows, verbosity, repeats, args...)
+function evaluate!(
+    mach::Machine,
+    tag,
+    resampling::ResamplingStrategy,
+    weights,
+    class_weights,
+    rows,
+    verbosity,
+    repeats,
+    args...,
+    )
 
     train_args = Tuple(a() for a in mach.args)
     y = train_args[2]
@@ -1625,6 +1755,7 @@ function evaluate!(mach::Machine, resampling::ResamplingStrategy,
 
     evaluate!(
         mach,
+        tag,
         repeated_train_test_pairs,
         weights,
         class_weights,
@@ -1758,6 +1889,7 @@ end
 function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
 
     mach = machine(resampler.model, args...; cache=resampler.cache)
+    tag = ""
 
     _measures = _actual_measures(resampler.measure, resampler.model)
 
@@ -1786,6 +1918,7 @@ function MLJModelInterface.fit(resampler::Resampler, verbosity::Int, args...)
     # `PerformanceEvaluation` object.)
     e = evaluate!(
         mach,
+        tag,
         resampler.resampling,
         resampler.weights,
         resampler.class_weights,
@@ -1842,7 +1975,9 @@ function MLJModelInterface.update(
     end
 
     mach, e = fitresult
+    tag = ""
     train_test_rows = e.train_test_rows
+
 
     # since `resampler.model` could have changed, so might the actual measures and
     # operations that should be passed to the (low level) `evaluate!`:
@@ -1860,6 +1995,7 @@ function MLJModelInterface.update(
     # re-evaluate:
     e = evaluate!(
         mach2,
+        tag,
         train_test_rows,
         resampler.weights,
         resampler.class_weights,
