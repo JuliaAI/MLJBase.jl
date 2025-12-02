@@ -1121,6 +1121,29 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], 0.286 ± 0.0)"
 end
 
+@testset "mulitiple performance evaluations" begin
+    # model form:
+    e1 = evaluate("const" => ConstantClassifier(), X, y)
+    e2 = evaluate("knn" => KNNClassifier(), X, y)
+    es = evaluate(["const" => ConstantClassifier(), "knn" => KNNClassifier()], X, y)
+    @test es[1].measurement == e1.measurement
+
+    # machine form:
+    mach1 = machine(ConstantClassifier(), X, y)
+    mach2 = machine(KNNClassifier(), X, y)
+    e1 = evaluate!("const" => mach1)
+    e2 = evaluate!("knn" => mach2)
+    es = evaluate!(["const" => mach1, "knn" => mach2])
+    @test es[1].measurement == e1.measurement
+
+    # display:
+    @test contains(
+        sprint(show, es),
+        "[PerformanceEvaluation(\"const\", 0.774 ± 0.0998), "*
+        "PerformanceEvaluation(\"knn\", 0.795 ± 0.0973)]",
+    )
+end
+
 
 # # TRANSFORMER WITH PREDICT
 

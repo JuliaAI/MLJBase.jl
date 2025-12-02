@@ -586,8 +586,8 @@ These fields are part of the public API of the `PerformanceEvaluation` struct.
     tuning model, this is the best model found.
 
 - `tag`: a string label associated with the evaluation, specified by the user when
-  replacing `model` in `evaluate(model, ...)` with `tag => model`, or `mach` in
-  `evaluate!(mach, ...)` with `tag => mach`. If unspecified, it is auto-generated, but
+  replacing `mach` in `evaluate!(mach, ...)` with `tag => mach` (or `model` in
+  `evaluate(model, ...)` with `tag => model`). If unspecified, it is auto-generated, but
   tag-uniqueness is not 100% guaranteed.
 
  - `measure`: vector of measures (metrics) used
@@ -1208,12 +1208,12 @@ Although `evaluate!` is mutating, `mach.model` and `mach.args` are not mutated.
 - `compact=false` - if `true`, the returned evaluation object excludes these fields:
   `fitted_params_per_fold`, `report_per_fold`, `train_test_rows`.
 
-# Example
+# Examples
 
 Setup:
 
 ```julia
-using MLJ # or using MLJBase, StatisticalMeasures
+using MLJ
 X, y = make_moons(rng=123) # a table and a vector
 model = ConstantClassifier()
 mach = machine(model, X, y)
@@ -1243,6 +1243,18 @@ e = evaluate!(
 )
 show(e)
 # PerformanceEvaluation("explicit folds", 0.708 ± 0.0328)
+```
+
+Evaluate multiple machines:
+
+```julia
+@load KNNClassifier pkg=NearestNeighborModels
+mach1 = machine(ConstantClassifier(), X, y)
+mach2 = machine(KNNClassifier(), X , y)
+evaluate!(["const" => mach1, "knn" => mach2])
+# 2-element Vector{...}
+#  PerformanceEvaluation("const", 0.698 ± 0.0062)
+#  PerformanceEvaluation("knn", 2.22e-16 ± 0.0)
 ```
 
 See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref),
@@ -1342,6 +1354,12 @@ function evaluate!(
     )
 end
 
+# multiple machine evaluations:
+evaluate!(
+    machines_or_pairs::AbstractVector{<:Union{Machine,Pair{String,<:Machine}}};
+    kwargs...,
+) = [evaluate!(x; kwargs...) for x in machines_or_pairs]
+
 """
     evaluate(model, data...; cache=true, options...)
 
@@ -1353,12 +1371,12 @@ Returns a  [`PerformanceEvaluation`](@ref) object.
 In place of `model`, one can use `tag_string => model`, or a vector of either of these
 forms, to return a vector of performance evaluation objects.
 
-# Example
+# Examples
 
 Setup:
 
 ```julia
-using MLJ # or using MLJBase, StatisticalMeasures
+using MLJ
 X, y = make_moons(rng=123) # a table and a vector
 model = ConstantClassifier()
 ```
@@ -1389,6 +1407,16 @@ show(e)
 # PerformanceEvaluation("explicit folds", 0.708 ± 0.0328)
 ```
 
+Evaluate muliple models:
+
+```julia
+@load KNNClassifier pkg=NearestNeighborModels
+evaluate(["const" => ConstantClassifier(), "knn" => KNNClassifier()], X , y)
+# 2-element Vector{...}
+#  PerformanceEvaluation("const", 0.698 ± 0.0062)
+#  PerformanceEvaluation("knn", 2.22e-16 ± 0.0)
+```
+
 See also [`evaluate!`](@ref).
 
 """
@@ -1396,6 +1424,12 @@ evaluate(model::Model, args...; cache=true, kwargs...) =
     evaluate!(machine(model, args...; cache=cache); kwargs...)
 evaluate(pair::Pair{String,<:Model}, args...; cache=true, kwargs...) =
     evaluate!(first(pair) => machine(last(pair), args...; cache=cache); kwargs...)
+
+# multiple model evaluations:
+evaluate(
+    models_or_pairs::AbstractVector{<:Union{Machine,Pair{String,<:Model}}}, args...;
+    kwargs...,
+) = [evaluate(x, args...; kwargs...) for x in models_or_pairs]
 
 # -------------------------------------------------------------------
 # Resource-specific methods to distribute a function parameterized by
