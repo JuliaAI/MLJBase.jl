@@ -1052,7 +1052,6 @@ MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
 
     train, test = partition(eachindex(y), 0.8)
 
-    # this model type is defined in /src/interface/model_api
     model = UnivariateFiniteFitter(alpha=0)
 
     mach = machine(model, X, y)
