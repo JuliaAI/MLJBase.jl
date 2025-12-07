@@ -746,7 +746,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
             "with these fields:")
         println(io, "  model, measure, operation,\n"*
             "  measurement, per_fold, per_observation,\n"*
-            "  train_test_rows, resampling, repeats")
+            "  resampling, repeats")
     end
 
     println(io, "Extract:")
