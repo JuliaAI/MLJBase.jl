@@ -303,7 +303,7 @@ function train_test_pairs(cv::CV, rows)
 
     if n < 1
         throw(ArgumentError(
-            """Inusufficient data for $n_folds-fold cross-validation.
+            """Insufficient data for $n_folds-fold cross-validation.
             Try reducing nfolds. """
         ))
     end
@@ -407,7 +407,7 @@ function train_test_pairs(tscv::TimeSeriesCV, rows)
 
     if m < 1
         throw(ArgumentError(
-            "Inusufficient data for $n_folds-fold " *
+            "Insufficient data for $n_folds-fold " *
             "time-series cross-validation.\n" *
             "Try reducing nfolds. "
         ))
