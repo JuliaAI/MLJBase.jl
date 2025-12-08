@@ -6,6 +6,8 @@ import Tables
 @everywhere import StatisticalMeasures.StatisticalMeasuresBase as API
 using StatisticalMeasures
 import LearnAPI
+import CategoricalDistributions
+import MLJModelInterface
 
 @everywhere begin
     using .Models
@@ -1185,6 +1187,79 @@ MLJBase.save(logger::DummyLogger, mach::Machine) = mach.model
     default_logger(DummyLogger())
     @test default_logger() == DummyLogger()
     @test MLJBase.save(mach) == model
+end
+
+
+# # RESAMPLING FOR DENSITY ESTIMATORS
+
+# we define a density estimator to fit a `UnivariateFinite` distribution to some
+# Categorical data, with a Laplace smoothing option, α.
+
+mutable struct UnivariateFiniteFitter <: MLJModelInterface.Probabilistic
+    alpha::Float64
+end
+UnivariateFiniteFitter(;alpha=1.0) = UnivariateFiniteFitter(alpha)
+
+function MLJModelInterface.fit(model::UnivariateFiniteFitter,
+                               verbosity, X, y)
+
+    α = model.alpha
+    N = length(y)
+    _classes = classes(y)
+    d = length(_classes)
+
+    frequency_given_class = Distributions.countmap(y)
+    prob_given_class =
+        Dict(c => (get(frequency_given_class, c, 0) + α)/(N + α*d) for c in _classes)
+
+    fitresult = CategoricalDistributions.UnivariateFinite(prob_given_class)
+
+    report = (params=Distributions.params(fitresult),)
+    cache = nothing
+
+    verbosity > 0 && @info "Fitted a $fitresult"
+
+    return fitresult, cache, report
+end
+
+MLJModelInterface.predict(model::UnivariateFiniteFitter,
+                          fitresult,
+                          X) = fitresult
+
+
+MLJModelInterface.input_scitype(::Type{<:UnivariateFiniteFitter}) =
+    Nothing
+MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
+    AbstractVector{<:Finite}
+
+@testset "resampling for density estimators" begin
+    y = coerce(rand(StableRNG(123), "abc", 20), Multiclass)
+    X = nothing
+
+    train, test = partition(eachindex(y), 0.8)
+
+    model = UnivariateFiniteFitter(alpha=0)
+
+    mach = machine(model, X, y)
+    fit!(mach, rows=train, verbosity=0)
+
+    ytest = y[test]
+    yhat = predict(mach, nothing) # single UnivariateFinite distribution
+
+    # Estimate out-of-sample loss.  Notice we have to make duplicate versions `yhat`, to
+    # match the number ground truth observations with which we are pairing it ("cone"
+    # construction):
+    by_hand = log_loss(fill(yhat, length(ytest)), ytest)
+
+    # test some behavior on which the implementation of `evaluate` for density estimators
+    # is predicated:
+    @test isnothing(selectrows(X, 1:3))
+    @test predict(mach, rows=1:3) ≈ yhat
+
+    # evaluate has an internal "cone" construction when `X = nothing`, so this should just
+    # work:
+    e = evaluate(model, X, y, resampling=[(train, test)], measure=log_loss)
+    @test e.measurement[1] ≈ by_hand
 end
 
 true
