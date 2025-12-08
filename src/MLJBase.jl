@@ -84,7 +84,8 @@ import StatsBase: fit!, mode, countmap
 import Missings: levels
 using Missings
 import Distributions
-using CategoricalDistributions
+import CategoricalDistributions
+import CategoricalDistributions: UnivariateFinite, int, decoder
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
