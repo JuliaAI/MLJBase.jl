@@ -1427,7 +1427,7 @@ evaluate(pair::Pair{String,<:Model}, args...; cache=true, kwargs...) =
 
 # multiple model evaluations:
 evaluate(
-    models_or_pairs::AbstractVector{<:Union{Machine,Pair{String,<:Model}}}, args...;
+    models_or_pairs::AbstractVector{<:Union{Model,Pair{String,<:Model}}}, args...;
     kwargs...,
 ) = [evaluate(x, args...; kwargs...) for x in models_or_pairs]
 

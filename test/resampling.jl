@@ -1127,6 +1127,8 @@ end
     e2 = evaluate("knn" => KNNClassifier(), X, y)
     es = evaluate(["const" => ConstantClassifier(), "knn" => KNNClassifier()], X, y)
     @test es[1].measurement == e1.measurement
+    es = evaluate([ConstantClassifier(), KNNClassifier()], X, y)
+    @test es[1].measurement == e1.measurement
 
     # machine form:
     mach1 = machine(ConstantClassifier(), X, y)
@@ -1135,6 +1137,8 @@ end
     e2 = evaluate!("knn" => mach2)
     es = evaluate!(["const" => mach1, "knn" => mach2])
     @test es[1].measurement == e1.measurement
+    es2 = evaluate!([mach1, mach2])
+    @test es2[1].measurement == e1.measurement
 
     # display:
     @test contains(
