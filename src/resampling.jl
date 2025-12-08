@@ -758,9 +758,9 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     else
         println(io, "CompactPerformanceEvaluation object "*
             "with these fields:")
-        println(io, "  model, tag, measure, operation,\n"*
-            "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
-            "  train_test_rows, resampling, repeats")
+        println(io, "  model, measure, operation,\n"*
+            "  measurement, per_fold, per_observation,\n"*
+            "  resampling, repeats")
     end
     println(io, "Tag: $(e.tag)")
     println(io, "Extract:")
