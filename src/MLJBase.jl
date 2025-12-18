@@ -85,7 +85,7 @@ import Missings: levels
 using Missings
 import Distributions
 import CategoricalDistributions
-import CategoricalDistributions: UnivariateFinite, int, decoder
+import CategoricalDistributions: UnivariateFinite
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
