@@ -140,14 +140,8 @@ end
     # Stratification implies we should get exactly 40/10 in Train and 40/10 in Test.
     fraction = 0.5
 
-    # B. Define the scenario: SHUFFLE = TRUE
-    # We create a randomized vector of row indices.
-    # This is what triggers the bug in the original code.
-    rng = MersenneTwister(123)
-    rows_shuffled = shuffle(rng, 1:n_total)
-
     # C. Run the partition
-    (train_idxs, test_idxs) = _partition_stratified_fixed(rows_shuffled, [fraction], y)
+    (train_idxs, test_idxs) = partition(eachindex(y), [fraction], y, shuffle=true)
 
     # D. Verify Results
 
