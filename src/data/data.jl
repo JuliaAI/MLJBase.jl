@@ -46,7 +46,7 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
     uv    = unique(stratify)
     # construct table (n_classes * idx_of_that_class)
     # NOTE use of '===' is important to handle missing.
-    idxs  = [[i for i in rows if stratify[rows[i]] === v] for v in uv]
+    idxs  = [[i for i in eachindex(rows) if stratify[rows[i]] === v] for v in uv]
 
     # number of occurences of each class and proportions
     nidxs = length.(idxs)

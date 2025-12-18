@@ -129,6 +129,55 @@ import MLJBase: decoder, int, classes, partition, unpack, selectcols, matrix,
                  partition((X, y), 0.2, multi=true))
 end
 
+# 191225
+@testset "Stratified Partition Logic Fix" begin
+    # A. Setup Data with Imbalance
+    # 100 items total: 80 are Class 0, 20 are Class 1.
+    y = vcat(zeros(Int, 80), ones(Int, 20))
+    n_total = length(y)
+
+    # We request a 50/50 split.
+    # Stratification implies we should get exactly 40/10 in Train and 40/10 in Test.
+    fraction = 0.5
+
+    # B. Define the scenario: SHUFFLE = TRUE
+    # We create a randomized vector of row indices.
+    # This is what triggers the bug in the original code.
+    rng = MersenneTwister(123)
+    rows_shuffled = shuffle(rng, 1:n_total)
+
+    # C. Run the partition
+    (train_idxs, test_idxs) = _partition_stratified_fixed(rows_shuffled, [fraction], y)
+
+    # D. Verify Results
+
+    # 1. Check Sizes
+    @test length(train_idxs) == 50
+    @test length(test_idxs) == 50
+
+    # 2. Check Stratification in Train Set
+    # We map our result indices back to the label vector 'y'
+    train_y = y[train_idxs]
+    count_0_train = count(x -> x == 0, train_y)
+    count_1_train = count(x -> x == 1, train_y)
+
+    # If the bug were present, these numbers would be random (e.g., 38 and 12).
+    # Since it is fixed, they must be exactly 40 and 10.
+    @test count_0_train == 40
+    @test count_1_train == 10
+
+    # 3. Check Stratification in Test Set
+    test_y = y[test_idxs]
+    count_0_test = count(x -> x == 0, test_y)
+    count_1_test = count(x -> x == 1, test_y)
+
+    @test count_0_test == 40
+    @test count_1_test == 10
+
+    # 4. Check that no data leaked (intersection is empty)
+    @test isempty(intersect(train_idxs, test_idxs))
+end
+
 @testset "unpack" begin
     channing = TypedTables.Table(
         Sex = categorical(["Female", "Male", "Female"]),
