@@ -141,7 +141,7 @@ end
     fraction = 0.5
 
     # C. Run the partition
-    (train_idxs, test_idxs) = partition(eachindex(y), [fraction], y, shuffle=true)
+    (train_idxs, test_idxs) = partition(eachindex(y), fraction, stratify=y, shuffle=true)
 
     # D. Verify Results
 
