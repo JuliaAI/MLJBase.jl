@@ -138,7 +138,8 @@ julia> (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=
 
 * `stratify=nothing`: if a vector is specified, the partition will
   match the stratification of the given vector. In that case,
-  `shuffle` cannot be `false`.
+  `shuffle` should be `true` to avoid any bias that may
+  come from the ordering of the rows.
 
 * `multi=false`: if `true` then `X` is expected to be a `tuple` of
   objects sharing a common length, which are each partitioned
@@ -178,7 +179,12 @@ function partition(X, fractions::Real...;
         shuffle = true
     end
     rows = collect(1:n_rows)
-    shuffle !== nothing && shuffle && shuffle!(rng, rows)
+
+    if shuffle === true
+        shuffle!(rng, rows)
+    elseif stratify !== nothing
+        @warn "When a stratification vector is given, shuffle should be true to avoid bias."
+    end
 
     # determine the partition of `rows`:
     row_partition = _partition(rows, collect(fractions), stratify)
