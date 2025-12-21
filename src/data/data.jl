@@ -46,7 +46,7 @@ function _partition(rows, fractions, raw_stratify::AbstractVector)
     uv    = unique(stratify)
     # construct table (n_classes * idx_of_that_class)
     # NOTE use of '===' is important to handle missing.
-    idxs  = [[i for i in rows if stratify[rows[i]] === v] for v in uv]
+    idxs  = [[i for i in eachindex(rows) if stratify[rows[i]] === v] for v in uv]
 
     # number of occurences of each class and proportions
     nidxs = length.(idxs)
@@ -136,9 +136,9 @@ julia> (Xtrain, Xtest), (ytrain, ytest) = partition((X, y), 0.8, rng=123, multi=
   used, can be an integer seed. If specified, and `shuffle ===
   nothing` is interpreted as true.
 
-* `stratify=nothing`: if a vector is specified, the partition will
-  match the stratification of the given vector. In that case,
-  `shuffle` cannot be `false`.
+* `stratify=nothing`: if a vector is specified, the partition will match the
+  stratification of the given vector. In that case, `shuffle` should be `true` (or an
+  `rng` specified) to avoid any bias that may come from the ordering of the rows.
 
 * `multi=false`: if `true` then `X` is expected to be a `tuple` of
   objects sharing a common length, which are each partitioned
