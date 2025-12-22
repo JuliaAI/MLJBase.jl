@@ -85,7 +85,7 @@ import Missings: levels
 using Missings
 import Distributions
 import CategoricalDistributions
-import CategoricalDistributions: UnivariateFinite, int, decoder
+import CategoricalDistributions: UnivariateFinite
 import Distributions: pdf, logpdf, sampler
 const Dist = Distributions
 
@@ -167,7 +167,14 @@ include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
 
 include("operations.jl")
-include("resampling.jl")
+
+include("resampling/train_test_pairs.jl")
+include("resampling/error_messages.jl")
+include("resampling/strategies.jl")
+include("resampling/evaluation_results.jl")
+include("resampling/logging.jl")
+include("resampling/evaluate.jl")
+include("resampling/resampler.jl")
 
 include("hyperparam/one_dimensional_ranges.jl")
 include("hyperparam/one_dimensional_range_methods.jl")
