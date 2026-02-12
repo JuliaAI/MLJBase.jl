@@ -212,13 +212,14 @@ applied to the column names. Selection from the column names is without replacem
 column except the one with name `:id`.
 
 Predicates may also be formulated with the understanding that column names are strings
-instead of symbols, by specifying `string_names=true`, or by
+instead of symbols, by specifying `string_names=true`.
 
 
 Returns a tuple of tables/vectors with length one greater than the number of supplied
 predicates, with the last component including all previously unselected columns.
 
 ```julia-repl
+using DataFrames
 julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
 2×4 DataFrame
  Row │ x      y     z        w
@@ -248,22 +249,26 @@ julia> W  # the column(s) left over
 
 julia> YW, _ = unpack(table, in(["y", "w"]); string_names=true)
 julia> YW
-
+2×2 DataFrame
+ Row │ y     w
+     │ Char  String
+─────┼──────────────
+   1 │ a     A
+   2 │ b     B
 
 ```
 
 
-Whenever a returned table contains a single column, it is converted to
-a vector unless `wrap_singles=true`.
+Whenever a returned table contains a single column, it is converted to a vector unless
+`wrap_singles=true`.
 
-If `coerce_options` are specified then `table` is first replaced
-with `coerce(table, coerce_options)`. See
-[`ScientificTypes.coerce`](@ref) for details.
+If `coerce_options` are specified then `table` is first replaced with `coerce(table,
+coerce_options)`. See [`ScientificTypes.coerce`](@ref) for details.
 
-If `shuffle=true` then the rows of `table` are first shuffled, using
-the global RNG, unless `rng` is specified; if `rng` is an integer, it
-specifies the seed of an automatically generated Mersenne twister. If
-`rng` is specified then `shuffle=true` is implicit.
+If `shuffle=true` then the rows of `table` are first shuffled, using the global RNG,
+unless `rng` is specified; if `rng` is an integer, it specifies the seed of an
+automatically generated Mersenne twister. If `rng` is specified then `shuffle=true` is
+implicit.
 
 """
 function unpack(X, predicates...;
@@ -276,7 +281,7 @@ function unpack(X, predicates...;
     if string_names
         predicates = predicates .∘ string
     end
-    
+
     # add a final predicate to unpack all remaining columns into to
     # the last return value:
     predicates = (predicates..., _ -> true)
