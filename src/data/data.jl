@@ -201,18 +201,22 @@ _partition(X::Tuple, row_partition) =
            wrap_singles=false,
            shuffle=false,
            rng::Union{AbstractRNG,Int,Nothing}=nothing,
+           string_names=false,
            coerce_options...)
 
-Horizontally split any Tables.jl compatible `table` into smaller
-tables or vectors by making column selections determined by the
-predicates `f1`, `f2`, ..., `fk`. Selection from the column names is
-without replacement. A *predicate* is any object `f` such that
-`f(name)` is `true` or `false` for each column `name::Symbol` of
-`table`.
+Horizontally split any Tables.jl compatible `table` into smaller tables or vectors by
+making column selections determined by the predicates `f1`, `f2`, ..., `fk`, which are
+applied to the column names. Selection from the column names is without replacement. A
+*predicate* is any object `f` such that `f(name)` is `true` or `false` for each column
+`name::Symbol` of `table`. For example, `=!(:id)` is a predicate for selecting every
+column except the one with name `:id`.
 
-Returns a tuple of tables/vectors with length one greater than the
-number of supplied predicates, with the last component including all
-previously unselected columns.
+Predicates may also be formulated with the understanding that column names are strings
+instead of symbols, by specifying `string_names=true`, or by
+
+
+Returns a tuple of tables/vectors with length one greater than the number of supplied
+predicates, with the last component including all previously unselected columns.
 
 ```julia-repl
 julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
@@ -241,7 +245,13 @@ julia> W  # the column(s) left over
 2-element Vector{String}:
  "A"
  "B"
+
+julia> YW, _ = unpack(table, in(["y", "w"]); string_names=true)
+julia> YW
+
+
 ```
+
 
 Whenever a returned table contains a single column, it is converted to
 a vector unless `wrap_singles=true`.
@@ -259,8 +269,14 @@ specifies the seed of an automatically generated Mersenne twister. If
 function unpack(X, predicates...;
                 wrap_singles=false,
                 shuffle=nothing,
-                rng=nothing, pairs...)
+                rng=nothing,
+                string_names=false,
+                pairs...)
 
+    if string_names
+        predicates = predicates .∘ string
+    end
+    
     # add a final predicate to unpack all remaining columns into to
     # the last return value:
     predicates = (predicates..., _ -> true)
