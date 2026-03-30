@@ -211,10 +211,6 @@ applied to the column names. Selection from the column names is without replacem
 `name::Symbol` of `table`. For example, `=!(:id)` is a predicate for selecting every
 column except the one with name `:id`.
 
-Predicates may also be formulated with the understanding that column names are strings
-instead of symbols, by specifying `string_names=true`.
-
-
 Returns a tuple of tables/vectors with length one greater than the number of supplied
 predicates, with the last component including all previously unselected columns.
 
@@ -246,7 +242,12 @@ julia> W  # the column(s) left over
 2-element Vector{String}:
  "A"
  "B"
+```
 
+Predicates may also be formulated with the understanding that column names are strings
+instead of symbols, by specifying `string_names=true`.
+
+```julia-repl
 julia> YW, _ = unpack(table, in(["y", "w"]); string_names=true)
 julia> YW
 2×2 DataFrame
@@ -255,15 +256,34 @@ julia> YW
 ─────┼──────────────
    1 │ a     A
    2 │ b     B
-
 ```
-
 
 Whenever a returned table contains a single column, it is converted to a vector unless
 `wrap_singles=true`.
 
-If `coerce_options` are specified then `table` is first replaced with `coerce(table,
-coerce_options)`. See [`ScientificTypes.coerce`](@ref) for details.
+If `coerce_options` are specified then the scitype of the referenced columns of `table`
+are first coerced, as shown in the following example:
+
+```julia-repl
+julia> YW, _ = unpack(table, in([:y, :w]); y=OrderedFactor) # or `:y => OrderedFactor`
+julia> YW
+2×2 DataFrame
+ Row │ y     w
+     │ Cat…  String
+─────┼──────────────
+   1 │ a     A
+   2 │ b     B
+
+julia> schema(YW)
+┌───────┬──────────────────┬────────────────────────────────┐
+│ names │ scitypes         │ types                          │
+├───────┼──────────────────┼────────────────────────────────┤
+│ y     │ OrderedFactor{2} │ CategoricalValue{Char, UInt32} │
+│ w     │ Textual          │ String                         │
+└───────┴──────────────────┴────────────────────────────────┘
+```
+
+For more flexible type coercion options see [`ScientificTypes.coerce`](@ref).
 
 If `shuffle=true` then the rows of `table` are first shuffled, using the global RNG,
 unless `rng` is specified; if `rng` is an integer, it specifies the seed of an
@@ -271,12 +291,15 @@ automatically generated Mersenne twister. If `rng` is specified then `shuffle=tr
 implicit.
 
 """
-function unpack(X, predicates...;
-                wrap_singles=false,
-                shuffle=nothing,
-                rng=nothing,
-                string_names=false,
-                pairs...)
+function unpack(
+    X,
+    predicates...;
+    wrap_singles=false,
+    shuffle=nothing,
+    rng=nothing,
+    string_names=false,
+    pairs...,
+    )
 
     if string_names
         predicates = predicates .∘ string
