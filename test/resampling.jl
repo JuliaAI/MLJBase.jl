@@ -8,6 +8,7 @@ using StatisticalMeasures
 import LearnAPI
 import CategoricalDistributions
 import MLJModelInterface
+import Measurements
 
 @everywhere begin
     using .Models
@@ -20,9 +21,7 @@ using Test
 using MLJBase
 import Distributions
 import StatsBase
-@static if VERSION >= v"1.3.0-DEV.573"
-    using .Threads
-end
+using .Threads
 
 struct DummyInterval <: Interval end
 dummy_interval=DummyInterval()
@@ -1260,6 +1259,28 @@ MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
     # work:
     e = evaluate(model, X, y, resampling=[(train, test)], measure=log_loss)
     @test e.measurement[1] ≈ by_hand
+end
+
+@test MLJBase.individualize(["cat", "dog", "cat", "mouse", "cat", "mouse"]) ==
+    ["cat_1",  "dog", "cat_2", "mouse_1", "cat_3", "mouse_2"]
+@test MLJBase.individualize(["cat", "dog", "cat", "mouse", "cat", "mouse"], "") ==
+    ["cat1",  "dog", "cat2", "mouse1", "cat3", "mouse2"]
+
+@testset "describe" begin
+    X, y = make_moons(12)
+    y = coerce(y, OrderedFactor)
+    model = ConstantClassifier()
+    performance_evaluation = evaluate(
+        "const"=>model, X, y;
+        measures=[FScore(0.6), FScore(0.7), brier_loss, confmat],
+    )
+    summary = describe(performance_evaluation)
+    @test keys(summary) == (:tag, :FScore1, :FScore2, :BrierLoss, :ConfusionMatrix)
+    @test summary.tag == "const"
+    bl = summary.BrierLoss
+    @test Measurements.value(bl) == performance_evaluation.measurement[3]
+    @test Measurements.uncertainty(bl) == performance_evaluation.uncertainty_radius_95[3]
+    @test summary.ConfusionMatrix == performance_evaluation.measurement[4]
 end
 
 true
