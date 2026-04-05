@@ -43,8 +43,10 @@ using MLJ
 X, y = @load_iris # a vector and a table
 
 # instantiate two models:
-knn = (@load KNNClassifier pkg=NearestNeighborModels)()
-tree = (@load DecisionTreeClassifier pkg=DecisionTree)()
+KNNClassifier = @load KNNClassifier pkg=NearestNeighborModels
+DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree
+knn = KNNClassifier()
+tree = DecisionTreeClassifier()
 
 named_models = [
     "Dummy" => ConstantClassifier(),  # a built-in model
