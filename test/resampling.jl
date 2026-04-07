@@ -1261,11 +1261,6 @@ MLJModelInterface.target_scitype(::Type{<:UnivariateFiniteFitter}) =
     @test e.measurement[1] ≈ by_hand
 end
 
-@test MLJBase.individualize(["cat", "dog", "cat", "mouse", "cat", "mouse"]) ==
-    ["cat_1",  "dog", "cat_2", "mouse_1", "cat_3", "mouse_2"]
-@test MLJBase.individualize(["cat", "dog", "cat", "mouse", "cat", "mouse"], "") ==
-    ["cat1",  "dog", "cat2", "mouse1", "cat3", "mouse2"]
-
 @testset "describe" begin
     X, y = make_moons(12)
     y = coerce(y, OrderedFactor)
@@ -1275,7 +1270,7 @@ end
         measures=[FScore(0.6), FScore(0.7), brier_loss, confmat],
     )
     summary = describe(performance_evaluation)
-    @test keys(summary) == (:tag, :FScore1, :FScore2, :BrierLoss, :ConfusionMatrix)
+    @test keys(summary) == (:tag, :FScore, :FScore2, :BrierLoss, :ConfusionMatrix)
     @test summary.tag == "const"
     bl = summary.BrierLoss
     @test Measurements.value(bl) == performance_evaluation.measurement[3]

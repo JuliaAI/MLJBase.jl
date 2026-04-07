@@ -1,33 +1,4 @@
 """
-    individualize(iterator, delim="_")
-
-Given an `iterator` of abstract strings, return a vector of the same length, with numeric
-suffixes that make the new elements unique, as in the following example:
-
-```julia-repl
-julia> individualize(["cat", "dog", "cat", "mouse", "cat", "mouse"])
-6-element Vector{String}:
- "cat_1"
- "dog"
- "cat_2"
- "mouse_1"
- "cat_3"
- "mouse_2"
-```
-
-"""
-function individualize(iterator, delim="_")
-    occurences_given_string = StatsBase.countmap(iterator)
-    d = deepcopy(occurences_given_string)
-    map(iterator) do s
-        occurences_given_string[s] == 1 && return s
-        digit = occurences_given_string[s] - d[s] + 1
-        d[s] = d[s] - 1
-        return "$s$delim$digit"
-    end
-end
-
-"""
     describe(evaluation::MLJBase.AbstractPerformanceEvaluation)
 
 Return a named tuple summarizing an MLJ performance evaluation, as returned by the methods
@@ -74,11 +45,11 @@ julia> pretty(table)
 """
 function DataAPI.describe(e::AbstractPerformanceEvaluation)
     key_value_pairs = Any[:tag=>e.tag]
-    measure_names = individualize(
+    measure_names = MLJBase.individuate(
         map(e.measure) do measure
             split(_repr_(measure), "(") |> first
         end,
-        "",
+        delim="",
     )
     for (i, name) in enumerate(measure_names)
         value = e.measurement[i]

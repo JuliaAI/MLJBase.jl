@@ -555,3 +555,50 @@ converted to a vector.
 
 """
 guess_model_target_observation_scitype(model) =  observation(target_scitype(model))
+
+
+# ## MAKING A COLLECTION OF STRINGS OR SYMBOLS UNIQUE
+
+append_digit(s::AbstractString, delim, n) = string(s, delim, n)
+append_digit(s::Symbol, args...) = Symbol(append_digit(string(s), args...))
+
+"""
+    MLJBase.individuate(collection, delim="", use_one=false)
+
+Given a `collection` of strings or symbols, add numeric suffixes to some elements, to
+distinguish repeated elements, and return these unique elements as a vector of the same
+length as `collection`:
+
+```julia-repl
+julia> collection = ["cat", "dog", "cat", "mouse", "cat", "mouse"]
+julia> MLJBase.individuate(collection)
+ "cat"
+ "dog"
+ "cat2"
+ "mouse"
+ "cat3"
+ "mouse2"
+
+julia> MLJBase.individuate(collection, delim="_", use_one=true)
+6-element Vector{String}:
+ "cat_1"
+ "dog"
+ "cat_2"
+ "mouse_1"
+ "cat_3"
+ "mouse_2"
+
+```
+
+"""
+function individuate(iterator; delim="", use_one=false)
+    occurences_given_string = StatsBase.countmap(iterator)
+    d = deepcopy(occurences_given_string)
+    map(iterator) do s
+        occurences_given_string[s] == 1 && return s
+        digit = occurences_given_string[s] - d[s] + 1
+        d[s] = d[s] - 1
+        digit == 1 && !use_one && return s
+        return append_digit(s, delim, digit)
+    end
+end
