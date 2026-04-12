@@ -221,5 +221,19 @@ MLJBase.target_scitype(::Type{<:DRegressor2}) =
     @test !contains(str, "Int64")
 end
 
+@testset "individuate" begin
+    @test MLJBase.individuate([:x, :y, :x, :z, :y, :x]) ==
+        [:x, :y, :x2, :z, :y2, :x3]
+    @test MLJBase.individuate([:x, :y, :x, :z, :y, :x], delim="_") ==
+        [:x, :y, :x_2, :z, :y_2, :x_3]
+    @test MLJBase.individuate(
+        ["cat", "dog", "cat", "mouse", "cat", "mouse"],
+        use_one=true,
+        delim="_",
+    ) ==  ["cat_1",  "dog", "cat_2", "mouse_1", "cat_3", "mouse_2"]
+    @test MLJBase.individuate(["cat", "dog", "cat", "mouse", "cat", "mouse"]) ==
+        ["cat",  "dog", "cat2", "mouse", "cat3", "mouse2"]
+end
+
 end # module
 true
