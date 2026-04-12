@@ -12,25 +12,6 @@
 
 # # HELPERS
 
-# modify collection of symbols to guarantee uniqueness. For example,
-# individuate([:x, :y, :x, :x]) = [:x, :y, :x2, :x3])
-function individuate(v)
-    isempty(v) && return v
-    ret = Symbol[first(v),]
-    for s in v[2:end]
-        s in ret || (push!(ret, s); continue)
-        n = 2
-        candidate = s
-        while true
-            candidate = string(s, n) |> Symbol
-            candidate in ret || break
-            n += 1
-        end
-        push!(ret, candidate)
-    end
-    return ret
-end
-
 function as_type(prediction_type::Symbol)
     if prediction_type == :deterministic
         return Deterministic
@@ -151,7 +132,7 @@ function pipe_named_tuple(names, components)
     isempty(names) && throw(ERR_EMPTY_PIPELINE)
 
     # make keys unique:
-    names = names |> individuate |> Tuple
+    names = names |> MLJBase.individuate |> Tuple
 
     # check sequence:
     supervised_components = filter(components) do c

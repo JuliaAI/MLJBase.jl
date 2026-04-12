@@ -10,11 +10,6 @@ import MLJBase: Pred, Trans
 
 rng = StableRNG(698790187)
 
-@testset "helpers" begin
-    @test MLJBase.individuate([:x, :y, :x, :z, :y, :x]) ==
-        [:x, :y, :x2, :z, :y2, :x3]
-end
-
 
 # # DUMMY MODELS
 

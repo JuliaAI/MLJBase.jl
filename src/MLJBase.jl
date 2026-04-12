@@ -20,6 +20,7 @@ end
 import LearnAPI
 import StatisticalTraits.snakecase
 import StatisticalTraits.info
+import Measurements
 
 # Interface
 
@@ -66,7 +67,8 @@ import PrettyTables
 using DelimitedFiles
 using OrderedCollections
 using CategoricalArrays
-import CategoricalArrays.DataAPI.unwrap
+import DataAPI
+import DataAPI: unwrap, describe
 import InvertedIndices: Not
 import Dates
 
@@ -175,6 +177,7 @@ include("resampling/evaluation_results.jl")
 include("resampling/logging.jl")
 include("resampling/evaluate.jl")
 include("resampling/resampler.jl")
+include("resampling/describe.jl")
 
 include("hyperparam/one_dimensional_ranges.jl")
 include("hyperparam/one_dimensional_range_methods.jl")
@@ -303,7 +306,7 @@ export TransformedTargetModel
 
 # resampling.jl:
 export ResamplingStrategy, InSample, Holdout, CV, StratifiedCV, TimeSeriesCV,
-    evaluate!, Resampler, PerformanceEvaluation, CompactPerformanceEvaluation
+    evaluate!, Resampler, PerformanceEvaluation, CompactPerformanceEvaluation, describe
 
 # `MLJType` and the abstract `Model` subtypes are exported from within
 # src/composition/abstract_types.jl
