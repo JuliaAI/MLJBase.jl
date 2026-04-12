@@ -265,11 +265,12 @@ log_evaluation(logger, performance_evaluation) = nothing
 
 Estimate the performance of a machine `mach` wrapping a supervised model in data, using
 the specified `resampling` strategy (defaulting to 6-fold cross-validation) and `measure`,
-which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@ref)
-object.
+which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@ref) or
+[`CompactPerformanceEvaluation`](@ref) object. To obtain a brief named tuple summary of
+this object, suitable for tabulation, apply [`describe`](@ref).
 
 In place of `mach`, one can use `tag_string => mach`, or a vector of either of these forms,
-to return a vector of performance evaluation objects.
+to return a vector of performance evaluation objects. 
 
 Available resampling strategies are $RESAMPLING_STRATEGIES_LIST. If `resampling` is not an
 instance of one of these, then a vector of tuples of the form `(train_rows, test_rows)`
@@ -374,18 +375,32 @@ show(e)
 
 Evaluate multiple machines:
 
-```julia
+```julia-repl
 @load KNNClassifier pkg=NearestNeighborModels
 mach1 = machine(ConstantClassifier(), X, y)
 mach2 = machine(KNNClassifier(), X , y)
-evaluate!(["const" => mach1, "knn" => mach2])
-# 2-element Vector{...}
-#  PerformanceEvaluation("const", 0.698 ± 0.0062)
-#  PerformanceEvaluation("knn", 2.22e-16 ± 0.0)
+julia> performance_evaluations = evaluate!(["const" => mach1, "knn" => mach2])
+2-element Vector{...}
+ PerformanceEvaluation("const", 0.698 ± 0.0062)
+ PerformanceEvaluation("knn", 2.22e-16 ± 0.0)
+```
+
+Tabulate the results:
+
+```julia-repl
+describe.(performance_evaluations) |> pretty # or `|> DataFrames.DataFrame`
+┌─────────┬──────────────────────┐
+│ tag     │ LogLoss              │
+│ String  │ Measurement{Float64} │
+│ Textual │ Continuous           │
+├─────────┼──────────────────────┤
+│ const   │ 0.6977±0.0062        │
+│ knn     │ 2.22045e-16±0.0      │
+└─────────┴──────────────────────┘
 ```
 
 See also [`evaluate`](@ref), [`PerformanceEvaluation`](@ref),
-[`CompactPerformanceEvaluation`](@ref).
+[`CompactPerformanceEvaluation`](@ref), [`describe`](@ref).
 
 """
 function evaluate!(
