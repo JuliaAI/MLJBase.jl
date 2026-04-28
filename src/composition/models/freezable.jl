@@ -112,7 +112,7 @@ then reused across all subsequent folds, while the classifier
 retrains normally on each fold:
 
 ```julia
-using MLJBase
+using MLJ    # or `using MLJBase, MLJModels, using MLJTransforms`
 
 X, y = make_blobs(200)
 
