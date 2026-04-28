@@ -115,7 +115,7 @@ retrains normally on each fold:
 using MLJ    # or `using MLJBase, MLJModels, using MLJTransforms`
 
 X, y = make_blobs(200)
-
+DecisionTreeClassifier = @load DecisionTreeClassifier pkg=DecisionTree
 pipe = Pipeline(
     scaler = Freezable(Standardizer()),   # trained once, then frozen
     clf    = DecisionTreeClassifier(),     # retrains on every fold
