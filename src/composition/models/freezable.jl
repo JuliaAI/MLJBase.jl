@@ -87,7 +87,7 @@ data anonymity.
 ### Example 1: Freezing a single model
 
 ```julia
-using MLJBase
+using MLJ    # or `using MLJBase, MLJModels`
 
 X, y = make_regression(100)
 
