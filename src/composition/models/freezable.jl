@@ -85,7 +85,7 @@ Specify `cache=false` to prioritize memory over speed, or to guarantee
 data anonymity.
 
 ### Example 1: Freezing a single model
-
+This example and the next assume you have MLJDecisionTreeInterface in your package environment. 
 ```julia
 using MLJ    # or `using MLJBase, MLJModels`
 
