@@ -91,6 +91,7 @@ using MLJ    # or `using MLJBase, MLJModels`
 
 X, y = make_regression(100)
 
+DecisionTreeRegressor = @load DecisionTreeRegressor pkg=DecisionTree
 model = Freezable(DecisionTreeRegressor())  # frozen=true by default
 mach = machine(model, X, y)
 
