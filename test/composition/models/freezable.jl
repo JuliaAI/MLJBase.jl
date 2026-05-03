@@ -3,6 +3,7 @@ module TestFreezable
 using MLJBase
 using Test
 using ..Models
+using ..TestUtilities
 using StableRNGs
 const MMI = MLJBase.MLJModelInterface
 
@@ -342,6 +343,60 @@ end
     preds_second = predict(mach, X)
     @test all(p -> p ≈ 200.0, preds_second)
     @test length(preds_second) == 20
+end
+
+@testset "pipeline frozen component is not retrained on row change" begin
+    # Regression test: when a `Freezable` component is inside a pipeline and the
+    # outer machine is re-fitted with new rows, the parent composite rebuilds
+    # its learning network. The frozen inner model must NOT be retrained — its
+    # fitted_params must match the first fit byte-for-byte.
+    rng = StableRNG(777)
+    X = (x1 = randn(rng, 200), x2 = randn(rng, 200))
+    y = randn(rng, 200)
+
+    frozen_std = Freezable(Standardizer(), frozen=true)
+    pipe = Pipeline(
+        scaler = frozen_std,
+        reg    = DeterministicConstantRegressor(),
+    )
+
+    mach = machine(pipe, X, y)
+    fit!(mach; rows=1:100, verbosity=0)
+    fp_first = fitted_params(mach).scaler.model
+
+    fit!(mach; rows=101:200, verbosity=0)
+    fp_second = fitted_params(mach).scaler.model
+
+    @test fp_first == fp_second
+end
+
+@testset "pipeline frozen component fit/skip sequence" begin
+    # Use @test_mach_sequence to assert the inner Standardizer's machine is
+    # trained once and not retrained on a subsequent row-change refit.
+    rng = StableRNG(778)
+    X = (x1 = randn(rng, 60), x2 = randn(rng, 60))
+    y = randn(rng, 60)
+
+    frozen_std = Freezable(Standardizer(), frozen=true)
+    pipe = Pipeline(
+        scaler = frozen_std,
+        reg    = DeterministicConstantRegressor(),
+    )
+    mach = machine(pipe, X, y)
+
+    # Drive the channel once to discover the machine objects, then assert.
+    fit!(mach; rows=1:30, verbosity=-5000)
+    seq1 = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+    @test any(t -> t[1] === :train && t[2].model isa Symbol && t[2].model === :model, seq1)
+
+    # Second fit on different rows must not produce a :train event for the inner
+    # Standardizer machine (the one whose symbolic model is `:model`, owned by the
+    # FreezableUnsupervised composite).
+    fit!(mach; rows=31:60, verbosity=-5000)
+    seq2 = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+    inner_train_events =
+        filter(t -> t[1] === :train && t[2].model isa Symbol && t[2].model === :model, seq2)
+    @test isempty(inner_train_events)
 end
 
 @testset "pipeline frozen component skip with varying sizes" begin

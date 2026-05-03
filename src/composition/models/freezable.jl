@@ -13,7 +13,12 @@ const FREEZABLE_SUPER_GIVEN_ATOM =
     Dict(atom =>
          Symbol("$(atom)NetworkComposite") for atom in FREEZABLE_SUPPORTED_ATOMS)
 
-# Type definitions:
+# Type definitions. The `_stash` field is a 0-or-1-element vector that, when populated,
+# holds the (fitresult, cache, report) tuple from a prior successful fit. It lets
+# `MLJModelInterface.fit` short-circuit when the model is `frozen=true` and is invoked
+# again as a fresh fit (e.g. when a parent composite rebuilds its learning network on a
+# row change). The field is hidden from `propertynames` below so it does not participate
+# in model equality, display, or trait machinery.
 for From in FREEZABLE_SUPPORTED_ATOMS
     New = FREEZABLE_TYPE_GIVEN_ATOM[From]
     To  = FREEZABLE_SUPER_GIVEN_ATOM[From]
@@ -22,6 +27,7 @@ for From in FREEZABLE_SUPPORTED_ATOMS
             model::M
             frozen::Bool
             cache::Bool
+            _stash::Vector{Any}
         end
     end
     eval(ex)
@@ -45,6 +51,11 @@ const SupervisedFreezable = Union{
     freezable_type_given_atom[Interval],
 }
 const FreezableSupported = Union{keys(freezable_type_given_atom)...}
+
+# Hide private `_stash` from equality (`is_same_except`), display, and any other
+# property-iteration code paths.
+const _FREEZABLE_PUBLIC_PROPS = (:model, :frozen, :cache)
+Base.propertynames(::SomeFreezable) = _FREEZABLE_PUBLIC_PROPS
 
 const ERR_FREEZABLE_MODEL_UNSPECIFIED = ArgumentError(
     "Expecting atomic model as argument. None specified."
@@ -152,7 +163,8 @@ function Freezable(
     metamodel =
         freezable_type_given_atom[abstract_atom](atom,
                                                  frozen,
-                                                 cache)
+                                                 cache,
+                                                 Any[])
     message = clean!(metamodel)
     isempty(message) || @warn message
     return metamodel
@@ -181,7 +193,11 @@ wrapping this model will retrain normally.
 
 See also [`freeze!`](@ref).
 """
-thaw!(model::SomeFreezable) = (model.frozen = false; model)
+function thaw!(model::SomeFreezable)
+    model.frozen = false
+    empty!(model._stash)
+    return model
+end
 
 
 # Prefit methods
@@ -199,6 +215,18 @@ function prefit(model::FreezableUnsupervised, verbosity, X)
 end
 
 function MLJModelInterface.fit(composite::SomeFreezable, verbosity, data...)
+    # If the model has been fit before AND is currently frozen, reuse the cached
+    # fit output verbatim. This handles the case where a parent composite (e.g. a
+    # `Pipeline`) rebuilds its learning network on a row change: from the parent's
+    # perspective this is a fresh fit, but the freeze contract says we must not
+    # retrain. The `Signature` carried in the cached fitresult contains the original
+    # trained inner machine; subsequent `predict`/`transform` calls clone the
+    # signature and rebind source nodes to new data, so reusing the cached fitresult
+    # is correct.
+    if composite.frozen && !isempty(composite._stash)
+        return composite._stash[end]
+    end
+
     # Build the learning network (inner machine starts unfrozen):
     fitresult = prefit(composite, verbosity, data...) |> MLJBase.Signature
 
@@ -222,7 +250,17 @@ function MLJModelInterface.fit(composite::SomeFreezable, verbosity, data...)
     # for passing to `update` so changes in `composite` can be detected:
     cache = deepcopy(composite)
 
-    return fitresult, cache, report
+    output = (fitresult, cache, report)
+    _refresh_stash!(composite, output)
+    return output
+end
+
+# Maintain at most one entry: the latest fit output, only while the model is frozen.
+# A thawed model holds no stash, so the next `fit` call retrains from scratch.
+function _refresh_stash!(composite::SomeFreezable, output)
+    empty!(composite._stash)
+    composite.frozen && push!(composite._stash, output)
+    return composite
 end
 
 function MLJModelInterface.update(
@@ -262,7 +300,9 @@ function MLJModelInterface.update(
     # for passing to `update` so changes in `composite` can be detected:
     cache = deepcopy(composite)
 
-    return fitresult, cache, report
+    output = (fitresult, cache, report)
+    _refresh_stash!(composite, output)
+    return output
 end
 
 
@@ -285,6 +325,25 @@ function MLJBase.fit!(mach::Machine{<:SomeFreezable}; kwargs...)
     glb_node = MLJBase.glb(mach.args...)
     fit!(glb_node; kwargs...)
     MLJBase.fit_only!(mach; kwargs...)
+end
+
+
+# Forwarded methods: the wrapper should be transparent to per-fit operations
+# the inner model supports.
+
+const ERR_FREEZABLE_MISSING_REPORT =
+    "Cannot find report for the atomic model wrapped by `Freezable`. "
+
+function MMI.training_losses(composite::SomeFreezable, freezable_report)
+    hasproperty(freezable_report, :model) || throw(ERR_FREEZABLE_MISSING_REPORT)
+    atomic_report = getproperty(freezable_report, :model)
+    return training_losses(composite.model, atomic_report)
+end
+
+function MMI.feature_importances(composite::SupervisedFreezable, fitresult, report)
+    predict_node = fitresult.interface.predict
+    mach = only(MLJBase.machines_given_model(predict_node)[:model])
+    return feature_importances(composite.model, mach.fitresult, mach.report[:fit])
 end
 
 

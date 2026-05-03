@@ -88,7 +88,7 @@ end
     # test a frozen Machine
     stand = machine(Standardizer(), source((x1=rand(10),)))
     freeze!(stand)
-    @test_logs (:warn, r"not trained as it is frozen\.$") fit!(stand)
+    @test_logs (:info, r"Not retraining .* as it is frozen\.$") fit!(stand)
 end
 
 @testset "machine instantiation warnings" begin

@@ -493,8 +493,6 @@ end
 function fitlog(mach, action::Symbol, verbosity)
     if verbosity < -1000
         put!(MACHINE_CHANNEL, (action, mach))
-    elseif verbosity > -1 && action == :frozen
-        @warn "$mach not trained as it is frozen."
     elseif verbosity > 0
         action == :train && (@info "Training $mach."; return)
         action == :update && (@info "Updating $mach."; return)
@@ -502,6 +500,7 @@ function fitlog(mach, action::Symbol, verbosity)
             @info "Not retraining $mach. Use `force=true` to force."
             return
         end
+        action == :frozen && (@info "Not retraining $mach as it is frozen."; return)
     end
 end
 
