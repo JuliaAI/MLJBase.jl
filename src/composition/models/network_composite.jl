@@ -71,6 +71,14 @@ function MLJModelInterface.update(
     start_over = MLJBase.start_over(composite, old_composite, greatest_lower_bound)
     start_over && return MLJModelInterface.fit(composite, verbosity, data...)
 
+    # If the composite has frozen descendants, rebuild a fresh network on `data` and
+    # transfer trained state from the old inner machines for the frozen children. Fresh
+    # non-frozen children train from scratch; frozen children short-circuit via the
+    # A/B/C/D checks in `fit_only!` because their state survived the transfer.
+    if has_frozen_descendants(composite)
+        return _rebuild_preserving_frozen(composite, verbosity, fitresult, data...)
+    end
+
     # retrain the network:
     fit!(greatest_lower_bound; verbosity, composite)
 
@@ -80,6 +88,36 @@ function MLJModelInterface.update(
     cache = deepcopy(composite)
 
     return fitresult, cache, report
+end
+
+function _rebuild_preserving_frozen(composite, verbosity, fitresult, data...)
+    old_glb = MLJBase.glb(fitresult)
+    old_machs = MLJBase.machines_given_model(old_glb)
+
+    new_fitresult = prefit(composite, verbosity, data...) |> MLJBase.Signature
+    new_glb = MLJBase.glb(new_fitresult)
+    new_machs = MLJBase.machines_given_model(new_glb)
+
+    for (sym, machs) in old_machs
+        sym in propertynames(composite) || continue
+        frozen(getproperty(composite, sym)) || continue
+        haskey(new_machs, sym) || continue
+        old_m = first(machs)
+        isdefined(old_m, :fitresult) || continue
+        new_m = first(new_machs[sym])
+        new_m.fitresult = old_m.fitresult
+        isdefined(old_m, :cache) && (new_m.cache = old_m.cache)
+        isdefined(old_m, :report) && (new_m.report = old_m.report)
+        new_m.state = old_m.state
+        new_m.old_model = deepcopy(getproperty(composite, sym))
+        new_m.old_upstream_state = MLJBase.upstream(new_m)
+    end
+
+    fit!(new_glb; verbosity, composite)
+
+    report = MLJBase.report(new_fitresult)
+    cache = deepcopy(composite)
+    return new_fitresult, cache, report
 end
 
 MLJModelInterface.fitted_params(composite::NetworkComposite, signature) =
