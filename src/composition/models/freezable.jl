@@ -66,8 +66,9 @@ const err_freezable_unsupported(model) = ArgumentError(
     Freezable(model; frozen=true, cache=true)
 
 Wrap `model` so `fit!` is a no-op after the first training pass. Place the wrapper inside
-a `Pipeline`, `Stack`, or `TunedModel` and the inner component skips retraining even when
-the parent rebuilds its learning network on a row change.
+a `Pipeline`, `Stack`, `TunedModel`, or any other `NetworkComposite` model, and the
+inner component skips retraining even when the parent rebuilds its learning network on a
+row change.
 
 Set `frozen=false` to allow normal retraining. Use [`freeze!`](@ref) and [`thaw!`](@ref)
 to toggle after construction. Set `cache=false` to prioritize memory over speed.

@@ -134,6 +134,18 @@ function has_frozen_descendants(model)
 end
 
 """
+    update_for_row_change(model, verbosity, fitresult, cache, data...)
+
+**Private method.** Called by `fit_only!` instead of `update` when condition (4) (row
+change) fires on a model with frozen descendants. The default falls through to `fit`;
+`NetworkComposite` overrides this to rebuild via `prefit` while transferring trained
+state from old inner machines for frozen children.
+
+"""
+update_for_row_change(model, verbosity, fitresult, cache, data...) =
+    fit(model, verbosity, data...)
+
+"""
     replace(mach::Machine, field1 => value1, field2 => value2, ...)
 
 **Private method.**
@@ -618,8 +630,10 @@ Otherwise the action is selected from the numbered conditions:
    time `mach` was trained.
 
 4. The specified `rows` have changed since the last retraining and `mach.model` does not
-   have `Static` type. If the resolved model has frozen descendants, this routes to an
-   update instead of an ab initio fit, so the existing learning network survives.
+   have `Static` type. If the resolved model has frozen descendants, the model receives a
+   `update_for_row_change` call instead of an ab initio fit; for a `NetworkComposite`
+   this rebuilds the network on the new data while transferring trained state from old
+   inner machines for the frozen children.
 
 5. `mach.model` is a `Model` (not a symbol) and is different from the last model used for
    training (but has the same type).
@@ -634,7 +648,8 @@ Otherwise the action is selected from the numbered conditions:
    from the last model used for training.
 
 Cases (1), (2), (3), (6), (8), and (4) without frozen descendants train ab initio.
-Cases (5), (7), and (4) with frozen descendants apply a training update.
+Cases (5) and (7) apply a training update. Case (4) with frozen descendants calls
+`update_for_row_change` (rebuild + transfer for composites, ab initio otherwise).
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -760,9 +775,22 @@ function fit_only!(
                 rethrow()
             end
 
-    elseif update_on_rows || model != mach.old_model # condition (5) or row-change update
+    elseif update_on_rows  # condition (4) with frozen descendants
 
-        # update the model:
+        # row-change update: rebuild the network on new data but preserve trained state
+        # of frozen subcomponents.
+        fitlog(mach, :update, verbosity)
+        mach.fitresult, mach.cache, mach.report[:fit] =
+            update_for_row_change(model,
+                                  verbosity,
+                                  mach.fitresult,
+                                  mach.cache,
+                                  _resampled_data(mach, model, rows)...)
+
+    elseif model != mach.old_model  # condition (5)
+
+        # standard update: hyperparameters changed, network stays the same so non-frozen
+        # subcomponents can still warm-restart through their own `update`.
         fitlog(mach, :update, verbosity)
         mach.fitresult, mach.cache, mach.report[:fit] =
             update(model,
