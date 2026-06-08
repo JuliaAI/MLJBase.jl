@@ -7,6 +7,21 @@ using ..TestUtilities
 using StableRNGs
 const MMI = MLJBase.MLJModelInterface
 
+# A minimal Deterministic regressor that implements `update` so we can tell warm restart
+# (`:update` event) apart from fresh training (`:train` event).
+mutable struct CounterReg <: MLJBase.Deterministic
+    n_trees::Int
+end
+MLJBase.fit(::CounterReg, ::Int, X, y) = ([1], (n_trees=0,), NamedTuple())
+function MLJBase.update(m::CounterReg, ::Int, fitresult, cache, X, y)
+    push!(fitresult, m.n_trees - cache.n_trees)
+    return fitresult, (n_trees=m.n_trees,), NamedTuple()
+end
+MLJBase.predict(::CounterReg, fitresult, X) = fill(Float64(sum(fitresult)), nrows(X))
+MLJBase.target_scitype(::Type{CounterReg}) = AbstractVector{<:Continuous}
+MLJBase.input_scitype(::Type{CounterReg}) =
+    Union{Table(Continuous), AbstractMatrix{<:Continuous}}
+
 @testset "Freezable types and constructor" begin
     @testset "deterministic model wrapping" begin
         atom = DeterministicConstantRegressor()
@@ -397,6 +412,45 @@ end
     inner_train_events =
         filter(t -> t[1] === :train && t[2].model isa Symbol && t[2].model === :model, seq2)
     @test isempty(inner_train_events)
+end
+
+@testset "pipeline frozen scaler preserves warm restart of sibling" begin
+    # Regression test for the MWE in the PR review: a `Freezable` component inside a
+    # pipeline must not block warm restart (`update`) of a non-frozen sibling on a
+    # hyperparam change. On a row change the sibling instead trains fresh; the
+    # frozen component short-circuits in both cases.
+    rng = StableRNG(404)
+    X = (a = randn(rng, 60), b = randn(rng, 60))
+    y = randn(rng, 60)
+
+    pipe = Pipeline(
+        scaler = Freezable(Standardizer()),
+        reg    = CounterReg(5),
+    )
+    mach = machine(pipe, X, y)
+
+    # First fit: both components train.
+    fit!(mach; verbosity=-5000)
+    MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+
+    # Hyperparam change on the sibling (no row change): sibling warm-restarts, scaler
+    # short-circuits.
+    pipe.reg.n_trees = 15
+    fit!(mach; verbosity=-5000)
+    seq_hyper = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+    scaler_events = filter(t -> t[2].model === :scaler, seq_hyper)
+    reg_events    = filter(t -> t[2].model === :reg, seq_hyper)
+    @test all(t -> t[1] === :frozen, scaler_events)
+    @test any(t -> t[1] === :update, reg_events)
+    @test !any(t -> t[1] === :train, reg_events)
+
+    # Row change: sibling re-fits on new sources, scaler still short-circuits.
+    fit!(mach; rows=1:30, verbosity=-5000)
+    seq_rows = MLJBase.flush!(MLJBase.MACHINE_CHANNEL)
+    scaler_events = filter(t -> t[2].model === :scaler, seq_rows)
+    reg_events    = filter(t -> t[2].model === :reg, seq_rows)
+    @test all(t -> t[1] === :frozen, scaler_events)
+    @test any(t -> t[1] === :train, reg_events)
 end
 
 @testset "pipeline frozen component skip with varying sizes" begin
