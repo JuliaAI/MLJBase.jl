@@ -1,6 +1,6 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
-version = "1.13.0"
+version = "1.13.1"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
 
 [deps]
@@ -54,8 +54,8 @@ LearnAPI = "2"
 MLJModelInterface = "1.11"
 Measurements = "2.14"
 Missings = "0.4, 1"
-OrderedCollections = "1.1"
-Parameters = "0.12"
+OrderedCollections = "1.1, 2"
+Parameters = "0.12, 0.13"
 PrettyTables = "3"
 ProgressMeter = "1.7.1"
 RecipesBase = "1"
