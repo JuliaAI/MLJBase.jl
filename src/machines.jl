@@ -647,7 +647,7 @@ Otherwise the action is selected from the numbered conditions:
 
 Cases (1), (2), (3), (6), (8), and (4) without frozen descendants train ab initio.
 Cases (5) and (7) apply a training update. Case (4) with frozen descendants calls
-`update_for_row_change` (rebuild + transfer for composites, ab initio otherwise).
+`update_for_row_change` (rebuild + transfer for composites) and trains ab initio otherwise.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
