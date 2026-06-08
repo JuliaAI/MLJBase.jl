@@ -26,15 +26,16 @@ jobs:
           - '1' # automatically expands to the latest stable 1.x release of Julia.
         os:
           - ubuntu-latest
+          - macOS-latest
         arch:
-          - x64
+          - default
     steps:
       - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v3
         env:
           cache-name: cache-artifacts
         with:
