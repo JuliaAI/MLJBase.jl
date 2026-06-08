@@ -631,9 +631,7 @@ Otherwise the action is selected from the numbered conditions:
 
 4. The specified `rows` have changed since the last retraining and `mach.model` does not
    have `Static` type. If the resolved model has frozen descendants, the model receives a
-   `update_for_row_change` call instead of an ab initio fit; for a `NetworkComposite`
-   this rebuilds the network on the new data while transferring trained state from old
-   inner machines for the frozen children.
+   `update_for_row_change` call instead of an ab initio fit.
 
 5. `mach.model` is a `Model` (not a symbol) and is different from the last model used for
    training (but has the same type).
