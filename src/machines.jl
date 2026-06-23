@@ -106,6 +106,46 @@ more detail, see the discussion of training logic at [`fit_only!`](@ref).
 age(mach::Machine) = mach.state
 
 """
+    frozen(model)
+
+Return `true` if `model` has a `frozen` property set to `true`. `fit_only!` treats such a
+model as a no-op once `age(mach) >= 1`.
+
+"""
+frozen(model) = :frozen in propertynames(model) && getproperty(model, :frozen)::Bool
+
+"""
+    has_frozen_descendants(model)
+
+Return `true` if any field of `model` is itself a model with `frozen=true`, recursively.
+`fit_only!` consults this on a row-change refit to keep the existing learning network in
+place when a composite contains a frozen subcomponent.
+
+"""
+function has_frozen_descendants(model)
+    model isa Model || return false
+    for name in propertynames(model)
+        child = getproperty(model, name)
+        child isa Model || continue
+        frozen(child) && return true
+        has_frozen_descendants(child) && return true
+    end
+    return false
+end
+
+"""
+    update_for_row_change(model, verbosity, fitresult, cache, data...)
+
+**Private method.** Called by `fit_only!` instead of `update` when condition (4) (row
+change) fires on a model with frozen descendants. The default falls through to `fit`;
+`NetworkComposite` overrides this to rebuild via `prefit` while transferring trained
+state from old inner machines for frozen children.
+
+"""
+update_for_row_change(model, verbosity, fitresult, cache, data...) =
+    fit(model, verbosity, data...)
+
+"""
     replace(mach::Machine, field1 => value1, field2 => value2, ...)
 
 **Private method.**
@@ -493,8 +533,6 @@ end
 function fitlog(mach, action::Symbol, verbosity)
     if verbosity < -1000
         put!(MACHINE_CHANNEL, (action, mach))
-    elseif verbosity > -1 && action == :frozen
-        @warn "$mach not trained as it is frozen."
     elseif verbosity > 0
         action == :train && (@info "Training $mach."; return)
         action == :update && (@info "Updating $mach."; return)
@@ -502,6 +540,7 @@ function fitlog(mach, action::Symbol, verbosity)
             @info "Not retraining $mach. Use `force=true` to force."
             return
         end
+        action == :frozen && (@info "Not retraining $mach as it is frozen."; return)
     end
 end
 
@@ -569,22 +608,33 @@ the true model given by `getproperty(composite, model)`. See also [`machine`](@r
 
 ### Training action logic
 
-For the action to be a no-operation, either `mach.frozen == true` or
-or none of the following apply:
+The action is a no-operation precisely when one or more of the following apply:
+
+A. `mach.frozen == true`.
+
+B. `mach.model` is a `Model` (not a symbol), `frozen(mach.model) == true`, and
+   `age(mach) >= 1`.
+
+C. `mach.model` is a symbol, `frozen(getproperty(composite, mach.model)) == true`, and
+   `age(mach) >= 1`.
+
+D. None of the numbered conditions below apply.
+
+Otherwise the action is selected from the numbered conditions:
 
 1. `mach` has never been trained (`mach.state == 0`).
 
 2. `force == true`.
 
-3. The `state` of some other machine on which `mach` depends has
-   changed since the last time `mach` was trained (ie, the last time
-   `mach.state` was last incremented).
+3. The `state` of some other machine on which `mach` depends has changed since the last
+   time `mach` was trained.
 
-4. The specified `rows` have changed since the last retraining and
-   `mach.model` does not have `Static` type.
+4. The specified `rows` have changed since the last retraining and `mach.model` does not
+   have `Static` type. If the resolved model has frozen descendants, the model receives a
+   `update_for_row_change` call instead of an ab initio fit.
 
-5. `mach.model` is a `Model` (i.e, not a symbol) and is different from the last model used
-   for training (but has the same type).
+5. `mach.model` is a `Model` (not a symbol) and is different from the last model used for
+   training (but has the same type).
 
 6. `mach.model` is a `Model` but has a type different from the last model used for
    training.
@@ -595,8 +645,9 @@ or none of the following apply:
 8. `mach.model` is a symbol and `getproperty(composite, mach.model)` has a different type
    from the last model used for training.
 
-In any of the cases (1) - (4), (6), or (8), `mach` is trained ab initio.
-If (5) or (7) is true, then a training update is applied.
+Cases (1), (2), (3), (6), (8), and (4) without frozen descendants train ab initio.
+Cases (5) and (7) apply a training update. Case (4) with frozen descendants calls
+`update_for_row_change` (rebuild + transfer for composites) and trains ab initio otherwise.
 
 To freeze or unfreeze `mach`, use `freeze!(mach)` or `thaw!(mach)`.
 
@@ -622,8 +673,8 @@ function fit_only!(
     composite=nothing,
 ) where cache_data
 
+    # Condition A: the machine itself is frozen.
     if mach.frozen
-        # no-op; do not increment `state`.
         fitlog(mach, :frozen, verbosity)
         return mach
     end
@@ -634,8 +685,7 @@ function fit_only!(
               "cannot be trained. ")
     end
 
-    # If `mach.model` is a symbol, then we want to replace it with the bone fide model
-    # `getproperty(composite, mach.model)`:
+    # Resolve a symbolic model to the actual model living on the parent composite.
     model = if mach.model isa Symbol
         isnothing(composite) && throw(err_no_real_model(mach))
         mach.model in propertynames(composite) ||
@@ -643,6 +693,13 @@ function fit_only!(
         getproperty(composite, mach.model)
     else
         mach.model
+    end
+
+    # Conditions B and C: the resolved model is frozen and `mach` has been trained at
+    # least once. Treat it as a no-op without consulting any numbered condition below.
+    if frozen(model) && age(mach) >= 1
+        fitlog(mach, :frozen, verbosity)
+        return mach
     end
 
     # neither `old_model` nor `model` are symbols here:
@@ -660,6 +717,12 @@ function fit_only!(
     rows_is_new = !isdefined(mach, :old_rows) || rows != mach.old_rows
 
     condition_4 = rows_is_new && !(mach.model isa Static)
+
+    # A composite with frozen descendants must not rebuild on a row change. Rebuilding
+    # would create fresh inner machines at `age = 0` and the freeze contract would break.
+    # Route condition (4) to the update path instead so the existing network survives.
+    rebuild_on_rows = condition_4 && !has_frozen_descendants(model)
+    update_on_rows  = condition_4 && has_frozen_descendants(model)
 
     upstream_has_changed = mach.old_upstream_state != upstream_state
 
@@ -681,7 +744,7 @@ function fit_only!(
     if mach.state == 0 ||       # condition (1)
         force == true ||        # condition (2)
         upstream_has_changed || # condition (3)
-        condition_4 ||          # condition (4)
+        rebuild_on_rows ||      # condition (4) without frozen descendants
         modeltype_changed       # conditions (6) or (7)
 
         isdefined(mach, :report) || (mach.report = LittleDict{Symbol,Any}())
@@ -710,9 +773,22 @@ function fit_only!(
                 rethrow()
             end
 
-    elseif model != mach.old_model # condition (5)
+    elseif update_on_rows  # condition (4) with frozen descendants
 
-        # update the model:
+        # row-change update: rebuild the network on new data but preserve trained state
+        # of frozen subcomponents.
+        fitlog(mach, :update, verbosity)
+        mach.fitresult, mach.cache, mach.report[:fit] =
+            update_for_row_change(model,
+                                  verbosity,
+                                  mach.fitresult,
+                                  mach.cache,
+                                  _resampled_data(mach, model, rows)...)
+
+    elseif model != mach.old_model  # condition (5)
+
+        # standard update: hyperparameters changed, network stays the same so non-frozen
+        # subcomponents can still warm-restart through their own `update`.
         fitlog(mach, :update, verbosity)
         mach.fitresult, mach.cache, mach.report[:fit] =
             update(model,
