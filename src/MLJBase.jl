@@ -167,6 +167,7 @@ include("composition/models/network_composite_types.jl")
 include("composition/models/network_composite.jl")
 include("composition/models/pipelines.jl")
 include("composition/models/transformed_target_model.jl")
+include("composition/models/freezable.jl")
 
 include("operations.jl")
 
@@ -303,6 +304,7 @@ export machines, sources, Stack,
     StaticPipeline, IntervalPipeline
 
 export TransformedTargetModel
+export Freezable
 
 # resampling.jl:
 export ResamplingStrategy, InSample, Holdout, CV, StratifiedCV, TimeSeriesCV,
