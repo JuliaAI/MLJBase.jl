@@ -11,3 +11,5 @@ updates:
       - "/docs"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "MLJBase"
