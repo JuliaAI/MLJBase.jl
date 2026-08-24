@@ -535,7 +535,7 @@ function fitlog(mach, action::Symbol, verbosity)
         put!(MACHINE_CHANNEL, (action, mach))
     elseif verbosity > 0
         action == :train && (@info "Training $mach."; return)
-        action == :update && (@info "Updating $mach."; return)
+        action == :update && (@info "Updating $mach (with warm restart if possible)."; return)
         action == :skip && begin
             @info "Not retraining $mach. Use `force=true` to force."
             return
