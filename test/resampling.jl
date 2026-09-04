@@ -972,6 +972,13 @@ bogus(yhat, y) = [1,]
 MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
 
 @testset "more display tests" begin
+    @test MLJBase.confidence_interval_strings(3.1342343, 0.0434) ==
+        (measurement = "3.134", uncertainty = "0.043")
+    @test MLJBase.confidence_interval_strings([1 2; 3 4], :junk) ==
+        (measurement="[1 2; 3 4]", uncertainty="")
+    @test MLJBase.confidence_interval_strings(3.1342343, Inf) ==
+        (measurement = "3.13", uncertainty = "")
+
     # no extra table (only one train-test pair)
     e = evaluate("tag" => model, X, y; resampling=Holdout(),
                  measures = [bogus, log_loss])
@@ -1144,8 +1151,8 @@ end
     # display:
     @test contains(
         sprint(show, es),
-        "[PerformanceEvaluation(\"const\", 0.774 ± 0.0998), "*
-        "PerformanceEvaluation(\"knn\", 0.795 ± 0.0973)]",
+        "[PerformanceEvaluation(\"const\", 0.774 ± 0.1), "*
+        "PerformanceEvaluation(\"knn\", 0.795 ± 0.097)]",
     )
 end
 

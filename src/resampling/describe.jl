@@ -51,14 +51,15 @@ function DataAPI.describe(e::AbstractPerformanceEvaluation)
         end,
         delim="",
     )
-    for (i, name) in enumerate(measure_names)
-        value = e.measurement[i]
-        δ =  e.uncertainty_radius_95[i]
-        if !isnothing(δ) && δ isa Real && !isinf(δ)
-            # decorate with uncertainty radius:
-            value = Measurements.measurement(value, δ)
+    ci_strings =
+        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
+            confidence_interval_strings(measurement, uncertainty)
         end
-        push!(key_value_pairs, Symbol(name) => value)
+    _measurement = first.(ci_strings)
+    _uncertainty_radius_95 = last.(ci_strings)
+    for (i, name) in enumerate(measure_names)
+        composite_string = _measurement[i] * " ± " * _uncertainty_radius_95[i]
+        push!(key_value_pairs, Symbol(name) => composite_string)
     end
     NamedTuple(key_value_pairs)
 end

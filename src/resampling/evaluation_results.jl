@@ -167,12 +167,21 @@ round3(x::AbstractFloat) = round(x, sigdigits=3)
 # to address #874, while preserving the display worked out in #757:
 _repr_(f::Function) = repr(f)
 _repr_(x) = repr("text/plain", x)
-_repr(::Nothing) = ""
+_repr_(::Nothing) = ""
 
-function uncertainty_as_string(δ)
-    isnothing(δ) && return ""
-    δ isa Real && isinf(δ) && return ""
-    return string(round3(δ))
+# Return a pair of strings for displaying a measurement with uncertainty, the
+# latter possibly infinite or `nothing`.
+function confidence_interval_strings(measurement, uncertainty)
+    # Measurements.jl automatically displays "a ± b" showing the correct number of
+    # sigdigits, so we leaverage that here. When the uncertainty is `Inf`, we fall back to
+    # 3 sigdigits for `measurement`.
+    measurement isa Real ||
+        return (repr(measurement), "")
+    isnothing(uncertainty) || isinf(uncertainty) &&
+        return (repr(round(measurement, sigdigits=3)), "")
+    composite_string = Measurements.measurement(measurement, uncertainty) |> repr
+    measurement, uncertainty = split(composite_string, " ± ") # strings
+    return (measurement, uncertainty)
 end
 
 # helper for row labels: _label(1) ="A", _label(2) = "B", _label(27) = "BA", etc
@@ -186,9 +195,13 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     )
 
     _measure = [_repr_(m) for m in e.measure]
-    _measurement = round3.(e.measurement)
+    ci_strings =
+        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
+            confidence_interval_strings(measurement, uncertainty)
+        end
+    _measurement = first.(ci_strings)
+    _uncertainty_radius_95 = last.(ci_strings)
     _per_fold = reshape([round3.(v) for v in e.per_fold], length(e.per_fold), 1)
-    _uncertainty_radius_95 = uncertainty_as_string.(e.uncertainty_radius_95)
     show_radius = any(x -> !isempty(x), _uncertainty_radius_95)
     row_labels = _label.(eachindex(e.measure))
 
@@ -254,10 +267,12 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
 end
 
 function _summary(e)
-    confidence_intervals = map(zip(e.measurement, e.uncertainty_radius_95)) do (μ, δ)
-        a = round3(μ)
-        b = uncertainty_as_string(δ)
-        isempty(b) ? a : "$a ± $b"
+    ci_strings =
+        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
+            confidence_interval_strings(measurement, uncertainty)
+        end
+    confidence_intervals = map(ci_strings) do (measurement, uncertainty)
+        measurement * " ± " * uncertainty
     end
     return "(\"$(e.tag)\", "*join(confidence_intervals, ", ")*")"
 end
@@ -266,4 +281,3 @@ Base.show(io::IO, e::PerformanceEvaluation) =
     print(io, "PerformanceEvaluation$(_summary(e))")
 Base.show(io::IO, e::CompactPerformanceEvaluation) =
     print(io, "CompactPerformanceEvaluation$(_summary(e))")
-
