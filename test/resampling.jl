@@ -973,11 +973,11 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
 
 @testset "more display tests" begin
     @test MLJBase.confidence_interval_strings(3.1342343, 0.0434) ==
-        (measurement = "3.134", uncertainty = "0.043")
+        ("3.134", "0.043")
     @test MLJBase.confidence_interval_strings([1 2; 3 4], :junk) ==
-        (measurement="[1 2; 3 4]", uncertainty="")
+        ("[1 2; 3 4]", "")
     @test MLJBase.confidence_interval_strings(3.1342343, Inf) ==
-        (measurement = "3.13", uncertainty = "")
+        ("3.13", "")
 
     # no extra table (only one train-test pair)
     e = evaluate("tag" => model, X, y; resampling=Holdout(),
