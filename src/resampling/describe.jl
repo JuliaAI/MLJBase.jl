@@ -58,7 +58,11 @@ function DataAPI.describe(e::AbstractPerformanceEvaluation)
     _measurement = first.(ci_strings)
     _uncertainty_radius_95 = last.(ci_strings)
     for (i, name) in enumerate(measure_names)
-        composite_string = _measurement[i] * " ± " * _uncertainty_radius_95[i]
+        composite_string = _measurement[i]
+        uncertainty = _uncertainty_radius_95[i]
+        if !isempty(uncertainty)
+            composite_string *= " ± $uncertainty"
+        end 
         push!(key_value_pairs, Symbol(name) => composite_string)
     end
     NamedTuple(key_value_pairs)
