@@ -272,7 +272,11 @@ function _summary(e)
             confidence_interval_strings(measurement, uncertainty)
         end
     confidence_intervals = map(ci_strings) do (measurement, uncertainty)
-        measurement * " ± " * uncertainty
+        composite_string = measurement
+        if !empty(uncertainty)
+            composite_string *= " ± " * uncertainty
+        end
+        composite_string
     end
     return "(\"$(e.tag)\", "*join(confidence_intervals, ", ")*")"
 end
