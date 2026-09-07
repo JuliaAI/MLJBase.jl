@@ -215,12 +215,17 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         data = hcat(row_labels, data)
         header =["", header...]
     end
+    if show_radius
+        data = hcat(data, _uncertainty_radius_95)
+        header = [header..., "1.96*SE"]
+    end
 
     if e isa PerformanceEvaluation
         println(io, "PerformanceEvaluation object "*
             "with these fields:")
         println(io, "  model, tag, measure, operation,\n"*
-            "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+            "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+            "  per_fold, per_observation,\n"*
             "  fitted_params_per_fold, report_per_fold,\n"*
             "  train_test_rows, resampling, repeats")
     else
@@ -248,10 +253,6 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     if length(first(e.per_fold)) > 1
         data2 = _per_fold
         header2 = ["per_fold", ]
-        if show_radius
-            data2 = hcat(_per_fold, _uncertainty_radius_95)
-            header2 = [header2..., "1.96*SE"]
-        end
         if length(row_labels) > 1
             data2 = hcat(row_labels, data2)
             header2 =["", header2...]
@@ -265,6 +266,7 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
             style,
         )
     end
+    print(io, "Apply `describe` to this result for a named tuple summary.")
     show_color ? color_on() : color_off()
 end
 

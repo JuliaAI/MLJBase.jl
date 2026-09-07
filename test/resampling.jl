@@ -987,18 +987,19 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, MIME("text/plain"), e) ==
         "PerformanceEvaluation object with these fields:\n"*
         "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+        "  per_fold, per_observation,\n"*
         "  fitted_params_per_fold, report_per_fold,\n"*
         "  train_test_rows, resampling, repeats\n"*
-        "Tag: tag\n"*
-        "Extract:\n"*
+        "Tag: tag\nExtract:\n"*
         "┌──────────────────────┬───────────┬─────────────┐\n"*
         "│ measure              │ operation │ measurement │\n"*
         "├──────────────────────┼───────────┼─────────────┤\n"*
         "│ bogus                │ predict   │ [1.0]       │\n"*
         "│ LogLoss(             │ predict   │ 0.751       │\n"*
         "│   tol = 2.22045e-16) │           │             │\n"*
-        "└──────────────────────┴───────────┴─────────────┘\n"
+        "└──────────────────────┴───────────┴─────────────┘\n"*
+        "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], 0.751)"
 
     # extra table - one non-numeric measure:
@@ -1007,7 +1008,8 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, MIME("text/plain"), e) ==
         "PerformanceEvaluation object with these fields:\n"*
         "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+        "  per_fold, per_observation,\n"*
         "  fitted_params_per_fold, report_per_fold,\n"*
         "  train_test_rows, resampling, repeats\n"*
         "Tag: tag\n"*
@@ -1021,30 +1023,33 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
         "│ per_fold       │\n"*
         "├────────────────┤\n"*
         "│ [[1.0], [1.0]] │\n"*
-        "└────────────────┘\n"
+        "└────────────────┘\n"*
+        "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0])"
 
     # extra table - one numeric measure:
     e = evaluate("tag" => model, X, y; resampling=CV(nfolds=2),
                  measures = [accuracy,])
     @test sprint(show, MIME("text/plain"), e) ==
-        "PerformanceEvaluation object with these fields:\n"*
-        "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
-        "  fitted_params_per_fold, report_per_fold,\n"*
-        "  train_test_rows, resampling, repeats\n"*
-        "Tag: tag\n"*
-        "Extract:\n"*
-        "┌────────────┬──────────────┬─────────────┐\n"*
-        "│ measure    │ operation    │ measurement │\n"*
-        "├────────────┼──────────────┼─────────────┤\n"*
-        "│ Accuracy() │ predict_mode │ 0.4         │\n"*
-        "└────────────┴──────────────┴─────────────┘\n"*
-        "┌────────────┬─────────┐\n"*
-        "│ per_fold   │ 1.96*SE │\n"*
-        "├────────────┼─────────┤\n"*
-        "│ [0.4, 0.4] │ 0.0     │\n"*
-        "└────────────┴─────────┘\n"
+       "PerformanceEvaluation object with these fields:\n"*
+       "  model, tag, measure, operation,\n"*
+       "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+       "  per_fold, per_observation,\n"*
+       "  fitted_params_per_fold, report_per_fold,\n"*
+       "  train_test_rows, resampling, repeats\n"*
+       "Tag: tag\n"*
+       "Extract:\n"*
+       "┌────────────┬──────────────┬─────────────┬─────────┐\n"*
+       "│ measure    │ operation    │ measurement │ 1.96*SE │\n"*
+       "├────────────┼──────────────┼─────────────┼─────────┤\n"*
+       "│ Accuracy() │ predict_mode │ 0.4         │ 0.0     │\n"*
+       "└────────────┴──────────────┴─────────────┴─────────┘\n"*
+       "┌────────────┐\n"*
+       "│ per_fold   │\n"*
+       "├────────────┤\n"*
+       "│ [0.4, 0.4] │\n"*
+       "└────────────┘\n"*
+       "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", 0.4 ± 0.0)"
 
     # extra table - two numeric measures:
@@ -1053,24 +1058,26 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, MIME("text/plain"), e) ==
         "PerformanceEvaluation object with these fields:\n"*
         "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+        "  per_fold, per_observation,\n"*
         "  fitted_params_per_fold, report_per_fold,\n"*
         "  train_test_rows, resampling, repeats\n"*
         "Tag: tag\n"*
         "Extract:\n"*
-        "┌───┬──────────────────────┬──────────────┬─────────────┐\n"*
-        "│   │ measure              │ operation    │ measurement │\n"*
-        "├───┼──────────────────────┼──────────────┼─────────────┤\n"*
-        "│ A │ Accuracy()           │ predict_mode │ 0.4         │\n"*
-        "│ B │ LogLoss(             │ predict      │ 0.754       │\n"*
-        "│   │   tol = 2.22045e-16) │              │             │\n"*
-        "└───┴──────────────────────┴──────────────┴─────────────┘\n"*
-        "┌───┬────────────────┬─────────┐\n"*
-        "│   │ per_fold       │ 1.96*SE │\n"*
-        "├───┼────────────────┼─────────┤\n"*
-        "│ A │ [0.4, 0.4]     │ 0.0     │\n"*
-        "│ B │ [0.754, 0.754] │ 0.0     │\n"*
-        "└───┴────────────────┴─────────┘\n"
+        "┌───┬──────────────────────┬──────────────┬─────────────┬─────────┐\n"*
+        "│   │ measure              │ operation    │ measurement │ 1.96*SE │\n"*
+        "├───┼──────────────────────┼──────────────┼─────────────┼─────────┤\n"*
+        "│ A │ Accuracy()           │ predict_mode │ 0.4         │ 0.0     │\n"*
+        "│ B │ LogLoss(             │ predict      │ 0.754       │ 0.0     │\n"*
+        "│   │   tol = 2.22045e-16) │              │             │         │\n"*
+        "└───┴──────────────────────┴──────────────┴─────────────┴─────────┘\n"*
+        "┌───┬────────────────┐\n"*
+        "│   │ per_fold       │\n"*
+        "├───┼────────────────┤\n"*
+        "│ A │ [0.4, 0.4]     │\n"*
+        "│ B │ [0.754, 0.754] │\n"*
+        "└───┴────────────────┘\n"*
+        "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", 0.4 ± 0.0, 0.754 ± 0.0)"
 
     # extra table - two non-numeric measures:
@@ -1079,7 +1086,8 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, MIME("text/plain"), e) ==
         "PerformanceEvaluation object with these fields:\n"*
         "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+        "  per_fold, per_observation,\n"*
         "  fitted_params_per_fold, report_per_fold,\n"*
         "  train_test_rows, resampling, repeats\n"*
         "Tag: tag\n"*
@@ -1095,7 +1103,8 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
         "├───┼────────────────┤\n"*
         "│ A │ [[1.0], [1.0]] │\n"*
         "│ B │ [[1.0], [1.0]] │\n"*
-        "└───┴────────────────┘\n"
+        "└───┴────────────────┘\n"*
+        "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], [1.0])"
 
     # extra table - mixed type of measures:
@@ -1104,30 +1113,32 @@ MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
     @test sprint(show, MIME("text/plain"), e) ==
         "PerformanceEvaluation object with these fields:\n"*
         "  model, tag, measure, operation,\n"*
-        "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+        "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+        "  per_fold, per_observation,\n"*
         "  fitted_params_per_fold, report_per_fold,\n"*
         "  train_test_rows, resampling, repeats\n"*
         "Tag: tag\n"*
         "Extract:\n"*
-        "┌───┬──────────────────────────────┬──────────────┬─────────────┐\n"*
-        "│   │ measure                      │ operation    │ measurement │\n"*
-        "├───┼──────────────────────────────┼──────────────┼─────────────┤\n"*
-        "│ A │ bogus                        │ predict      │ [1.0]       │\n"*
-        "│ B │ MulticlassFScore(            │ predict_mode │ 0.286       │\n"*
-        "│   │   beta = 1.0,                │              │             │\n"*
-        "│   │   average = MacroAvg(),      │              │             │\n"*
-        "│   │   return_type = LittleDict,  │              │             │\n"*
-        "│   │   levels = nothing,          │              │             │\n"*
-        "│   │   perm = nothing,            │              │             │\n"*
-        "│   │   rev = nothing,             │              │             │\n"*
-        "│   │   checks = true)             │              │             │\n"*
-        "└───┴──────────────────────────────┴──────────────┴─────────────┘\n"*
-        "┌───┬────────────────┬─────────┐\n"*
-        "│   │ per_fold       │ 1.96*SE │\n"*
-        "├───┼────────────────┼─────────┤\n"*
-        "│ A │ [[1.0], [1.0]] │         │\n"*
-        "│ B │ [0.286, 0.286] │ 0.0     │\n"*
-        "└───┴────────────────┴─────────┘\n"
+        "┌───┬──────────────────────────────┬──────────────┬─────────────┬─────────┐\n"*
+        "│   │ measure                      │ operation    │ measurement │ 1.96*SE │\n"*
+        "├───┼──────────────────────────────┼──────────────┼─────────────┼─────────┤\n"*
+        "│ A │ bogus                        │ predict      │ [1.0]       │         │\n"*
+        "│ B │ MulticlassFScore(            │ predict_mode │ 0.286       │ 0.0     │\n"*
+        "│   │   beta = 1.0,                │              │             │         │\n"*
+        "│   │   average = MacroAvg(),      │              │             │         │\n"*
+        "│   │   return_type = LittleDict,  │              │             │         │\n"*
+        "│   │   levels = nothing,          │              │             │         │\n"*
+        "│   │   perm = nothing,            │              │             │         │\n"*
+        "│   │   rev = nothing,             │              │             │         │\n"*
+        "│   │   checks = true)             │              │             │         │\n"*
+        "└───┴──────────────────────────────┴──────────────┴─────────────┴─────────┘\n"*
+        "┌───┬────────────────┐\n"*
+        "│   │ per_fold       │\n"*
+        "├───┼────────────────┤\n"*
+        "│ A │ [[1.0], [1.0]] │\n"*
+        "│ B │ [0.286, 0.286] │\n"*
+        "└───┴────────────────┘\n"*
+        "Apply `describe` to this result for a named tuple summary."
     @test sprint(show, e) == "PerformanceEvaluation(\"tag\", [1.0], 0.286 ± 0.0)"
 end
 
