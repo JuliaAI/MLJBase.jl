@@ -173,12 +173,14 @@ _repr_(::Nothing) = ""
 # latter possibly infinite or `nothing`.
 function confidence_interval_strings(measurement, uncertainty)
     # Measurements.jl automatically displays "a ± b" showing the correct number of
-    # sigdigits, so we leaverage that here. When the uncertainty is `Inf`, we fall back to
-    # 3 sigdigits for `measurement`.
+    # sigdigits, so we leaverage that here. When the uncertainty is `Inf` or zero, we fall
+    # back to 3 sigdigits for `measurement`.
     measurement isa Real ||
         return (repr(measurement), "")
     isnothing(uncertainty) || isinf(uncertainty) &&
         return (repr(round(measurement, sigdigits=3)), "")
+    iszero(uncertainty) &&
+        return (repr(round(measurement, sigdigits=3)), "0.0")
     composite_string = Measurements.measurement(measurement, uncertainty) |> repr
     measurement, uncertainty = split(composite_string, " ± ") # strings
     return (measurement, uncertainty)
@@ -273,7 +275,7 @@ function _summary(e)
         end
     confidence_intervals = map(ci_strings) do (measurement, uncertainty)
         composite_string = measurement
-        if !empty(uncertainty)
+        if !isempty(uncertainty)
             composite_string *= " ± " * uncertainty
         end
         composite_string

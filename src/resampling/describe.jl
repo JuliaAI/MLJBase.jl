@@ -1,3 +1,6 @@
+_compose(μ, σ::Real) = Measurements.measurement(μ, σ)
+_compose(μ, σ) = μ
+
 """
     describe(evaluation::MLJBase.AbstractPerformanceEvaluation)
 
@@ -51,19 +54,9 @@ function DataAPI.describe(e::AbstractPerformanceEvaluation)
         end,
         delim="",
     )
-    ci_strings =
-        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
-            confidence_interval_strings(measurement, uncertainty)
-        end
-    _measurement = first.(ci_strings)
-    _uncertainty_radius_95 = last.(ci_strings)
     for (i, name) in enumerate(measure_names)
-        composite_string = _measurement[i]
-        uncertainty = _uncertainty_radius_95[i]
-        if !isempty(uncertainty)
-            composite_string *= " ± $uncertainty"
-        end 
-        push!(key_value_pairs, Symbol(name) => composite_string)
+        composite = _compose(e.measurement[i], e.uncertainty_radius_95[i])
+        push!(key_value_pairs, Symbol(name) => composite)
     end
     NamedTuple(key_value_pairs)
 end
