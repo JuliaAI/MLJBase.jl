@@ -167,12 +167,23 @@ round3(x::AbstractFloat) = round(x, sigdigits=3)
 # to address #874, while preserving the display worked out in #757:
 _repr_(f::Function) = repr(f)
 _repr_(x) = repr("text/plain", x)
-_repr(::Nothing) = ""
+_repr_(::Nothing) = ""
 
-function uncertainty_as_string(δ)
-    isnothing(δ) && return ""
-    δ isa Real && isinf(δ) && return ""
-    return string(round3(δ))
+# Return a pair of strings for displaying a measurement with uncertainty, the
+# latter possibly infinite or `nothing`.
+function confidence_interval_strings(measurement, uncertainty)
+    # Measurements.jl automatically displays "a ± b" showing the correct number of
+    # sigdigits, so we leaverage that here. When the uncertainty is `Inf` or zero, we fall
+    # back to 3 sigdigits for `measurement`.
+    measurement isa Real ||
+        return (repr(measurement), "")
+    isnothing(uncertainty) || isinf(uncertainty) &&
+        return (repr(round(measurement, sigdigits=3)), "")
+    iszero(uncertainty) &&
+        return (repr(round(measurement, sigdigits=3)), "0.0")
+    composite_string = Measurements.measurement(measurement, uncertainty) |> repr
+    measurement, uncertainty = split(composite_string, " ± ") # strings
+    return (measurement, uncertainty)
 end
 
 # helper for row labels: _label(1) ="A", _label(2) = "B", _label(27) = "BA", etc
@@ -186,9 +197,13 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     )
 
     _measure = [_repr_(m) for m in e.measure]
-    _measurement = round3.(e.measurement)
+    ci_strings =
+        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
+            confidence_interval_strings(measurement, uncertainty)
+        end
+    _measurement = first.(ci_strings)
+    _uncertainty_radius_95 = last.(ci_strings)
     _per_fold = reshape([round3.(v) for v in e.per_fold], length(e.per_fold), 1)
-    _uncertainty_radius_95 = uncertainty_as_string.(e.uncertainty_radius_95)
     show_radius = any(x -> !isempty(x), _uncertainty_radius_95)
     row_labels = _label.(eachindex(e.measure))
 
@@ -200,12 +215,17 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
         data = hcat(row_labels, data)
         header =["", header...]
     end
+    if show_radius
+        data = hcat(data, _uncertainty_radius_95)
+        header = [header..., "1.96*SE"]
+    end
 
     if e isa PerformanceEvaluation
         println(io, "PerformanceEvaluation object "*
             "with these fields:")
         println(io, "  model, tag, measure, operation,\n"*
-            "  measurement, uncertainty_radius_95, per_fold, per_observation,\n"*
+            "  measurement (per-fold aggregate), uncertainty_radius_95 (1.96*SE),\n"*
+            "  per_fold, per_observation,\n"*
             "  fitted_params_per_fold, report_per_fold,\n"*
             "  train_test_rows, resampling, repeats")
     else
@@ -233,10 +253,6 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
     if length(first(e.per_fold)) > 1
         data2 = _per_fold
         header2 = ["per_fold", ]
-        if show_radius
-            data2 = hcat(_per_fold, _uncertainty_radius_95)
-            header2 = [header2..., "1.96*SE"]
-        end
         if length(row_labels) > 1
             data2 = hcat(row_labels, data2)
             header2 =["", header2...]
@@ -250,14 +266,21 @@ function Base.show(io::IO, ::MIME"text/plain", e::AbstractPerformanceEvaluation)
             style,
         )
     end
+    print(io, "Apply `describe` to this result for a named tuple summary.")
     show_color ? color_on() : color_off()
 end
 
 function _summary(e)
-    confidence_intervals = map(zip(e.measurement, e.uncertainty_radius_95)) do (μ, δ)
-        a = round3(μ)
-        b = uncertainty_as_string(δ)
-        isempty(b) ? a : "$a ± $b"
+    ci_strings =
+        map(zip(e.measurement, e.uncertainty_radius_95)) do (measurement, uncertainty)
+            confidence_interval_strings(measurement, uncertainty)
+        end
+    confidence_intervals = map(ci_strings) do (measurement, uncertainty)
+        composite_string = measurement
+        if !isempty(uncertainty)
+            composite_string *= " ± " * uncertainty
+        end
+        composite_string
     end
     return "(\"$(e.tag)\", "*join(confidence_intervals, ", ")*")"
 end
@@ -266,4 +289,3 @@ Base.show(io::IO, e::PerformanceEvaluation) =
     print(io, "PerformanceEvaluation$(_summary(e))")
 Base.show(io::IO, e::CompactPerformanceEvaluation) =
     print(io, "CompactPerformanceEvaluation$(_summary(e))")
-

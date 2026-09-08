@@ -1,3 +1,6 @@
+_compose(μ, σ::Real) = Measurements.measurement(μ, σ)
+_compose(μ, σ) = μ
+
 """
     describe(evaluation::MLJBase.AbstractPerformanceEvaluation)
 
@@ -52,13 +55,8 @@ function DataAPI.describe(e::AbstractPerformanceEvaluation)
         delim="",
     )
     for (i, name) in enumerate(measure_names)
-        value = e.measurement[i]
-        δ =  e.uncertainty_radius_95[i]
-        if !isnothing(δ) && δ isa Real && !isinf(δ)
-            # decorate with uncertainty radius:
-            value = Measurements.measurement(value, δ)
-        end
-        push!(key_value_pairs, Symbol(name) => value)
+        composite = _compose(e.measurement[i], e.uncertainty_radius_95[i])
+        push!(key_value_pairs, Symbol(name) => composite)
     end
     NamedTuple(key_value_pairs)
 end
