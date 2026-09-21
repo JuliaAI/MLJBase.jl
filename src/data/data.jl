@@ -201,20 +201,21 @@ _partition(X::Tuple, row_partition) =
            wrap_singles=false,
            shuffle=false,
            rng::Union{AbstractRNG,Int,Nothing}=nothing,
+           string_names=false,
            coerce_options...)
 
-Horizontally split any Tables.jl compatible `table` into smaller
-tables or vectors by making column selections determined by the
-predicates `f1`, `f2`, ..., `fk`. Selection from the column names is
-without replacement. A *predicate* is any object `f` such that
-`f(name)` is `true` or `false` for each column `name::Symbol` of
-`table`.
+Horizontally split any Tables.jl compatible `table` into smaller tables or vectors by
+making column selections determined by the predicates `f1`, `f2`, ..., `fk`, which are
+applied to the column names. Selection from the column names is without replacement. A
+*predicate* is any object `f` such that `f(name)` is `true` or `false` for each column
+`name::Symbol` of `table`. For example, `=!(:id)` is a predicate for selecting every
+column except the one with name `:id`.
 
-Returns a tuple of tables/vectors with length one greater than the
-number of supplied predicates, with the last component including all
-previously unselected columns.
+Returns a tuple of tables/vectors with length one greater than the number of supplied
+predicates, with the last component including all previously unselected columns.
 
 ```julia-repl
+using DataFrames
 julia> table = DataFrame(x=[1,2], y=['a', 'b'], z=[10.0, 20.0], w=["A", "B"])
 2×4 DataFrame
  Row │ x      y     z        w
@@ -243,23 +244,66 @@ julia> W  # the column(s) left over
  "B"
 ```
 
-Whenever a returned table contains a single column, it is converted to
-a vector unless `wrap_singles=true`.
+Predicates may also be formulated with the understanding that column names are strings
+instead of symbols, by specifying `string_names=true`.
 
-If `coerce_options` are specified then `table` is first replaced
-with `coerce(table, coerce_options)`. See
-[`ScientificTypes.coerce`](@ref) for details.
+```julia-repl
+julia> YW, _ = unpack(table, in(["y", "w"]); string_names=true)
+julia> YW
+2×2 DataFrame
+ Row │ y     w
+     │ Char  String
+─────┼──────────────
+   1 │ a     A
+   2 │ b     B
+```
 
-If `shuffle=true` then the rows of `table` are first shuffled, using
-the global RNG, unless `rng` is specified; if `rng` is an integer, it
-specifies the seed of an automatically generated Mersenne twister. If
-`rng` is specified then `shuffle=true` is implicit.
+Whenever a returned table contains a single column, it is converted to a vector unless
+`wrap_singles=true`.
+
+If `coerce_options` are specified then the scitype of the referenced columns of `table`
+are first coerced, as shown in the following example:
+
+```julia-repl
+julia> YW, _ = unpack(table, in([:y, :w]); y=OrderedFactor) # or `:y => OrderedFactor`
+julia> YW
+2×2 DataFrame
+ Row │ y     w
+     │ Cat…  String
+─────┼──────────────
+   1 │ a     A
+   2 │ b     B
+
+julia> schema(YW)
+┌───────┬──────────────────┬────────────────────────────────┐
+│ names │ scitypes         │ types                          │
+├───────┼──────────────────┼────────────────────────────────┤
+│ y     │ OrderedFactor{2} │ CategoricalValue{Char, UInt32} │
+│ w     │ Textual          │ String                         │
+└───────┴──────────────────┴────────────────────────────────┘
+```
+
+For more flexible type coercion options see [`ScientificTypes.coerce`](@ref).
+
+If `shuffle=true` then the rows of `table` are first shuffled, using the global RNG,
+unless `rng` is specified; if `rng` is an integer, it specifies the seed of an
+automatically generated Mersenne twister. If `rng` is specified then `shuffle=true` is
+implicit.
 
 """
-function unpack(X, predicates...;
-                wrap_singles=false,
-                shuffle=nothing,
-                rng=nothing, pairs...)
+function unpack(
+    X,
+    predicates...;
+    wrap_singles=false,
+    shuffle=nothing,
+    rng=nothing,
+    string_names=false,
+    pairs...,
+    )
+
+    if string_names
+        predicates = predicates .∘ string
+    end
 
     # add a final predicate to unpack all remaining columns into to
     # the last return value:
