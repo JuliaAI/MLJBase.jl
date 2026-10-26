@@ -27,6 +27,19 @@ struct NominalRange{T,N} <: ParamRange{T}
     values::NTuple{N,T}
 end
 
+# compare ranges by type and field values; the fallback `===` compares a nested `field`
+# (an `Expr`) by identity, so that a range would compare unequal to its `deepcopy`:
+function Base.:(==)(r1::ParamRange, r2::ParamRange)
+    typeof(r1) == typeof(r2) || return false
+    return all(getfield(r1, f) == getfield(r2, f) for f in fieldnames(typeof(r1)))
+end
+
+Base.hash(r::ParamRange, h::UInt) = foldl(
+    (h, f) -> hash(getfield(r, f), h),
+    fieldnames(typeof(r));
+    init=hash(typeof(r), h),
+)
+
 # return a suitable string representation of `r.field`, applying a transformation in the
 # case that `r.scale` is not a symbol, and returning "?" if applying the transformation
 # throws an exception:
