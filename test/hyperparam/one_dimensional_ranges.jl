@@ -104,6 +104,26 @@ end
     q2 = range
 end
 
+@testset "equality and hashing" begin
+    ranges = [
+        range(super_model, :(model1.K), lower=1, upper=10, scale=:log10),
+        range(super_model, :(model1.kernel), values=['c', 'd']),
+        range(super_model, :lambda, lower=0.1, upper=1),
+    ]
+    for r in ranges
+        r2 = deepcopy(r)
+        @test r == r2
+        @test isequal(r, r2)
+        @test hash(r) == hash(r2)
+    end
+    @test length(Set(vcat(ranges, deepcopy(ranges)))) == length(ranges)
+    q = range(super_model, :(model1.K), lower=1, upper=10)
+    @test q != range(super_model, :(model2.K), lower=1, upper=10)
+    @test q != range(super_model, :(model1.K), lower=1, upper=11)
+    @test q != range(super_model, :(model1.K), lower=1, upper=10, scale=:log)
+    @test q != range(super_model, :(model1.K), values=[1, 10])
+end
+
 @testset "warnings and errors" begin
     # unambiguous union should work
     @test range(Union{Nothing, Float64}, :any, lower=1, upper=10) ==
