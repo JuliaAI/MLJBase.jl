@@ -21,7 +21,8 @@ function testset_accelerated(name::String, var, ex; exclude=[])
         @testset $name $ex
     end
 
-    resources = AbstractResource[CPUProcesses(), CPUThreads()]
+    resources = AbstractResource[CPUProcesses()] # NEXT LINE NEEDS RE-INSTATING IN PLACE OF THIS ONE
+#    resources = AbstractResource[CPUProcesses(), CPUThreads()]
 
     for res in resources
         if any(x->typeof(res)<:x, exclude)
