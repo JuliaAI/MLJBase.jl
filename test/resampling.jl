@@ -180,7 +180,10 @@ end
     ]
 
     # Not enough data for the number of folds.
-    @test_throws ArgumentError MLJBase.train_test_pairs(cv, 1:4)
+    @test_throws(
+        MLJBase.ERR_INSUFFICIENT_DATA_FOR_FOLDS(5),
+        MLJBase.train_test_pairs(cv, 1:4),
+    )
 end
 
 @testset "checking measure/model compatibility" begin
@@ -499,7 +502,10 @@ end
     )
 
     # Not enough data for the number of folds.
-    @test_throws ArgumentError MLJBase.train_test_pairs(TimeSeriesCV(10), 1:8)
+    @test_throws(
+        MLJBase.ERR_INSUFFICIENT_DATA_FOR_FOLDS(10),
+        MLJBase.train_test_pairs(TimeSeriesCV(10), 1:8),
+    )
 end
 
 @testset "stratified_cv" begin
@@ -556,7 +562,14 @@ end
     pairs = MLJBase.train_test_pairs(scv, 1:10N, nothing, y)
     folds = vcat(first.(pairs), last.(pairs))
     @test all([Distributions.fit(MLJBase.UnivariateFinite, y[fold]) ≈
-               d for fold in folds])
+        d for fold in folds])
+
+    # Not enough data for the number of folds.
+    @test_throws(
+        MLJBase.ERR_INSUFFICIENT_DATA_FOR_FOLDS(10),
+        MLJBase.train_test_pairs(StratifiedCV(nfolds=10), 1:8, y[1:8]),
+    )
+
 end
 
 @testset_accelerated "weights in evaluation" accel begin
