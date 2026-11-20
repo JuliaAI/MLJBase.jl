@@ -33,6 +33,11 @@ function shuffle_and_rng(shuffle, rng)
     return shuffle, rng
 end
 
+ERR_INSUFFICIENT_DATA_FOR_FOLDS(n_folds) = ArgumentError(
+    """Insufficient data for $n_folds-fold cross-validation.
+            Try reducing `nfolds`. """
+)
+
 # ----------------------------------------------------------------
 # InSample
 
@@ -187,12 +192,7 @@ function train_test_pairs(cv::CV, rows)
 
     n, r = divrem(n_obs, n_folds)
 
-    if n < 1
-        throw(ArgumentError(
-            """Insufficient data for $n_folds-fold cross-validation.
-            Try reducing nfolds. """
-        ))
-    end
+    n < 1 && throw(ERR_INSUFFICIENT_DATA_FOR_FOLDS(n_folds))
 
     m = n + 1 # number of observations in first r folds
 
@@ -291,13 +291,7 @@ function train_test_pairs(tscv::TimeSeriesCV, rows)
 
     m, r = divrem(n_obs, n_folds + 1)
 
-    if m < 1
-        throw(ArgumentError(
-            "Insufficient data for $n_folds-fold " *
-            "time-series cross-validation.\n" *
-            "Try reducing nfolds. "
-        ))
-    end
+    m < 1 && throw(ERR_INSUFFICIENT_DATA_FOR_FOLDS(n_folds))
 
     test_folds = Iterators.partition( m+r+1 : n_obs , m)
 
@@ -402,6 +396,7 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     n_folds = stratified_cv.nfolds
     n_obs = length(rows)
+    n_obs < n_folds && throw(ERR_INSUFFICIENT_DATA_FOR_FOLDS(n_folds))
     obs_per_fold = div(n_obs, n_folds)
 
     y_included = y[rows]
@@ -433,4 +428,3 @@ function train_test_pairs(stratified_cv::StratifiedCV, rows, y)
 
     [(complement(folds, i), folds[i]) for i in 1:n_folds]
 end
-
