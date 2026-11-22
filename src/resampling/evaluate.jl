@@ -787,7 +787,7 @@ function evaluate!(
             ŷ = yhat_given_operation[op]
 
             # per_fold measurements:
-            per_fold = m(
+            local per_fold = m(
                 ŷ,
                 ytest,
                 _view(weights, test),
@@ -798,7 +798,7 @@ function evaluate!(
 
             # per_observation_measurements:
             if per_observation_flag
-                per_observation = StatisticalMeasuresBase.measurements(
+                local per_observation = StatisticalMeasuresBase.measurements(
                     m,
                     ŷ,
                     ytest,
