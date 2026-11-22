@@ -270,7 +270,7 @@ which can be a single measure or vector. Returns a [`PerformanceEvaluation`](@re
 this object, suitable for tabulation, apply [`describe`](@ref).
 
 In place of `mach`, one can use `tag_string => mach`, or a vector of either of these forms,
-to return a vector of performance evaluation objects. 
+to return a vector of performance evaluation objects.
 
 Available resampling strategies are $RESAMPLING_STRATEGIES_LIST. If `resampling` is not an
 instance of one of these, then a vector of tuples of the form `(train_rows, test_rows)`
@@ -584,7 +584,7 @@ function _next!(p)
     ProgressMeter.updateProgress!(p)
 end
 
-function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
+function _evaluate!(func, mach, ::CPU1, nfolds, verbosity, per_observation_flag)
     if verbosity > 0
         p = Progress(
             nfolds,
@@ -597,7 +597,7 @@ function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
     end
 
     ret = mapreduce(vcat, 1:nfolds) do k
-        r = func(mach, k)
+        r = func(mach, k, per_observation_flag)
         verbosity < 1 || _next!(p)
         return [r, ]
     end
@@ -606,7 +606,7 @@ function _evaluate!(func, mach, ::CPU1, nfolds, verbosity)
 
 end
 
-function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
+function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity, per_observation_flag)
 
     local ret
     @sync begin
@@ -630,7 +630,7 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
         end
 
         ret = @distributed vcat for k in 1:nfolds
-            r = func(mach, k)
+            r = func(mach, k, per_observation_flag)
             verbosity < 1 || put!(channel, true)
             [r, ]
         end
@@ -641,17 +641,15 @@ function _evaluate!(func, mach, ::CPUProcesses, nfolds, verbosity)
     return zip(ret...) |> collect
 end
 
-@static if VERSION >= v"1.3.0-DEV.573"
-
 # determines if an instantiated machine caches data:
 _caches_data(::Machine{<:Any,<:Any,C}) where C = C
 
-function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
+function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity, per_observation_flag)
 
     nthreads = Threads.nthreads()
 
     if nthreads == 1
-        return _evaluate!(func, mach, CPU1(), nfolds, verbosity)
+        return _evaluate!(func, mach, CPU1(), nfolds, verbosity, per_observation_flag)
     end
 
     ntasks = accel.settings
@@ -672,14 +670,14 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
     @sync begin
         # printing the progress bar
-        verbosity < 1 || @async begin
+        verbosity < 1 || Threads.@spawn begin
             while take!(ch)
                 _next!(p)
             end
         end
 
         clean!(mach.model)
-        # One tmach for each task:
+        # One mach for each task:
         machines = vcat(
             mach,
             [
@@ -691,7 +689,7 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
         @sync for (i, parts) in enumerate(partitions)
             Threads.@spawn begin
                 results[i] = mapreduce(vcat, parts) do k
-                    r = func(machines[i], k)
+                    r = func(machines[i], k, per_observation_flag)
                     verbosity < 1 || put!(ch, true)
                     [r, ]
                 end
@@ -709,7 +707,6 @@ function _evaluate!(func, mach, accel::CPUThreads, nfolds, verbosity)
 
 end
 
-end
 # ------------------------------------------------------------
 # Core `evaluation` method, operating on train-test pairs
 
@@ -771,7 +768,8 @@ function evaluate!(
 
     nmeasures = length(measures)
 
-    function fit_and_extract_on_fold(mach, k)
+    function fit_and_extract_on_fold(mach, k, per_observation_flag)
+#        debug = Any[]                # debugging line (1 of 4)
         train, test = resampling[k]
         fit!(mach; rows=train, verbosity=verbosity - 1, force=force)
         ntest = MLJBase.nrows(test)
@@ -785,29 +783,39 @@ function evaluate!(
         # from `nothing`.
 
         ytest = selectrows(y, test)
-        if per_observation_flag
-            measurements =  map(measures, operations) do m, op
-                StatisticalMeasuresBase.measurements(
+        measurements = map(measures, operations) do m, op
+            ŷ = yhat_given_operation[op]
+
+            # per_fold measurements:
+            local per_fold = m(
+                ŷ,
+                ytest,
+                _view(weights, test),
+                class_weights,
+            )
+
+#            push!(debug, (;k, per_fold)) # debugging line (2 of 4)
+
+            # per_observation_measurements:
+            if per_observation_flag
+                local per_observation = StatisticalMeasuresBase.measurements(
                     m,
-                    yhat_given_operation[op],
+                    ŷ,
                     ytest,
                     _view(weights, test),
                     class_weights,
                 )
+            else
+                per_observation = nothing
             end
-        else
-            measurements =  map(measures, operations) do m, op
-                m(
-                    yhat_given_operation[op],
-                    ytest,
-                    _view(weights, test),
-                    class_weights,
-                )
-            end
+
+            (per_fold, per_observation)
         end
 
         fp = fitted_params(mach)
         r = report(mach)
+#        push!(debug, first.(measurements))  # debugging line (3 of 4)
+#        return (measurements, fp, debug)    # dubugging line (4 of 4)
         return (measurements, fp, r)
     end
 
@@ -817,7 +825,7 @@ function evaluate!(
                   "among $(nworkers()) workers."
         end
     end
-     if acceleration isa CPUThreads
+    if acceleration isa CPUThreads
         if verbosity > 0
             nthreads = Threads.nthreads()
             @info "Performing evaluations " *
@@ -825,54 +833,51 @@ function evaluate!(
         end
     end
 
+    # Each element of `measurements_vector_of_named_tuples` below corresponds to a
+    # distinct fold, and is a vector of 2-tuples, one for each measure. Each tuple is of
+    # the form `(per_fold, per_observation)`, where:
+    #
+    # - `per_fold` is a single measurement
+    #
+    # - `per_observation` is a vector of measurements, one for each observation,
+    #    unless `per_observation_flag=false`, in which case it is `misssing`:
+
     measurements_vector_of_vectors, fitted_params_per_fold, report_per_fold  =
         _evaluate!(
             fit_and_extract_on_fold,
             mach,
             acceleration,
             nfolds,
-            verbosity
+            verbosity,
+            per_observation_flag,
         )
 
     measurements_flat = vcat(measurements_vector_of_vectors...)
 
     # In the `measurements_matrix` below, rows=folds, columns=measures; each element of
-    # the matrix is:
+    # the matrix is a named tuple of the form `(per_fold=..., per_observation=...)` as
+    # described above.
     #
-    # - a vector of meausurements, one per observation within a fold, if
-    # - `per_observation_flag = true`; or
-    #
-    # - a single measurment for the whole fold, if `per_observation_flag = false`.
-    #
+
     measurements_matrix = permutedims(
         reshape(collect(measurements_flat), (nmeasures, nfolds))
     )
 
-    # measurements for each observation:
-    per_observation = if per_observation_flag
-       map(1:nmeasures) do k
-           measurements_matrix[:,k]
-       end
-    else
-        fill(missing, nmeasures)
-    end
-
     # measurements for each fold:
-    per_fold = if per_observation_flag
-        map(1:nmeasures) do k
-            m = measures[k]
-            mode = StatisticalMeasuresBase.external_aggregation_mode(m)
-            map(per_observation[k]) do v
-                StatisticalMeasuresBase.aggregate(v; mode)
-            end
-        end
-    else
-        map(1:nmeasures) do k
-            measurements_matrix[:,k]
-        end
+    per_fold = map(1:nmeasures) do k
+            first.(measurements_matrix[:,k])
     end
 
-    # overall aggregates:
+    # measurements for each observation:
+    if per_observation_flag
+        per_observation =  map(1:nmeasures) do k
+            last.(measurements_matrix[:,k])
+        end
+    else
+        per_observation =  fill(missing, nmeasures)
+    end
+
+    # aggregates over all folds:
     per_measure = map(1:nmeasures) do k
         m = measures[k]
         mode = StatisticalMeasuresBase.external_aggregation_mode(m)

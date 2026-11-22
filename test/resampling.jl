@@ -129,7 +129,7 @@ end
 @everywhere begin
     nfolds = 6
     nmeasures = 2
-    func(mach, k) = (
+    func(mach, k, per_observation_flag) = (
         (sleep(MLJBase.PROG_METER_DT*rand(rng)); fill(1:k, nmeasures)),
         :fitted_params,
         :report,
@@ -144,15 +144,16 @@ end
 
     mach = machine(ConstantRegressor(), X, y)
     if accel isa CPUThreads
-        result = MLJBase._evaluate!(
+        global result = MLJBase._evaluate!(
             func,
             mach,
             CPUThreads(Threads.nthreads()),
             nfolds,
-            1
+            1,
+            true,
         )
     else
-        result = MLJBase._evaluate!(func, mach, accel, nfolds, 1)
+        global result = MLJBase._evaluate!(func, mach, accel, nfolds, 1, true)
     end
     measurements = vcat(result[1]...)
     @test measurements ==
@@ -979,7 +980,7 @@ y = coerce([1, 2, 2, 2, 1, 2, 1, 2, 1, 1], Multiclass)
     end
 end
 
-bogus(yhat, y) = [1,]
+bogus(yhat, y) = [1.0,]
 # The measures that get stored in a PerformanceEvaluation object are the user-specified
 # measures wrapped in `robust_measure(...)`!
 MLJBase._repr_(::API.RobustMeasure{<:typeof(bogus)}) = "bogus"
