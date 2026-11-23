@@ -227,6 +227,15 @@ end
     @test isempty(w)
     @test unpack(small, ==(:x), ==(:y); shuffle=true, rng=StableRNG(66)) ==
         unpack(small, ==(:x), ==(:y); rng=StableRNG(66))
+
+    # string names:
+    x1 = categorical(["Female", "Male", "Female"])
+    x2 = [185, 160, 175]
+    x3 = [10.1, 27.1, 25.7]
+    table = NamedTuple{Symbol.(("Gender", "age (years)", "T / °C"))}((x1, x2, x3))
+    X1X2, X3 = unpack(table, !=("T / °C"), string_names=true)
+    @test X1X2 == selectcols(table, [1, 2])
+    @test X3 == x3
 end
 
 @testset "restrict and corestrict" begin
