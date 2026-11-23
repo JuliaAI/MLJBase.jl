@@ -1,6 +1,6 @@
 name = "MLJBase"
 uuid = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
-version = "1.15.2"
+version = "1.15.3"
 authors = ["Anthony D. Blaom <anthony.blaom@gmail.com>"]
 
 [deps]
@@ -63,7 +63,7 @@ Reexport = "1.2"
 ScientificTypes = "3"
 StatisticalMeasures = "0.3"
 StatisticalMeasuresBase = "0.1.1"
-StatisticalTraits = "3.4"
+StatisticalTraits = "3.4, 4"
 Statistics = "1"
 StatsBase = "0.32, 0.33, 0.34"
 Tables = "0.2, 1.0"
