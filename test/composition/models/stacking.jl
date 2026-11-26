@@ -204,7 +204,7 @@ end
                     models...)
 
     @test MLJBase.constructor(mystack) == MLJBase.stack_constructor
-    @test contains(MLJBase.docstring(mystack), "```julia\nStack")
+    @test contains(MLJBase.docstring(mystack), "Stack(; metalearner")
 
     @test mystack.ridge_lambda.lambda == 0.1
     @test mystack.metalearner isa FooBarRegressor
