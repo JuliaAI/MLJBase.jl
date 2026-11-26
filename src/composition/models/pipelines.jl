@@ -206,6 +206,15 @@ implements it (some clustering models). Similarly, calling `transform`
 on a supervised pipeline calls `transform` on the supervised
 component.
 
+### Supervised models acting as transformers
+
+One sometimes wants to include a supervised model, `model`, that implements `transform` in
+a pipeline, and for the output `transform`, rather than `predict`, to be propagated to the
+downstream model. Examples include MLJFlux.jl models, which learn entity embeddings for
+`Finite` input features, and any supervised model wrapped in
+[`RecursiveFeatureElimination`](@ref). In this case, use [`Transformer(model)`](@ref) in
+place of `model` in the pipeline.
+
 ### Transformers that need a target in training
 
 Some transformers that have type `Unsupervised` (so that the output of `transform` is
