@@ -134,7 +134,7 @@ const Stack{modelnames, inp_scitype, tg_scitype} = Union{
     ProbabilisticStack{modelnames, inp_scitype, tg_scitype}
 }
 
-function Stack(
+function stack_constructor(
     ;metalearner=nothing,
     resampling=CV(),
     measure=nothing,
@@ -190,6 +190,7 @@ function Stack(
     return stack
 end
 
+Stack(args...; kwargs...) = stack_constructor(args...; kwargs...)
 
 function MMI.clean!(stack::Stack{modelnames, inp_scitype, tg_scitype}) where {
     modelnames,
@@ -273,7 +274,7 @@ MMI.target_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) w
 MMI.input_scitype(::Type{<:Stack{modelnames, input_scitype, target_scitype}}) where
     {modelnames, input_scitype, target_scitype} = input_scitype
 
-MMI.constructor(::Type{<:Stack}) = Stack
+MMI.constructor(::Type{<:Stack}) = stack_constructor
 MLJBase.load_path(::Type{<:Stack}) = "MLJBase.Stack"
 MLJBase.package_name(::Type{<:Stack}) = "MLJBase"
 MLJBase.package_uuid(::Type{<:Stack}) = "a7f614a8-145f-11e9-1d2a-a57a1082229d"
@@ -663,5 +664,6 @@ report(mach).cv_report
 """
 
 @doc DOC_STACK Stack
+@doc DOC_STACK stack_constructor
 @doc DOC_STACK ProbabilisticStack
 @doc DOC_STACK DeterministicStack
